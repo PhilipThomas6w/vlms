@@ -18,9 +18,13 @@ Status: in progress
 
 ## Safeguarding & consent (MVP) — confirmed matching prior build's model
 
-- Annual parental consent record per student covering: photo/media consent, emergency medical info, dietary/SEN needs, transport/off-site trip consent, data-sharing consent.
-- DBS (Disclosure and Barring Service) check tracking for teachers.
-- Expiry monitoring: consent and DBS expiry are tracked, with escalating alerts, and **expired consent blocks lesson completion** for that student until renewed.
+Discrete `FR-nnn` numbering assigned here specifically (per design review), given the safeguarding weight of this module — other sections remain narrative pending fuller FR-nnn numbering before build.
+
+- **FR-001:** Annual parental consent record per student covering: photo/media consent, emergency medical info, dietary/SEN needs, transport/off-site trip consent, data-sharing consent. Approved by Safeguarding Officer or Admin only.
+- **FR-002:** DBS (Disclosure and Barring Service) check tracking for teachers. Whole-record access restricted to Admin and Safeguarding Officer only — Teacher and Approver have no access (`governance/security-compliance.md`).
+- **FR-003:** Expiry monitoring: consent and DBS expiry are tracked, with escalating alerts, and **expired consent blocks lesson completion** for that student until renewed.
+- **FR-004:** A `StudentGuardianLink` (parent-to-child relationship) is created only by Admin/Teacher at student registration — never by parent self-service — before a parent can access any progress, medical, or consent data for that child.
+- **FR-005:** Every read of a `DbsCheck` record, or of a `ConsentRecord`'s sensitive fields, is written to an audit log (who, what, when).
 
 ## Parent engagement (MVP)
 

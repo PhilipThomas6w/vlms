@@ -13,7 +13,7 @@ Status: strategy (design gate) — per ISO/IEC/IEEE 29119-3:2021. Completed with
 ## Environments
 
 - Local development (solo developer machine).
-- A single Azure staging slot (if the App Service tier supports it — [TBC: confirm once Standard tier is provisioned per `adr/0001-technology-stack.md` consequences]) before production.
+- **No Azure staging slot** — confirmed at design review: deployment slots require App Service Standard tier or above ([Deploy staging slots](https://learn.microsoft.com/azure/app-service/deploy-staging-slots)), and ADR-0001 selects Basic (B1), which has none. Testing goes local/dev → production directly; this is an accepted trade-off for cost at tens-of-users scale, not an oversight. Revisit if `adr/0001-technology-stack.md` is ever superseded by an upgrade to Standard tier.
 
 ## Entry/exit criteria (initial)
 
@@ -34,5 +34,8 @@ Status: strategy (design gate) — per ISO/IEC/IEEE 29119-3:2021. Completed with
 | TC-008 | Approver attempts to view/approve a `ConsentRecord` → denied (out of role remit) | NFR (security/access control) |
 | TC-009 | Consent/DBS expiry sweep flags and notifies correctly at threshold | FR (safeguarding & consent) |
 | TC-010 | At-risk flag raised after 8 weeks with no completion | FR (reporting) |
+| TC-011 | Any read of a `DbsCheck` record or a `ConsentRecord`'s masked fields writes a `SensitiveDataAccessLog` entry | `adr/0004-sensitive-data-access-control.md` |
+| TC-012 | A `StudentGuardianLink` cannot be created by parent self-service — only by Admin/Teacher at registration | `data-design.md` (Guardian link verification) |
+| TC-013 | A failed safeguarding-critical notification (expired consent/DBS) is retried, then escalated as a visible failure to Admin rather than silently dropped | `low-level-design.md` (NotificationService failure handling) |
 
 Full RTM: `quality/traceability.md`.

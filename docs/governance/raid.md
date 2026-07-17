@@ -4,7 +4,7 @@ Status: in progress (per ISO 31000:2018 — proportionate to a solo-delivered pr
 
 ## Risks
 
-- **R-001:** Special-category/children's data (safeguarding, medical, consent, DBS) is managed in-system; a data-protection failure has real safeguarding consequences, not just reputational cost. Mitigation approach: to be addressed in `governance/security-compliance.md` and via OWASP ASVS-aligned NFRs.
+- **R-001:** Special-category/children's data (safeguarding, medical, consent, DBS) is managed in-system; a data-protection failure has real safeguarding consequences, not just reputational cost. Mitigation: `governance/security-compliance.md`, OWASP ASVS-aligned NFRs, and — added at design review — structural access control (`adr/0004-sensitive-data-access-control.md`: EF Core global query filters + read audit log) and verified guardian-linking (`design/data-design.md`), closing two gaps the initial design left open (no read-audit trail; no verification that a self-registering parent was genuinely a child's guardian).
 - **R-002:** Solo developer/maintainer — no delivery redundancy. Bus-factor risk for ongoing operation and support.
 
 ## Assumptions
