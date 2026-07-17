@@ -6,7 +6,7 @@ Status: in progress
 
 - The system manages safeguarding/consent data directly: medical information, photo/media consent, dietary/SEN data, DBS (Disclosure and Barring Service) check records, emergency contact details. This is special-category and children's personal data.
 - Implication: UK GDPR / Data Protection Act 2018 obligations apply directly (lawful basis, special-category conditions, retention/deletion, data subject rights, likely a DPIA). **DPIA screening is tracked directly in `governance/raid.md` (D-003), owned by Philip, due before go-live** — not left as a forward reference to a document that doesn't exist yet.
-- Whole-entity access restriction on sensitive data, and **audit logging of reads** (not just writes) — confirmed as NFR-001 (`requirements/non-functional.md`), enforced via the `ConsentRecord`/`ConsentSensitiveDetails` entity split + EF Core global query filters + a `DbCommandInterceptor`-based `SensitiveDataAccessLog` (`adr/0004-sensitive-data-access-control.md`, `design/data-design.md`).
+- Whole-entity access restriction on sensitive data, and **audit logging of reads** (not just writes) — confirmed as NFR-001 (`requirements/non-functional.md`), enforced via the `ConsentRecord`/`ConsentSensitiveDetails` entity split + EF Core global query filters + an `IMaterializationInterceptor`-based `SensitiveDataAccessLog` (`adr/0004-sensitive-data-access-control.md`, `design/data-design.md`).
 - Confirmed: no external governing body/regulator (e.g. diocese, national youth-org policy) imposes rules beyond general UK law — general UK GDPR/DPA 2018 and safeguarding good practice is the applicable bar.
 
 ## Access control by role (confirmed)

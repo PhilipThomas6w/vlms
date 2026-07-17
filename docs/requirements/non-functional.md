@@ -13,7 +13,7 @@ Status: in progress (ISO/IEC 25010:2023 checklist)
 ## Security (NFR-001)
 
 - See `governance/security-compliance.md` for the safeguarding/consent data classification drivers (UK GDPR/DPA 2018, special-category and children's data).
-- Column-level access control/masking on sensitive fields, and audit logging of **reads** (not just writes) of `DbsCheck`/`ConsentRecord` sensitive data — confirmed as a firm NFR, enforced via `adr/0004-sensitive-data-access-control.md`.
+- Whole-entity access control/restriction on sensitive data, and audit logging of **reads** (not just writes) of `DbsCheck`/`ConsentSensitiveDetails` — confirmed as a firm NFR, enforced via `adr/0004-sensitive-data-access-control.md`. (Wording corrected at third design review: the original text said "column-level... `ConsentRecord`", which described the mechanism found not to work — see ADR-0004.)
 
 ## Compatibility (NFR-004)
 

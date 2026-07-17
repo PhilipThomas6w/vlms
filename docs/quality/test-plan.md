@@ -34,7 +34,7 @@ Status: strategy (design gate) — per ISO/IEC/IEEE 29119-3:2021. Completed with
 | TC-008 | Approver attempts to view/approve a `ConsentRecord` or `ConsentSensitiveDetails` → denied (out of role remit) | NFR (security/access control) |
 | TC-009 | Consent/DBS expiry sweep flags and notifies correctly at threshold | FR (safeguarding & consent) |
 | TC-010 | At-risk flag raised after 8 weeks with no completion | FR (reporting) |
-| TC-011 | Any read of a `DbsCheck` or `ConsentSensitiveDetails` row writes a `SensitiveDataAccessLog` entry via the `DbCommandInterceptor` | `adr/0004-sensitive-data-access-control.md` |
+| TC-011 | Any read of a `DbsCheck` or `ConsentSensitiveDetails` row writes a `SensitiveDataAccessLog` entry via the `IMaterializationInterceptor`, **including a multi-row read** (e.g. Safeguarding Officer lists several `DbsCheck` records) — one log entry per entity materialized, not just one for the query | `adr/0004-sensitive-data-access-control.md` |
 | TC-012 | A `StudentGuardianLink` cannot be created by parent self-service — only by Admin/Teacher at registration | `data-design.md` (Guardian link verification) |
 | TC-013 | A failed safeguarding-critical notification (expired consent/DBS) is retried, then escalated as a visible failure to Admin rather than silently dropped | `low-level-design.md` (NotificationService failure handling) |
 | TC-014 | Attempting `UPDATE`/`DELETE` against `SensitiveDataAccessLog` as the application's database principal is denied | `adr/0004-sensitive-data-access-control.md` (tamper protection) |
