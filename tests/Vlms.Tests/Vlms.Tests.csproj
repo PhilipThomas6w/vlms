@@ -12,6 +12,9 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.0" />
+    <!-- Pinned up from the vulnerable 2.1.11 pulled in transitively (GHSA-2m69-gcr7-jv3q) -->
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.3" />
   </ItemGroup>
 
   <ItemGroup>
@@ -20,6 +23,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Vlms.Domain\Vlms.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Vlms.Infrastructure\Vlms.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

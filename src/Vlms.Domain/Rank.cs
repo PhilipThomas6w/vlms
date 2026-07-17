@@ -7,5 +7,8 @@ public sealed class Rank
     public required string Code { get; init; }
     public required string Name { get; init; }
 
+    public ICollection<Lesson> Lessons { get; init; } = new List<Lesson>();
+    public ICollection<RankBadge> RankBadges { get; init; } = new List<RankBadge>();
+
     public bool IsBefore(Rank other) => Order < other.Order;
 }
