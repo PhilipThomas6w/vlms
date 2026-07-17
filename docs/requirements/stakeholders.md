@@ -12,10 +12,10 @@ Status: in progress
 Status: in progress — carried over from the prior build as a starting hypothesis, being confirmed for this rebuild:
 - Admin/Leader (Philip)
 - Teacher
-- Approver (content/consent approval — relationship to Teacher/Admin roles: [TBC])
+- Approver — **curriculum/lesson-change approval only**; no role in consent or DBS approval, and no access to DBS records
 - Parent/Guardian
 - Student
-- Safeguarding Officer (relationship to above roles: [TBC])
+- Safeguarding Officer — safeguarding/consent/DBS oversight; alongside Admin, one of only two roles with access to DBS records
 
 **Scale:** small — tens of users per role (not hundreds), at launch and expected over ~2 years.
 

@@ -13,7 +13,7 @@ Status: in progress
 
 - Auto-promotion: a student is automatically promoted to the next rank once every (active) lesson in their current rank is marked complete.
 - Certificates (per lesson completion) and badges (per rank promotion) are real tracked records in the system — not implicit/ad hoc — giving an audit trail of who received what and when.
-- The Teacher marks a lesson complete for a student, and can self-correct/reverse their own entry (e.g. within some reasonable window) — no separate correction gate through Admin. Evidence/notes requirement: [TBC].
+- The Teacher marks a lesson complete for a student, and can self-correct/reverse their own entry (e.g. within some reasonable window) — no separate correction gate through Admin. An evidence/note field is available but optional (low friction, not a mandatory audit gate).
 - Certificates are auto-generated documents (PDF, from a template) at completion time — not just a database record. This resolves the ambiguity in the prior build (which left certificate generation unspecified). Implies a template + document-generation component in design, and storage/delivery (download vs email) — [TBC design].
 
 ## Safeguarding & consent (MVP) — confirmed matching prior build's model
@@ -29,4 +29,4 @@ Status: in progress
 ## Reporting (MVP)
 
 - Core progress reports: rank/completion stats, promotion history.
-- At-risk/disengaged student flagging (e.g. no completions in N weeks) surfaced to Admin for proactive follow-up. Exact threshold N: [TBC].
+- At-risk/disengaged student flagging: no lesson completions within 8 weeks, surfaced to Admin for proactive follow-up.
