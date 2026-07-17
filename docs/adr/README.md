@@ -7,4 +7,4 @@ ADRs are added here as `NNNN-<slug>.md` in Nygard format (Context, Decision, Sta
 - `0001-technology-stack.md` — Blazor + Azure stack.
 - `0002-roles-as-application-claims.md` — user roles as application claims, not native Entra External ID groups.
 - `0003-scheduled-jobs-webjobs.md` — background/scheduled work via Azure App Service WebJobs.
-- `0004-sensitive-data-access-control.md` — EF Core global query filters + read audit log for `DbsCheck`/`ConsentRecord`.
+- `0004-sensitive-data-access-control.md` — `ConsentRecord`/`ConsentSensitiveDetails` entity split + EF Core global query filters + `IMaterializationInterceptor`-based read audit log for `DbsCheck`/`ConsentSensitiveDetails`.

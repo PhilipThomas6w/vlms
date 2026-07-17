@@ -24,7 +24,7 @@ Discrete `FR-nnn` numbering assigned here specifically (per design review), give
 - **FR-002:** DBS (Disclosure and Barring Service) check tracking for teachers. Whole-record access restricted to Admin and Safeguarding Officer only — Teacher and Approver have no access (`governance/security-compliance.md`).
 - **FR-003:** Expiry monitoring: consent and DBS expiry are tracked, with escalating alerts, and **expired consent blocks lesson completion** for that student until renewed.
 - **FR-004:** A `StudentGuardianLink` (parent-to-child relationship) is created only by Admin/Teacher at student registration — never by parent self-service — before a parent can access any progress, medical, or consent data for that child.
-- **FR-005:** Every read of a `DbsCheck` record, or of a `ConsentRecord`'s sensitive fields, is written to an audit log (who, what, when).
+- **FR-005:** Every read of a `DbsCheck` record, or of a `ConsentSensitiveDetails` record, is written to an audit log (who, what, when).
 
 ## Parent engagement (MVP)
 
