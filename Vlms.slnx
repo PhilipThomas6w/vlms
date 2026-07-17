@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Vlms.Domain/Vlms.Domain.csproj" />
+    <Project Path="src/Vlms.Infrastructure/Vlms.Infrastructure.csproj" />
+    <Project Path="src/Vlms.Web/Vlms.Web.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Vlms.Tests/Vlms.Tests.csproj" />
+  </Folder>
+</Solution>
