@@ -19,5 +19,5 @@ Status: in progress (per ISO 31000:2018 — proportionate to a solo-delivered pr
 
 ## Dependencies
 
-- **D-001:** Certificate PDF generation requires a template design and a document-generation approach — not yet selected (see `requirements/functional.md`).
-- **D-002:** Outbound transactional email capability (notifications, reminders, certificates) — provider not yet selected.
+- **D-001:** Certificate PDF generation approach selected (QuestPDF, `adr/0001-technology-stack.md`); a certificate template still needs to be designed before build (see `requirements/functional.md`).
+- **D-002:** Outbound transactional email provider selected (Azure Communication Services Email, `adr/0001-technology-stack.md`); a verified sending domain is still required before go-live (see `adr/0001-technology-stack.md` consequences).
