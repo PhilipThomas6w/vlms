@@ -10,7 +10,7 @@ Build the VLMS MVP per `docs/VISION.md`'s current-increment acceptance criteria:
 (none)
 
 ## Next
-1. Curriculum management: `LessonProposalService` (propose/approve/reject/resubmit) and the Teacher/Approver UI.
+1. Curriculum management: `LessonProposalService` (propose/approve/reject/resubmit) and the Teacher/Approver UI. **Note (checker finding, commit c318bc5 review):** `EntraCurrentUserContext` resolves the caller via `IHttpContextAccessor`, which is null outside the initial HTTP request in Blazor Server's interactive (SignalR circuit) render mode — fails closed (safe, not a security hole) but will functionally deny authorised users once this UI goes interactive. Fix by surfacing the authenticated user via `AuthenticationStateProvider`/persisted state instead, when building this item.
 2. Progress tracking: `CompletionService`, `PromotionService` (auto-promotion), `CertificateService` (QuestPDF PDF generation to Blob Storage).
 3. Guardian-link creation flow (Admin/Teacher only, at student registration) — FR-004.
 4. Safeguarding & consent: consent/DBS management UI, `ConsentExpiryJob` WebJob (expiry blocking, escalation, at-risk flagging at 8 weeks) — `docs/adr/0003-scheduled-jobs-webjobs.md`.
