@@ -19,6 +19,13 @@ Status: in progress (ISO/IEC 25010:2023 checklist)
 
 - Concrete conformance target, confirmed at design review (was previously unwalked): current versions of Chrome, Edge, Safari, and Firefox, on Windows, macOS, iOS, and Android, per [Blazor supported platforms](https://learn.microsoft.com/aspnet/core/blazor/supported-platforms) — matches the phone/tablet/browser access requirement in `requirements/constraints.md` without committing to legacy-browser support no user of this system needs.
 
-## Performance, scalability, maintainability
+## Performance, scalability
 
 Status: carried forward, not yet walked in detail — scale is small (tens of users per role, see `stakeholders.md`), so demanding performance/throughput targets are unlikely to be the binding constraint. Acceptable to firm up at the delivery gate rather than block design approval.
+
+## Other ISO/IEC 25010:2023 characteristics (addressed, not silently omitted)
+
+- **Functional suitability:** covered by `requirements/functional.md` (FR-001–005 and narrative requirements) and `quality/traceability.md`, not repeated here.
+- **Maintainability:** solo-maintainer constraint is the dominant driver of several architecture decisions already (ADR-0001 stack choice, ADR-0003 WebJobs over Functions, ADR-0004's structural-not-per-call enforcement) — treated as a cross-cutting design principle rather than a separate testable NFR.
+- **Flexibility (scalability beyond the stated horizon):** explicitly not a design goal — `raid.md` A-002 states the ~2-year, tens-of-users horizon is what the architecture targets; scaling further is future rework, not a current requirement.
+- **Safety:** no physical/operational safety characteristics apply to this system beyond the safeguarding *data* handling already covered under Security — noted here as genuinely not applicable, not overlooked.

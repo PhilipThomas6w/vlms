@@ -4,7 +4,7 @@ Status: in progress (per ISO 31000:2018 — proportionate to a solo-delivered pr
 
 ## Risks
 
-- **R-001:** Special-category/children's data (safeguarding, medical, consent, DBS) is managed in-system; a data-protection failure has real safeguarding consequences, not just reputational cost. Mitigation: `governance/security-compliance.md`, OWASP ASVS-aligned NFRs, and — added at design review — structural access control (`adr/0004-sensitive-data-access-control.md`: EF Core global query filters + read audit log) and verified guardian-linking (`design/data-design.md`), closing two gaps the initial design left open (no read-audit trail; no verification that a self-registering parent was genuinely a child's guardian).
+- **R-001:** Special-category/children's data (safeguarding, medical, consent, DBS) is managed in-system; a data-protection failure has real safeguarding consequences, not just reputational cost. Mitigation: `governance/security-compliance.md`, OWASP ASVS-aligned NFRs, and — added across two design-review passes — the `ConsentRecord`/`ConsentSensitiveDetails` entity split with structural whole-entity access control (`adr/0004-sensitive-data-access-control.md`: EF Core global query filters + `DbCommandInterceptor`-based read audit log) and verified guardian-linking (`design/data-design.md`), closing gaps the initial design left open (no read-audit trail; no verification that a self-registering parent was genuinely a child's guardian; a masking mechanism that couldn't actually mask individual columns).
 - **R-002:** Solo developer/maintainer — no delivery redundancy. Bus-factor risk for ongoing operation and support.
 
 ## Assumptions
@@ -21,3 +21,4 @@ Status: in progress (per ISO 31000:2018 — proportionate to a solo-delivered pr
 
 - **D-001:** Certificate PDF generation approach selected (QuestPDF, `adr/0001-technology-stack.md`); a certificate template still needs to be designed before build (see `requirements/functional.md`).
 - **D-002:** Outbound transactional email provider selected (Azure Communication Services Email, `adr/0001-technology-stack.md`); a verified sending domain is still required before go-live (see `adr/0001-technology-stack.md` consequences).
+- **D-003 (added at second design review):** DPIA (Data Protection Impact Assessment) screening against ICO guidance is required given special-category and children's data are processed (UK GDPR Art. 35). **Owner: Philip. Due: before go-live**, not deferred to an undated future document — this is a dated, owned commitment recorded here directly rather than a forward reference to `delivery-plan.md`.
