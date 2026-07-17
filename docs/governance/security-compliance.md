@@ -1,3 +1,10 @@
 # Security & Compliance Assessment
 
-Status: not yet started
+Status: in progress
+
+## Data classification drivers (confirmed in scope)
+
+- The system manages safeguarding/consent data directly: medical information, photo/media consent, dietary/SEN data, DBS (Disclosure and Barring Service) check records, emergency contact details. This is special-category and children's personal data.
+- Implication: UK GDPR / Data Protection Act 2018 obligations apply directly (lawful basis, special-category conditions, retention/deletion, data subject rights, likely a DPIA). To be confirmed with Microsoft Learn / ICO guidance during design, not assumed.
+- Column-level access control / masking on sensitive fields, and audit logging of access, was a hard requirement in the prior build — carried forward as a hypothesis for NFR-nnn, to be confirmed.
+- Confirmed: no external governing body/regulator (e.g. diocese, national youth-org policy) imposes rules beyond general UK law — general UK GDPR/DPA 2018 and safeguarding good practice is the applicable bar.
