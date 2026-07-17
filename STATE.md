@@ -18,6 +18,7 @@ Build the VLMS MVP per `docs/VISION.md`'s current-increment acceptance criteria:
 7. Reporting screens: core progress stats + at-risk flagging.
 8. PWA manifest/service worker for installability (deferred design detail from ADR-0001).
 9. Wire the `build/verify.ps1` full-only stage: WCAG 2.2 AA accessibility check and an OWASP ASVS 5.0 access-control review, ahead of the delivery gate.
+10. Add ADR-0004 §4's database-level tamper protection (`DENY UPDATE`/`DELETE` on `SensitiveDataAccessLogs` for the app's SQL principal) via migration SQL — flagged by checker review as named in the ADR but not yet implemented (`src/Vlms.Infrastructure/Migrations/20260717224824_InitialCreate.cs`).
 
 ## Blocked / needs decision
 (none)
