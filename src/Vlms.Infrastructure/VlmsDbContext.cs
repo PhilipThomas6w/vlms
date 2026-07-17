@@ -79,6 +79,9 @@ public sealed class VlmsDbContext : DbContext
             e.Property(x => x.Id).ValueGeneratedNever();
             e.HasOne(x => x.CurrentRank).WithMany().HasForeignKey(x => x.CurrentRankId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(x => x.AssignedTeacherUser).WithMany().HasForeignKey(x => x.AssignedTeacherUserId).OnDelete(DeleteBehavior.Restrict);
+            // Self-login link (added during implementation to support self/parent login — see
+            // data-design.md and STATE.md).
+            e.HasOne(x => x.AppUser).WithMany().HasForeignKey(x => x.AppUserId).OnDelete(DeleteBehavior.Restrict);
             e.HasMany(x => x.Completions).WithOne(x => x.Student).HasForeignKey(x => x.StudentId).OnDelete(DeleteBehavior.Cascade);
             e.HasMany(x => x.RankProgressHistory).WithOne(x => x.Student).HasForeignKey(x => x.StudentId).OnDelete(DeleteBehavior.Cascade);
             e.HasMany(x => x.Badges).WithOne(x => x.Student).HasForeignKey(x => x.StudentId).OnDelete(DeleteBehavior.Cascade);
@@ -89,6 +92,9 @@ public sealed class VlmsDbContext : DbContext
         {
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
+            // Parent-login link (added during implementation to support self/parent login — see
+            // data-design.md and STATE.md).
+            e.HasOne(x => x.AppUser).WithMany().HasForeignKey(x => x.AppUserId).OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<StudentGuardianLink>(e =>

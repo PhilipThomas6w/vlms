@@ -11,8 +11,8 @@ Relational model in Azure SQL Database, accessed via EF Core (see `adr/0001-tech
 | `Rank` | Id, Order, Code, Name | The 10-level progression ladder. |
 | `Lesson` | Id, RankId, Code, Title, ContentBlobKey, IsActive | Current live version of a lesson's content. |
 | `LessonChangeProposal` | Id, LessonId (nullable — null for a brand-new lesson), ProposedByUserId, ChangeType (Create/Edit/Retire), ProposedContent, Status (Pending/Approved/Rejected), ApproverUserId, ApprovalComments, SubmittedAt, DecidedAt, ResubmissionOfProposalId (self-referencing) | Any Teacher proposes; only Approver decides. Rejection supports comments + resubmission via `ResubmissionOfProposalId` chaining back to the original. Approving applies `ProposedContent` onto `Lesson`. |
-| `Student` | Id, Name, DOB, CurrentRankId, Status (Active/Inactive/Graduated), EnrolmentDate, AssignedTeacherUserId | Duplicate-matching on Name+DOB at registration (carried over as a hypothesis — confirm at build time). |
-| `ParentGuardian` | Id, Name, ContactInfo, IsPrimary | |
+| `Student` | Id, Name, DOB, CurrentRankId, Status (Active/Inactive/Graduated), EnrolmentDate, AssignedTeacherUserId, AppUserId (nullable) | Duplicate-matching on Name+DOB at registration (carried over as a hypothesis — confirm at build time). `AppUserId` added during implementation to support self/parent login — see STATE.md. |
+| `ParentGuardian` | Id, Name, ContactInfo, IsPrimary, AppUserId (nullable) | `AppUserId` added during implementation to support self/parent login — see STATE.md. |
 | `StudentGuardianLink` | StudentId, ParentGuardianId, CreatedByUserId | Many-to-many: a parent may have several children; a student may have more than one guardian. **Created only by Admin/Teacher** (at student registration), never by parent self-service — a parent cannot self-declare a relationship to a child. See "Guardian link verification" below. |
 | `StudentLessonCompletion` | Id, StudentId, LessonId, CompletedByUserId, CompletedAt, Note (optional), IsReversed, ReversedAt | Teacher marks and can self-correct (`IsReversed`/`ReversedAt`) — no separate Admin correction gate. |
 | `Certificate` | Id, StudentLessonCompletionId, GeneratedAt, BlobKey (PDF) | Auto-generated on completion (QuestPDF). Real tracked record, not implicit. |
@@ -33,7 +33,7 @@ Relational model in Azure SQL Database, accessed via EF Core (see `adr/0001-tech
 - `Student` 1:N `StudentLessonCompletion`, 1:N `StudentRankProgress`, 1:N `StudentBadge`, 1:N `ConsentRecord`; N:N `ParentGuardian` via `StudentGuardianLink`.
 - `ConsentRecord` 1:1 `ConsentSensitiveDetails` (the entity split described above).
 - `StudentLessonCompletion` 1:1 `Certificate` (nullable until generated).
-- `AppUser` 1:N `UserRole`; referenced by `Student.AssignedTeacherUserId`, `LessonChangeProposal.ProposedByUserId`/`ApproverUserId`, `StudentLessonCompletion.CompletedByUserId`, `ConsentRecord.ApprovedByUserId`, `DbsCheck.TeacherUserId`.
+- `AppUser` 1:N `UserRole`; referenced by `Student.AssignedTeacherUserId`, `Student.AppUserId` (self-login), `ParentGuardian.AppUserId` (parent-login), `LessonChangeProposal.ProposedByUserId`/`ApproverUserId`, `StudentLessonCompletion.CompletedByUserId`, `ConsentRecord.ApprovedByUserId`, `DbsCheck.TeacherUserId`.
 
 ## Sensitive-entity access restriction (corrected at second design review)
 

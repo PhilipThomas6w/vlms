@@ -19,6 +19,10 @@
     </PackageReference>
     <!-- Pinned up from the vulnerable 9.0.0 pulled in transitively (GHSA-37gx-xxp4-5rgx / GHSA-w3x6-4m5h-cxqf) -->
     <PackageReference Include="System.Security.Cryptography.Xml" Version="10.0.10" />
+    <!-- Authorization requirements/handlers (Vlms.Infrastructure.Authorization) — the standalone
+         package (not a FrameworkReference to the whole ASP.NET Core shared framework) so this
+         stays a plain class library. -->
+    <PackageReference Include="Microsoft.AspNetCore.Authorization" Version="10.0.0" />
   </ItemGroup>
 
 </Project>

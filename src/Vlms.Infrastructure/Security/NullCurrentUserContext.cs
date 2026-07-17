@@ -10,6 +10,8 @@ namespace Vlms.Infrastructure.Security;
 /// </summary>
 public sealed class NullCurrentUserContext : ICurrentUserContext
 {
+    public static readonly NullCurrentUserContext Instance = new();
+
     public int? UserId => null;
 
     public bool HasRole(Role role) => false;
