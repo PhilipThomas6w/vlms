@@ -29,6 +29,12 @@
          Security/AuthenticationStatePrincipalResolver.cs). Also a standalone package, not a
          FrameworkReference. -->
     <PackageReference Include="Microsoft.AspNetCore.Components.Authorization" Version="10.0.0" />
+    <!-- Certificate PDF generation (adr/0001-technology-stack.md), Community licence — see
+         Progress/CertificateService.cs for where QuestPDF.Settings.License is set. -->
+    <PackageReference Include="QuestPDF" Version="2026.7.1" />
+    <!-- Azure Blob Storage (adr/0001-technology-stack.md) — backs IBlobStorage's real
+         implementation, Storage/AzureBlobStorage.cs. -->
+    <PackageReference Include="Azure.Storage.Blobs" Version="12.29.1" />
   </ItemGroup>
 
 </Project>
