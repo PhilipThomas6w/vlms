@@ -9,6 +9,7 @@ using Vlms.Infrastructure.Authorization;
 using Vlms.Infrastructure.Curriculum;
 using Vlms.Infrastructure.Guardianship;
 using Vlms.Infrastructure.Provisioning;
+using Vlms.Infrastructure.Registration;
 using Vlms.Infrastructure.Security;
 using Vlms.Web.Components;
 
@@ -54,6 +55,11 @@ builder.Services.AddScoped<LessonProposalService>();
 
 // --- Guardian-link creation (functional.md FR-004, data-design.md "Guardian link verification")
 builder.Services.AddScoped<GuardianLinkService>();
+
+// --- Student registration/enrolment (data-design.md Student/StudentRankProgress, STATE.md) —
+// creates the Student, opens their first StudentRankProgress row, and creates a guardian link via
+// GuardianLinkService above (reused, not duplicated).
+builder.Services.AddScoped<StudentRegistrationService>();
 
 // --- Authorization: one policy per Role.Enum value (role-based), plus a resource-based
 // StudentAccess policy (Parent/Student/Teacher handlers) — docs/design/low-level-design.md
