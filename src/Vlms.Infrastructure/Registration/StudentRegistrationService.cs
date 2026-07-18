@@ -13,6 +13,15 @@ namespace Vlms.Infrastructure.Registration;
 /// "Guardian link verification" wording that the Admin/Teacher enters the guardian's details at the
 /// same time as the student's.
 ///
+/// Atomicity: the Student/StudentRankProgress write and the guardian-link write are two separate
+/// <c>SaveChangesAsync</c> calls against the same <see cref="VlmsDbContext"/> instance (this service
+/// and the injected <see cref="GuardianLinkService"/> share one DI-scoped context — see
+/// <c>Program.cs</c>'s <c>AddScoped</c> registrations). Both entry points below wrap both calls in a
+/// single <c>Database.BeginTransactionAsync</c>/<c>CommitAsync</c>, so a failure in the guardian step
+/// (blank guardian name, an unknown <c>parentGuardianId</c>) rolls back the Student/
+/// StudentRankProgress rows too — no orphaned Student with no guardian link, and no risk of a
+/// duplicate Student from a UI retry after a partial failure.
+///
 /// Starting rank: data-design.md documents <see cref="Rank.Order"/> as already fully describing
 /// ladder position ("the next rank" for <see cref="Vlms.Infrastructure.Progress.PromotionService"/>
 /// is the Rank with the smallest Order greater than the current one) but does not explicitly name
@@ -69,11 +78,23 @@ public sealed class StudentRegistrationService
         RequireAdminOrTeacher();
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
+        // Atomicity: Student+StudentRankProgress and the guardian link are two separate
+        // SaveChangesAsync calls (the second inside GuardianLinkService, reused rather than
+        // duplicated). Wrapped in one explicit transaction, shared via the same VlmsDbContext
+        // instance GuardianLinkService is constructed over, so a failure in the guardian step
+        // (blank name, unknown parentGuardianId) rolls back the Student/StudentRankProgress rows
+        // too, instead of leaving an orphaned Student with no guardian link. `await using` disposes
+        // (and thus rolls back, per IDbContextTransaction) without an explicit catch if we never
+        // reach CommitAsync.
+        await using var transaction = await _db.Database.BeginTransactionAsync(ct);
+
         var (student, progress) = await CreateStudentAndOpenRankProgressAsync(
             name, dateOfBirth, enrolmentDate, assignedTeacherUserId, ct);
 
         var (guardian, link) = await _guardianLinks.RegisterGuardianAndLinkAsync(
             student.Id, guardianName, guardianContactInfo, guardianIsPrimary, ct);
+
+        await transaction.CommitAsync(ct);
 
         return (student, progress, guardian, link);
     }
@@ -90,10 +111,18 @@ public sealed class StudentRegistrationService
         RequireAdminOrTeacher();
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
+        // Same atomicity reasoning as RegisterStudentWithNewGuardianAsync above: an unknown
+        // parentGuardianId throws inside GuardianLinkService.CreateLinkAsync's SingleAsync lookup,
+        // after the Student/StudentRankProgress rows already exist in this same transaction — the
+        // rollback on Dispose (never reaching CommitAsync) undoes those too.
+        await using var transaction = await _db.Database.BeginTransactionAsync(ct);
+
         var (student, progress) = await CreateStudentAndOpenRankProgressAsync(
             name, dateOfBirth, enrolmentDate, assignedTeacherUserId, ct);
 
         var link = await _guardianLinks.CreateLinkAsync(student.Id, parentGuardianId, ct);
+
+        await transaction.CommitAsync(ct);
 
         return (student, progress, link);
     }

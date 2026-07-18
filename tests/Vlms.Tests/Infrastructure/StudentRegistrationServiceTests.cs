@@ -163,6 +163,8 @@ public sealed class StudentRegistrationServiceTests : IDisposable
 
         using var verify = CreateContext(1, Role.Admin);
         Assert.Empty(verify.Context.Students.Where(s => s.Name == "Nope Student"));
+        Assert.Empty(verify.Context.StudentRankProgresses);
+        Assert.Empty(verify.Context.ParentGuardians.Where(g => g.Name == "Nope Parent"));
     }
 
     [Fact]
@@ -210,6 +212,50 @@ public sealed class StudentRegistrationServiceTests : IDisposable
             () => sut.RegisterStudentWithNewGuardianAsync(
                 "   ", new DateOnly(2012, 1, 1), new DateOnly(2024, 1, 1), assignedTeacherUserId: null,
                 "New Parent", "new@example.com", guardianIsPrimary: false, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task RegisterStudentWithNewGuardianAsync_BlankGuardianName_ThrowsAndCreatesNoRows()
+    {
+        // The atomicity property that matters here: CreateStudentAndOpenRankProgressAsync's
+        // SaveChangesAsync already ran (Student/StudentRankProgress pending) by the time
+        // GuardianLinkService.RegisterGuardianAndLinkAsync's ArgumentException.ThrowIfNullOrWhiteSpace
+        // throws on the blank guardian name. Both entry points wrap the whole operation in one
+        // Database.BeginTransactionAsync/CommitAsync, so the un-committed transaction must roll back
+        // and leave zero rows of any kind — not an orphaned Student with no guardian link.
+        using var admin = CreateContext(1, Role.Admin);
+        var sut = admin.Service;
+
+        await Assert.ThrowsAsync<ArgumentException>(
+            () => sut.RegisterStudentWithNewGuardianAsync(
+                "Orphan Risk Student", new DateOnly(2012, 1, 1), new DateOnly(2024, 1, 1), assignedTeacherUserId: null,
+                "   ", "new@example.com", guardianIsPrimary: false, CancellationToken.None));
+
+        using var verify = CreateContext(1, Role.Admin);
+        Assert.Empty(verify.Context.Students.Where(s => s.Name == "Orphan Risk Student"));
+        Assert.Empty(verify.Context.StudentRankProgresses);
+        Assert.Empty(verify.Context.StudentGuardianLinks);
+        Assert.Empty(verify.Context.ParentGuardians.Where(g => g.ContactInfo == "new@example.com"));
+    }
+
+    [Fact]
+    public async Task RegisterStudentWithExistingGuardianAsync_UnknownParentGuardianId_ThrowsAndCreatesNoRows()
+    {
+        // Same atomicity property via the other entry point: GuardianLinkService.CreateLinkAsync's
+        // SingleAsync lookup throws on an unknown parentGuardianId, after the Student/
+        // StudentRankProgress rows already exist (uncommitted) in the same shared transaction.
+        using var admin = CreateContext(1, Role.Admin);
+        var sut = admin.Service;
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => sut.RegisterStudentWithExistingGuardianAsync(
+                "Orphan Risk Student 2", new DateOnly(2012, 1, 1), new DateOnly(2024, 1, 1), assignedTeacherUserId: null,
+                parentGuardianId: 999, CancellationToken.None));
+
+        using var verify = CreateContext(1, Role.Admin);
+        Assert.Empty(verify.Context.Students.Where(s => s.Name == "Orphan Risk Student 2"));
+        Assert.Empty(verify.Context.StudentRankProgresses);
+        Assert.Empty(verify.Context.StudentGuardianLinks);
     }
 
     [Fact]
