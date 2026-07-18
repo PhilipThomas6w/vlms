@@ -4,12 +4,28 @@ Blazor Web App, **Server** interactivity (not Auto/WebAssembly — see [architec
 
 ## Current state
 
-Only `Program.cs` has VLMS-specific content (DI wiring for `VlmsDbContext`, `ICurrentUserContext`, authorization policies, Entra sign-in — see [authentication-authorization.md](authentication-authorization.md)). `Components/Pages/` still holds the unmodified template pages (`Home.razor`, `Error.razor`, `NotFound.razor`) plus `Components/Layout/`, `Components/App.razor`, `Components/Routes.razor` — none of it is VLMS UI yet. The first real UI work is `STATE.md` Next item 1 (curriculum management / Teacher-Approver screens).
+`Program.cs` has the DI wiring (`VlmsDbContext`, `ICurrentUserContext`, authorization policies, `LessonProposalService`, Entra sign-in, cascading authentication state — see [authentication-authorization.md](authentication-authorization.md)). `Components/Pages/` holds the template's `Error.razor`/`NotFound.razor` plus VLMS UI: `Home.razor` (role-gated links via `AuthorizeView`) and `Components/Pages/Curriculum/` (`TeacherProposals.razor`, `ApproverProposals.razor` — see [curriculum.md](curriculum.md)). `Components/Routes.razor` uses `AuthorizeRouteView`, not a plain `RouteView` — see below.
 
 ## `appsettings.json`
 
 `AzureAd` section is placeholder-only — `PLACEHOLDER-*` values, explicit comment pointing at Key Vault for real secrets. `ConnectionStrings:VlmsDatabase` is a local/dev connection string, not real Azure SQL credentials. Do not commit real values here; this file is meant to stay safe to commit as-is.
 
-## Before writing any interactive page against the authorization policies
+## Page-level authorization: `AuthorizeRouteView` + `[Authorize(Policy = "...")]`
 
-Read [authentication-authorization.md](authentication-authorization.md)'s "Known gap" section first. `EntraCurrentUserContext` as currently wired via `IHttpContextAccessor` will silently deny every role check once a component runs in interactive (SignalR circuit) mode. This needs fixing (via `AuthenticationStateProvider`/persisted circuit state) as part of building the first interactive page, not discovered by debugging a mysterious "why can't the Teacher see anything" bug later.
+`Routes.razor`'s `<Router>` uses `<AuthorizeRouteView>` (not `<RouteView>`), with a `<NotAuthorized>`
+fragment. This is what makes a page's `@attribute [Authorize(Policy = "RequireTeacher")]` (or any
+policy from `Program.cs`'s per-`Role` policy set) actually enforced — a plain `RouteView` ignores
+`[Authorize]` attributes entirely. `AuthorizeRouteView` also supplies the
+`Task<AuthenticationState>` cascading parameter that `AuthorizeView`/`[Authorize]` need, sourced
+from `builder.Services.AddCascadingAuthenticationState()` in `Program.cs`.
+
+## Resolving the caller in interactive components (fixed)
+
+This codebase originally resolved the current-request `ClaimsPrincipal` via
+`IHttpContextAccessor.HttpContext?.User`, which silently denied every role check once a component
+ran in Blazor Server's interactive (SignalR circuit) render mode (`IHttpContextAccessor.HttpContext`
+is null there). Fixed by resolving via `AuthenticationStateProvider` instead — see
+[authentication-authorization.md](authentication-authorization.md)'s "Resolving the caller's
+ClaimsPrincipal" section for the full mechanism and why it's safe. There is no longer a known gap
+here; if you're building a new interactive page against `ICurrentUserContext`/the authorization
+policies, it works the same in static SSR and interactive render — no special handling needed.

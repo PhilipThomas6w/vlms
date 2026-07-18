@@ -3,8 +3,9 @@ namespace Vlms.Domain;
 /// <summary>
 /// Resolves the current caller's identity and role(s) for use by EF Core global query filters
 /// and the sensitive-data read-audit interceptor (adr/0004-sensitive-data-access-control.md).
-/// The real Entra External ID-backed implementation is a later STATE.md item — for now,
-/// Vlms.Infrastructure provides a no-op, deny-by-default implementation.
+/// Vlms.Infrastructure provides two implementations: <c>EntraCurrentUserContext</c> (real,
+/// Entra External ID-backed) and <c>NullCurrentUserContext</c> (deny-by-default, for design-time/
+/// migration tooling — never wired as the runtime context).
 /// </summary>
 public interface ICurrentUserContext
 {

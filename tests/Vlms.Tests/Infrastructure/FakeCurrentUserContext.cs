@@ -2,8 +2,9 @@ using Vlms.Domain;
 
 namespace Vlms.Tests.Infrastructure;
 
-/// <summary>Configurable <see cref="ICurrentUserContext"/> test double — a real Entra-backed
-/// implementation is a later STATE.md item; this stands in for it in tests.</summary>
+/// <summary>Configurable <see cref="ICurrentUserContext"/> test double, used throughout this test
+/// project instead of the real Entra-backed <c>EntraCurrentUserContext</c> — simpler to construct
+/// directly with an arbitrary user id/role set.</summary>
 public sealed class FakeCurrentUserContext : ICurrentUserContext
 {
     private readonly HashSet<Role> _roles;

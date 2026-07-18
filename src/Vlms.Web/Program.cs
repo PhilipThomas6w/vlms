@@ -1,10 +1,12 @@
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Identity.Web;
 using Vlms.Domain;
 using Vlms.Infrastructure;
 using Vlms.Infrastructure.Authorization;
+using Vlms.Infrastructure.Curriculum;
 using Vlms.Infrastructure.Provisioning;
 using Vlms.Infrastructure.Security;
 using Vlms.Web.Components;
@@ -15,26 +17,35 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
+// Cascading authentication state — the mechanism that fixes the interactive-render-mode gap below
+// (see AuthenticationStatePrincipalResolver's doc comment). Equivalent to placing a
+// <CascadingAuthenticationState> at the root of the component tree; Routes.razor's
+// AuthorizeRouteView consumes the resulting Task<AuthenticationState> cascading parameter.
+builder.Services.AddCascadingAuthenticationState();
+
 // --- Data access (adr/0001-technology-stack.md: Azure SQL Database) -------------------------
 builder.Services.AddDbContext<VlmsDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("VlmsDatabase")));
 
 // --- Current-user context: EntraCurrentUserContext (not NullCurrentUserContext, which stays
 // reserved for design-time/migration use in VlmsDbContextFactory) is what VlmsDbContext resolves
-// at runtime here, per adr/0004-sensitive-data-access-control.md. Built from the current
-// request's ClaimsPrincipal + a fresh DbContextOptions<VlmsDbContext> — never the DI-resolved
-// VlmsDbContext instance itself, to avoid a circular resolution (see EntraCurrentUserContext's
-// doc comment). ---------------------------------------------------------------------------
-builder.Services.AddHttpContextAccessor();
+// at runtime here, per adr/0004-sensitive-data-access-control.md. Built from the current circuit's
+// ClaimsPrincipal (via AuthenticationStateProvider, not IHttpContextAccessor — see
+// AuthenticationStatePrincipalResolver's doc comment for why) + a fresh
+// DbContextOptions<VlmsDbContext> — never the DI-resolved VlmsDbContext instance itself, to avoid
+// a circular resolution (see EntraCurrentUserContext's doc comment). ---------------------------
 builder.Services.AddScoped<ICurrentUserContext>(sp =>
 {
-    var httpContextAccessor = sp.GetRequiredService<IHttpContextAccessor>();
-    var principal = httpContextAccessor.HttpContext?.User ?? new System.Security.Claims.ClaimsPrincipal();
+    var authenticationStateProvider = sp.GetRequiredService<AuthenticationStateProvider>();
+    var principal = AuthenticationStatePrincipalResolver.Resolve(authenticationStateProvider);
     var dbContextOptions = sp.GetRequiredService<DbContextOptions<VlmsDbContext>>();
     return new EntraCurrentUserContext(principal, dbContextOptions);
 });
 
 builder.Services.AddScoped<UserProvisioningService>();
+
+// --- Curriculum management workflow (docs/design/low-level-design.md "LessonProposalService")
+builder.Services.AddScoped<LessonProposalService>();
 
 // --- Authorization: one policy per Role.Enum value (role-based), plus a resource-based
 // StudentAccess policy (Parent/Student/Teacher handlers) — docs/design/low-level-design.md

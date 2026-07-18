@@ -1,7 +1,15 @@
 ﻿@page "/"
+@rendermode InteractiveServer
 
 <PageTitle>Home</PageTitle>
 
 <h1>Hello, world!</h1>
 
 Welcome to your new app.
+
+<AuthorizeView Policy="RequireTeacher">
+    <p><a href="/curriculum/teacher">Propose a lesson change</a></p>
+</AuthorizeView>
+<AuthorizeView Policy="RequireApprover">
+    <p><a href="/curriculum/approver">Curriculum approvals</a></p>
+</AuthorizeView>

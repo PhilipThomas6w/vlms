@@ -1,0 +1,298 @@
+@page "/curriculum/teacher"
+@attribute [Authorize(Policy = "RequireTeacher")]
+@rendermode InteractiveServer
+@using System.ComponentModel.DataAnnotations
+@using System.Text.Json
+@using Microsoft.EntityFrameworkCore
+@using Vlms.Domain
+@using Vlms.Infrastructure
+@using Vlms.Infrastructure.Curriculum
+@inject VlmsDbContext Db
+@inject ICurrentUserContext CurrentUser
+@inject LessonProposalService ProposalService
+
+<PageTitle>Propose a lesson change</PageTitle>
+
+<h1>Curriculum: propose a lesson change</h1>
+
+<p>
+    Any Teacher can propose that a lesson be created, edited, or retired. An Approver then
+    approves or rejects the proposal (with comments). A rejected proposal can be revised and
+    resubmitted.
+</p>
+
+@if (_errorMessage is not null)
+{
+    <p class="error" role="alert">@_errorMessage</p>
+}
+
+<h2>Lessons</h2>
+<table>
+    <thead>
+        <tr>
+            <th>Code</th>
+            <th>Title</th>
+            <th>Rank</th>
+            <th>Status</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var lesson in _lessons)
+        {
+            <tr>
+                <td>@lesson.Code</td>
+                <td>@lesson.Title</td>
+                <td>@lesson.Rank?.Name</td>
+                <td>@(lesson.IsActive ? "Active" : "Retired")</td>
+                <td>
+                    <button type="button" @onclick="() => StartEdit(lesson)">Propose edit</button>
+                    @if (lesson.IsActive)
+                    {
+                        <button type="button" @onclick="() => StartRetire(lesson)">Propose retirement</button>
+                    }
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<button type="button" @onclick="StartCreate">Propose new lesson</button>
+
+@if (_form is not null)
+{
+    <h2>@_formTitle</h2>
+    <EditForm Model="_form" OnValidSubmit="SubmitProposalAsync">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        @if (_form.ChangeType == LessonChangeType.Create)
+        {
+            <div>
+                <label for="rank">Rank</label>
+                <InputSelect id="rank" @bind-Value="_form.RankId">
+                    @foreach (var rank in _ranks)
+                    {
+                        <option value="@rank.Id">@rank.Name</option>
+                    }
+                </InputSelect>
+            </div>
+        }
+
+        <div>
+            <label for="code">Code</label>
+            <InputText id="code" @bind-Value="_form.Code" disabled="@(_form.ChangeType == LessonChangeType.Retire)" />
+        </div>
+        <div>
+            <label for="title">Title</label>
+            <InputText id="title" @bind-Value="_form.Title" disabled="@(_form.ChangeType == LessonChangeType.Retire)" />
+        </div>
+        <div>
+            <label for="contentBlobKey">Content location</label>
+            <InputText id="contentBlobKey" @bind-Value="_form.ContentBlobKey" disabled="@(_form.ChangeType == LessonChangeType.Retire)" />
+        </div>
+        @if (_form.ChangeType != LessonChangeType.Retire)
+        {
+            <div>
+                <label><InputCheckbox @bind-Value="_form.IsActive" /> Active</label>
+            </div>
+        }
+
+        <button type="submit">Submit proposal</button>
+        <button type="button" @onclick="CancelForm">Cancel</button>
+    </EditForm>
+}
+
+<h2>My proposals</h2>
+<table>
+    <thead>
+        <tr>
+            <th>Lesson</th>
+            <th>Type</th>
+            <th>Status</th>
+            <th>Submitted</th>
+            <th>Approver comments</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var proposal in _myProposals)
+        {
+            <tr>
+                <td>@(proposal.Lesson?.Title ?? "(new lesson)")</td>
+                <td>@proposal.ChangeType</td>
+                <td>@proposal.Status</td>
+                <td>@proposal.SubmittedAt.ToString("g")</td>
+                <td>@proposal.ApprovalComments</td>
+                <td>
+                    @if (proposal.Status == ProposalStatus.Rejected)
+                    {
+                        <button type="button" @onclick="() => StartResubmit(proposal)">Resubmit</button>
+                    }
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    private List<Lesson> _lessons = new();
+    private List<Rank> _ranks = new();
+    private List<LessonChangeProposal> _myProposals = new();
+    private ProposalFormModel? _form;
+    private string _formTitle = "";
+    private string? _errorMessage;
+    private int? _resubmitOriginalId;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _ranks = await Db.Ranks.OrderBy(r => r.Order).ToListAsync();
+        _lessons = await Db.Lessons.Include(l => l.Rank).OrderBy(l => l.Code).ToListAsync();
+
+        var userId = CurrentUser.UserId;
+        _myProposals = userId is null
+            ? new List<LessonChangeProposal>()
+            : await Db.LessonChangeProposals
+                .Include(p => p.Lesson)
+                .Where(p => p.ProposedByUserId == userId)
+                .OrderByDescending(p => p.SubmittedAt)
+                .ToListAsync();
+    }
+
+    private void StartCreate()
+    {
+        _errorMessage = null;
+        _resubmitOriginalId = null;
+        _formTitle = "Propose a new lesson";
+        _form = new ProposalFormModel
+        {
+            ChangeType = LessonChangeType.Create,
+            RankId = _ranks.FirstOrDefault()?.Id ?? 0,
+            IsActive = true
+        };
+    }
+
+    private void StartEdit(Lesson lesson)
+    {
+        _errorMessage = null;
+        _resubmitOriginalId = null;
+        _formTitle = $"Propose an edit to {lesson.Title}";
+        _form = new ProposalFormModel
+        {
+            ChangeType = LessonChangeType.Edit,
+            LessonId = lesson.Id,
+            RankId = lesson.RankId,
+            Code = lesson.Code,
+            Title = lesson.Title,
+            ContentBlobKey = lesson.ContentBlobKey,
+            IsActive = lesson.IsActive
+        };
+    }
+
+    private void StartRetire(Lesson lesson)
+    {
+        _errorMessage = null;
+        _resubmitOriginalId = null;
+        _formTitle = $"Propose retiring {lesson.Title}";
+        _form = new ProposalFormModel
+        {
+            ChangeType = LessonChangeType.Retire,
+            LessonId = lesson.Id,
+            RankId = lesson.RankId,
+            Code = lesson.Code,
+            Title = lesson.Title,
+            ContentBlobKey = lesson.ContentBlobKey,
+            IsActive = false
+        };
+    }
+
+    private void StartResubmit(LessonChangeProposal proposal)
+    {
+        _errorMessage = null;
+        _resubmitOriginalId = proposal.Id;
+        _formTitle = "Resubmit proposal";
+        var content = JsonSerializer.Deserialize<ProposedLessonContent>(proposal.ProposedContent)
+            ?? throw new InvalidOperationException("ProposedContent could not be parsed.");
+        _form = new ProposalFormModel
+        {
+            ChangeType = proposal.ChangeType,
+            LessonId = proposal.LessonId,
+            RankId = content.RankId ?? 0,
+            Code = content.Code,
+            Title = content.Title,
+            ContentBlobKey = content.ContentBlobKey,
+            IsActive = content.IsActive
+        };
+    }
+
+    private void CancelForm()
+    {
+        _form = null;
+        _resubmitOriginalId = null;
+        _errorMessage = null;
+    }
+
+    private async Task SubmitProposalAsync()
+    {
+        if (_form is null)
+        {
+            return;
+        }
+
+        _errorMessage = null;
+
+        var content = new ProposedLessonContent
+        {
+            RankId = _form.ChangeType == LessonChangeType.Create ? _form.RankId : null,
+            Code = _form.Code,
+            Title = _form.Title,
+            ContentBlobKey = _form.ContentBlobKey,
+            IsActive = _form.ChangeType == LessonChangeType.Retire ? false : _form.IsActive
+        };
+
+        try
+        {
+            if (_resubmitOriginalId is int originalId)
+            {
+                await ProposalService.ResubmitAsync(originalId, content);
+            }
+            else
+            {
+                await ProposalService.ProposeAsync(_form.LessonId, _form.ChangeType, content);
+            }
+
+            _form = null;
+            _resubmitOriginalId = null;
+            await LoadAsync();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+
+    /// <summary>
+    /// Mutable form-binding model — deliberately separate from
+    /// <see cref="ProposedLessonContent"/>, whose <c>required</c>/init-only members don't suit
+    /// EditForm two-way binding.
+    /// </summary>
+    private sealed class ProposalFormModel
+    {
+        public LessonChangeType ChangeType { get; set; }
+        public int? LessonId { get; set; }
+        public int RankId { get; set; }
+
+        [Required]
+        public string Code { get; set; } = "";
+
+        [Required]
+        public string Title { get; set; } = "";
+
+        [Required]
+        public string ContentBlobKey { get; set; } = "";
+
+        public bool IsActive { get; set; } = true;
+    }
+}

@@ -23,6 +23,12 @@
          package (not a FrameworkReference to the whole ASP.NET Core shared framework) so this
          stays a plain class library. -->
     <PackageReference Include="Microsoft.AspNetCore.Authorization" Version="10.0.0" />
+    <!-- AuthenticationStateProvider — resolves the caller's ClaimsPrincipal for Vlms.Web's
+         interactive Blazor Server render mode, replacing IHttpContextAccessor (which returns a
+         null HttpContext outside the initial request once a circuit is interactive — see
+         Security/AuthenticationStatePrincipalResolver.cs). Also a standalone package, not a
+         FrameworkReference. -->
+    <PackageReference Include="Microsoft.AspNetCore.Components.Authorization" Version="10.0.0" />
   </ItemGroup>
 
 </Project>

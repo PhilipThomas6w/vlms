@@ -10,10 +10,11 @@ Read order for a new session: `docs/VISION.md` → `STATE.md` → this index →
 - [domain.md](domain.md) — `Vlms.Domain`: entities, the `Role` enum, `ICurrentUserContext`.
 - [data-access.md](data-access.md) — `Vlms.Infrastructure`: `VlmsDbContext`, EF Core configuration, migrations.
 - [access-control.md](access-control.md) — the ADR-0004 sensitive-data mechanism: query filters + read-audit interceptor. Read this before touching anything near `DbsCheck`/`ConsentSensitiveDetails`/`SensitiveDataAccessLog`.
-- [authentication-authorization.md](authentication-authorization.md) — Entra External ID sign-in, `AppUser`/`UserRole` provisioning, role- and resource-based authorization.
-- [web.md](web.md) — `Vlms.Web`: `Program.cs` wiring, Blazor Server interactive render mode, a known gap to fix before this UI goes interactive.
+- [authentication-authorization.md](authentication-authorization.md) — Entra External ID sign-in, `AppUser`/`UserRole` provisioning, role- and resource-based authorization, and how the caller's `ClaimsPrincipal` is resolved for interactive Blazor Server components.
+- [web.md](web.md) — `Vlms.Web`: `Program.cs` wiring, Blazor Server interactive render mode, `AuthorizeRouteView`-based page gating.
+- [curriculum.md](curriculum.md) — `LessonProposalService` (propose/approve/reject/resubmit) and the Teacher/Approver pages.
 - [testing.md](testing.md) — test conventions: the SQLite-in-memory pattern, `FakeCurrentUserContext`, what "real, not tautological" means in this repo's tests.
 
 ## Current build state (as of this refresh)
 
-Two `STATE.md` items are Done: the EF Core data model + ADR-0004 access control, and Entra sign-in + provisioning + authorization. No UI beyond the Blazor Web App template scaffold exists yet — `Vlms.Web/Components/Pages/` still has the template's `Home.razor`/`Error.razor`/`NotFound.razor`, nothing VLMS-specific. See `STATE.md` for the live queue.
+Three `STATE.md` items are Done: the EF Core data model + ADR-0004 access control, Entra sign-in + provisioning + authorization, and curriculum management (`LessonProposalService` + Teacher/Approver pages, plus the interactive-render-mode auth-resolution fix it depended on). `Vlms.Web/Components/Pages/` has real VLMS UI now (`Home.razor`, `Curriculum/TeacherProposals.razor`, `Curriculum/ApproverProposals.razor`) alongside the template's `Error.razor`/`NotFound.razor`. See `STATE.md` for the live queue.

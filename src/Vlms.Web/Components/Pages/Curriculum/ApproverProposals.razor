@@ -1,0 +1,115 @@
+@page "/curriculum/approver"
+@attribute [Authorize(Policy = "RequireApprover")]
+@rendermode InteractiveServer
+@using Microsoft.EntityFrameworkCore
+@using Vlms.Domain
+@using Vlms.Infrastructure
+@using Vlms.Infrastructure.Curriculum
+@inject VlmsDbContext Db
+@inject LessonProposalService ProposalService
+
+<PageTitle>Curriculum approvals</PageTitle>
+
+<h1>Curriculum: pending proposals</h1>
+
+<p>
+    The Approver role decides curriculum proposals only — it has no consent, DBS, or safeguarding
+    access.
+</p>
+
+@if (_errorMessage is not null)
+{
+    <p class="error" role="alert">@_errorMessage</p>
+}
+
+<table>
+    <thead>
+        <tr>
+            <th>Lesson</th>
+            <th>Type</th>
+            <th>Proposed by</th>
+            <th>Submitted</th>
+            <th>Proposed content</th>
+            <th>Decision</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var proposal in _pending)
+        {
+            <tr>
+                <td>@(proposal.Lesson?.Title ?? "(new lesson)")</td>
+                <td>@proposal.ChangeType</td>
+                <td>@proposal.ProposedByUser?.DisplayName</td>
+                <td>@proposal.SubmittedAt.ToString("g")</td>
+                <td><pre>@proposal.ProposedContent</pre></td>
+                <td>
+                    <button type="button" @onclick="() => ApproveAsync(proposal.Id)">Approve</button>
+                    <br />
+                    <input type="text" placeholder="Rejection comments"
+                           value="@GetComments(proposal.Id)"
+                           @oninput="e => SetComments(proposal.Id, e.Value?.ToString())" />
+                    <button type="button" @onclick="() => RejectAsync(proposal.Id)">Reject</button>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    private List<LessonChangeProposal> _pending = new();
+    private readonly Dictionary<int, string> _comments = new();
+    private string? _errorMessage;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _pending = await Db.LessonChangeProposals
+            .Include(p => p.Lesson)
+            .Include(p => p.ProposedByUser)
+            .Where(p => p.Status == ProposalStatus.Pending)
+            .OrderBy(p => p.SubmittedAt)
+            .ToListAsync();
+    }
+
+    private string GetComments(int proposalId) => _comments.TryGetValue(proposalId, out var c) ? c : "";
+
+    private void SetComments(int proposalId, string? value) => _comments[proposalId] = value ?? "";
+
+    private async Task ApproveAsync(int proposalId)
+    {
+        _errorMessage = null;
+        try
+        {
+            await ProposalService.ApproveAsync(proposalId);
+            _comments.Remove(proposalId);
+            await LoadAsync();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+
+    private async Task RejectAsync(int proposalId)
+    {
+        _errorMessage = null;
+        var comments = GetComments(proposalId);
+        if (string.IsNullOrWhiteSpace(comments))
+        {
+            _errorMessage = "Rejection comments are required.";
+            return;
+        }
+
+        try
+        {
+            await ProposalService.RejectAsync(proposalId, comments);
+            _comments.Remove(proposalId);
+            await LoadAsync();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+}
