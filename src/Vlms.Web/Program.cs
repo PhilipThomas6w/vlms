@@ -29,17 +29,21 @@ builder.Services.AddDbContext<VlmsDbContext>(options =>
 
 // --- Current-user context: EntraCurrentUserContext (not NullCurrentUserContext, which stays
 // reserved for design-time/migration use in VlmsDbContextFactory) is what VlmsDbContext resolves
-// at runtime here, per adr/0004-sensitive-data-access-control.md. Built from the current circuit's
-// ClaimsPrincipal (via AuthenticationStateProvider, not IHttpContextAccessor — see
-// AuthenticationStatePrincipalResolver's doc comment for why) + a fresh
-// DbContextOptions<VlmsDbContext> — never the DI-resolved VlmsDbContext instance itself, to avoid
-// a circular resolution (see EntraCurrentUserContext's doc comment). ---------------------------
+// at runtime here, per adr/0004-sensitive-data-access-control.md. Built from the AuthenticationStateProvider
+// itself (not IHttpContextAccessor — see AuthenticationStatePrincipalResolver's doc comment for why)
+// + a fresh DbContextOptions<VlmsDbContext> — never the DI-resolved VlmsDbContext instance itself,
+// to avoid a circular resolution (see EntraCurrentUserContext's doc comment). Deliberately NOT
+// resolved here (i.e. no AuthenticationStatePrincipalResolver.Resolve call in this factory): that
+// shape regressed sign-in, because this factory also runs during the OIDC OnTokenValidated callback
+// (via UserProvisioningService -> VlmsDbContext -> ICurrentUserContext), which is not a rendered
+// Razor component's DI scope, and eagerly resolving here throws. EntraCurrentUserContext's
+// AuthenticationStateProvider constructor defers the resolve to first read of UserId/HasRole —
+// see its doc comment. -----------------------------------------------------------------------
 builder.Services.AddScoped<ICurrentUserContext>(sp =>
 {
     var authenticationStateProvider = sp.GetRequiredService<AuthenticationStateProvider>();
-    var principal = AuthenticationStatePrincipalResolver.Resolve(authenticationStateProvider);
     var dbContextOptions = sp.GetRequiredService<DbContextOptions<VlmsDbContext>>();
-    return new EntraCurrentUserContext(principal, dbContextOptions);
+    return new EntraCurrentUserContext(authenticationStateProvider, dbContextOptions);
 });
 
 builder.Services.AddScoped<UserProvisioningService>();

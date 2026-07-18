@@ -15,11 +15,12 @@ Find-or-create `AppUser` by Entra object ID. **A newly created `AppUser` gets ze
 ## `ICurrentUserContext` implementations
 
 - `NullCurrentUserContext` — deny-by-default, for design-time/migrations tooling and as an internal lookup-context (see [access-control.md](access-control.md)). Never wire as the runtime context.
-- `EntraCurrentUserContext` — the real one, resolves `UserId`/roles from `AppUser`/`UserRole` via the caller's `ClaimsPrincipal`, lazily and cached per request-scoped instance. Takes the `ClaimsPrincipal` directly (not `IHttpContextAccessor`) for testability — `Program.cs` is where the principal that's handed in gets resolved (see below).
+- `EntraCurrentUserContext` — the real one, resolves `UserId`/roles from `AppUser`/`UserRole` via the caller's `ClaimsPrincipal`, lazily and cached per instance. Two constructors: one takes an already-resolved `ClaimsPrincipal` directly (used by tests — no ASP.NET Core hosting needed); the other takes the `AuthenticationStateProvider` itself and is what `Program.cs` uses at runtime (see below) — it defers calling `AuthenticationStatePrincipalResolver.Resolve` until `UserId`/`HasRole` is actually *read*, not at construction.
 
 ## Resolving the caller's `ClaimsPrincipal`: `AuthenticationStateProvider`, not `IHttpContextAccessor`
 
-`Program.cs` builds `EntraCurrentUserContext` from a `ClaimsPrincipal` obtained via
+`Program.cs` builds `EntraCurrentUserContext` from the `AuthenticationStateProvider` itself, which
+internally resolves the `ClaimsPrincipal` via
 `AuthenticationStatePrincipalResolver.Resolve(AuthenticationStateProvider)`
 (`src/Vlms.Infrastructure/Security/AuthenticationStatePrincipalResolver.cs`), not
 `IHttpContextAccessor.HttpContext?.User`. This closes a gap the codebase originally shipped with
@@ -39,12 +40,36 @@ Blazor Web App sample uses for a non-Identity authentication scheme.
 (`GetAwaiter().GetResult()`) on `GetAuthenticationStateAsync()` rather than awaiting it, because
 `ICurrentUserContext.HasRole`/`UserId` must stay synchronous (they run inside `VlmsDbContext`'s EF
 Core query filter lambdas — adr/0004-sensitive-data-access-control.md — which can't be made async).
-Safe here: by the time anything resolves `ICurrentUserContext`, the framework has already captured
-and stored the `AuthenticationState`, so the call returns an already-completed `Task` — no blocking
-on live I/O, no deadlock. Verified by `AuthenticationStatePrincipalResolverTests`
-(`tests/Vlms.Tests/Infrastructure/`), which resolves a role through `EntraCurrentUserContext` using
-only a fake `AuthenticationStateProvider` — no `IHttpContextAccessor`/`HttpContext` anywhere in the
-test's object graph, simulating the interactive-render condition end to end.
+**This is safe only for consumers that resolve `ICurrentUserContext` inside a rendered Razor
+component's DI scope** (interactive pages/policies, resource-based authorization handlers) — by
+that point the framework has already captured and stored the `AuthenticationState` via ASP.NET
+Core's built-in `ServerAuthenticationStateProvider`, so `GetAuthenticationStateAsync()` returns an
+already-completed `Task`: no blocking on live I/O, no deadlock. It is **not** safe in general: a
+checker round-trip (STATE.md's log, follow-up on commit d2adf82) found that this codebase
+originally called `AuthenticationStatePrincipalResolver.Resolve` *eagerly*, inside `Program.cs`'s
+`ICurrentUserContext` DI factory, before constructing `EntraCurrentUserContext`. That factory also
+runs during the OIDC `OnTokenValidated` callback (`UserProvisioningService` → `VlmsDbContext` →
+`ICurrentUserContext`), which is not a rendered component's DI scope — `ServerAuthenticationStateProvider`
+throws `InvalidOperationException` there ("Do not call GetAuthenticationStateAsync outside of the DI
+scope for a Razor component...") because no component has called `SetAuthenticationState` yet.
+Every sign-in threw, and no `AppUser`/`UserRole` rows were ever created.
+
+**The actual fix, and the property that now holds:** resolution is genuinely deferred, not merely
+moved. `EntraCurrentUserContext`'s `AuthenticationStateProvider` constructor stores the provider and
+only calls `AuthenticationStatePrincipalResolver.Resolve` inside its `Lazy<...>`, forced solely by a
+read of `UserId`/`HasRole`. `Program.cs`'s DI factory no longer calls `Resolve` itself — it just
+passes the `AuthenticationStateProvider` through. `UserProvisioningService` only touches
+`AppUser`/`UserRole` directly and never reads `ICurrentUserContext.UserId`/`HasRole`, so the OIDC
+path constructs `EntraCurrentUserContext` but never forces resolution — no throw, regardless of DI
+scope. Component-scope consumers (which do read `UserId`/`HasRole`) still land in the safe case
+described above. Verified by `AuthenticationStatePrincipalResolverTests`
+(`tests/Vlms.Tests/Infrastructure/`): a `FakeAuthenticationStateProvider` resolves a role through
+`EntraCurrentUserContext` with no `IHttpContextAccessor`/`HttpContext` anywhere in the object graph
+(the original interactive-render gap); a `ThrowingUntilPrimedAuthenticationStateProvider` reproduces
+the real `ServerAuthenticationStateProvider`'s unprimed-throw behaviour and proves both that
+constructing `EntraCurrentUserContext` against it never throws, and that the real
+`UserProvisioningService` → `VlmsDbContext` → `ICurrentUserContext` chain completes cleanly even
+though reading `UserId`/`HasRole` on that same instance would throw (the regression fix).
 
 Routes.razor uses `AuthorizeRouteView` (not a plain `RouteView`), which is what makes a page's
 `@attribute [Authorize(Policy = "...")]` actually enforced, cascading the resulting

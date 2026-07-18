@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Vlms.Domain;
 
@@ -11,11 +12,25 @@ namespace Vlms.Infrastructure.Security;
 /// filters and by the role/resource-based authorization handlers
 /// (adr/0002-roles-as-application-claims.md, adr/0004-sensitive-data-access-control.md).
 ///
-/// Takes a <see cref="ClaimsPrincipal"/> directly rather than depending on
-/// <c>IHttpContextAccessor</c> itself — Vlms.Web's Program.cs resolves the current request's
-/// principal and passes it in when constructing this per-request-scoped instance, which keeps
-/// this class trivially testable with a plain <see cref="ClaimsPrincipal"/> (no ASP.NET Core
-/// hosting needed).
+/// Two constructors:
+/// - <see cref="EntraCurrentUserContext(ClaimsPrincipal, DbContextOptions{VlmsDbContext})"/> takes
+///   an already-resolved <see cref="ClaimsPrincipal"/> directly — trivially testable, no ASP.NET
+///   Core hosting needed.
+/// - <see cref="EntraCurrentUserContext(AuthenticationStateProvider, DbContextOptions{VlmsDbContext})"/>
+///   takes the <see cref="AuthenticationStateProvider"/> itself and defers calling
+///   <see cref="AuthenticationStatePrincipalResolver.Resolve"/> until the principal is actually
+///   needed (first read of <see cref="UserId"/>/<see cref="HasRole"/>). This is the one
+///   Vlms.Web's Program.cs uses, and it is deliberately NOT "resolve eagerly in the DI factory,
+///   then pass the ClaimsPrincipal in" — that shape was tried and regressed sign-in (see
+///   openwiki/authentication-authorization.md and STATE.md's log for the checker round-trip that
+///   found it): ASP.NET Core's built-in <c>ServerAuthenticationStateProvider</c> throws
+///   <see cref="InvalidOperationException"/> from <c>GetAuthenticationStateAsync()</c> when called
+///   outside a rendered Razor component's DI scope — which is exactly the scope the OIDC
+///   <c>OnTokenValidated</c> handler runs in when it resolves
+///   <see cref="Provisioning.UserProvisioningService"/> → <see cref="VlmsDbContext"/> →
+///   <see cref="ICurrentUserContext"/>. <see cref="Provisioning.UserProvisioningService"/> never
+///   reads <see cref="UserId"/>/<see cref="HasRole"/>, so with resolution deferred to first read,
+///   that path never forces it and never throws.
 ///
 /// Looks up AppUser/UserRole via a short-lived <see cref="VlmsDbContext"/> of its own,
 /// constructed from <see cref="DbContextOptions{TContext}"/> (never the DI-resolved
@@ -39,6 +54,25 @@ public sealed class EntraCurrentUserContext : ICurrentUserContext
         ArgumentNullException.ThrowIfNull(dbContextOptions);
 
         _resolved = new Lazy<(int?, IReadOnlySet<Role>)>(() => Resolve(principal, dbContextOptions));
+    }
+
+    /// <summary>
+    /// Defers <see cref="AuthenticationStatePrincipalResolver.Resolve"/> until first read of
+    /// <see cref="UserId"/>/<see cref="HasRole"/> — construction itself never calls
+    /// <paramref name="authenticationStateProvider"/>. See the class doc comment for why this
+    /// matters for the OIDC provisioning path.
+    /// </summary>
+    public EntraCurrentUserContext(
+        AuthenticationStateProvider authenticationStateProvider, DbContextOptions<VlmsDbContext> dbContextOptions)
+    {
+        ArgumentNullException.ThrowIfNull(authenticationStateProvider);
+        ArgumentNullException.ThrowIfNull(dbContextOptions);
+
+        _resolved = new Lazy<(int?, IReadOnlySet<Role>)>(() =>
+        {
+            var principal = AuthenticationStatePrincipalResolver.Resolve(authenticationStateProvider);
+            return Resolve(principal, dbContextOptions);
+        });
     }
 
     public int? UserId => _resolved.Value.UserId;
