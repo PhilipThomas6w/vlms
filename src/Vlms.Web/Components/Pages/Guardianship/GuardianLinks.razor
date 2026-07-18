@@ -1,0 +1,173 @@
+@page "/guardianship/links"
+@attribute [Authorize(Policy = "RequireAdminOrTeacher")]
+@rendermode InteractiveServer
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.EntityFrameworkCore
+@using Vlms.Domain
+@using Vlms.Infrastructure
+@using Vlms.Infrastructure.Guardianship
+@inject VlmsDbContext Db
+@inject GuardianLinkService LinkService
+
+<PageTitle>Guardian links</PageTitle>
+
+<h1>Guardian links</h1>
+
+<p>
+    A <code>StudentGuardianLink</code> is created only by Admin or Teacher, at student
+    registration — never by parent self-service (functional.md FR-004). This is what a Parent's
+    later access to a child's progress/consent data depends on.
+</p>
+
+@if (_errorMessage is not null)
+{
+    <p class="error" role="alert">@_errorMessage</p>
+}
+
+<h2>Existing links</h2>
+<table>
+    <thead>
+        <tr>
+            <th>Student</th>
+            <th>Guardian</th>
+            <th>Primary</th>
+            <th>Created by</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var link in _links)
+        {
+            <tr>
+                <td>@link.Student?.Name</td>
+                <td>@link.ParentGuardian?.Name</td>
+                <td>@(link.ParentGuardian?.IsPrimary == true ? "Yes" : "No")</td>
+                <td>@link.CreatedByUser?.DisplayName</td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<h2>Create a guardian link</h2>
+<EditForm Model="_form" OnValidSubmit="SubmitAsync">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div>
+        <label for="student">Student</label>
+        <InputSelect id="student" @bind-Value="_form.StudentId">
+            @foreach (var student in _students)
+            {
+                <option value="@student.Id">@student.Name</option>
+            }
+        </InputSelect>
+    </div>
+
+    <InputRadioGroup @bind-Value="_form.LinkExistingGuardian">
+        <div>
+            <label><InputRadio Value="true" /> Link an existing guardian</label>
+        </div>
+        <div>
+            <label><InputRadio Value="false" /> Register a new guardian</label>
+        </div>
+    </InputRadioGroup>
+
+    @if (_form.LinkExistingGuardian)
+    {
+        <div>
+            <label for="guardian">Guardian</label>
+            <InputSelect id="guardian" @bind-Value="_form.ParentGuardianId">
+                @foreach (var guardian in _guardians)
+                {
+                    <option value="@guardian.Id">@guardian.Name</option>
+                }
+            </InputSelect>
+        </div>
+    }
+    else
+    {
+        <div>
+            <label for="guardianName">Guardian name</label>
+            <InputText id="guardianName" @bind-Value="_form.NewGuardianName" />
+        </div>
+        <div>
+            <label for="contactInfo">Contact info</label>
+            <InputText id="contactInfo" @bind-Value="_form.NewGuardianContactInfo" />
+        </div>
+        <div>
+            <label><InputCheckbox @bind-Value="_form.NewGuardianIsPrimary" /> Primary guardian</label>
+        </div>
+    }
+
+    <button type="submit">Create link</button>
+</EditForm>
+
+@code {
+    private List<Student> _students = new();
+    private List<ParentGuardian> _guardians = new();
+    private List<StudentGuardianLink> _links = new();
+    private LinkFormModel _form = new();
+    private string? _errorMessage;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _students = await Db.Students.OrderBy(s => s.Name).ToListAsync();
+        _guardians = await Db.ParentGuardians.OrderBy(g => g.Name).ToListAsync();
+        _links = await Db.StudentGuardianLinks
+            .Include(l => l.Student)
+            .Include(l => l.ParentGuardian)
+            .Include(l => l.CreatedByUser)
+            .ToListAsync();
+
+        if (_form.StudentId == 0)
+        {
+            _form.StudentId = _students.FirstOrDefault()?.Id ?? 0;
+        }
+
+        if (_form.ParentGuardianId == 0)
+        {
+            _form.ParentGuardianId = _guardians.FirstOrDefault()?.Id ?? 0;
+        }
+    }
+
+    private async Task SubmitAsync()
+    {
+        _errorMessage = null;
+
+        try
+        {
+            if (_form.LinkExistingGuardian)
+            {
+                await LinkService.CreateLinkAsync(_form.StudentId, _form.ParentGuardianId);
+            }
+            else
+            {
+                await LinkService.RegisterGuardianAndLinkAsync(
+                    _form.StudentId, _form.NewGuardianName, _form.NewGuardianContactInfo, _form.NewGuardianIsPrimary);
+            }
+
+            _form = new LinkFormModel();
+            await LoadAsync();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException or ArgumentException)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+
+    // NewGuardianName/NewGuardianContactInfo are deliberately not [Required]-annotated: they only
+    // apply in "register a new guardian" mode, and DataAnnotationsValidator has no notion of
+    // conditional requiredness — an unconditional [Required] here would reject a valid "link an
+    // existing guardian" submission where those fields are blank. GuardianLinkService itself
+    // guards against blank values via ArgumentException.ThrowIfNullOrWhiteSpace, caught above.
+    private sealed class LinkFormModel
+    {
+        public int StudentId { get; set; }
+        public bool LinkExistingGuardian { get; set; } = true;
+        public int ParentGuardianId { get; set; }
+        public string NewGuardianName { get; set; } = "";
+        public string NewGuardianContactInfo { get; set; } = "";
+        public bool NewGuardianIsPrimary { get; set; }
+    }
+}
