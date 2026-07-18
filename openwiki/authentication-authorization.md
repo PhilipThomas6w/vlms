@@ -93,3 +93,5 @@ All three were adversarially checked (Opus-model checker) for the specific failu
 ## Multi-role policy: `AnyRoleRequirement`/`AnyRoleAuthorizationHandler`
 
 The single-role machinery above (`RoleRequirement`/`RoleAuthorizationHandler`, one `RequireX` policy per `Role` value) can't express "Admin OR Teacher", needed for the guardian-links page (FR-004). Added `AnyRoleRequirement` (params `Role[]`, constructor-guarded against an empty list) and `AnyRoleAuthorizationHandler` (`src/Vlms.Infrastructure/Authorization/`) — additive, registered alongside `RoleAuthorizationHandler` in `Program.cs`, wired to a new `"RequireAdminOrTeacher"` policy. See [guardian-links.md](guardian-links.md).
+
+The same `AnyRoleRequirement`/`AnyRoleAuthorizationHandler` machinery also backs a second policy, `"RequireAdminOrSafeguardingOfficer"` (`Program.cs`), gating the consent/DBS management pages — matches the `VlmsDbContext` query filter on `DbsCheck`/`ConsentSensitiveDetails` exactly. See [safeguarding-consent.md](safeguarding-consent.md).

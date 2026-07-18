@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Vlms.Domain\Vlms.Domain.csproj" />
+    <ProjectReference Include="..\Vlms.Infrastructure\Vlms.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Generic host: configuration binding + console logging for the WebJob process
+         (adr/0003-scheduled-jobs-webjobs.md). Not the WebJobs SDK (Microsoft.Azure.WebJobs) — that
+         SDK adds an Azure Storage-backed dashboard/queue-trigger dependency this single daily
+         Triggered WebJob doesn't need; a plain console app driven by the classic settings.job
+         NCRONTAB schedule (see settings.job) is the "fewest moving parts" realisation of the ADR. -->
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="settings.job" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="appsettings.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

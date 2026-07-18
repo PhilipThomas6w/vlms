@@ -35,6 +35,10 @@
     <!-- Azure Blob Storage (adr/0001-technology-stack.md) — backs IBlobStorage's real
          implementation, Storage/AzureBlobStorage.cs. -->
     <PackageReference Include="Azure.Storage.Blobs" Version="12.29.1" />
+    <!-- ILogger<T> for ConsentExpiryJob's escalation logging (Safeguarding/ConsentExpiryJob.cs) —
+         explicit reference (rather than relying on it arriving transitively via EF Core) so this
+         class library's own dependencies are self-declared. -->
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.3" />
   </ItemGroup>
 
 </Project>

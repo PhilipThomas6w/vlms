@@ -21,6 +21,10 @@ Read `docs/adr/0004-sensitive-data-access-control.md` first — it went through 
 
 Deny-by-default (`HasRole` always false, `UserId` always null). Two legitimate uses: `VlmsDbContextFactory` (EF Core design-time/migrations tooling has no request context), and as the lookup-context argument inside `EntraCurrentUserContext.Resolve` (above). **Never** wire this as the runtime `ICurrentUserContext` in `Vlms.Web` — that would make every sensitive-data query silently return nothing for every user, which fails safe but breaks the app. `Program.cs` currently wires `EntraCurrentUserContext` correctly; if that ever changes, check why deliberately.
 
+## `SystemCurrentUserContext` (`src/Vlms.Infrastructure/Security/SystemCurrentUserContext.cs`)
+
+A third `ICurrentUserContext` implementation, added for the `ConsentExpiryJob` WebJob (see [safeguarding-consent.md](safeguarding-consent.md)) — a scheduled background job has no signed-in human caller, but it must legitimately read `DbsCheck` through the same filtered/audited path everything else uses (never `IgnoreQueryFilters()`). Unlike `NullCurrentUserContext`, it is not deny-by-default: `HasRole` returns true for exactly `Role.Admin` and `Role.SafeguardingOfficer` (precisely what the query filter above checks for) and false for everything else — narrowly scoped to what the job needs, not a general bypass. `UserId` is still null (no human to attribute the read to), which both `SensitiveDataAccessLog.UserId` and `ICurrentUserContext.UserId`'s own doc comment already model as a valid case. Only ever used by the `Vlms.Jobs` host — never wired into `Vlms.Web`.
+
 ## Retention and tamper protection (named in the ADR, not yet built)
 
 `SensitiveDataAccessLog` is meant to be retained 6 years and tamper-protected at the database permission level (`DENY UPDATE`/`DELETE` for the app's SQL principal). Neither is in the migrations yet — tracked as `STATE.md` Next item 9 (added after the first checker review flagged it as at risk of being forgotten).

@@ -10,6 +10,7 @@ using Vlms.Infrastructure.Curriculum;
 using Vlms.Infrastructure.Guardianship;
 using Vlms.Infrastructure.Provisioning;
 using Vlms.Infrastructure.Registration;
+using Vlms.Infrastructure.Safeguarding;
 using Vlms.Infrastructure.Security;
 using Vlms.Web.Components;
 
@@ -61,6 +62,12 @@ builder.Services.AddScoped<GuardianLinkService>();
 // GuardianLinkService above (reused, not duplicated).
 builder.Services.AddScoped<StudentRegistrationService>();
 
+// --- Consent/DBS management UI (STATE.md, functional.md FR-001/FR-002, data-design.md
+// ConsentRecord/ConsentSensitiveDetails/DbsCheck) — Admin/SafeguardingOfficer only, never the
+// Approver role (curriculum-only, CLAUDE.md Project Law).
+builder.Services.AddScoped<ConsentRecordService>();
+builder.Services.AddScoped<DbsCheckService>();
+
 // --- Authorization: one policy per Role.Enum value (role-based), plus a resource-based
 // StudentAccess policy (Parent/Student/Teacher handlers) — docs/design/low-level-design.md
 // "Authorization model", adr/0002-roles-as-application-claims.md. -----------------------------
@@ -82,6 +89,12 @@ builder.Services.AddAuthorization(options =>
     // Guardian-link creation page (FR-004): Admin or Teacher, never Parent self-service.
     options.AddPolicy("RequireAdminOrTeacher",
         policy => policy.Requirements.Add(new AnyRoleRequirement(Role.Admin, Role.Teacher)));
+
+    // Consent/DBS management pages (STATE.md, adr/0004-sensitive-data-access-control.md): matches
+    // the VlmsDbContext query filter on DbsCheck/ConsentSensitiveDetails exactly — Admin or
+    // SafeguardingOfficer, never Approver (curriculum-only) or Teacher.
+    options.AddPolicy("RequireAdminOrSafeguardingOfficer",
+        policy => policy.Requirements.Add(new AnyRoleRequirement(Role.Admin, Role.SafeguardingOfficer)));
 });
 
 // --- Authentication: Microsoft Entra External ID (CIAM) sign-in via Microsoft.Identity.Web,
