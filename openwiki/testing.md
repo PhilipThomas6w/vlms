@@ -17,6 +17,10 @@ If a new test needs a `VlmsDbContext`, copy this pattern rather than reinventing
 
 A minimal `ICurrentUserContext` test double: `new FakeCurrentUserContext(userId, params Role[] roles)`. Used to simulate "the caller" in tests — it only supplies role/identity data; the actual authorization/query-filter logic under test is always the real production code, never mocked. (Its doc comment, like `ICurrentUserContext.cs`'s, still says the real implementation is "a later STATE.md item" — stale now that `EntraCurrentUserContext` exists, harmless but worth a pass next time either file is touched.)
 
+## `ListLogger<T>` (`Infrastructure/ListLogger.cs`)
+
+A minimal `ILogger<T>` test double, same spirit as `FakeCurrentUserContext`/`InMemoryBlobStorage`: records every logged `(LogLevel, formatted message)` pair to a list so a test can assert on log severity (e.g. `ConsentExpiryJob`'s Error-vs-Warning escalation distinction, see [safeguarding-consent.md](safeguarding-consent.md)) without pulling in a mocking library.
+
 ## What "real, not tautological" means here (per two adversarial checker reviews)
 
 - Deny tests must exercise an actual mismatch (an unlinked `ParentGuardian`, a `Student` with a different `AppUserId`), not just "the mock returns false".
