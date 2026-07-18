@@ -27,9 +27,9 @@ The guardian-links page needs "Admin OR Teacher", which the existing single-role
 
 `src/Vlms.Web/Components/Pages/Guardianship/GuardianLinks.razor` (`/guardianship/links`), gated by `[Authorize(Policy = "RequireAdminOrTeacher")]` — no ad hoc role checks at the page level, same convention as the curriculum pages. Lists existing links, and a form to either link an existing guardian or register a new one, matching the service's two entry points. Linked from `Home.razor` via `<AuthorizeView Policy="RequireAdminOrTeacher">`.
 
-## Scope note (deliberate)
+## Scope note (deliberate, at the time this page was built)
 
-This service/page implement only the guardian-link creation flow FR-004 asks for — not `Student` or full `ParentGuardian` CRUD/registration (there is still no page to create a `Student` record at all; the page's student dropdown lists whatever `Student` rows already exist). In particular, this does **not** open a `Student`'s first `StudentRankProgress` row — `PromotionService`'s doc comment (see [progress-tracking.md](progress-tracking.md)) had flagged that precondition as expected to land with "student registration", but the actual STATE.md item scoped here was guardian-linking only, per explicit instruction. That precondition remains unaddressed, tracked as a new STATE.md Next item (student registration/enrolment flow).
+This service/page implemented only the guardian-link creation flow FR-004 asks for — not `Student` creation or full `ParentGuardian` CRUD/registration. In particular it did **not** open a `Student`'s first `StudentRankProgress` row — `PromotionService`'s doc comment (see [progress-tracking.md](progress-tracking.md)) had flagged that precondition as expected to land with "student registration". That gap is now closed by [student-registration.md](student-registration.md)'s `StudentRegistrationService`, which reuses this service's two entry points (`RegisterGuardianAndLinkAsync`/`CreateLinkAsync`) rather than duplicating them — this page (`GuardianLinks.razor`) still exists in its own right for linking a guardian to an already-registered `Student` (e.g. correcting/adding a link after the fact).
 
 ## Tests
 

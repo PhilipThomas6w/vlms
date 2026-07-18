@@ -1,0 +1,149 @@
+@page "/registration/students"
+@attribute [Authorize(Policy = "RequireAdminOrTeacher")]
+@rendermode InteractiveServer
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.EntityFrameworkCore
+@using Vlms.Domain
+@using Vlms.Infrastructure
+@using Vlms.Infrastructure.Registration
+@inject VlmsDbContext Db
+@inject StudentRegistrationService RegistrationService
+
+<PageTitle>Register a student</PageTitle>
+
+<h1>Register a student</h1>
+
+<p>
+    Registering a student creates their <code>Student</code> record, opens their first
+    <code>StudentRankProgress</code> row at the starting rank, and creates at least one
+    <code>StudentGuardianLink</code> — a guardian link is only ever created by Admin or Teacher,
+    never by parent self-service (functional.md FR-004).
+</p>
+
+@if (_errorMessage is not null)
+{
+    <p class="error" role="alert">@_errorMessage</p>
+}
+
+<h2>New student</h2>
+<EditForm Model="_form" OnValidSubmit="SubmitAsync">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div>
+        <label for="name">Student name</label>
+        <InputText id="name" @bind-Value="_form.Name" />
+    </div>
+    <div>
+        <label for="dob">Date of birth</label>
+        <InputDate id="dob" @bind-Value="_form.DateOfBirth" />
+    </div>
+    <div>
+        <label for="enrolmentDate">Enrolment date</label>
+        <InputDate id="enrolmentDate" @bind-Value="_form.EnrolmentDate" />
+    </div>
+
+    <h3>Guardian</h3>
+    <InputRadioGroup @bind-Value="_form.LinkExistingGuardian">
+        <div>
+            <label><InputRadio Value="true" /> Link an existing guardian</label>
+        </div>
+        <div>
+            <label><InputRadio Value="false" /> Register a new guardian</label>
+        </div>
+    </InputRadioGroup>
+
+    @if (_form.LinkExistingGuardian)
+    {
+        <div>
+            <label for="guardian">Guardian</label>
+            <InputSelect id="guardian" @bind-Value="_form.ParentGuardianId">
+                @foreach (var guardian in _guardians)
+                {
+                    <option value="@guardian.Id">@guardian.Name</option>
+                }
+            </InputSelect>
+        </div>
+    }
+    else
+    {
+        <div>
+            <label for="guardianName">Guardian name</label>
+            <InputText id="guardianName" @bind-Value="_form.NewGuardianName" />
+        </div>
+        <div>
+            <label for="contactInfo">Contact info</label>
+            <InputText id="contactInfo" @bind-Value="_form.NewGuardianContactInfo" />
+        </div>
+        <div>
+            <label><InputCheckbox @bind-Value="_form.NewGuardianIsPrimary" /> Primary guardian</label>
+        </div>
+    }
+
+    <button type="submit">Register student</button>
+</EditForm>
+
+@code {
+    private List<ParentGuardian> _guardians = new();
+    private StudentFormModel _form = new();
+    private string? _errorMessage;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _guardians = await Db.ParentGuardians.OrderBy(g => g.Name).ToListAsync();
+
+        if (_form.ParentGuardianId == 0)
+        {
+            _form.ParentGuardianId = _guardians.FirstOrDefault()?.Id ?? 0;
+        }
+    }
+
+    private async Task SubmitAsync()
+    {
+        _errorMessage = null;
+
+        try
+        {
+            if (_form.LinkExistingGuardian)
+            {
+                await RegistrationService.RegisterStudentWithExistingGuardianAsync(
+                    _form.Name, DateOnly.FromDateTime(_form.DateOfBirth), DateOnly.FromDateTime(_form.EnrolmentDate),
+                    assignedTeacherUserId: null, _form.ParentGuardianId);
+            }
+            else
+            {
+                await RegistrationService.RegisterStudentWithNewGuardianAsync(
+                    _form.Name, DateOnly.FromDateTime(_form.DateOfBirth), DateOnly.FromDateTime(_form.EnrolmentDate),
+                    assignedTeacherUserId: null, _form.NewGuardianName, _form.NewGuardianContactInfo, _form.NewGuardianIsPrimary);
+            }
+
+            _form = new StudentFormModel();
+            await LoadAsync();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException or ArgumentException)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+
+    // NewGuardianName/NewGuardianContactInfo/ParentGuardianId are deliberately not annotated as
+    // unconditionally [Required] — see GuardianLinks.razor's identical note: only one guardian
+    // branch applies per submission, and DataAnnotationsValidator has no notion of conditional
+    // requiredness. StudentRegistrationService/GuardianLinkService guard against blank values via
+    // ArgumentException.ThrowIfNullOrWhiteSpace, caught above.
+    private sealed class StudentFormModel
+    {
+        [Required]
+        public string Name { get; set; } = "";
+
+        public DateTime DateOfBirth { get; set; } = DateTime.Today.AddYears(-10);
+        public DateTime EnrolmentDate { get; set; } = DateTime.Today;
+        public bool LinkExistingGuardian { get; set; } = true;
+        public int ParentGuardianId { get; set; }
+        public string NewGuardianName { get; set; } = "";
+        public string NewGuardianContactInfo { get; set; } = "";
+        public bool NewGuardianIsPrimary { get; set; }
+    }
+}
