@@ -50,8 +50,9 @@ originally called `AuthenticationStatePrincipalResolver.Resolve` *eagerly*, insi
 `ICurrentUserContext` DI factory, before constructing `EntraCurrentUserContext`. That factory also
 runs during the OIDC `OnTokenValidated` callback (`UserProvisioningService` → `VlmsDbContext` →
 `ICurrentUserContext`), which is not a rendered component's DI scope — `ServerAuthenticationStateProvider`
-throws `InvalidOperationException` there ("Do not call GetAuthenticationStateAsync outside of the DI
-scope for a Razor component...") because no component has called `SetAuthenticationState` yet.
+throws `InvalidOperationException` there because no component has called `SetAuthenticationState` yet
+(the test double's message string approximates this for test purposes; it is not a verbatim quote of
+the framework's actual exception text — don't rely on matching it).
 Every sign-in threw, and no `AppUser`/`UserRole` rows were ever created.
 
 **The actual fix, and the property that now holds:** resolution is genuinely deferred, not merely
