@@ -90,4 +90,4 @@ whether the *design* is still sound, not just whether the code matches last time
 |---|---|---|
 | Philip Luke Thomas | 2026-07-19 | Initial checklist authored alongside the verify.ps1 gate stage. All items above checked against the codebase as it stood at this review; no gaps found beyond the already-tracked `STATE.md` Next item 1 (audit-log tamper protection SQL). |
 
-Reviewed-hash: 6145c2dd7d624087a624c54eb69c7ccec41056b5bd070accb0e9ca41072856d2
+Reviewed-hash: c34fd590399e87de84c068fb08adb89d337a1c4e407364e7381be4090ceb38ad

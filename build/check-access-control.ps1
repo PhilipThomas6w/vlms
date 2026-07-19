@@ -36,12 +36,15 @@ function RelativePath($fullName) {
 }
 
 # --- 1. Every routable page has [Authorize], except a deliberate, named allow-list ---------------
-$pagesRoot = Join-Path $repoRoot "src/Vlms.Web/Components/Pages"
+# Scans all of Components/, not just Components/Pages — the [Authorize] guarantee is about
+# @page-annotated files (the actual routing surface), not about which subdirectory convention
+# happens to hold them today.
+$componentsRoot = Join-Path $repoRoot "src/Vlms.Web/Components"
 # Home.razor: a shell page with no sensitive content of its own — every link on it is individually
 # gated by <AuthorizeView Policy="..."> per role, not a single page-level policy (see the page).
 # Error.razor / NotFound.razor: framework error pages, nothing sensitive to protect.
 $allowListedPages = @("Home.razor", "Error.razor", "NotFound.razor")
-$pageFiles = Get-ChildItem -Path $pagesRoot -Recurse -Filter "*.razor"
+$pageFiles = Get-ChildItem -Path $componentsRoot -Recurse -Filter "*.razor"
 
 foreach ($file in $pageFiles) {
     $content = Get-Content -Raw -LiteralPath $file.FullName
@@ -99,14 +102,14 @@ $hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Web/Program.cs")
 $hashedFiles += $pageFiles
 
 if ($PrintHash) {
-    $hash = Get-ChecklistSourceHash -Files $hashedFiles
+    $hash = Get-ChecklistSourceHash -Files $hashedFiles -RepoRoot $repoRoot
     Write-Host "Reviewed-hash: $hash"
     Write-Host "($($hashedFiles.Count) files hashed — paste the line above into docs/governance/asvs-access-control-checklist.md after reviewing it)"
     exit 0
 }
 
 $checklistPath = Join-Path $repoRoot "docs/governance/asvs-access-control-checklist.md"
-$checklistResult = Test-ChecklistCurrency -ChecklistPath $checklistPath -SourceFiles $hashedFiles
+$checklistResult = Test-ChecklistCurrency -ChecklistPath $checklistPath -SourceFiles $hashedFiles -RepoRoot $repoRoot
 if (-not $checklistResult.IsCurrent) {
     $failures += $checklistResult.Message
 }
