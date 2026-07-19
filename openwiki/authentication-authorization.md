@@ -80,7 +80,7 @@ Routes.razor uses `AuthorizeRouteView` (not a plain `RouteView`), which is what 
 
 - **Role-based**: one ASP.NET Core policy per `Role` enum value (`RequireAdmin`, `RequireTeacher`, ...), backed by `RoleRequirement`/`RoleAuthorizationHandler`.
 - **Resource-based** (`StudentAccess` policy, `StudentAccessRequirement`, resource type `Student`):
-  - `ParentStudentAccessHandler` — succeeds only if the target `Student` is reachable via `StudentGuardianLink` from a `ParentGuardian` whose `AppUserId` matches the caller. A join, not a bare role check — verified per-student, not per-parent-in-general.
+  - `ParentStudentAccessHandler` — succeeds only if the target `Student` is reachable via `StudentGuardianLink` from a `ParentGuardian` whose `AppUserId` matches the caller. Delegates the actual join to `ParentGuardianLinkage.IsLinkedAsync` (`src/Vlms.Infrastructure/Authorization/ParentGuardianLinkage.cs`, extracted alongside the parent dashboard — see [parent-dashboard.md](parent-dashboard.md)) — verified per-student, not per-parent-in-general. `ParentGuardianLinkage.LinkedStudentIds` is the same relationship enumerated the other direction, used by `Engagement.ParentDashboardService` to list all of a Parent's own linked students.
   - `StudentSelfAccessHandler` — succeeds only if `resource.AppUserId == callerUserId`. Null-safe both ways: an unlinked student (`AppUserId == null`) and a caller with no resolved `UserId` both correctly fail rather than accidentally matching each other.
   - `TeacherStudentAccessHandler` — role-only (Teachers see all students by design, `docs/design/low-level-design.md`), no per-resource check.
 

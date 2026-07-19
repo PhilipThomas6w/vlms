@@ -7,6 +7,7 @@ using Vlms.Domain;
 using Vlms.Infrastructure;
 using Vlms.Infrastructure.Authorization;
 using Vlms.Infrastructure.Curriculum;
+using Vlms.Infrastructure.Engagement;
 using Vlms.Infrastructure.Guardianship;
 using Vlms.Infrastructure.Provisioning;
 using Vlms.Infrastructure.Registration;
@@ -67,6 +68,13 @@ builder.Services.AddScoped<StudentRegistrationService>();
 // Approver role (curriculum-only, CLAUDE.md Project Law).
 builder.Services.AddScoped<ConsentRecordService>();
 builder.Services.AddScoped<DbsCheckService>();
+
+// --- Parent dashboard (STATE.md, functional.md "Parent engagement") — scoped to only the caller's
+// own StudentGuardianLink-linked students, via ParentGuardianLinkage (shared with
+// ParentStudentAccessHandler below). NotificationService itself is not wired here: nothing in
+// Vlms.Web sends notifications — that happens from the Vlms.Jobs WebJob host (ConsentExpiryNotifier),
+// the same "only wire what's actually consumed" approach IBlobStorage/CertificateService followed.
+builder.Services.AddScoped<ParentDashboardService>();
 
 // --- Authorization: one policy per Role.Enum value (role-based), plus a resource-based
 // StudentAccess policy (Parent/Student/Teacher handlers) — docs/design/low-level-design.md
