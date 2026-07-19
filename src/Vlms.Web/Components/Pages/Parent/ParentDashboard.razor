@@ -1,0 +1,99 @@
+@page "/parent/dashboard"
+@attribute [Authorize(Policy = "RequireParent")]
+@rendermode InteractiveServer
+@using Vlms.Infrastructure.Engagement
+@inject ParentDashboardService DashboardService
+
+<PageTitle>My dashboard</PageTitle>
+
+<h1>My dashboard</h1>
+
+<p>
+    Progress, badges, certificates, and consent status for the children linked to you via a
+    <code>StudentGuardianLink</code> (functional.md FR-004/"Parent engagement") — only ones an
+    Admin or Teacher has linked to your account; no other student's data is shown.
+</p>
+
+@if (_errorMessage is not null)
+{
+    <p class="error" role="alert">@_errorMessage</p>
+}
+else if (_students.Count == 0)
+{
+    <p>No students are currently linked to your account.</p>
+}
+else
+{
+    @foreach (var student in _students)
+    {
+        <section>
+            <h2>@student.StudentName</h2>
+            <p>
+                Current rank: <strong>@student.CurrentRankName</strong>
+                @if (student.CurrentRankStartedAt is { } startedAt)
+                {
+                    <span> (since @startedAt.ToString("d MMMM yyyy"))</span>
+                }
+            </p>
+
+            <p>
+                Consent status:
+                @if (student.ConsentStatus is { } status)
+                {
+                    <span><strong>@status</strong> (expires @student.ConsentExpiryDate)</span>
+                }
+                else
+                {
+                    <strong>No consent record on file</strong>
+                }
+            </p>
+
+            <h3>Badges</h3>
+            @if (student.Badges.Count == 0)
+            {
+                <p>No badges yet.</p>
+            }
+            else
+            {
+                <ul>
+                    @foreach (var badge in student.Badges)
+                    {
+                        <li>@badge.RankName — @badge.AwardedAt.ToString("d MMMM yyyy")</li>
+                    }
+                </ul>
+            }
+
+            <h3>Certificates</h3>
+            @if (student.Certificates.Count == 0)
+            {
+                <p>No certificates yet.</p>
+            }
+            else
+            {
+                <ul>
+                    @foreach (var certificate in student.Certificates)
+                    {
+                        <li>@certificate.LessonTitle — @certificate.GeneratedAt.ToString("d MMMM yyyy")</li>
+                    }
+                </ul>
+            }
+        </section>
+    }
+}
+
+@code {
+    private List<ParentDashboardStudent> _students = new();
+    private string? _errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _students = (await DashboardService.GetDashboardAsync()).ToList();
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+}

@@ -7,15 +7,21 @@
 // independently of this host (tests/Vlms.Tests/Infrastructure/ConsentExpiryJobTests.cs) — this
 // file's only job is wiring: configuration, a VlmsDbContext, the SystemCurrentUserContext (no
 // signed-in human caller exists for a scheduled job), and console logging (which Application
-// Insights picks up once deployed — see the ADR's monitoring note).
+// Insights picks up once deployed — see the ADR's monitoring note). Since STATE.md's
+// NotificationService item, it also wires ConsentExpiryNotifier and calls it straight after
+// RunAsync — closing the loop ConsentExpiryJob's own doc comment named ("once NotificationService
+// exists it can call RunAsync and translate the returned ConsentExpiryJobResult into real emails").
 //
 // Deployment (not performed by this codebase/build/verify.ps1 — no live Azure environment exists
 // yet, same "structurally correct, not yet wired" status as AzureBlobStorage/EntraCurrentUserContext
 // before their dependencies existed): this project's publish output is deployed into Vlms.Web's App
 // Service under App_Data/jobs/triggered/ConsentExpiryJob/, per the classic Azure WebJobs deployment
 // model (learn.microsoft.com/azure/app-service/webjobs-create) — co-located with the same App
-// Service plan, per adr/0003.
+// Service plan, per adr/0003. Azure Communication Services Email similarly has no live resource yet
+// — CommunicationServices:ConnectionString/SenderAddress in appsettings.json are placeholders, same
+// status as AzureAd's before a live Entra tenant existed.
 
+using Azure.Communication.Email;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -23,6 +29,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Vlms.Domain;
 using Vlms.Infrastructure;
+using Vlms.Infrastructure.Notifications;
 using Vlms.Infrastructure.Safeguarding;
 using Vlms.Infrastructure.Security;
 
@@ -48,10 +55,25 @@ builder.Services.AddScoped(sp => new ConsentExpiryJob(
     sp.GetRequiredService<ILogger<ConsentExpiryJob>>(),
     builder.Configuration.GetValue("Safeguarding:ExpiryWarningWindowDays", ConsentExpiryJob.DefaultExpiryWarningWindowDays)));
 
+// --- Notifications (STATE.md, low-level-design.md "NotificationService") — Azure Communication
+// Services Email, wired the same placeholder-config way AzureAd was before a live Entra tenant
+// existed. EmailClient(string) takes a connection string directly (verified against Microsoft
+// Learn — see AzureCommunicationEmailSender's doc comment).
+builder.Services.AddSingleton(sp => new EmailClient(
+    sp.GetRequiredService<IConfiguration>().GetValue<string>("CommunicationServices:ConnectionString")
+        ?? throw new InvalidOperationException("CommunicationServices:ConnectionString is not configured.")));
+builder.Services.AddSingleton<IEmailSender>(sp => new AzureCommunicationEmailSender(
+    sp.GetRequiredService<EmailClient>(),
+    sp.GetRequiredService<IConfiguration>().GetValue<string>("CommunicationServices:SenderAddress")
+        ?? throw new InvalidOperationException("CommunicationServices:SenderAddress is not configured.")));
+builder.Services.AddSingleton<INotificationService, NotificationService>();
+builder.Services.AddScoped<ConsentExpiryNotifier>();
+
 using var host = builder.Build();
 
 using var scope = host.Services.CreateScope();
 var job = scope.ServiceProvider.GetRequiredService<ConsentExpiryJob>();
+var notifier = scope.ServiceProvider.GetRequiredService<ConsentExpiryNotifier>();
 var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
 
 try
@@ -60,6 +82,11 @@ try
     logger.LogInformation(
         "ConsentExpiryJob completed: {ConsentFlagCount} consent flag(s), {DbsFlagCount} DBS flag(s), {AtRiskCount} at-risk student(s).",
         result.ConsentFlags.Count, result.DbsFlags.Count, result.AtRiskStudents.Count);
+
+    var notificationOutcomes = await notifier.NotifyAsync(result);
+    logger.LogInformation(
+        "ConsentExpiryNotifier sent {NotificationCount} safeguarding-critical notification(s).",
+        notificationOutcomes.Count);
 }
 catch (Exception ex)
 {

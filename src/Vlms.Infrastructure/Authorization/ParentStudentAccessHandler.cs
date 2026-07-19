@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.EntityFrameworkCore;
 using Vlms.Domain;
 
 namespace Vlms.Infrastructure.Authorization;
@@ -10,6 +9,9 @@ namespace Vlms.Infrastructure.Authorization;
 /// <see cref="Student"/> (`docs/design/data-design.md` "Guardian link verification";
 /// adr/0002-roles-as-application-claims.md). <see cref="ParentGuardian.AppUserId"/> is the
 /// self/parent-login link added during this implementation — see STATE.md and data-design.md.
+/// The actual query lives in <see cref="ParentGuardianLinkage"/> — shared with
+/// <c>Engagement.ParentDashboardService</c>, which enumerates the same relationship the other
+/// direction ("all students linked to this caller" rather than "is this one resource linked").
 /// </summary>
 public sealed class ParentStudentAccessHandler : AuthorizationHandler<StudentAccessRequirement, Student>
 {
@@ -30,12 +32,7 @@ public sealed class ParentStudentAccessHandler : AuthorizationHandler<StudentAcc
             return;
         }
 
-        var isLinked = await _db.StudentGuardianLinks
-            .Where(link => link.StudentId == resource.Id)
-            .Join(_db.ParentGuardians, link => link.ParentGuardianId, parent => parent.Id, (link, parent) => parent.AppUserId)
-            .AnyAsync(appUserId => appUserId == userId);
-
-        if (isLinked)
+        if (await ParentGuardianLinkage.IsLinkedAsync(_db, resource.Id, userId))
         {
             context.Succeed(requirement);
         }
