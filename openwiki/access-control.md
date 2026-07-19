@@ -37,25 +37,38 @@ V1 in 5.0 is "Encoding and Sanitization").
 
 ## Tamper protection (built)
 
-`SensitiveDataAccessLog` has `UPDATE`/`DELETE` denied at the database permission level, via the
-`DenyUpdateDeleteOnSensitiveDataAccessLogs` migration (`src/Vlms.Infrastructure/Migrations/`):
+`SensitiveDataAccessLog` has `UPDATE`/`DELETE` denied at the database permission level. Two
+migrations are involved: `DenyUpdateDeleteOnSensitiveDataAccessLogs` added the original DENY, and
+`SupersedeVlmsAppRoleWithPublicDenyOnSensitiveDataAccessLogs` re-targeted it (both in
+`src/Vlms.Infrastructure/Migrations/`). The current, effective statement is:
 
 ```sql
-IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'VlmsAppRole' AND type = 'R')
+IF EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'VlmsAppRole' AND type = 'R')
 BEGIN
-    CREATE ROLE VlmsAppRole AUTHORIZATION dbo;
+    DROP ROLE VlmsAppRole;
 END
 
-DENY UPDATE, DELETE ON dbo.SensitiveDataAccessLogs TO VlmsAppRole;
+DENY UPDATE, DELETE ON dbo.SensitiveDataAccessLogs TO public;
 ```
 
-No specific SQL login/Azure AD principal is named anywhere else in this codebase yet (no live Azure
-SQL Database exists; local dev connects via a Trusted_Connection/Windows-auth localdb connection
-string) — rather than guess one, the DENY targets a dedicated role, `VlmsAppRole`. **Whichever
-concrete principal ends up backing `ConnectionStrings:VlmsDatabase` in production must be added as a
-member of `VlmsAppRole`** as a one-time step when the real Azure SQL Database is provisioned; that
-provisioning step is outside this repo (no live Azure environment exists yet), same as the
-`AzureAd`/Communication Services placeholder config. `INSERT` is deliberately not denied — the
+**Why `public`, not a dedicated role (pass-5 decision, see ADR-0004 §4).** The original migration
+denied to a dedicated `VlmsAppRole` that the production principal had to be explicitly added to. A
+checker review flagged that as a forgettable-provisioning gap: a role starts with zero members, so
+the DENY was inert until someone remembered to add the principal — the migration could run cleanly
+and the audit log still be fully mutable. The DENY is now applied to `public`, which **every**
+database user belongs to and cannot be removed from (verified against Microsoft Learn:
+[Database-Level Roles](https://learn.microsoft.com/en-us/sql/relational-databases/security/authentication-access/database-level-roles)),
+so it protects every current and future principal automatically — nothing to provision, nothing to
+forget. `DENY` overrides all grants except for object owners and `sysadmin`
+([DENY (Transact-SQL)](https://learn.microsoft.com/en-us/sql/t-sql/statements/deny-transact-sql)),
+so the only principals that can still mutate the log are `dbo` (owner of the table) and `sysadmin` /
+the Azure SQL server principal — the unavoidable DBA-level identities. The redundant `VlmsAppRole`
+is dropped.
+
+**Residual requirement (tracked in `docs/governance/raid.md` D-004):** the app must connect as a
+least-privilege contained user (`db_datareader` + `db_datawriter`), never `db_owner`/object-owner/
+server-admin, or it bypasses this DENY; and any future retention-purge of expired audit rows must
+run as a deliberately elevated principal. `INSERT` is deliberately not denied — the
 `SensitiveDataAuditInterceptor`'s own writes must keep working — and `TRUNCATE` is not denied either,
 since neither the ADR nor `governance/security-compliance.md` names it.
 
@@ -63,12 +76,13 @@ This is raw SQL Server T-SQL and is never applied against the SQLite in-memory p
 suite uses — tests build schema via `Database.EnsureCreated()` from the current model, never
 `Database.Migrate()`, and neither `Vlms.Web` nor `Vlms.Jobs` calls `Database.Migrate()` either
 (migrations are only ever applied via an explicit `dotnet ef database update` against a real SQL
-Server). `dotnet ef migrations has-pending-model-changes` confirms this migration has no entity/model
-drift — it's pure DDL. Verified via `tests/Vlms.Tests/Infrastructure/MigrationsTests.cs`, which
-generates the real migration SQL in-process through EF Core's `IMigrator.GenerateScript()` (the same
-mechanism `dotnet ef migrations script` uses) and asserts the expected `DENY` statement is present,
-targets the right table, and doesn't over-deny `INSERT`/`TRUNCATE` — a genuine, if narrow, regression
-guard given `DENY` can't be exercised against a live SQL Server from this test suite.
+Server). `dotnet ef migrations has-pending-model-changes` confirms both migrations have no
+entity/model drift — they're pure DDL. Verified via `tests/Vlms.Tests/Infrastructure/MigrationsTests.cs`,
+which generates the real migration SQL in-process through EF Core's `IMigrator.GenerateScript()` (the
+same mechanism `dotnet ef migrations script` uses) and asserts the effective `DENY` now targets
+`public`, targets the right table, drops the superseded `VlmsAppRole`, and doesn't over-deny
+`INSERT`/`TRUNCATE` — a genuine, if narrow, regression guard given `DENY` can't be exercised against
+a live SQL Server from this test suite.
 
 The 6-year retention period itself (a purge/retention job for `SensitiveDataAccessLog`) is a separate,
 not-yet-built concern.
