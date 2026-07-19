@@ -88,14 +88,14 @@ $appCssPath = Join-Path $repoRoot "src/Vlms.Web/wwwroot/app.css"
 if (Test-Path -LiteralPath $appCssPath) { $hashedFiles += Get-Item $appCssPath }
 
 if ($PrintHash) {
-    $hash = Get-ChecklistSourceHash -Files $hashedFiles
+    $hash = Get-ChecklistSourceHash -Files $hashedFiles -RepoRoot $repoRoot
     Write-Host "Reviewed-hash: $hash"
     Write-Host "($($hashedFiles.Count) files hashed — paste the line above into docs/quality/wcag-2.2-aa-checklist.md after reviewing it)"
     exit 0
 }
 
 $checklistPath = Join-Path $repoRoot "docs/quality/wcag-2.2-aa-checklist.md"
-$checklistResult = Test-ChecklistCurrency -ChecklistPath $checklistPath -SourceFiles $hashedFiles
+$checklistResult = Test-ChecklistCurrency -ChecklistPath $checklistPath -SourceFiles $hashedFiles -RepoRoot $repoRoot
 if (-not $checklistResult.IsCurrent) {
     $failures += $checklistResult.Message
 }

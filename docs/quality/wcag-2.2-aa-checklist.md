@@ -78,4 +78,4 @@ The current pages (`src/Vlms.Web/Components/Pages/`): `Home.razor`,
 |---|---|---|
 | Philip Luke Thomas | 2026-07-19 | Initial checklist authored alongside the verify.ps1 gate stage. Colour contrast and the MainLayout dismiss-glyph aria-label are the two items most likely to need real follow-up once branding lands; not blocking for this increment since no VLMS-specific visual design exists yet to review against. |
 
-Reviewed-hash: 42baa5d3ab50b232499b07100a5ae79aade94a90744fed328d9a13d3b3471d09
+Reviewed-hash: e983bcb1ccae084c35a1dac166b641ee245c39a5051a2c9a28d046fd97a80d12

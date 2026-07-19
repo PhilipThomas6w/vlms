@@ -10,19 +10,31 @@
 # line, or a missing checklist file entirely, also fails — an unwritten checklist cannot pass by
 # default, which is the whole point (see loop-harness:verify-gate-authoring: "a gate that always
 # passes is not a gate").
+#
+# Portability: the hash is computed over each file's path RELATIVE to the repo root (not the
+# absolute FullName) and over its content with line endings normalized to `n. Hashing FullName
+# would bind the recorded hash to the exact directory the checklist was authored in (fails on any
+# other clone/worktree at a different absolute path); hashing raw bytes would make the hash flip
+# with core.autocrlf/editor line-ending differences even with zero real content change. Neither is
+# a real content change, so neither should flip the hash.
 
 function Get-ChecklistSourceHash {
     param(
-        [Parameter(Mandatory)] [System.IO.FileInfo[]] $Files
+        [Parameter(Mandatory)] [System.IO.FileInfo[]] $Files,
+        [Parameter(Mandatory)] [string] $RepoRoot
     )
 
+    $normalizedRoot = $RepoRoot.TrimEnd('\', '/')
     $sha256 = [System.Security.Cryptography.SHA256]::Create()
     try {
         $builder = New-Object System.Text.StringBuilder
         foreach ($file in ($Files | Sort-Object FullName)) {
-            [void]$builder.Append($file.FullName)
+            $relativePath = $file.FullName.Substring($normalizedRoot.Length + 1) -replace '\\', '/'
+            $content = Get-Content -Raw -LiteralPath $file.FullName
+            $normalizedContent = $content -replace "`r`n", "`n" -replace "`r", "`n"
+            [void]$builder.Append($relativePath)
             [void]$builder.Append("`n")
-            [void]$builder.Append((Get-Content -Raw -LiteralPath $file.FullName))
+            [void]$builder.Append($normalizedContent)
             [void]$builder.Append("`n")
         }
         $bytes = [System.Text.Encoding]::UTF8.GetBytes($builder.ToString())
@@ -36,7 +48,8 @@ function Get-ChecklistSourceHash {
 function Test-ChecklistCurrency {
     param(
         [Parameter(Mandatory)] [string] $ChecklistPath,
-        [Parameter(Mandatory)] [System.IO.FileInfo[]] $SourceFiles
+        [Parameter(Mandatory)] [System.IO.FileInfo[]] $SourceFiles,
+        [Parameter(Mandatory)] [string] $RepoRoot
     )
 
     if (-not (Test-Path -LiteralPath $ChecklistPath)) {
@@ -55,7 +68,7 @@ function Test-ChecklistCurrency {
     }
 
     $recordedHash = $Matches[1].ToLowerInvariant()
-    $currentHash = Get-ChecklistSourceHash -Files $SourceFiles
+    $currentHash = Get-ChecklistSourceHash -Files $SourceFiles -RepoRoot $RepoRoot
 
     if ($recordedHash -ne $currentHash) {
         return [pscustomobject]@{

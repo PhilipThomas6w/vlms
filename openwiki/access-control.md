@@ -37,7 +37,7 @@ V1 in 5.0 is "Encoding and Sanitization").
 
 ## Retention and tamper protection (named in the ADR, not yet built)
 
-`SensitiveDataAccessLog` is meant to be retained 6 years and tamper-protected at the database permission level (`DENY UPDATE`/`DELETE` for the app's SQL principal). Neither is in the migrations yet — tracked as `STATE.md` Next item 9 (added after the first checker review flagged it as at risk of being forgotten).
+`SensitiveDataAccessLog` is meant to be retained 6 years and tamper-protected at the database permission level (`DENY UPDATE`/`DELETE` for the app's SQL principal). Neither is in the migrations yet — tracked as `STATE.md` Next item 1 (added after the first checker review flagged it as at risk of being forgotten).
 
 ## Tests
 
