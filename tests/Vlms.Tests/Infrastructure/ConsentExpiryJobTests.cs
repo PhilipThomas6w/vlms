@@ -1,5 +1,6 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Vlms.Domain;
@@ -307,6 +308,99 @@ public sealed class ConsentExpiryJobTests : IDisposable
                 widerWindow.Context, SystemCurrentUserContext.Instance, new ListLogger<ConsentExpiryJob>(), expiryWarningWindowDays: 60)
             .RunAsync();
         Assert.Single(widerResult.ConsentFlags, f => f.StudentId == 400);
+    }
+
+    [Fact]
+    public async Task RunAsync_SweepingDbsChecks_WritesOneSensitiveDataAccessLogEntryPerDbsCheckRead()
+    {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        using (var seed = CreateContext(SystemCurrentUserContext.Instance))
+        {
+            seed.Context.AppUsers.Add(new AppUser { Id = 20, EntraObjectId = "t20", DisplayName = "Teacher Soon", Email = "t20@example.com" });
+            seed.Context.UserRoles.Add(new UserRole { UserId = 20, Role = Role.Teacher });
+            seed.Context.DbsChecks.Add(NewDbsCheck(21, 20, today.AddDays(10)));
+
+            seed.Context.AppUsers.Add(new AppUser { Id = 22, EntraObjectId = "t22", DisplayName = "Teacher Expired", Email = "t22@example.com" });
+            seed.Context.UserRoles.Add(new UserRole { UserId = 22, Role = Role.Teacher });
+            seed.Context.DbsChecks.Add(NewDbsCheck(23, 22, today.AddDays(-5)));
+
+            // A non-Clear check must not count — SweepDbsAsync's query filters to Clear before
+            // materializing, so the interceptor should never fire for this row.
+            seed.Context.AppUsers.Add(new AppUser { Id = 24, EntraObjectId = "t24", DisplayName = "Teacher Flagged", Email = "t24@example.com" });
+            seed.Context.UserRoles.Add(new UserRole { UserId = 24, Role = Role.Teacher });
+            seed.Context.DbsChecks.Add(NewDbsCheck(25, 24, today.AddDays(365), DbsCheckStatus.Flagged));
+
+            seed.Context.SaveChanges();
+        }
+
+        using var run = CreateContext(SystemCurrentUserContext.Instance);
+        var sut = new ConsentExpiryJob(run.Context, SystemCurrentUserContext.Instance, new ListLogger<ConsentExpiryJob>());
+
+        await sut.RunAsync();
+
+        using var verify = CreateContext(SystemCurrentUserContext.Instance);
+        var logEntries = verify.Context.SensitiveDataAccessLogs
+            .Where(l => l.Entity == nameof(DbsCheck))
+            .OrderBy(l => l.EntityId)
+            .ToList();
+
+        // Regression guard for the audit-trail gap: SweepDbsAsync used to project DbsCheck rows
+        // into an anonymous type, which EF Core's IMaterializationInterceptor never fires for
+        // (only real mapped-entity materialization triggers SensitiveDataAuditInterceptor) — so no
+        // SensitiveDataAccessLog row was ever written for this daily job's reads of every teacher's
+        // DBS status. This asserts one audit row is written per DbsCheck row the sweep reads.
+        Assert.Equal(2, logEntries.Count);
+        Assert.Equal(21, logEntries[0].EntityId);
+        Assert.Equal(23, logEntries[1].EntityId);
+        Assert.All(logEntries, e => Assert.Equal(SensitiveAccessType.View, e.AccessType));
+    }
+
+    /// <summary>
+    /// Vlms.Jobs/Program.cs binds <c>Safeguarding:ExpiryWarningWindowDays</c> from
+    /// <see cref="IConfiguration"/> (via <c>GetValue&lt;int&gt;(key, ConsentExpiryJob.DefaultExpiryWarningWindowDays)</c>)
+    /// and passes the bound value into the <see cref="ConsentExpiryJob"/> constructor when resolving
+    /// it via DI — Vlms.Jobs is a top-level-statement console Exe host with a real SQL Server
+    /// connection string, so it isn't practical to spin up here; instead this reproduces the exact
+    /// configuration key/binding call Program.cs uses and proves it, unlike
+    /// <see cref="RunAsync_ExpiryWindow_IsConfigurable"/> (which only proves the constructor
+    /// parameter works given an int handed to it directly), actually flows a non-default value out
+    /// of <see cref="IConfiguration"/> and into job behaviour — closing the gap where the deployed
+    /// job previously always resolved to the hardcoded 28-day default regardless of configuration.
+    /// </summary>
+    [Fact]
+    public async Task Configuration_ExpiryWarningWindowDays_FlowsIntoJobBehaviour_ViaTheSameBindingProgramUses()
+    {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        using (var seed = CreateContext(SystemCurrentUserContext.Instance))
+        {
+            seed.Context.ParentGuardians.Add(new ParentGuardian { Id = 1, Name = "Jane Parent", ContactInfo = "j@example.com", IsPrimary = true });
+            seed.Context.Students.Add(NewStudent(500, "Expires In 40 Days", StudentStatus.Active, today.AddYears(-1)));
+            seed.Context.ConsentRecords.Add(NewConsent(1, 500, today.AddDays(40)));
+            seed.Context.SaveChanges();
+        }
+
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Safeguarding:ExpiryWarningWindowDays"] = "60"
+            })
+            .Build();
+
+        // Exactly Program.cs's binding call.
+        var boundWindowDays = configuration.GetValue(
+            "Safeguarding:ExpiryWarningWindowDays", ConsentExpiryJob.DefaultExpiryWarningWindowDays);
+        Assert.Equal(60, boundWindowDays);
+
+        using var run = CreateContext(SystemCurrentUserContext.Instance);
+        var sut = new ConsentExpiryJob(
+            run.Context, SystemCurrentUserContext.Instance, new ListLogger<ConsentExpiryJob>(), boundWindowDays);
+
+        var result = await sut.RunAsync();
+
+        // 40 days is beyond the hardcoded 28-day default but within the configured 60-day window.
+        Assert.Single(result.ConsentFlags, f => f.StudentId == 500);
     }
 
     [Fact]
