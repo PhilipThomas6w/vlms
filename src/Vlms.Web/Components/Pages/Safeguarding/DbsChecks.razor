@@ -1,0 +1,183 @@
+@page "/safeguarding/dbs"
+@attribute [Authorize(Policy = "RequireAdminOrSafeguardingOfficer")]
+@rendermode InteractiveServer
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.EntityFrameworkCore
+@using Vlms.Domain
+@using Vlms.Infrastructure
+@using Vlms.Infrastructure.Safeguarding
+@inject VlmsDbContext Db
+@inject DbsCheckService DbsService
+
+<PageTitle>DBS checks</PageTitle>
+
+<h1>DBS checks</h1>
+
+<p>
+    <code>DbsCheck</code> management — Admin or Safeguarding Officer only (functional.md FR-002:
+    "Whole-record access restricted to Admin and Safeguarding Officer only — Teacher and Approver
+    have no access").
+</p>
+
+@if (_errorMessage is not null)
+{
+    <p class="error" role="alert">@_errorMessage</p>
+}
+
+<h2>Existing checks</h2>
+<table>
+    <thead>
+        <tr>
+            <th>Teacher</th>
+            <th>Check date</th>
+            <th>Expiry</th>
+            <th>Certificate number</th>
+            <th>Status</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var check in _checks)
+        {
+            <tr>
+                <td>@_teacherNames.GetValueOrDefault(check.TeacherUserId)</td>
+                <td>@check.CheckDate</td>
+                <td>@check.ExpiryDate</td>
+                <td>@check.CertificateNumber</td>
+                <td>@check.Status</td>
+                <td>
+                    @foreach (var status in Enum.GetValues<DbsCheckStatus>())
+                    {
+                        @if (status != check.Status)
+                        {
+                            <button @onclick="() => UpdateStatusAsync(check.Id, status)">Mark @status</button>
+                        }
+                    }
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<h2>Record a new DBS check</h2>
+<EditForm Model="_form" OnValidSubmit="SubmitAsync">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div>
+        <label for="teacher">Teacher</label>
+        <InputSelect id="teacher" @bind-Value="_form.TeacherUserId">
+            @foreach (var teacher in _teachers)
+            {
+                <option value="@teacher.Id">@teacher.DisplayName</option>
+            }
+        </InputSelect>
+    </div>
+    <div>
+        <label for="checkDate">Check date</label>
+        <InputDate id="checkDate" @bind-Value="_form.CheckDate" />
+    </div>
+    <div>
+        <label for="expiryDate">Expiry date</label>
+        <InputDate id="expiryDate" @bind-Value="_form.ExpiryDate" />
+    </div>
+    <div>
+        <label for="certificateNumber">Certificate number</label>
+        <InputText id="certificateNumber" @bind-Value="_form.CertificateNumber" />
+    </div>
+    <div>
+        <label for="status">Status</label>
+        <InputSelect id="status" @bind-Value="_form.Status">
+            @foreach (var status in Enum.GetValues<DbsCheckStatus>())
+            {
+                <option value="@status">@status</option>
+            }
+        </InputSelect>
+    </div>
+
+    <button type="submit">Record DBS check</button>
+</EditForm>
+
+@code {
+    private List<AppUser> _teachers = new();
+    private List<DbsCheck> _checks = new();
+    private Dictionary<int, string> _teacherNames = new();
+    private DbsCheckFormModel _form = new();
+    private string? _errorMessage;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        var teacherUserIds = await Db.UserRoles
+            .Where(r => r.Role == Role.Teacher)
+            .Select(r => r.UserId)
+            .Distinct()
+            .ToListAsync();
+
+        _teachers = await Db.AppUsers
+            .Where(u => teacherUserIds.Contains(u.Id))
+            .OrderBy(u => u.DisplayName)
+            .ToListAsync();
+        _teacherNames = _teachers.ToDictionary(t => t.Id, t => t.DisplayName);
+
+        // Subject to adr/0004's query filter — only resolves rows at all because this page is
+        // gated to Admin/SafeguardingOfficer; every row materialized here writes a
+        // SensitiveDataAccessLog entry via the existing SensitiveDataAuditInterceptor.
+        _checks = await Db.DbsChecks.OrderByDescending(d => d.ExpiryDate).ToListAsync();
+
+        if (_form.TeacherUserId == 0)
+        {
+            _form.TeacherUserId = _teachers.FirstOrDefault()?.Id ?? 0;
+        }
+    }
+
+    private async Task SubmitAsync()
+    {
+        _errorMessage = null;
+
+        try
+        {
+            await DbsService.RecordAsync(
+                _form.TeacherUserId,
+                DateOnly.FromDateTime(_form.CheckDate),
+                DateOnly.FromDateTime(_form.ExpiryDate),
+                _form.CertificateNumber,
+                _form.Status);
+
+            _form = new DbsCheckFormModel();
+            await LoadAsync();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException or ArgumentException)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+
+    private async Task UpdateStatusAsync(int dbsCheckId, DbsCheckStatus newStatus)
+    {
+        _errorMessage = null;
+
+        try
+        {
+            await DbsService.UpdateStatusAsync(dbsCheckId, newStatus);
+            await LoadAsync();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException or ArgumentException)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+
+    private sealed class DbsCheckFormModel
+    {
+        public int TeacherUserId { get; set; }
+        public DateTime CheckDate { get; set; } = DateTime.Today;
+        public DateTime ExpiryDate { get; set; } = DateTime.Today.AddYears(3);
+
+        [Required]
+        public string CertificateNumber { get; set; } = "";
+
+        public DbsCheckStatus Status { get; set; } = DbsCheckStatus.Pending;
+    }
+}

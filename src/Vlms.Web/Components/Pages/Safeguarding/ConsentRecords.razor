@@ -1,0 +1,219 @@
+@page "/safeguarding/consent"
+@attribute [Authorize(Policy = "RequireAdminOrSafeguardingOfficer")]
+@rendermode InteractiveServer
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.EntityFrameworkCore
+@using Vlms.Domain
+@using Vlms.Infrastructure
+@using Vlms.Infrastructure.Safeguarding
+@inject VlmsDbContext Db
+@inject ConsentRecordService ConsentService
+
+<PageTitle>Consent records</PageTitle>
+
+<h1>Consent records</h1>
+
+<p>
+    <code>ConsentRecord</code>/<code>ConsentSensitiveDetails</code> management — Admin or
+    Safeguarding Officer only (functional.md FR-001, adr/0004-sensitive-data-access-control.md).
+    The Approver role is curriculum-only and has no access here, and there is no parent
+    self-service path — this records what the programme has already been told in writing.
+</p>
+
+@if (_errorMessage is not null)
+{
+    <p class="error" role="alert">@_errorMessage</p>
+}
+
+<h2>Existing records</h2>
+<table>
+    <thead>
+        <tr>
+            <th>Student</th>
+            <th>Period</th>
+            <th>Expiry</th>
+            <th>Status</th>
+            <th>Emergency contact</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var record in _records)
+        {
+            <tr>
+                <td>@_studentNames.GetValueOrDefault(record.StudentId)</td>
+                <td>@record.PeriodStart - @record.PeriodEnd</td>
+                <td>@record.ExpiryDate</td>
+                <td>@record.Status</td>
+                <td>@(_sensitiveDetailsByRecordId.GetValueOrDefault(record.Id)?.EmergencyContact)</td>
+                <td>
+                    @if (record.Status == ConsentStatus.Pending)
+                    {
+                        <button @onclick="() => DecideAsync(record.Id, approve: true)">Approve</button>
+                        <button @onclick="() => DecideAsync(record.Id, approve: false)">Reject</button>
+                    }
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<h2>Record new consent</h2>
+<EditForm Model="_form" OnValidSubmit="SubmitAsync">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div>
+        <label for="student">Student</label>
+        <InputSelect id="student" @bind-Value="_form.StudentId">
+            @foreach (var student in _students)
+            {
+                <option value="@student.Id">@student.Name</option>
+            }
+        </InputSelect>
+    </div>
+    <div>
+        <label for="parent">Submitted by (parent/guardian)</label>
+        <InputSelect id="parent" @bind-Value="_form.SubmittedByParentId">
+            @foreach (var guardian in _guardians)
+            {
+                <option value="@guardian.Id">@guardian.Name</option>
+            }
+        </InputSelect>
+    </div>
+    <div>
+        <label for="periodStart">Period start</label>
+        <InputDate id="periodStart" @bind-Value="_form.PeriodStart" />
+    </div>
+    <div>
+        <label for="periodEnd">Period end</label>
+        <InputDate id="periodEnd" @bind-Value="_form.PeriodEnd" />
+    </div>
+    <div>
+        <label for="expiryDate">Expiry date</label>
+        <InputDate id="expiryDate" @bind-Value="_form.ExpiryDate" />
+    </div>
+    <div>
+        <label><InputCheckbox @bind-Value="_form.PhotoMediaConsent" /> Photo/media consent</label>
+    </div>
+    <div>
+        <label><InputCheckbox @bind-Value="_form.TransportOffsiteConsent" /> Transport/off-site consent</label>
+    </div>
+    <div>
+        <label><InputCheckbox @bind-Value="_form.DataSharingConsent" /> Data-sharing consent</label>
+    </div>
+    <div>
+        <label for="emergencyContact">Emergency contact</label>
+        <InputText id="emergencyContact" @bind-Value="_form.EmergencyContact" />
+    </div>
+    <div>
+        <label for="medicalInfo">Emergency medical info</label>
+        <InputTextArea id="medicalInfo" @bind-Value="_form.EmergencyMedicalInfo" />
+    </div>
+    <div>
+        <label for="dietarySen">Dietary/SEN needs</label>
+        <InputTextArea id="dietarySen" @bind-Value="_form.DietarySEN" />
+    </div>
+
+    <button type="submit">Record consent</button>
+</EditForm>
+
+@code {
+    private List<Student> _students = new();
+    private List<ParentGuardian> _guardians = new();
+    private List<ConsentRecord> _records = new();
+    private Dictionary<int, string> _studentNames = new();
+    private Dictionary<int, ConsentSensitiveDetails> _sensitiveDetailsByRecordId = new();
+    private ConsentFormModel _form = new();
+    private string? _errorMessage;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _students = await Db.Students.OrderBy(s => s.Name).ToListAsync();
+        _guardians = await Db.ParentGuardians.OrderBy(g => g.Name).ToListAsync();
+        _records = await Db.ConsentRecords.OrderByDescending(c => c.ExpiryDate).ToListAsync();
+        _studentNames = _students.ToDictionary(s => s.Id, s => s.Name);
+
+        // Subject to adr/0004's query filter — only resolves rows at all because this page is
+        // gated to Admin/SafeguardingOfficer; every row materialized here writes a
+        // SensitiveDataAccessLog entry via the existing SensitiveDataAuditInterceptor.
+        var details = await Db.ConsentSensitiveDetails.ToListAsync();
+        _sensitiveDetailsByRecordId = details.ToDictionary(d => d.ConsentRecordId, d => d);
+
+        if (_form.StudentId == 0)
+        {
+            _form.StudentId = _students.FirstOrDefault()?.Id ?? 0;
+        }
+
+        if (_form.SubmittedByParentId == 0)
+        {
+            _form.SubmittedByParentId = _guardians.FirstOrDefault()?.Id ?? 0;
+        }
+    }
+
+    private async Task SubmitAsync()
+    {
+        _errorMessage = null;
+
+        try
+        {
+            await ConsentService.RecordAsync(
+                _form.StudentId,
+                DateOnly.FromDateTime(_form.PeriodStart),
+                DateOnly.FromDateTime(_form.PeriodEnd),
+                DateOnly.FromDateTime(_form.ExpiryDate),
+                _form.PhotoMediaConsent,
+                _form.TransportOffsiteConsent,
+                _form.DataSharingConsent,
+                _form.SubmittedByParentId,
+                _form.EmergencyContact,
+                string.IsNullOrWhiteSpace(_form.EmergencyMedicalInfo) ? null : _form.EmergencyMedicalInfo,
+                string.IsNullOrWhiteSpace(_form.DietarySEN) ? null : _form.DietarySEN);
+
+            _form = new ConsentFormModel();
+            await LoadAsync();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException or ArgumentException)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+
+    private async Task DecideAsync(int consentRecordId, bool approve)
+    {
+        _errorMessage = null;
+
+        try
+        {
+            await ConsentService.DecideAsync(consentRecordId, approve);
+            await LoadAsync();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException or ArgumentException)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+
+    // EmergencyMedicalInfo/DietarySEN are deliberately not [Required] (ConsentSensitiveDetails
+    // itself only requires EmergencyContact — see the entity) — blank is mapped to null before
+    // calling the service, matching data-design.md's nullable fields.
+    private sealed class ConsentFormModel
+    {
+        public int StudentId { get; set; }
+        public int SubmittedByParentId { get; set; }
+        public DateTime PeriodStart { get; set; } = DateTime.Today;
+        public DateTime PeriodEnd { get; set; } = DateTime.Today.AddYears(1);
+        public DateTime ExpiryDate { get; set; } = DateTime.Today.AddYears(1);
+        public bool PhotoMediaConsent { get; set; }
+        public bool TransportOffsiteConsent { get; set; }
+        public bool DataSharingConsent { get; set; }
+
+        [Required]
+        public string EmergencyContact { get; set; } = "";
+
+        public string EmergencyMedicalInfo { get; set; } = "";
+        public string DietarySEN { get; set; } = "";
+    }
+}

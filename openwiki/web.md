@@ -4,7 +4,7 @@ Blazor Web App, **Server** interactivity (not Auto/WebAssembly — see [architec
 
 ## Current state
 
-`Program.cs` has the DI wiring (`VlmsDbContext`, `ICurrentUserContext`, authorization policies, `LessonProposalService`, Entra sign-in, cascading authentication state — see [authentication-authorization.md](authentication-authorization.md)). `Components/Pages/` holds the template's `Error.razor`/`NotFound.razor` plus VLMS UI: `Home.razor` (role-gated links via `AuthorizeView`) and `Components/Pages/Curriculum/` (`TeacherProposals.razor`, `ApproverProposals.razor` — see [curriculum.md](curriculum.md)). `Components/Routes.razor` uses `AuthorizeRouteView`, not a plain `RouteView` — see below.
+`Program.cs` has the DI wiring (`VlmsDbContext`, `ICurrentUserContext`, authorization policies, `LessonProposalService`, `GuardianLinkService`, `StudentRegistrationService`, `ParentDashboardService`, Entra sign-in, cascading authentication state — see [authentication-authorization.md](authentication-authorization.md)). `Components/Pages/` holds the template's `Error.razor`/`NotFound.razor` plus VLMS UI: `Home.razor` (role-gated links via `AuthorizeView`), `Components/Pages/Curriculum/` (`TeacherProposals.razor`, `ApproverProposals.razor` — see [curriculum.md](curriculum.md)), `Components/Pages/Guardianship/GuardianLinks.razor` (`/guardianship/links`, gated `RequireAdminOrTeacher` — see [guardian-links.md](guardian-links.md)), `Components/Pages/Registration/RegisterStudent.razor` (`/registration/students`, gated `RequireAdminOrTeacher` — see [student-registration.md](student-registration.md)), and `Components/Pages/Parent/ParentDashboard.razor` (`/parent/dashboard`, gated `RequireParent` — see [parent-dashboard.md](parent-dashboard.md)). `INotificationService`/`ConsentExpiryNotifier` are **not** wired into this project's `Program.cs` — nothing in `Vlms.Web` sends notifications; that only happens from the `Vlms.Jobs` WebJob host (see [notifications.md](notifications.md)). `Components/Routes.razor` uses `AuthorizeRouteView`, not a plain `RouteView` — see below.
 
 ## `appsettings.json`
 
@@ -18,6 +18,55 @@ policy from `Program.cs`'s per-`Role` policy set) actually enforced — a plain 
 `[Authorize]` attributes entirely. `AuthorizeRouteView` also supplies the
 `Task<AuthenticationState>` cascading parameter that `AuthorizeView`/`[Authorize]` need, sourced
 from `builder.Services.AddCascadingAuthenticationState()` in `Program.cs`.
+
+## PWA manifest/service worker (installability, adr/0001-technology-stack.md)
+
+`adr/0001-technology-stack.md` names the client as "Blazor Web App (.NET), responsive,
+**PWA-installable**" and gives no further detail — no offline/caching behaviour, no icon spec. That
+one line is the entire brief this increment builds against; `docs/design/low-level-design.md` says
+nothing about PWA at all.
+
+**Scoping judgement call, checked against Microsoft Learn rather than assumed:** Microsoft's own
+[Blazor PWA documentation](https://learn.microsoft.com/aspnet/core/blazor/progressive-web-app/) is
+written entirely for **Blazor WebAssembly** — its offline-execution model depends on a build-time
+`service-worker-assets.js` manifest of every .NET assembly/wasm file the app needs to run
+disconnected, because a WASM app's whole UI executes in the browser. None of that applies here:
+`Vlms.Web` is Server-interactive (see "Current state" above) — the UI is rendered server-side and
+kept live over a SignalR circuit, so there is no "run the app offline" scenario to build; without a
+live connection to the server there is no app. This increment therefore builds only the two things
+"PWA-installable" can actually mean for a Server-interactive app:
+
+1. **Installability** — `wwwroot/manifest.json` (name/short_name/start_url/display/theme_color/
+   background_color/icons) linked from `Components/App.razor` via `<link rel="manifest">`, plus a
+   registered service worker (a standard installability signal, alongside the manifest).
+2. **App-shell asset caching for faster repeat loads** — `wwwroot/service-worker.js` is a
+   hand-written, minimal service worker (not the WASM template's generated one, which doesn't apply
+   here): cache-first, populate-as-you-go caching of same-origin static assets whose
+   `request.destination` is `style`/`script`/`image`/`font`/`manifest`. It never intercepts
+   navigation requests (`request.mode === 'navigate'`) — the server-rendered HTML document is
+   dynamic per-request (auth state, antiforgery tokens) and must never be served stale from a
+   cache — and it doesn't need to explicitly exclude the SignalR circuit, since a WebSocket upgrade
+   never dispatches a `fetch` event in the first place.
+
+Registration is the standard web-platform pattern (`navigator.serviceWorker.register('service-worker.js')`
+in a `<script>` after `App.razor`'s `blazor.web.js` tag) — this part is not Blazor-specific, so no
+template precedent was needed beyond confirming the API shape.
+
+**Placeholder-icon gap (documented, same pattern as `AzureBlobStorage`/`AzureAd`/Azure Communication
+Services before their live resources existed):** no app icon/logo asset exists anywhere in this
+repo. `wwwroot/icons/icon.svg` is a minimal placeholder (a slate rounded square with "VL") referenced
+from `manifest.json` with `"sizes": "any"` so one vector file covers whatever raster size a browser
+asks for, rather than fabricating a multi-size PNG icon set for a logo that doesn't exist yet. A real
+branded icon (192×192/512×512 PNG, plus a maskable variant, and an `apple-touch-icon` for iOS —
+Safari doesn't honour SVG there) is a design/branding decision outside this increment's scope; only
+`manifest.json`'s `icons` array needs to change once one exists.
+
+**Tested:** `tests/Vlms.Tests/Web/PwaAssetsTests.cs` — `manifest.json` parses as valid JSON with the
+fields a browser needs, every icon it references exists on disk, `service-worker.js` exists and is
+non-empty, and `App.razor` actually links the manifest and registers the service worker. This is
+deliberately the extent of what's unit-testable here: there is no server-side logic to test (static
+assets + a registration script), and runtime installability/caching behaviour needs a real browser,
+not `dotnet test`.
 
 ## Resolving the caller in interactive components (fixed, then a round-trip fix on top)
 

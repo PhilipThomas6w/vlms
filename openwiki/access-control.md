@@ -21,9 +21,57 @@ Read `docs/adr/0004-sensitive-data-access-control.md` first — it went through 
 
 Deny-by-default (`HasRole` always false, `UserId` always null). Two legitimate uses: `VlmsDbContextFactory` (EF Core design-time/migrations tooling has no request context), and as the lookup-context argument inside `EntraCurrentUserContext.Resolve` (above). **Never** wire this as the runtime `ICurrentUserContext` in `Vlms.Web` — that would make every sensitive-data query silently return nothing for every user, which fails safe but breaks the app. `Program.cs` currently wires `EntraCurrentUserContext` correctly; if that ever changes, check why deliberately.
 
-## Retention and tamper protection (named in the ADR, not yet built)
+## `SystemCurrentUserContext` (`src/Vlms.Infrastructure/Security/SystemCurrentUserContext.cs`)
 
-`SensitiveDataAccessLog` is meant to be retained 6 years and tamper-protected at the database permission level (`DENY UPDATE`/`DELETE` for the app's SQL principal). Neither is in the migrations yet — tracked as `STATE.md` Next item 9 (added after the first checker review flagged it as at risk of being forgotten).
+A third `ICurrentUserContext` implementation, added for the `ConsentExpiryJob` WebJob (see [safeguarding-consent.md](safeguarding-consent.md)) — a scheduled background job has no signed-in human caller, but it must legitimately read `DbsCheck` through the same filtered/audited path everything else uses (never `IgnoreQueryFilters()`). Unlike `NullCurrentUserContext`, it is not deny-by-default: `HasRole` returns true for exactly `Role.Admin` and `Role.SafeguardingOfficer` (precisely what the query filter above checks for) and false for everything else — narrowly scoped to what the job needs, not a general bypass. `UserId` is still null (no human to attribute the read to), which both `SensitiveDataAccessLog.UserId` and `ICurrentUserContext.UserId`'s own doc comment already model as a valid case. Only ever used by the `Vlms.Jobs` host — never wired into `Vlms.Web`.
+
+## Gate stage (`build/check-access-control.ps1`)
+
+`build/verify.ps1`'s full-only `access-control (ASVS 5.0 V8)` stage re-confirms three mechanical
+properties of this mechanism on every full run — zero `IgnoreQueryFilters()` call sites in `src/`,
+every page `[Authorize]`-gated, and the ADR-0004 test suites at/above a floor test count — plus a
+content-hash currency check on a paired human checklist
+(`docs/governance/asvs-access-control-checklist.md`). See [verify-gate.md](verify-gate.md) for the
+full mechanism and the chapter-numbering correction (this is ASVS 5.0 V8 Authorization, not V1 —
+V1 in 5.0 is "Encoding and Sanitization").
+
+## Tamper protection (built)
+
+`SensitiveDataAccessLog` has `UPDATE`/`DELETE` denied at the database permission level, via the
+`DenyUpdateDeleteOnSensitiveDataAccessLogs` migration (`src/Vlms.Infrastructure/Migrations/`):
+
+```sql
+IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'VlmsAppRole' AND type = 'R')
+BEGIN
+    CREATE ROLE VlmsAppRole AUTHORIZATION dbo;
+END
+
+DENY UPDATE, DELETE ON dbo.SensitiveDataAccessLogs TO VlmsAppRole;
+```
+
+No specific SQL login/Azure AD principal is named anywhere else in this codebase yet (no live Azure
+SQL Database exists; local dev connects via a Trusted_Connection/Windows-auth localdb connection
+string) — rather than guess one, the DENY targets a dedicated role, `VlmsAppRole`. **Whichever
+concrete principal ends up backing `ConnectionStrings:VlmsDatabase` in production must be added as a
+member of `VlmsAppRole`** as a one-time step when the real Azure SQL Database is provisioned; that
+provisioning step is outside this repo (no live Azure environment exists yet), same as the
+`AzureAd`/Communication Services placeholder config. `INSERT` is deliberately not denied — the
+`SensitiveDataAuditInterceptor`'s own writes must keep working — and `TRUNCATE` is not denied either,
+since neither the ADR nor `governance/security-compliance.md` names it.
+
+This is raw SQL Server T-SQL and is never applied against the SQLite in-memory provider the test
+suite uses — tests build schema via `Database.EnsureCreated()` from the current model, never
+`Database.Migrate()`, and neither `Vlms.Web` nor `Vlms.Jobs` calls `Database.Migrate()` either
+(migrations are only ever applied via an explicit `dotnet ef database update` against a real SQL
+Server). `dotnet ef migrations has-pending-model-changes` confirms this migration has no entity/model
+drift — it's pure DDL. Verified via `tests/Vlms.Tests/Infrastructure/MigrationsTests.cs`, which
+generates the real migration SQL in-process through EF Core's `IMigrator.GenerateScript()` (the same
+mechanism `dotnet ef migrations script` uses) and asserts the expected `DENY` statement is present,
+targets the right table, and doesn't over-deny `INSERT`/`TRUNCATE` — a genuine, if narrow, regression
+guard given `DENY` can't be exercised against a live SQL Server from this test suite.
+
+The 6-year retention period itself (a purge/retention job for `SensitiveDataAccessLog`) is a separate,
+not-yet-built concern.
 
 ## Tests
 

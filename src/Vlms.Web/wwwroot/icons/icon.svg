@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192" role="img" aria-label="Varangians LMS">
+  <!--
+    Placeholder app icon (design/branding not yet decided — see STATE.md and
+    openwiki/web.md). A single scalable vector icon, referenced from
+    manifest.json with "sizes": "any" so the browser can rasterize it at
+    whatever size it needs (192x192, 512x512, etc.) rather than shipping
+    separate PNGs for a logo that doesn't exist yet. Swap for a real branded
+    icon set (192x192 and 512x512 PNG, plus a maskable variant) once branding
+    is decided; nothing else in this file needs to change to pick that up.
+  -->
+  <rect width="192" height="192" rx="24" fill="#1f2937" />
+  <text x="96" y="118" font-family="Arial, sans-serif" font-size="72" font-weight="700"
+        fill="#ffffff" text-anchor="middle">VL</text>
+</svg>

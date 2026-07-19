@@ -3,6 +3,7 @@
     <Project Path="src/Vlms.Domain/Vlms.Domain.csproj" />
     <Project Path="src/Vlms.Infrastructure/Vlms.Infrastructure.csproj" />
     <Project Path="src/Vlms.Web/Vlms.Web.csproj" />
+    <Project Path="src/Vlms.Jobs/Vlms.Jobs.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Vlms.Tests/Vlms.Tests.csproj" />
