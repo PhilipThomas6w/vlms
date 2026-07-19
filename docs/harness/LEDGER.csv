@@ -3,3 +3,8 @@ date,work_item,change_class,session_tokens_est,model,outcome,notes
 2026-07-18,"(none)",n/a,494239,n/a,pass,auto-logged by run-verify.ps1
 2026-07-18,"- Curriculum management: `LessonProposalService` (propose/approve/reject/resubmit) and the Teacher/Approver UI. **Note (checker finding, commit c318bc5 review):** `EntraCurrentUserContext` resolves the caller via `IHttpContextAccessor`, which is null outside the initial HTTP request in Blazor Server's interactive (SignalR circuit) render mode — fails closed (safe, not a security hole) but will functionally deny authorised users once this UI goes interactive. Fix by surfacing the authenticated user via `AuthenticationStateProvider`/persisted state instead, as part of this item.",n/a,507788,n/a,pass,auto-logged by run-verify.ps1
 2026-07-18,"1. Progress tracking: `CompletionService`, `PromotionService` (auto-promotion), `CertificateService` (QuestPDF PDF generation to Blob Storage).",n/a,5881,n/a,pass,auto-logged by run-verify.ps1
+2026-07-19,"(none)",n/a,11848,n/a,pass,auto-logged by run-verify.ps1
+2026-07-19,"(none)",n/a,21325,n/a,pass,auto-logged by run-verify.ps1
+2026-07-19,"(none)",n/a,22342,n/a,pass,auto-logged by run-verify.ps1
+2026-07-19,"(none)",n/a,22342,n/a,pass,auto-logged by run-verify.ps1
+2026-07-19,"(none)",n/a,22342,n/a,pass,auto-logged by run-verify.ps1
