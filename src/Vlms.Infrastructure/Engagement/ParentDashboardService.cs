@@ -48,6 +48,10 @@ public sealed record ParentDashboardStudent(
 /// <c>ConsentExpiryJob.SweepConsentAsync</c>/<c>SweepDbsAsync</c> already use — avoids
 /// Include/ThenInclude chains through nullable navigation properties, and keeps every join
 /// translatable regardless of provider.
+///
+/// **Design-gap check resolved, no gap found (STATE.md):** the certificate join deliberately does
+/// not filter on <see cref="StudentLessonCompletion.IsReversed"/> — see the comment on that join
+/// below for the full reasoning.
 /// </summary>
 public sealed class ParentDashboardService
 {
@@ -94,6 +98,20 @@ public sealed class ParentDashboardService
             .Join(_db.Ranks, x => x.RankId, r => r.Id, (x, r) => new { x.StudentId, x.AwardedAt, RankName = r.Name })
             .ToListAsync(ct);
 
+        // Deliberately does NOT filter out certificates whose underlying StudentLessonCompletion has
+        // IsReversed == true (checked against data-design.md/low-level-design.md/functional.md before
+        // concluding this, per STATE.md's design-gap item — not an oversight). functional.md's only
+        // description of reversal is Teacher self-correction of a completion entry ("can self-correct/
+        // reverse their own entry"), and the only place IsReversed is consumed anywhere in this codebase
+        // is PromotionService, which excludes reversed completions from rank-progression counting — the
+        // precedented meaning of "reversed" here is "doesn't count toward progression", not "never
+        // happened". Nothing in the docs describes Certificate as having any lifecycle beyond
+        // generation (data-design.md: "Real tracked record, not implicit"), and there is no
+        // revocation/cascade rule for it anywhere. A Certificate already records a specific completion
+        // event that was celebrated and (per data-design.md's open item) may already be in a parent's
+        // hands — reversal correcting the underlying progression count is a separate concern from
+        // retroactively unissuing a certificate. If a real data-entry mistake needs a certificate pulled
+        // too, that is a distinct, undecided requirement — not something to infer from IsReversed.
         var certificates = await _db.Certificates
             .Join(_db.StudentLessonCompletions, c => c.StudentLessonCompletionId, slc => slc.Id,
                 (c, slc) => new { c.GeneratedAt, c.BlobKey, slc.StudentId, slc.LessonId })

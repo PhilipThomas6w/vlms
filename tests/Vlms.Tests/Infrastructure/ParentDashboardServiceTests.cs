@@ -35,6 +35,7 @@ public sealed class ParentDashboardServiceTests : IDisposable
 
         schema.Context.Ranks.Add(new Rank { Id = 1, Order = 1, Code = "R1", Name = "Recruit" });
         schema.Context.Lessons.Add(new Lesson { Id = 1, RankId = 1, Code = "L1", Title = "Knots 101", ContentBlobKey = "blob/l1", IsActive = true });
+        schema.Context.Lessons.Add(new Lesson { Id = 2, RankId = 1, Code = "L2", Title = "Fire Safety", ContentBlobKey = "blob/l2", IsActive = true });
         schema.Context.RankBadges.Add(new RankBadge { Id = 1, RankId = 1, ImageBlobKey = "badges/recruit.png" });
         schema.Context.AppUsers.Add(new AppUser { Id = 10, EntraObjectId = "teacher-1", DisplayName = "Teacher One", Email = "teacher1@example.com" });
 
@@ -58,6 +59,19 @@ public sealed class ParentDashboardServiceTests : IDisposable
             CompletedAt = new DateTime(2025, 6, 1, 0, 0, 0, DateTimeKind.Utc), IsReversed = false
         });
         schema.Context.Certificates.Add(new Certificate { Id = 1, StudentLessonCompletionId = 1, GeneratedAt = new DateTime(2025, 6, 1, 0, 0, 0, DateTimeKind.Utc), BlobKey = "certificates/100/1.pdf" });
+
+        // Alex also has a reversed completion (Teacher self-correction of a data-entry mistake) whose
+        // certificate was already generated before the reversal. STATE.md's design-gap item: does
+        // reversal cascade to certificate visibility? Resolved against data-design.md/functional.md —
+        // no, it does not (see ParentDashboardService's certificate-join comment) — so this certificate
+        // is expected to still appear on the dashboard.
+        schema.Context.StudentLessonCompletions.Add(new StudentLessonCompletion
+        {
+            Id = 2, StudentId = 100, LessonId = 2, CompletedByUserId = 10,
+            CompletedAt = new DateTime(2025, 6, 2, 0, 0, 0, DateTimeKind.Utc), IsReversed = true, ReversedAt = new DateTime(2025, 6, 3, 0, 0, 0, DateTimeKind.Utc)
+        });
+        schema.Context.Certificates.Add(new Certificate { Id = 2, StudentLessonCompletionId = 2, GeneratedAt = new DateTime(2025, 6, 2, 0, 0, 0, DateTimeKind.Utc), BlobKey = "certificates/100/2.pdf" });
+
         schema.Context.ConsentRecords.Add(new ConsentRecord
         {
             Id = 1, StudentId = 100, PeriodStart = new DateOnly(2025, 1, 1), PeriodEnd = new DateOnly(2026, 1, 1),
@@ -127,6 +141,31 @@ public sealed class ParentDashboardServiceTests : IDisposable
         Assert.Single(alex.Certificates, c => c.LessonTitle == "Knots 101");
         Assert.Equal(ConsentStatus.Approved, alex.ConsentStatus);
         Assert.Equal(new DateOnly(2026, 12, 31), alex.ConsentExpiryDate);
+    }
+
+    /// <summary>
+    /// STATE.md design-gap item (flagged by the Opus checker review of commit 4501d80): does
+    /// reversing a StudentLessonCompletion cascade to hiding its already-generated Certificate?
+    /// Resolved against data-design.md/low-level-design.md/functional.md — no: reversal's only
+    /// documented meaning is Teacher self-correction of a completion entry, and the only existing
+    /// consumer of IsReversed (PromotionService) treats it purely as "doesn't count toward rank
+    /// progression", not "never happened". A Certificate has no documented lifecycle beyond
+    /// generation, so a reversed completion's certificate is expected to still show — this is a
+    /// deliberate regression guard for that conclusion (see ParentDashboardService's certificate-join
+    /// comment), not an oversight to "fix" later.
+    /// </summary>
+    [Fact]
+    public async Task GetDashboardAsync_CertificateForReversedCompletion_IsStillShown_ReversalDoesNotCascadeToCertificates()
+    {
+        var parentA = new FakeCurrentUserContext(userId: 1, Role.Parent);
+        using var run = CreateContext(parentA);
+
+        var result = await run.Service(parentA).GetDashboardAsync();
+
+        var alex = Assert.Single(result);
+        Assert.Equal(2, alex.Certificates.Count);
+        Assert.Contains(alex.Certificates, c => c.LessonTitle == "Knots 101");
+        Assert.Contains(alex.Certificates, c => c.LessonTitle == "Fire Safety");
     }
 
     /// <summary>
