@@ -1,0 +1,18 @@
+{
+  "name": "Varangians LMS",
+  "short_name": "VLMS",
+  "description": "Varangians LMS: curriculum, progress tracking, and safeguarding for Teachers, Approvers, Parents, and Admins.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1f2937",
+  "icons": [
+    {
+      "src": "icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
