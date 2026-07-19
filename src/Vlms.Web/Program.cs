@@ -11,6 +11,7 @@ using Vlms.Infrastructure.Engagement;
 using Vlms.Infrastructure.Guardianship;
 using Vlms.Infrastructure.Provisioning;
 using Vlms.Infrastructure.Registration;
+using Vlms.Infrastructure.Reporting;
 using Vlms.Infrastructure.Safeguarding;
 using Vlms.Infrastructure.Security;
 using Vlms.Web.Components;
@@ -75,6 +76,12 @@ builder.Services.AddScoped<DbsCheckService>();
 // Vlms.Web sends notifications — that happens from the Vlms.Jobs WebJob host (ConsentExpiryNotifier),
 // the same "only wire what's actually consumed" approach IBlobStorage/CertificateService followed.
 builder.Services.AddScoped<ParentDashboardService>();
+
+// --- Admin reporting (STATE.md "Reporting screens: core progress stats + at-risk flagging",
+// functional.md "Reporting (MVP)") — Admin-only (see ProgressReportingService's doc comment for
+// why this isn't the Admin-or-SafeguardingOfficer pattern the consent/DBS pages use). At-risk
+// flagging reuses AtRiskStudentFlagging, the same computation ConsentExpiryJob's daily sweep uses.
+builder.Services.AddScoped<ProgressReportingService>();
 
 // --- Authorization: one policy per Role.Enum value (role-based), plus a resource-based
 // StudentAccess policy (Parent/Student/Teacher handlers) — docs/design/low-level-design.md

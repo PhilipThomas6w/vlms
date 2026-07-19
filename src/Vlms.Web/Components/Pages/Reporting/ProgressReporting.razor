@@ -1,0 +1,135 @@
+@page "/reporting"
+@attribute [Authorize(Policy = "RequireAdmin")]
+@rendermode InteractiveServer
+@using Vlms.Infrastructure.Reporting
+@inject ProgressReportingService ReportingService
+
+<PageTitle>Reporting</PageTitle>
+
+<h1>Reporting</h1>
+
+<p>
+    Core progress reports and at-risk/disengaged-student flagging (functional.md "Reporting (MVP)").
+    Admin-only — see <code>ProgressReportingService</code>'s doc comment for why this isn't gated the
+    same way as the consent/DBS pages.
+</p>
+
+@if (_errorMessage is not null)
+{
+    <p class="error" role="alert">@_errorMessage</p>
+}
+else if (_stats is null)
+{
+    <p>Loading…</p>
+}
+else
+{
+    <h2>Students by rank</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Rank</th>
+                <th>Active students</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var rank in _stats.StudentsByRank)
+            {
+                <tr>
+                    <td>@rank.RankName</td>
+                    <td>@rank.ActiveStudentCount</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <h2>Students by status</h2>
+    <ul>
+        <li>Active: @_stats.StatusCounts.ActiveCount</li>
+        <li>Inactive: @_stats.StatusCounts.InactiveCount</li>
+        <li>Graduated: @_stats.StatusCounts.GraduatedCount</li>
+    </ul>
+
+    <h2>Completion stats</h2>
+    <p>Total lesson completions recorded (non-reversed): @_stats.TotalLessonCompletions</p>
+
+    <h2>Promotion history</h2>
+    @if (_stats.PromotionHistory.Count == 0)
+    {
+        <p>No promotions recorded yet.</p>
+    }
+    else
+    {
+        <table>
+            <thead>
+                <tr>
+                    <th>Student</th>
+                    <th>Rank completed</th>
+                    <th>Completed at</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var entry in _stats.PromotionHistory)
+                {
+                    <tr>
+                        <td>@entry.StudentName</td>
+                        <td>@entry.RankName</td>
+                        <td>@entry.CompletedAt.ToString("d MMMM yyyy")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+
+    <h2>At-risk / disengaged students</h2>
+    <p>
+        No non-reversed lesson completion in @AtRiskStudentFlagging.AtRiskThresholdDays days —
+        the same disengagement flag <code>ConsentExpiryJob</code>'s daily sweep raises
+        (functional.md, quality/test-plan.md TC-010), surfaced here on demand.
+    </p>
+    @if (_atRiskStudents.Count == 0)
+    {
+        <p>No students are currently flagged as at risk.</p>
+    }
+    else
+    {
+        <table>
+            <thead>
+                <tr>
+                    <th>Student</th>
+                    <th>Last activity</th>
+                    <th>Days since</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var flag in _atRiskStudents)
+                {
+                    <tr>
+                        <td>@flag.StudentName</td>
+                        <td>@flag.LastActivityAt.ToString("d MMMM yyyy")</td>
+                        <td>@flag.DaysSinceLastActivity</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+}
+
+@code {
+    private ProgressStatsReport? _stats;
+    private List<AtRiskStudentFlag> _atRiskStudents = new();
+    private string? _errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _stats = await ReportingService.GetProgressStatsAsync();
+            _atRiskStudents = (await ReportingService.GetAtRiskStudentsAsync()).ToList();
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+}
