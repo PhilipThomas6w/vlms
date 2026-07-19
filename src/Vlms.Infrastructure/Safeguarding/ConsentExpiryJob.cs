@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Vlms.Domain;
+using Vlms.Infrastructure.Reporting;
 
 namespace Vlms.Infrastructure.Safeguarding;
 
@@ -26,15 +27,6 @@ public sealed record ConsentExpiryFlag(
 /// </summary>
 public sealed record DbsExpiryFlag(
     int TeacherUserId, string TeacherName, int? DbsCheckId, DateOnly? ExpiryDate, bool IsExpired);
-
-/// <summary>
-/// A <see cref="Student"/> with no non-reversed <see cref="StudentLessonCompletion"/> in the last
-/// <see cref="ConsentExpiryJob.AtRiskThresholdDays"/> days (functional.md: "no lesson completions
-/// within 8 weeks", quality/test-plan.md TC-010). <see cref="LastActivityAt"/> is the student's
-/// <see cref="Student.EnrolmentDate"/> if they have never had a completion at all.
-/// </summary>
-public sealed record AtRiskStudentFlag(
-    int StudentId, string StudentName, DateTime LastActivityAt, int DaysSinceLastActivity);
 
 public sealed record ConsentExpiryJobResult(
     IReadOnlyList<ConsentExpiryFlag> ConsentFlags,
@@ -63,7 +55,10 @@ public sealed record ConsentExpiryJobResult(
 /// paragraph explicitly folds this in ("Also runs the at-risk/disengaged student flagging: no
 /// lesson completion within 8 weeks"), even though it is a different concern from consent/DBS
 /// expiry (disengagement, not safeguarding-document lapse) — that bundling is the existing design
-/// decision this class follows, not one invented here. See <see cref="FlagAtRiskStudentsAsync"/>.
+/// decision this class follows, not one invented here. The computation itself now lives in
+/// <see cref="AtRiskStudentFlagging"/> (extracted for the reporting increment, STATE.md), shared
+/// with the on-demand Admin reporting screen so both call the exact same disengagement-window
+/// logic rather than each carrying their own copy.
 ///
 /// 3. <b>Escalation</b> (documented judgement call, since <c>NotificationService</c> — STATE.md
 /// Next item 1 — doesn't exist yet, so nothing in this codebase can send real email): an escalation
@@ -97,13 +92,6 @@ public sealed class ConsentExpiryJob
     /// </summary>
     public const int DefaultExpiryWarningWindowDays = 28;
 
-    /// <summary>
-    /// functional.md ("no lesson completions within 8 weeks") and quality/test-plan.md TC-010 both
-    /// name this figure explicitly, unlike the consent/DBS window — so it is a fixed constant, not
-    /// a constructor parameter.
-    /// </summary>
-    public const int AtRiskThresholdDays = 56;
-
     private readonly VlmsDbContext _db;
     private readonly ICurrentUserContext _currentUser;
     private readonly ILogger<ConsentExpiryJob> _logger;
@@ -130,7 +118,7 @@ public sealed class ConsentExpiryJob
 
         var consentFlags = await SweepConsentAsync(today, ct);
         var dbsFlags = await SweepDbsAsync(today, ct);
-        var atRiskStudents = await FlagAtRiskStudentsAsync(now, ct);
+        var atRiskStudents = await AtRiskStudentFlagging.GetAtRiskStudentsAsync(_db, now, ct);
 
         LogFlags(consentFlags, dbsFlags, atRiskStudents);
 
@@ -140,7 +128,7 @@ public sealed class ConsentExpiryJob
     /// <summary>
     /// Scoped to Active students only — data-design.md doesn't name a scope explicitly, but a
     /// Graduated or Inactive student needs no ongoing consent-expiry monitoring (mirrors the same
-    /// Active-only scoping <see cref="FlagAtRiskStudentsAsync"/> uses for disengagement). Considers
+    /// Active-only scoping <see cref="AtRiskStudentFlagging"/> uses for disengagement). Considers
     /// each Active student's most recent Approved <see cref="ConsentRecord"/> (by
     /// <see cref="ConsentRecord.ExpiryDate"/>) — computed in memory after materializing, not via
     /// EF's GroupBy/OrderBy/First translation, since that shape is not reliably supported across
@@ -243,47 +231,6 @@ public sealed class ConsentExpiryJob
     }
 
     /// <summary>
-    /// Active students only, per functional.md ("at-risk/disengaged student flagging... surfaced to
-    /// Admin for proactive follow-up") — a Graduated/Inactive student has no more lessons to
-    /// complete, so "disengagement" doesn't apply. <see cref="AtRiskStudentFlag.LastActivityAt"/> is
-    /// the latest non-reversed <see cref="StudentLessonCompletion.CompletedAt"/>, or the student's
-    /// <see cref="Student.EnrolmentDate"/> if they have none yet — so a newly enrolled student isn't
-    /// flagged before they've had a fair chance to complete anything (EnrolmentDate is always more
-    /// recent than "today minus 8 weeks" for anyone enrolled within the last 8 weeks).
-    /// </summary>
-    private async Task<IReadOnlyList<AtRiskStudentFlag>> FlagAtRiskStudentsAsync(DateTime now, CancellationToken ct)
-    {
-        var cutoff = now.AddDays(-AtRiskThresholdDays);
-
-        var activeStudents = await _db.Students
-            .Where(s => s.Status == StudentStatus.Active)
-            .Select(s => new { s.Id, s.Name, s.EnrolmentDate })
-            .ToListAsync(ct);
-
-        var lastCompletionByStudent = await _db.StudentLessonCompletions
-            .Where(c => !c.IsReversed)
-            .GroupBy(c => c.StudentId)
-            .Select(g => new { StudentId = g.Key, LastCompletedAt = g.Max(c => c.CompletedAt) })
-            .ToDictionaryAsync(x => x.StudentId, x => x.LastCompletedAt, ct);
-
-        var flags = new List<AtRiskStudentFlag>();
-        foreach (var student in activeStudents)
-        {
-            var lastActivity = lastCompletionByStudent.TryGetValue(student.Id, out var lastCompletedAt)
-                ? lastCompletedAt
-                : student.EnrolmentDate.ToDateTime(TimeOnly.MinValue);
-
-            if (lastActivity < cutoff)
-            {
-                var daysSince = (int)(now - lastActivity).TotalDays;
-                flags.Add(new AtRiskStudentFlag(student.Id, student.Name, lastActivity, daysSince));
-            }
-        }
-
-        return flags;
-    }
-
-    /// <summary>
     /// See the class doc comment's "Escalation" paragraph for why logging (not email) is this
     /// increment's escalation mechanism. Expired/missing consent and DBS (safeguarding-critical,
     /// matching low-level-design.md's "escalates to Admin/Safeguarding Officer" wording) are logged
@@ -331,7 +278,7 @@ public sealed class ConsentExpiryJob
         {
             _logger.LogWarning(
                 "At-risk: student {StudentId} ({StudentName}) has had no lesson completion in {DaysSinceLastActivity} days (>= {ThresholdDays}-day threshold) — surfaced to Admin for proactive follow-up.",
-                flag.StudentId, flag.StudentName, flag.DaysSinceLastActivity, AtRiskThresholdDays);
+                flag.StudentId, flag.StudentName, flag.DaysSinceLastActivity, AtRiskStudentFlagging.AtRiskThresholdDays);
         }
     }
 

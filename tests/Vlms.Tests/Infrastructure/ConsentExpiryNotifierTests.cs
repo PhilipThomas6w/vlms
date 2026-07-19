@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Vlms.Domain;
 using Vlms.Infrastructure;
+using Vlms.Infrastructure.Reporting;
 using Vlms.Infrastructure.Safeguarding;
 using Vlms.Infrastructure.Security;
 using Xunit;
