@@ -14,8 +14,10 @@ namespace Vlms.Infrastructure.Security;
 /// unresolved (e.g. a background job)") and which <see cref="SensitiveDataAccessLog.UserId"/>
 /// already models as a valid, resolvable-caller-absent case — the job's reads of
 /// <see cref="DbsCheck"/> still write an audit row (via the existing
-/// <see cref="Auditing.SensitiveDataAuditInterceptor"/>, unchanged), just with a null UserId, the
-/// same as any other caller Entra couldn't resolve.
+/// <see cref="Auditing.SensitiveDataAuditInterceptor"/>, unchanged, and only because
+/// <c>ConsentExpiryJob.SweepDbsAsync</c> materializes real <see cref="DbsCheck"/> entities rather
+/// than an anonymous-type projection — a projection would never trigger the interceptor at all),
+/// just with a null UserId, the same as any other caller Entra couldn't resolve.
 ///
 /// Never wired into Vlms.Web — Program.cs continues to resolve <see cref="EntraCurrentUserContext"/>
 /// for the interactive app. This is only for the WebJob host (Vlms.Jobs).

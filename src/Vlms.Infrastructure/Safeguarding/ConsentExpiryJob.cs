@@ -81,8 +81,10 @@ public sealed record ConsentExpiryJobResult(
 /// caller is always <see cref="Security.SystemCurrentUserContext"/> (which only ever grants these
 /// two roles), so this check is a structural safety net rather than something expected to ever
 /// actually deny — the same role gate additionally lets this job legitimately read
-/// <see cref="DbsCheck"/> through VlmsDbContext's query filter (adr/0004), triggering the existing
-/// read-audit interceptor exactly as any other Admin/SafeguardingOfficer read would.
+/// <see cref="DbsCheck"/> through VlmsDbContext's query filter (adr/0004). <see cref="SweepDbsAsync"/>
+/// materializes real <see cref="DbsCheck"/> entities (not an anonymous-type projection) specifically
+/// so this read genuinely triggers the existing read-audit interceptor, exactly as any other
+/// Admin/SafeguardingOfficer read would.
 /// </summary>
 public sealed class ConsentExpiryJob
 {
@@ -187,6 +189,18 @@ public sealed class ConsentExpiryJob
     /// <see cref="DbsExpiryFlag.IsExpired"/> = true: FR-002/data-design.md give no separate "block"
     /// mechanism for missing/invalid DBS the way FR-003 does for consent, so this job's escalation
     /// output is the only structural signal for it.
+    ///
+    /// Unlike <see cref="SweepConsentAsync"/>'s anonymous-type projections, the <see cref="DbsCheck"/>
+    /// query below materializes full entities (<c>.ToListAsync()</c> on the <see cref="DbsCheck"/>
+    /// query itself, with the id/teacher/expiry projection and grouping done afterwards in memory).
+    /// <see cref="DbsCheck"/> is one of the two whole-entity-restricted, read-audited entities
+    /// (adr/0004-sensitive-data-access-control.md); <see cref="Auditing.SensitiveDataAuditInterceptor"/>
+    /// only fires on <see cref="IMaterializationInterceptor"/>'s "instance of a mapped entity type
+    /// materialized" hook, which an anonymous-type <c>Select</c> projection never triggers — so
+    /// reading via a projection here would silently read every teacher's DBS status without ever
+    /// writing a <see cref="SensitiveDataAccessLog"/> row for it. Materializing the entity itself
+    /// keeps the audit trail genuine for this job's daily bulk read of the most sensitive entity in
+    /// the system.
     /// </summary>
     private async Task<IReadOnlyList<DbsExpiryFlag>> SweepDbsAsync(DateOnly today, CancellationToken ct)
     {
@@ -203,10 +217,10 @@ public sealed class ConsentExpiryJob
             .Select(u => new { u.Id, u.DisplayName })
             .ToListAsync(ct);
 
-        var clearChecks = await _db.DbsChecks
+        var clearChecks = (await _db.DbsChecks
             .Where(d => d.Status == DbsCheckStatus.Clear)
-            .Select(d => new { d.Id, d.TeacherUserId, d.ExpiryDate })
-            .ToListAsync(ct);
+            .ToListAsync(ct))
+            .Select(d => new { d.Id, d.TeacherUserId, d.ExpiryDate });
 
         var latestPerTeacher = clearChecks
             .GroupBy(d => d.TeacherUserId)

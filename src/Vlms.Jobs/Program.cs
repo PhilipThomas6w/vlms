@@ -35,7 +35,18 @@ builder.Services.AddDbContext<VlmsDbContext>(options =>
 // exactly which two roles it grants and why (only what the sensitive-data query filter needs).
 builder.Services.AddSingleton<ICurrentUserContext>(SystemCurrentUserContext.Instance);
 
-builder.Services.AddScoped<ConsentExpiryJob>();
+// ConsentExpiryJob's own doc comment: low-level-design.md calls the consent/DBS expiry warning
+// window "configurable" but names no number, so 28 days is a documented build-time default — bound
+// here from Safeguarding:ExpiryWarningWindowDays (appsettings.json/Azure App Service Application
+// Settings) so the project owner can actually override it without a recompile, per the ADR's own
+// wording. AddScoped<ConsentExpiryJob>() alone would resolve the constructor's int parameter to 0,
+// not the intended default, since DI has no registration for a bare int — so the value is read
+// explicitly and passed through this factory instead.
+builder.Services.AddScoped(sp => new ConsentExpiryJob(
+    sp.GetRequiredService<VlmsDbContext>(),
+    sp.GetRequiredService<ICurrentUserContext>(),
+    sp.GetRequiredService<ILogger<ConsentExpiryJob>>(),
+    builder.Configuration.GetValue("Safeguarding:ExpiryWarningWindowDays", ConsentExpiryJob.DefaultExpiryWarningWindowDays)));
 
 using var host = builder.Build();
 
