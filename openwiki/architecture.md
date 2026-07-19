@@ -13,7 +13,12 @@ src/
 tests/
   Vlms.Tests/               xUnit, SQLite-in-memory (depends on Vlms.Domain; references Infrastructure types via project ref)
 build/
-  verify.ps1                the gate: dotnet build -warnaserror, dotnet test, secrets scan
+  verify.ps1                the gate: dotnet build -warnaserror, dotnet test, secrets scan, and
+                             (full runs only) an ASVS 5.0 V8 access-control review + a WCAG 2.2 AA
+                             accessibility check — see openwiki/verify-gate.md
+  check-access-control.ps1  the ASVS stage's script (static scan + checklist-currency gate)
+  check-accessibility.ps1   the WCAG stage's script (static scan + checklist-currency gate)
+  lib-checklist-currency.ps1  shared content-hash helper both stages above dot-source
 docs/                       design source of truth — read before changing anything cross-cutting
 gates/design/                rendered design gate package (.docx) — reference only, never edited
 ```

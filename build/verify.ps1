@@ -13,5 +13,8 @@ Stage "secrets"{
     if ($hits) { Write-Error "possible secret"; exit 1 } else { "clean (regex fallback — install gitleaks for a real scan)" }
   }
 }
-if(-not $Fast){ Write-Host "== full-only stages: WCAG 2.2 AA check, OWASP ASVS access-control review — wire before the delivery gate (docs/delivery-plan.md exit criteria) ==" }
+if(-not $Fast){
+  Stage "access-control (ASVS 5.0 V8)" { & "$PSScriptRoot/check-access-control.ps1" }
+  Stage "accessibility (WCAG 2.2 AA)"  { & "$PSScriptRoot/check-accessibility.ps1" }
+}
 Write-Host "verify OK"

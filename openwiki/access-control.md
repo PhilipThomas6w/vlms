@@ -25,6 +25,16 @@ Deny-by-default (`HasRole` always false, `UserId` always null). Two legitimate u
 
 A third `ICurrentUserContext` implementation, added for the `ConsentExpiryJob` WebJob (see [safeguarding-consent.md](safeguarding-consent.md)) — a scheduled background job has no signed-in human caller, but it must legitimately read `DbsCheck` through the same filtered/audited path everything else uses (never `IgnoreQueryFilters()`). Unlike `NullCurrentUserContext`, it is not deny-by-default: `HasRole` returns true for exactly `Role.Admin` and `Role.SafeguardingOfficer` (precisely what the query filter above checks for) and false for everything else — narrowly scoped to what the job needs, not a general bypass. `UserId` is still null (no human to attribute the read to), which both `SensitiveDataAccessLog.UserId` and `ICurrentUserContext.UserId`'s own doc comment already model as a valid case. Only ever used by the `Vlms.Jobs` host — never wired into `Vlms.Web`.
 
+## Gate stage (`build/check-access-control.ps1`)
+
+`build/verify.ps1`'s full-only `access-control (ASVS 5.0 V8)` stage re-confirms three mechanical
+properties of this mechanism on every full run — zero `IgnoreQueryFilters()` call sites in `src/`,
+every page `[Authorize]`-gated, and the ADR-0004 test suites at/above a floor test count — plus a
+content-hash currency check on a paired human checklist
+(`docs/governance/asvs-access-control-checklist.md`). See [verify-gate.md](verify-gate.md) for the
+full mechanism and the chapter-numbering correction (this is ASVS 5.0 V8 Authorization, not V1 —
+V1 in 5.0 is "Encoding and Sanitization").
+
 ## Retention and tamper protection (named in the ADR, not yet built)
 
 `SensitiveDataAccessLog` is meant to be retained 6 years and tamper-protected at the database permission level (`DENY UPDATE`/`DELETE` for the app's SQL principal). Neither is in the migrations yet — tracked as `STATE.md` Next item 9 (added after the first checker review flagged it as at risk of being forgotten).
