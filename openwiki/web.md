@@ -4,7 +4,7 @@ Blazor Web App, **Server** interactivity (not Auto/WebAssembly — see [architec
 
 ## Current state
 
-`Program.cs` has the DI wiring (`VlmsDbContext`, `ICurrentUserContext`, authorization policies, `LessonProposalService`, Entra sign-in, cascading authentication state — see [authentication-authorization.md](authentication-authorization.md)). `Components/Pages/` holds the template's `Error.razor`/`NotFound.razor` plus VLMS UI: `Home.razor` (role-gated links via `AuthorizeView`) and `Components/Pages/Curriculum/` (`TeacherProposals.razor`, `ApproverProposals.razor` — see [curriculum.md](curriculum.md)). `Components/Routes.razor` uses `AuthorizeRouteView`, not a plain `RouteView` — see below.
+`Program.cs` has the DI wiring (`VlmsDbContext`, `ICurrentUserContext`, authorization policies, `LessonProposalService`, `GuardianLinkService`, Entra sign-in, cascading authentication state — see [authentication-authorization.md](authentication-authorization.md)). `Components/Pages/` holds the template's `Error.razor`/`NotFound.razor` plus VLMS UI: `Home.razor` (role-gated links via `AuthorizeView`), `Components/Pages/Curriculum/` (`TeacherProposals.razor`, `ApproverProposals.razor` — see [curriculum.md](curriculum.md)), and `Components/Pages/Guardianship/GuardianLinks.razor` (`/guardianship/links`, gated `RequireAdminOrTeacher` — see [guardian-links.md](guardian-links.md)). `Components/Routes.razor` uses `AuthorizeRouteView`, not a plain `RouteView` — see below.
 
 ## `appsettings.json`
 

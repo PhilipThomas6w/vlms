@@ -7,6 +7,7 @@ using Vlms.Domain;
 using Vlms.Infrastructure;
 using Vlms.Infrastructure.Authorization;
 using Vlms.Infrastructure.Curriculum;
+using Vlms.Infrastructure.Guardianship;
 using Vlms.Infrastructure.Provisioning;
 using Vlms.Infrastructure.Security;
 using Vlms.Web.Components;
@@ -51,10 +52,14 @@ builder.Services.AddScoped<UserProvisioningService>();
 // --- Curriculum management workflow (docs/design/low-level-design.md "LessonProposalService")
 builder.Services.AddScoped<LessonProposalService>();
 
+// --- Guardian-link creation (functional.md FR-004, data-design.md "Guardian link verification")
+builder.Services.AddScoped<GuardianLinkService>();
+
 // --- Authorization: one policy per Role.Enum value (role-based), plus a resource-based
 // StudentAccess policy (Parent/Student/Teacher handlers) — docs/design/low-level-design.md
 // "Authorization model", adr/0002-roles-as-application-claims.md. -----------------------------
 builder.Services.AddScoped<IAuthorizationHandler, RoleAuthorizationHandler>();
+builder.Services.AddScoped<IAuthorizationHandler, AnyRoleAuthorizationHandler>();
 builder.Services.AddScoped<IAuthorizationHandler, ParentStudentAccessHandler>();
 builder.Services.AddScoped<IAuthorizationHandler, StudentSelfAccessHandler>();
 builder.Services.AddScoped<IAuthorizationHandler, TeacherStudentAccessHandler>();
@@ -67,6 +72,10 @@ builder.Services.AddAuthorization(options =>
     }
 
     options.AddPolicy("StudentAccess", policy => policy.Requirements.Add(new StudentAccessRequirement()));
+
+    // Guardian-link creation page (FR-004): Admin or Teacher, never Parent self-service.
+    options.AddPolicy("RequireAdminOrTeacher",
+        policy => policy.Requirements.Add(new AnyRoleRequirement(Role.Admin, Role.Teacher)));
 });
 
 // --- Authentication: Microsoft Entra External ID (CIAM) sign-in via Microsoft.Identity.Web,

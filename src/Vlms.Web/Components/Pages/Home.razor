@@ -13,3 +13,6 @@ Welcome to your new app.
 <AuthorizeView Policy="RequireApprover">
     <p><a href="/curriculum/approver">Curriculum approvals</a></p>
 </AuthorizeView>
+<AuthorizeView Policy="RequireAdminOrTeacher">
+    <p><a href="/guardianship/links">Guardian links</a></p>
+</AuthorizeView>
