@@ -31,7 +31,9 @@ namespace Vlms.Tests.Infrastructure;
 /// active statement (the open reader from the read being audited). Using a named, shared-cache
 /// in-memory database (kept alive by one long-lived anchor connection for the test's duration)
 /// lets each context open its own physical connection while still seeing the same data — exactly
-/// how separate connections/contexts behave against the real Azure SQL target in production.
+/// how separate connections/contexts behave against the real self-hosted PostgreSQL target in
+/// production (adr/0005-hosting-pivot-self-hosted-vps-postgresql.md; this wording predates that
+/// pivot and named Azure SQL, which is no longer this project's database engine).
 /// </summary>
 public sealed class SensitiveDataAccessControlTests : IDisposable
 {

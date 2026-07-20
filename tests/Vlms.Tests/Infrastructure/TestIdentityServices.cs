@@ -25,7 +25,18 @@ namespace Vlms.Tests.Infrastructure;
 /// </summary>
 internal static class TestIdentityServices
 {
-    public static ServiceProvider BuildServiceProvider(string connectionString, ICurrentUserContext currentUser)
+    /// <summary>
+    /// <paramref name="publicBaseUrl"/> defaults to a valid value so every pre-existing test keeps
+    /// exercising the happy path unchanged. Pass <c>null</c> only to reproduce
+    /// <c>GuardianInviteService.SendInviteEmailAsync</c>'s real "App:PublicBaseUrl is not configured"
+    /// failure mode — used by <c>GuardianLinkServiceTests</c>' invite-issuance-failure atomicity
+    /// tests (checker-FAIL round-trip on STATE.md's "Identity" item) to prove the link/guardian
+    /// write rolls back when the invite-issuance step fails, without adding an artificial fault-
+    /// injection knob to <see cref="FakeNotificationService"/> for a failure this codebase can
+    /// already trigger for real.
+    /// </summary>
+    public static ServiceProvider BuildServiceProvider(
+        string connectionString, ICurrentUserContext currentUser, string? publicBaseUrl = "https://test.example")
     {
         var services = new ServiceCollection();
         services.AddLogging();
@@ -33,7 +44,9 @@ internal static class TestIdentityServices
         services.AddDbContext<VlmsDbContext>(options => options.UseSqlite(connectionString));
         services.AddSingleton<IDataProtectionProvider, EphemeralDataProtectionProvider>();
         services.AddSingleton<IConfiguration>(new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?> { ["App:PublicBaseUrl"] = "https://test.example" })
+            .AddInMemoryCollection(publicBaseUrl is null
+                ? new Dictionary<string, string?>()
+                : new Dictionary<string, string?> { ["App:PublicBaseUrl"] = publicBaseUrl })
             .Build());
         services.AddSingleton<FakeNotificationService>();
         services.AddSingleton<Vlms.Domain.INotificationService>(sp => sp.GetRequiredService<FakeNotificationService>());

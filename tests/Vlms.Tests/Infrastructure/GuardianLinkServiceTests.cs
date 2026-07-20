@@ -69,6 +69,28 @@ public sealed class GuardianLinkServiceTests : IDisposable
         return new CallerContext(provider, scope, context, currentUser, service, notifications);
     }
 
+    /// <summary>
+    /// Same wiring as <see cref="CreateContext"/>, but with no <c>App:PublicBaseUrl</c> configured —
+    /// reproduces <c>GuardianInviteService.SendInviteEmailAsync</c>'s real "not configured" failure,
+    /// which fires *after* the link (and, on <see cref="GuardianLinkService.RegisterGuardianAndLinkAsync"/>,
+    /// the new <see cref="ParentGuardian"/>) has already been added to the tracked context but before
+    /// the invite-issuing transaction commits. Used by the invite-issuance-failure atomicity tests
+    /// below (checker-FAIL round-trip on STATE.md's "Identity" item, mirroring the
+    /// <c>StudentRegistrationServiceTests</c>/<c>d3a7e0d</c> test pattern).
+    /// </summary>
+    private CallerContext CreateContextWithoutPublicBaseUrl(int? userId, params Role[] roles)
+    {
+        var currentUser = new FakeCurrentUserContext(userId, roles);
+
+        var provider = TestIdentityServices.BuildServiceProvider(_connectionString, currentUser, publicBaseUrl: null);
+        var scope = provider.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<VlmsDbContext>();
+        var service = scope.ServiceProvider.GetRequiredService<GuardianLinkService>();
+        var notifications = scope.ServiceProvider.GetRequiredService<FakeNotificationService>();
+
+        return new CallerContext(provider, scope, context, currentUser, service, notifications);
+    }
+
     private static void SeedReferenceData(VlmsDbContext context)
     {
         context.Ranks.Add(new Rank { Id = 1, Order = 1, Code = "R1", Name = "Recruit" });
@@ -317,5 +339,43 @@ public sealed class GuardianLinkServiceTests : IDisposable
         Assert.Single(admin.Context.GuardianInvites.Where(i => i.ParentGuardianId == guardian.Id));
         Assert.Single(admin.Notifications.SentRequests);
         Assert.Equal("fresh@example.com", admin.Notifications.SentRequests[0].RecipientEmail);
+    }
+
+    // --- Atomicity: checker-FAIL round-trip fix on the STATE.md "Identity" item. Both entry points
+    // wrap their link write and invite issuance in one transaction (see GuardianLinkService's own
+    // doc comment) — a failure inside invite issuance must roll back the link too, mirroring the
+    // d3a7e0d fix for StudentRegistrationService. -------------------------------------------------
+
+    [Fact]
+    public async Task CreateLinkAsync_WhenInviteIssuanceFails_RollsBackTheLinkToo()
+    {
+        // No App:PublicBaseUrl configured — GuardianInviteService.SendInviteEmailAsync throws
+        // InvalidOperationException *after* the link's own SaveChangesAsync has already run inside
+        // the shared transaction. Before this fix, that SaveChangesAsync's write would already be
+        // committed by the time the invite step failed, leaving an orphaned link with no invite.
+        using var admin = CreateContextWithoutPublicBaseUrl(1, Role.Admin);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => admin.Service.CreateLinkAsync(studentId: 100, parentGuardianId: 1, CancellationToken.None));
+
+        using var verify = CreateContext(1, Role.Admin);
+        Assert.Empty(verify.Context.StudentGuardianLinks.Where(l => l.StudentId == 100 && l.ParentGuardianId == 1));
+        Assert.Empty(verify.Context.GuardianInvites.Where(i => i.StudentId == 100 && i.ParentGuardianId == 1));
+    }
+
+    [Fact]
+    public async Task RegisterGuardianAndLinkAsync_WhenInviteIssuanceFails_RollsBackGuardianAndLinkToo()
+    {
+        using var admin = CreateContextWithoutPublicBaseUrl(1, Role.Admin);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => admin.Service.RegisterGuardianAndLinkAsync(
+                studentId: 100, guardianName: "Orphan Risk Guardian", contactInfo: "orphan@example.com",
+                isPrimary: true, CancellationToken.None));
+
+        using var verify = CreateContext(1, Role.Admin);
+        Assert.Empty(verify.Context.ParentGuardians.Where(g => g.Name == "Orphan Risk Guardian"));
+        Assert.Empty(verify.Context.StudentGuardianLinks.Where(l => l.StudentId == 100));
+        Assert.Empty(verify.Context.GuardianInvites);
     }
 }

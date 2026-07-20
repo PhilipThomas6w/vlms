@@ -55,6 +55,32 @@ namespace Vlms.Infrastructure.Guardianship;
 /// throw — <c>GuardianInviteService.AcceptAsync</c> rejects accepting an invite for a guardian who
 /// already has an account). See <see cref="Vlms.Domain.GuardianInvite"/>'s doc comment for the full
 /// design.
+///
+/// **Atomicity (checker-FAIL round-trip fix on the STATE.md "Identity" item):** the link write
+/// (this class's own <c>SaveChangesAsync</c>) and the invite write (a separate
+/// <c>SaveChangesAsync</c> inside <see cref="GuardianInviteService.IssueAsync"/>) are two distinct
+/// calls against the same <see cref="VlmsDbContext"/>. Both entry points below wrap the link write
+/// and the <see cref="IssueInviteIfUnregisteredAsync"/> call in a transaction — the same non-
+/// atomicity bug class <see cref="Vlms.Infrastructure.Registration.StudentRegistrationService"/>'s
+/// own checker-FAIL round-trip already found and fixed (commit <c>d3a7e0d</c>) — so a failure
+/// anywhere in invite issuance (the invite row's own write, or the subsequent invite-email send)
+/// rolls back the link (and, on <see cref="RegisterGuardianAndLinkAsync"/>, the newly-created
+/// <see cref="ParentGuardian"/> too) instead of leaving an orphaned link with no invite and no
+/// onboarding path until someone notices and manually re-issues one.
+///
+/// **Composes with an already-open caller transaction, exactly like
+/// <see cref="Vlms.Infrastructure.Identity.AppUserProvisioningService.CreateAsync"/>:** this class
+/// is itself called from inside <see cref="Vlms.Infrastructure.Registration.StudentRegistrationService"/>'s
+/// own <c>BeginTransactionAsync</c>/<c>CommitAsync</c> (both entry points there wrap their Student/
+/// StudentRankProgress write plus the guardian-link call in one transaction) — a second, nested
+/// <c>BeginTransactionAsync</c> on the same connection throws
+/// ("The connection is already in a transaction and cannot participate in another transaction").
+/// Both entry points below check <see cref="Microsoft.EntityFrameworkCore.DatabaseFacade.CurrentTransaction"/>
+/// first: if one is already ambient (called from <c>StudentRegistrationService</c>), this class
+/// joins it and leaves committing/rolling back to that caller; if not (called directly, e.g. from
+/// <c>GuardianLinks.razor</c>), it opens and commits its own — the standard EF Core "compose
+/// transactional units" pattern (see [Managing transactions](https://learn.microsoft.com/ef/core/saving/transactions),
+/// "Using external DbTransactions"), not a bespoke transaction-passing parameter.
 /// </summary>
 public sealed class GuardianLinkService
 {
@@ -91,12 +117,30 @@ public sealed class GuardianLinkService
             CreatedByUserId = createdByUserId
         };
 
-        _db.StudentGuardianLinks.Add(link);
-        await _db.SaveChangesAsync(ct);
+        // Atomicity/ambient-transaction composition — see this class's doc comment.
+        var ownsTransaction = _db.Database.CurrentTransaction is null;
+        var transaction = ownsTransaction ? await _db.Database.BeginTransactionAsync(ct) : null;
+        try
+        {
+            _db.StudentGuardianLinks.Add(link);
+            await _db.SaveChangesAsync(ct);
 
-        await IssueInviteIfUnregisteredAsync(studentId, guardian, ct);
+            await IssueInviteIfUnregisteredAsync(studentId, guardian, ct);
 
-        return link;
+            if (ownsTransaction)
+            {
+                await transaction!.CommitAsync(ct);
+            }
+
+            return link;
+        }
+        finally
+        {
+            if (transaction is not null)
+            {
+                await transaction.DisposeAsync();
+            }
+        }
     }
 
     /// <summary>
@@ -131,14 +175,33 @@ public sealed class GuardianLinkService
         };
         _db.StudentGuardianLinks.Add(link);
 
-        await _db.SaveChangesAsync(ct);
+        // Atomicity/ambient-transaction composition — see this class's doc comment.
+        var ownsTransaction = _db.Database.CurrentTransaction is null;
+        var transaction = ownsTransaction ? await _db.Database.BeginTransactionAsync(ct) : null;
+        try
+        {
+            await _db.SaveChangesAsync(ct);
 
-        // A brand-new ParentGuardian created right here always has AppUserId == null (it was just
-        // constructed above with no AppUserId set), so this always issues an invite for this entry
-        // point — unlike CreateLinkAsync, where the guardian may already be registered.
-        await IssueInviteIfUnregisteredAsync(studentId, guardian, ct);
+            // A brand-new ParentGuardian created right here always has AppUserId == null (it was
+            // just constructed above with no AppUserId set), so this always issues an invite for
+            // this entry point — unlike CreateLinkAsync, where the guardian may already be
+            // registered.
+            await IssueInviteIfUnregisteredAsync(studentId, guardian, ct);
 
-        return (guardian, link);
+            if (ownsTransaction)
+            {
+                await transaction!.CommitAsync(ct);
+            }
+
+            return (guardian, link);
+        }
+        finally
+        {
+            if (transaction is not null)
+            {
+                await transaction.DisposeAsync();
+            }
+        }
     }
 
     /// <summary>See this class's doc comment for the exact trigger condition and why.</summary>
