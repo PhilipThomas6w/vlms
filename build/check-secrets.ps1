@@ -23,8 +23,17 @@
 # every not-yet-provisioned credential (appsettings.json AzureAd, Vlms.Jobs appsettings.json
 # CommunicationServices — including "accesskey=PLACEHOLDER"). The shape patterns require a
 # real-length/high-entropy value (e.g. a 30+ char base64 key), which PLACEHOLDER never reaches,
-# and any matched line still containing PLACEHOLDER is filtered out — so intentional placeholder
-# config passes cleanly while a real committed key does not.
+# and any matched credential VALUE still containing the literal PLACEHOLDER sentinel is filtered
+# out. The filter is scoped to the matched value (not the whole line) and is case-sensitive
+# against the uppercase sentinel — so a real key pasted onto the same physical line as an
+# incidental mention of the word "placeholder" is still caught, while intentional placeholder
+# config passes cleanly.
+#
+# Path exclusion: the scan skips this repo's own test files (which legitimately hold fake,
+# secret-shaped strings — FakeEmailSender, FakeCurrentUserContext, test fixtures) by anchoring
+# the exclusion to actual path SEGMENTS (a tests/ directory, or a *fixture* filename) rather
+# than a bare substring — so a real key in e.g. src/.../latest-import.json (contains "test") is
+# NOT silently skipped.
 
 $ErrorActionPreference = "Stop"
 $repoRoot = (Resolve-Path "$PSScriptRoot/..").Path
@@ -43,12 +52,15 @@ if (Get-Command gitleaks -ErrorAction SilentlyContinue) {
 
 # --- Fallback path: tightened regex ---------------------------------------------------------
 # Each entry: a label (for evidence output) and the pattern. Patterns are matched per line;
-# a line still containing PLACEHOLDER is treated as intentional placeholder config and skipped.
+# a match whose credential value contains the literal PLACEHOLDER sentinel is treated as
+# intentional placeholder config and skipped. The SQL/password pattern matches both the
+# unquoted connection-string form (Password=Sup3rSecret123;) and the quoted C#-assignment form
+# (password = "Sup3rSecretHardcoded") — the opening quote is optional.
 $patterns = @(
     @{ Label = "AWS access key id";                    Pattern = 'AKIA[0-9A-Z]{16}' }
     @{ Label = "PEM private key block";                Pattern = 'BEGIN (RSA |EC |DSA |OPENSSH )?PRIVATE KEY' }
     @{ Label = "Azure Storage / Communication Services key"; Pattern = '(?i)(AccountKey|accesskey)\s*=\s*[A-Za-z0-9+/]{30,}={0,2}' }
-    @{ Label = "SQL / connection-string password";     Pattern = '(?i)\b(password|pwd)\s*=\s*[^;''"\s]{6,}' }
+    @{ Label = "SQL / connection-string password";     Pattern = '(?i)\b(password|pwd)\s*=\s*[''"]?[^;''"\s]{3,}' }
     @{ Label = "Entra/Graph client secret value";      Pattern = '[a-zA-Z0-9_~.]{3}\dQ~[a-zA-Z0-9_~.\-]{31,34}' }
     @{ Label = "explicit client secret assignment";    Pattern = '(?i)client_?secret\W{1,4}[A-Za-z0-9._~+/\-]{8,}' }
 )
@@ -56,14 +68,15 @@ $patterns = @(
 $scanFiles = Get-ChildItem -Path $repoRoot -Recurse -Include *.cs, *.json, *.yaml, *.yml -ErrorAction SilentlyContinue |
     Where-Object {
         $_.FullName -notmatch '[\\/](\.git|node_modules|bin|obj)[\\/]' -and
-        $_.FullName -notmatch '(?i)(test|fixture)'
+        $_.FullName -notmatch '(?i)[\\/]tests?[\\/]' -and
+        $_.FullName -notmatch '(?i)[\\/][^\\/]*fixtures?[^\\/]*\.[^\\/]+$'
     }
 
 $hits = @()
 foreach ($entry in $patterns) {
     $matches = $scanFiles | Select-String -Pattern $entry.Pattern
     foreach ($m in $matches) {
-        if ($m.Line -match 'PLACEHOLDER') { continue }   # intentional placeholder config
+        if ($m.Matches[0].Value -clike '*PLACEHOLDER*') { continue }   # intentional placeholder config — scoped to the matched credential VALUE, and case-sensitive against the literal uppercase sentinel this repo uses (never the whole line)
         $hits += [pscustomobject]@{
             Label = $entry.Label
             Path  = RelativePath $m.Path
