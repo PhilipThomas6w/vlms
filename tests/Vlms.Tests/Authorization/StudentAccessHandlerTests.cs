@@ -43,9 +43,9 @@ public sealed class StudentAccessHandlerTests : IDisposable
         context.Database.EnsureCreated();
 
         context.Ranks.Add(new Rank { Id = 1, Order = 1, Code = "R1", Name = "Recruit" });
-        context.AppUsers.Add(new AppUser { Id = 1, EntraObjectId = "parent-linked", DisplayName = "Linked Parent", Email = "p1@example.com" });
-        context.AppUsers.Add(new AppUser { Id = 2, EntraObjectId = "parent-unlinked", DisplayName = "Unlinked Parent", Email = "p2@example.com" });
-        context.AppUsers.Add(new AppUser { Id = 3, EntraObjectId = "student-1", DisplayName = "Student One", Email = "s1@example.com" });
+        context.AppUsers.Add(new AppUser { Id = 1, DisplayName = "Linked Parent", Email = "p1@example.com" });
+        context.AppUsers.Add(new AppUser { Id = 2, DisplayName = "Unlinked Parent", Email = "p2@example.com" });
+        context.AppUsers.Add(new AppUser { Id = 3, DisplayName = "Student One", Email = "s1@example.com" });
         context.ParentGuardians.Add(new ParentGuardian { Id = 1, Name = "Linked Parent", ContactInfo = "p1@example.com", IsPrimary = true, AppUserId = 1 });
         context.ParentGuardians.Add(new ParentGuardian { Id = 2, Name = "Unlinked Parent", ContactInfo = "p2@example.com", IsPrimary = true, AppUserId = 2 });
         context.Students.Add(new Student

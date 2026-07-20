@@ -33,12 +33,12 @@ No separate API project exists or is planned — `docs/design/integration.md` co
 
 ## Dependency direction
 
-`Vlms.Web` → `Vlms.Infrastructure` → `Vlms.Domain`. `Vlms.Domain` has no dependency on EF Core or ASP.NET Core — it defines entities and the `ICurrentUserContext` abstraction only. This is why `ICurrentUserContext` lives in Domain but both its implementations (`NullCurrentUserContext`, `EntraCurrentUserContext`) live in Infrastructure.
+`Vlms.Web` → `Vlms.Infrastructure` → `Vlms.Domain`. `Vlms.Domain` has no dependency on EF Core or ASP.NET Core — it defines entities and the `ICurrentUserContext` abstraction only. This is why `ICurrentUserContext` lives in Domain but all three of its implementations (`NullCurrentUserContext`, `SystemCurrentUserContext`, `IdentityCurrentUserContext`) live in Infrastructure — and why `AppUser` (Domain) stays a plain POCO while ASP.NET Core Identity's own credential row, `VlmsIdentityUser`, is a separate type in Infrastructure (`Vlms.Infrastructure/Identity/`) — see [authentication-authorization.md](authentication-authorization.md)'s coexistence-design section.
 
 ## Key cross-cutting mechanisms (each has its own page)
 
 - **Sensitive-data access control** (`docs/adr/0004-sensitive-data-access-control.md`) — EF Core global query filters + an `IMaterializationInterceptor` audit log. See [access-control.md](access-control.md).
-- **Authentication/authorization** (`docs/adr/0001`, `docs/adr/0002`) — Entra External ID + app-managed roles + resource-based handlers. See [authentication-authorization.md](authentication-authorization.md).
+- **Authentication/authorization** (`docs/adr/0002`) — self-rolled ASP.NET Core Identity (TOTP MFA) + app-managed roles + resource-based handlers (originally Microsoft Entra External ID, `docs/adr/0001`; replaced by STATE.md's "Identity" item as part of the hosting pivot, adr/0005). See [authentication-authorization.md](authentication-authorization.md).
 - **Scheduled work** (`docs/adr/0003-scheduled-jobs-webjobs.md`) — Azure App Service WebJobs. Implemented: `ConsentExpiryJob` (daily consent/DBS expiry + 8-week at-risk flagging) plus `ConsentExpiryNotifier` (safeguarding-critical email escalation), hosted by the `Vlms.Jobs` console project above — not yet deployed anywhere (no live Azure environment). See [safeguarding-consent.md](safeguarding-consent.md) and [notifications.md](notifications.md).
 
 ## Target framework and stack

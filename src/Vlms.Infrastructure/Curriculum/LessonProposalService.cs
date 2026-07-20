@@ -18,7 +18,7 @@ namespace Vlms.Infrastructure.Curriculum;
 /// (adr/0004-sensitive-data-access-control.md): a caller reaching this service by any path other
 /// than the intended UI (a future API endpoint, a bug in page-level gating) must still be denied
 /// here, not just kept out by the router. Same layering as
-/// <see cref="Vlms.Infrastructure.Provisioning.UserProvisioningService"/>: takes
+/// <see cref="Vlms.Infrastructure.Guardianship.GuardianLinkService"/>: takes
 /// <see cref="VlmsDbContext"/> directly, does not itself touch ASP.NET Core authorization types.
 ///
 /// The Approver role is curriculum-only (Vlms.Domain.Role's doc comment; VISION.md): nothing in

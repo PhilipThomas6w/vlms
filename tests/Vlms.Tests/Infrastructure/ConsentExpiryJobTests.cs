@@ -156,22 +156,22 @@ public sealed class ConsentExpiryJobTests : IDisposable
 
         using (var seed = CreateContext(SystemCurrentUserContext.Instance))
         {
-            seed.Context.AppUsers.Add(new AppUser { Id = 10, EntraObjectId = "t10", DisplayName = "Teacher Soon", Email = "t10@example.com" });
+            seed.Context.AppUsers.Add(new AppUser { Id = 10, DisplayName = "Teacher Soon", Email = "t10@example.com" });
             seed.Context.UserRoles.Add(new UserRole { UserId = 10, Role = Role.Teacher });
             seed.Context.DbsChecks.Add(NewDbsCheck(1, 10, today.AddDays(10)));
 
-            seed.Context.AppUsers.Add(new AppUser { Id = 11, EntraObjectId = "t11", DisplayName = "Teacher Expired", Email = "t11@example.com" });
+            seed.Context.AppUsers.Add(new AppUser { Id = 11, DisplayName = "Teacher Expired", Email = "t11@example.com" });
             seed.Context.UserRoles.Add(new UserRole { UserId = 11, Role = Role.Teacher });
             seed.Context.DbsChecks.Add(NewDbsCheck(2, 11, today.AddDays(-5)));
 
-            seed.Context.AppUsers.Add(new AppUser { Id = 12, EntraObjectId = "t12", DisplayName = "Teacher Never Checked", Email = "t12@example.com" });
+            seed.Context.AppUsers.Add(new AppUser { Id = 12, DisplayName = "Teacher Never Checked", Email = "t12@example.com" });
             seed.Context.UserRoles.Add(new UserRole { UserId = 12, Role = Role.Teacher });
 
-            seed.Context.AppUsers.Add(new AppUser { Id = 13, EntraObjectId = "t13", DisplayName = "Teacher Valid", Email = "t13@example.com" });
+            seed.Context.AppUsers.Add(new AppUser { Id = 13, DisplayName = "Teacher Valid", Email = "t13@example.com" });
             seed.Context.UserRoles.Add(new UserRole { UserId = 13, Role = Role.Teacher });
             seed.Context.DbsChecks.Add(NewDbsCheck(3, 13, today.AddDays(365)));
 
-            seed.Context.AppUsers.Add(new AppUser { Id = 14, EntraObjectId = "t14", DisplayName = "Teacher Only Flagged", Email = "t14@example.com" });
+            seed.Context.AppUsers.Add(new AppUser { Id = 14, DisplayName = "Teacher Only Flagged", Email = "t14@example.com" });
             seed.Context.UserRoles.Add(new UserRole { UserId = 14, Role = Role.Teacher });
             seed.Context.DbsChecks.Add(NewDbsCheck(4, 14, today.AddDays(365), DbsCheckStatus.Flagged));
 
@@ -207,7 +207,7 @@ public sealed class ConsentExpiryJobTests : IDisposable
         using (var seed = CreateContext(SystemCurrentUserContext.Instance))
         {
             seed.Context.Lessons.Add(new Lesson { Id = 1, RankId = 1, Code = "L1", Title = "Knots", ContentBlobKey = "b1", IsActive = true });
-            seed.Context.AppUsers.Add(new AppUser { Id = 10, EntraObjectId = "t10", DisplayName = "Teacher One", Email = "t10@example.com" });
+            seed.Context.AppUsers.Add(new AppUser { Id = 10, DisplayName = "Teacher One", Email = "t10@example.com" });
 
             // Disengaged: last completion 70 days ago (> 56-day threshold).
             seed.Context.Students.Add(NewStudent(200, "Disengaged", StudentStatus.Active, DateOnly.FromDateTime(now.AddYears(-1))));
@@ -317,17 +317,17 @@ public sealed class ConsentExpiryJobTests : IDisposable
 
         using (var seed = CreateContext(SystemCurrentUserContext.Instance))
         {
-            seed.Context.AppUsers.Add(new AppUser { Id = 20, EntraObjectId = "t20", DisplayName = "Teacher Soon", Email = "t20@example.com" });
+            seed.Context.AppUsers.Add(new AppUser { Id = 20, DisplayName = "Teacher Soon", Email = "t20@example.com" });
             seed.Context.UserRoles.Add(new UserRole { UserId = 20, Role = Role.Teacher });
             seed.Context.DbsChecks.Add(NewDbsCheck(21, 20, today.AddDays(10)));
 
-            seed.Context.AppUsers.Add(new AppUser { Id = 22, EntraObjectId = "t22", DisplayName = "Teacher Expired", Email = "t22@example.com" });
+            seed.Context.AppUsers.Add(new AppUser { Id = 22, DisplayName = "Teacher Expired", Email = "t22@example.com" });
             seed.Context.UserRoles.Add(new UserRole { UserId = 22, Role = Role.Teacher });
             seed.Context.DbsChecks.Add(NewDbsCheck(23, 22, today.AddDays(-5)));
 
             // A non-Clear check must not count — SweepDbsAsync's query filters to Clear before
             // materializing, so the interceptor should never fire for this row.
-            seed.Context.AppUsers.Add(new AppUser { Id = 24, EntraObjectId = "t24", DisplayName = "Teacher Flagged", Email = "t24@example.com" });
+            seed.Context.AppUsers.Add(new AppUser { Id = 24, DisplayName = "Teacher Flagged", Email = "t24@example.com" });
             seed.Context.UserRoles.Add(new UserRole { UserId = 24, Role = Role.Teacher });
             seed.Context.DbsChecks.Add(NewDbsCheck(25, 24, today.AddDays(365), DbsCheckStatus.Flagged));
 

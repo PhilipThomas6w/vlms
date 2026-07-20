@@ -95,7 +95,7 @@ public sealed class ProgressReportingServiceTests : IDisposable
         db.Ranks.Add(new Rank { Id = 3, Order = 3, Code = "R3", Name = "Pioneer" });
 
         db.Lessons.Add(new Lesson { Id = 1, RankId = 1, Code = "L1", Title = "Knots", ContentBlobKey = "b1", IsActive = true });
-        db.AppUsers.Add(new AppUser { Id = 10, EntraObjectId = "teacher-1", DisplayName = "Teacher One", Email = "t1@example.com" });
+        db.AppUsers.Add(new AppUser { Id = 10, DisplayName = "Teacher One", Email = "t1@example.com" });
 
         // Active students: Alex + Bailey in Recruit (Rank 1), Casey in Explorer (Rank 2). Rank 3
         // (Pioneer) has zero active students despite existing as reference data.
@@ -205,7 +205,7 @@ public sealed class ProgressReportingServiceTests : IDisposable
 
             db.Ranks.Add(new Rank { Id = 1, Order = 1, Code = "R1", Name = "Recruit" });
             db.Lessons.Add(new Lesson { Id = 1, RankId = 1, Code = "L1", Title = "Knots", ContentBlobKey = "b1", IsActive = true });
-            db.AppUsers.Add(new AppUser { Id = 10, EntraObjectId = "t10", DisplayName = "Teacher One", Email = "t10@example.com" });
+            db.AppUsers.Add(new AppUser { Id = 10, DisplayName = "Teacher One", Email = "t10@example.com" });
 
             // Disengaged: last completion 70 days ago (> 56-day threshold).
             db.Students.Add(NewStudent(200, "Disengaged", StudentStatus.Active, 1, DateOnly.FromDateTime(now.AddYears(-1))));

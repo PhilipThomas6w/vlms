@@ -34,7 +34,7 @@ public sealed class PromotionServiceTests : IDisposable
 
         schema.Context.Ranks.Add(new Rank { Id = 1, Order = 1, Code = "R1", Name = "Recruit" });
         schema.Context.Ranks.Add(new Rank { Id = 2, Order = 2, Code = "R2", Name = "Explorer" }); // final rank
-        schema.Context.AppUsers.Add(new AppUser { Id = 1, EntraObjectId = "teacher-1", DisplayName = "Teacher One", Email = "teacher1@example.com" });
+        schema.Context.AppUsers.Add(new AppUser { Id = 1, DisplayName = "Teacher One", Email = "teacher1@example.com" });
         schema.Context.SaveChanges();
     }
 

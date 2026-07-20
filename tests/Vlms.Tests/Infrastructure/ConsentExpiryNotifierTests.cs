@@ -35,14 +35,14 @@ public sealed class ConsentExpiryNotifierTests : IDisposable
         using var schema = CreateContext(SystemCurrentUserContext.Instance);
         schema.Context.Database.EnsureCreated();
 
-        schema.Context.AppUsers.Add(new AppUser { Id = 1, EntraObjectId = "admin-1", DisplayName = "Admin One", Email = "admin1@example.com" });
+        schema.Context.AppUsers.Add(new AppUser { Id = 1, DisplayName = "Admin One", Email = "admin1@example.com" });
         schema.Context.UserRoles.Add(new UserRole { UserId = 1, Role = Role.Admin });
 
-        schema.Context.AppUsers.Add(new AppUser { Id = 2, EntraObjectId = "sgo-1", DisplayName = "Safeguarding One", Email = "sgo1@example.com" });
+        schema.Context.AppUsers.Add(new AppUser { Id = 2, DisplayName = "Safeguarding One", Email = "sgo1@example.com" });
         schema.Context.UserRoles.Add(new UserRole { UserId = 2, Role = Role.SafeguardingOfficer });
 
         // A Teacher must never receive this escalation — it's Admin/SafeguardingOfficer only.
-        schema.Context.AppUsers.Add(new AppUser { Id = 3, EntraObjectId = "teacher-1", DisplayName = "Teacher One", Email = "teacher1@example.com" });
+        schema.Context.AppUsers.Add(new AppUser { Id = 3, DisplayName = "Teacher One", Email = "teacher1@example.com" });
         schema.Context.UserRoles.Add(new UserRole { UserId = 3, Role = Role.Teacher });
 
         schema.Context.SaveChanges();

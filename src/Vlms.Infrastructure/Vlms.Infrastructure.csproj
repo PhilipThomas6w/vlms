@@ -43,7 +43,26 @@
     <!-- ILogger<T> for ConsentExpiryJob's escalation logging (Safeguarding/ConsentExpiryJob.cs) —
          explicit reference (rather than relying on it arriving transitively via EF Core) so this
          class library's own dependencies are self-declared. -->
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.4" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.10" />
+    <!-- ASP.NET Core Identity (STATE.md "Identity" item, replacing Microsoft Entra External ID) —
+         VlmsIdentityUser/UserManager<VlmsIdentityUser>/IdentityUserContext<TUser,TKey>. A standalone
+         package (not a FrameworkReference to the whole ASP.NET Core shared framework), same reason
+         Microsoft.AspNetCore.Authorization/Components.Authorization above are: this stays a plain
+         class library. SignInManager (which needs HttpContext to write the auth cookie) deliberately
+         stays out of this project — see Identity/AppUserProvisioningService.cs's doc comment — so no
+         reference to the web-hosting-only Identity UI pieces is needed here. -->
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.10" />
+    <!-- ASP.NET Core Data Protection — backs the guardian invite token's "signed, expiring"
+         properties via ITimeLimitedDataProtector (Guardianship/GuardianInviteService.cs). The
+         .Extensions package (not just Microsoft.AspNetCore.DataProtection.Abstractions) is where
+         ToTimeLimitedDataProtector() lives. Pinned to 10.0.10, not the initial 10.0.0 release: the
+         10.0.0 to 10.0.6 range has a Critical-severity (CVSS 9.1) auth-cookie-forgery/payload-decrypt
+         vulnerability, CVE-2026-40372 / GHSA-9mv3-2cwr-p262, fixed in 10.0.7 and later — found via
+         the dotnet NuGet vulnerability audit (dotnet list package, vulnerable mode) after adding
+         this package, not assumed clean. Directly relevant here: this package's own
+         ITimeLimitedDataProtector is what signs the guardian invite tokens, and Identity's own
+         cookie encryption depends on the same Data Protection stack. -->
+    <PackageReference Include="Microsoft.AspNetCore.DataProtection.Extensions" Version="10.0.10" />
   </ItemGroup>
 
 </Project>

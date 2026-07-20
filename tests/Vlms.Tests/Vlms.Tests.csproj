@@ -18,8 +18,8 @@
     <!-- ConfigurationBuilder/AddInMemoryCollection + GetValue<T> — proves the exact
          Safeguarding:ExpiryWarningWindowDays binding Vlms.Jobs/Program.cs uses to configure
          ConsentExpiryJob actually reads a non-default value from configuration. -->
-    <PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.10" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.10" />
   </ItemGroup>
 
   <ItemGroup>

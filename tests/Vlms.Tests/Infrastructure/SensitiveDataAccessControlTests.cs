@@ -62,10 +62,12 @@ public sealed class SensitiveDataAccessControlTests : IDisposable
         }
     }
 
-    private CallerContext CreateContext(params Role[] roles)
+    private CallerContext CreateContext(params Role[] roles) => CreateContext(hasMfaEnabled: true, roles);
+
+    private CallerContext CreateContext(bool hasMfaEnabled, params Role[] roles)
     {
         var services = new ServiceCollection();
-        services.AddSingleton<ICurrentUserContext>(new FakeCurrentUserContext(userId: 1, roles));
+        services.AddSingleton<ICurrentUserContext>(new FakeCurrentUserContext(userId: 1, hasMfaEnabled, roles));
         services.AddDbContext<VlmsDbContext>(options => options.UseSqlite(_connectionString));
 
         var provider = services.BuildServiceProvider();
@@ -103,9 +105,9 @@ public sealed class SensitiveDataAccessControlTests : IDisposable
     private static void SeedCoreReferenceData(VlmsDbContext context)
     {
         context.Ranks.Add(new Rank { Id = 1, Order = 1, Code = "R1", Name = "Recruit" });
-        context.AppUsers.Add(new AppUser { Id = 1, EntraObjectId = "parent-1", DisplayName = "Parent One", Email = "parent1@example.com" });
-        context.AppUsers.Add(new AppUser { Id = 2, EntraObjectId = "admin-1", DisplayName = "Admin One", Email = "admin1@example.com" });
-        context.AppUsers.Add(new AppUser { Id = 10, EntraObjectId = "teacher-1", DisplayName = "Teacher One", Email = "teacher1@example.com" });
+        context.AppUsers.Add(new AppUser { Id = 1, DisplayName = "Parent One", Email = "parent1@example.com" });
+        context.AppUsers.Add(new AppUser { Id = 2, DisplayName = "Admin One", Email = "admin1@example.com" });
+        context.AppUsers.Add(new AppUser { Id = 10, DisplayName = "Teacher One", Email = "teacher1@example.com" });
         context.ParentGuardians.Add(new ParentGuardian { Id = 1, Name = "Parent One", ContactInfo = "parent1@example.com", IsPrimary = true });
         context.Students.Add(new Student
         {
@@ -249,5 +251,69 @@ public sealed class SensitiveDataAccessControlTests : IDisposable
         Assert.Equal(2, logEntries.Count);
         Assert.Equal(1, logEntries[0].EntityId);
         Assert.Equal(2, logEntries[1].EntityId);
+    }
+
+    // --- MFA-gated roles (adr/0004 §"MFA-gated roles", pass 7 — STATE.md "Identity" item 4): the
+    // query filter now requires HasMfaEnabled in addition to Admin/SafeguardingOfficer. ------------
+
+    [Fact]
+    public void Admin_WithoutMfaEnabled_CannotRead_DbsCheck_Or_ConsentSensitiveDetails()
+    {
+        using (var seed = CreateContext(hasMfaEnabled: true, Role.Admin))
+        {
+            SeedCoreReferenceData(seed.Context);
+            seed.Context.DbsChecks.Add(NewDbsCheck(id: 1, teacherUserId: 10));
+
+            var consent = NewConsentRecord(id: 1, studentId: 1);
+            seed.Context.ConsentRecords.Add(consent);
+            seed.Context.ConsentSensitiveDetails.Add(new ConsentSensitiveDetails
+            {
+                Id = 1,
+                ConsentRecordId = consent.Id,
+                EmergencyContact = "Someone, 07000 000000"
+            });
+            seed.Context.SaveChanges();
+        }
+
+        // Same role as Admin_CanRead_DbsCheck_And_ConsentSensitiveDetails above — only HasMfaEnabled
+        // differs — proving the denial is specifically about MFA, not role.
+        using var adminWithoutMfa = CreateContext(hasMfaEnabled: false, Role.Admin);
+
+        Assert.Empty(adminWithoutMfa.Context.DbsChecks.ToList());
+        Assert.Empty(adminWithoutMfa.Context.ConsentSensitiveDetails.ToList());
+    }
+
+    [Fact]
+    public void SafeguardingOfficer_WithoutMfaEnabled_CannotRead_DbsCheck_Or_ConsentSensitiveDetails()
+    {
+        using (var seed = CreateContext(hasMfaEnabled: true, Role.Admin))
+        {
+            SeedCoreReferenceData(seed.Context);
+            seed.Context.DbsChecks.Add(NewDbsCheck(id: 1, teacherUserId: 10));
+            seed.Context.SaveChanges();
+        }
+
+        using var sgoWithoutMfa = CreateContext(hasMfaEnabled: false, Role.SafeguardingOfficer);
+
+        Assert.Empty(sgoWithoutMfa.Context.DbsChecks.ToList());
+    }
+
+    [Fact]
+    public void SafeguardingOfficer_WithMfaEnabled_CanRead_DbsCheck()
+    {
+        // Confirms the previous test's denial is genuinely about MFA, not an accidental regression
+        // of SafeguardingOfficer's own role-based access (which the pre-existing
+        // Admin_CanRead_DbsCheck_And_ConsentSensitiveDetails test above doesn't cover, since it only
+        // ever uses Role.Admin).
+        using (var seed = CreateContext(hasMfaEnabled: true, Role.Admin))
+        {
+            SeedCoreReferenceData(seed.Context);
+            seed.Context.DbsChecks.Add(NewDbsCheck(id: 1, teacherUserId: 10));
+            seed.Context.SaveChanges();
+        }
+
+        using var sgoWithMfa = CreateContext(hasMfaEnabled: true, Role.SafeguardingOfficer);
+
+        Assert.Single(sgoWithMfa.Context.DbsChecks.ToList());
     }
 }

@@ -1,0 +1,99 @@
+@page "/Account/LoginWith2fa"
+
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Identity
+@using Vlms.Infrastructure.Identity
+
+@inject SignInManager<VlmsIdentityUser> SignInManager
+@inject IdentityRedirectManager RedirectManager
+@inject ILogger<LoginWith2fa> Logger
+
+@* Static SSR — see Login.razor's doc comment. Reached after PasswordSignInAsync returns
+   RequiresTwoFactor; SignInManager tracks which user is mid-sign-in via its own two-factor cookie
+   (GetTwoFactorAuthenticationUserAsync), not a query-string parameter, so this page cannot be
+   reached "cold" without having just password-authenticated. *@
+
+<PageTitle>Two-factor authentication</PageTitle>
+
+<h1>Two-factor authentication</h1>
+
+<p>Enter the 6-digit code from your authenticator app.</p>
+
+@if (_errorMessage is not null)
+{
+    <p class="error" role="alert">@_errorMessage</p>
+}
+
+@* No hidden ReturnUrl/RememberMe fields needed: this EditForm has no explicit `action`, so per the
+   HTML spec a submit posts back to "the document's URL" — the current request URL, query string
+   included — so SupplyParameterFromQuery below re-reads the same ReturnUrl/RememberMe values on the
+   POST as it did on the initial GET. *@
+<EditForm Model="Input" method="post" OnValidSubmit="OnValidSubmitAsync" FormName="login-with-2fa">
+    <DataAnnotationsValidator />
+    <ValidationSummary role="alert" />
+
+    <div>
+        <label for="code">Authenticator code</label>
+        <InputText id="code" @bind-Value="Input.TwoFactorCode" autocomplete="off" aria-required="true" />
+    </div>
+    <div>
+        <label><InputCheckbox @bind-Value="Input.RememberMachine" /> Remember this device</label>
+    </div>
+
+    <button type="submit">Verify</button>
+</EditForm>
+
+<p><a href="Account/LoginWithRecoveryCode?returnUrl=@Uri.EscapeDataString(ReturnUrl ?? "/")">Use a recovery code instead</a></p>
+
+@code {
+    // No property initializer — BL0008 (learn.microsoft.com/aspnet/core/diagnostics/bl0008): see
+    // Login.razor's identical comment.
+    [SupplyParameterFromForm]
+    private InputModel Input { get; set; } = default!;
+
+    [SupplyParameterFromQuery]
+    private string? ReturnUrl { get; set; }
+
+    [SupplyParameterFromQuery]
+    private bool RememberMe { get; set; }
+
+    private string? _errorMessage;
+
+    protected override void OnInitialized() => Input ??= new();
+
+    private async Task OnValidSubmitAsync()
+    {
+        var user = await SignInManager.GetTwoFactorAuthenticationUserAsync()
+            ?? throw new InvalidOperationException("Unable to load two-factor authentication user.");
+
+        var authenticatorCode = Input.TwoFactorCode.Replace(" ", string.Empty).Replace("-", string.Empty);
+
+        var result = await SignInManager.TwoFactorAuthenticatorSignInAsync(
+            authenticatorCode, RememberMe, Input.RememberMachine);
+
+        if (result.Succeeded)
+        {
+            Logger.LogInformation("User with ID '{UserId}' logged in with 2fa.", user.Id);
+            RedirectManager.RedirectTo(ReturnUrl ?? "/");
+        }
+        else if (result.IsLockedOut)
+        {
+            Logger.LogWarning("User with ID '{UserId}' account locked out.", user.Id);
+            _errorMessage = "This account is locked out. Try again later.";
+        }
+        else
+        {
+            _errorMessage = "Invalid authenticator code.";
+        }
+    }
+
+    private sealed class InputModel
+    {
+        [Required]
+        [StringLength(7, ErrorMessage = "The {0} must be at least {2} and at max {1} characters long.", MinimumLength = 6)]
+        [DataType(DataType.Text)]
+        public string TwoFactorCode { get; set; } = "";
+
+        public bool RememberMachine { get; set; }
+    }
+}

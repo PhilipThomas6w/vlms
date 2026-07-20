@@ -29,10 +29,31 @@ comment); this checklist covers the rest.
 
 The current pages (`src/Vlms.Web/Components/Pages/`): `Home.razor`,
 `Curriculum/TeacherProposals.razor`, `Curriculum/ApproverProposals.razor`,
-`Guardianship/GuardianLinks.razor`, `Registration/RegisterStudent.razor`,
-`Safeguarding/ConsentRecords.razor`, `Safeguarding/DbsChecks.razor`,
-`Parent/ParentDashboard.razor`, `Reporting/ProgressReporting.razor`, plus the shared
-`Layout/MainLayout.razor`/`Layout/ReconnectModal.razor`.
+`Guardianship/GuardianLinks.razor`, `Guardianship/AcceptInvite.razor`,
+`Registration/RegisterStudent.razor`, `Safeguarding/ConsentRecords.razor`,
+`Safeguarding/DbsChecks.razor`, `Parent/ParentDashboard.razor`,
+`Reporting/ProgressReporting.razor`, plus the shared `Layout/MainLayout.razor`/
+`Layout/ReconnectModal.razor` — and, new this review (STATE.md "Identity" item —
+`src/Vlms.Web/Components/Account/Pages/`): `Login.razor`, `Register.razor`, `LoginWith2fa.razor`,
+`LoginWithRecoveryCode.razor`, `Manage/EnableAuthenticator.razor`,
+`Manage/TwoFactorAuthentication.razor`.
+
+- [ ] **New Identity/Account pages, reviewed this pass:** all six follow the same pattern already
+      established elsewhere in this codebase — every `<input>`/`InputText`/`InputCheckbox` has a
+      `<label for="...">` (mechanically enforced by `build/check-accessibility.ps1` for the
+      `Input*` components; `Login.razor`'s "Remember me" `InputCheckbox` and `LoginWith2fa.razor`'s
+      "Remember this device" one use a wrapping `<label>` instead, which is an equally valid
+      accessible-name pattern the automated check doesn't need to cover since the label
+      unambiguously owns the control); every error uses `<p class="error" role="alert">` and every
+      `<ValidationSummary role="alert" />`, matching the existing pattern this checklist already
+      signed off on for the seven form pages above. `Manage/EnableAuthenticator.razor` generates no
+      QR code image at all (a documented scope decision in its own doc comment — no `<img>`, so no
+      alt-text question arises) — only a manually-typed shared-secret key, which sidesteps the
+      "QR code needs accessible alt text describing the underlying secret" problem entirely rather
+      than solving it. `Manage/TwoFactorAuthentication.razor`'s recovery-code regeneration message
+      uses `<p role="status">` — this is a genuine improvement on the "Status messages (4.1.3)" gap
+      already flagged below for the older seven pages (still open there), not something to
+      re-flag here.
 
 - [ ] **Colour contrast (1.4.3/1.4.11):** `wwwroot/app.css` (the Blazor project template's default
       stylesheet, not yet restyled for VLMS) gives text and UI-component colours a 4.5:1 (text) /
@@ -62,9 +83,12 @@ The current pages (`src/Vlms.Web/Components/Pages/`): `Home.razor`,
       this (it isn't an `<img>` element), which is exactly why it's listed here rather than assumed
       covered.
 - [ ] **Consistent navigation (3.2.3) / reflow (1.4.10):** `Home.razor`'s per-role
-      `<AuthorizeView>` link list is the only navigation surface (no persistent nav menu exists yet)
-      — confirm it still reads and reflows sensibly at 400% zoom / 320px viewport width as more
-      links are added.
+      `<AuthorizeView>` link list is still the only *content* navigation surface, but
+      `MainLayout.razor` now has a genuine persistent `<nav>` too (STATE.md "Identity" item — sign-in
+      status, a link to `Account/Manage/TwoFactorAuthentication`, and a log-out `<form>`, shown on
+      every page via `AuthorizeView`/`NotAuthorized`) — semantic `<nav>`, real `<a>`/`<button>`
+      elements, no new pattern to review beyond confirming it (like `Home.razor`'s list) still reads
+      and reflows sensibly at 400% zoom / 320px viewport width as more links are added.
 - [ ] **Status messages (4.1.3):** confirm success paths (e.g. `RegisterStudent.razor` clearing the
       form and reloading the guardian list after a successful submit) surface a perceivable
       confirmation to assistive tech, not just a silently-reset form — currently no explicit success
@@ -77,5 +101,6 @@ The current pages (`src/Vlms.Web/Components/Pages/`): `Home.razor`,
 | Reviewed by | Date | Notes |
 |---|---|---|
 | Philip Luke Thomas | 2026-07-19 | Initial checklist authored alongside the verify.ps1 gate stage. Colour contrast and the MainLayout dismiss-glyph aria-label are the two items most likely to need real follow-up once branding lands; not blocking for this increment since no VLMS-specific visual design exists yet to review against. |
+| Philip Luke Thomas | 2026-07-20 | Re-reviewed after STATE.md's "Identity" item added six new Account pages (Login/Register/LoginWith2fa/LoginWithRecoveryCode/Manage/EnableAuthenticator/Manage/TwoFactorAuthentication), one new content page (`Guardianship/AcceptInvite.razor`), and a persistent nav bar in `MainLayout.razor`. Read every new/changed file, not just the diff. All six Account pages follow this codebase's existing label/role="alert" conventions (new bullet above); the QR-code alt-text question that a TOTP enrolment page would normally raise doesn't arise here — no QR code is generated, a documented scope decision. `MainLayout.razor`'s new `<nav>` is semantic markup, reviewed under the existing "Consistent navigation" item (updated above) rather than as a new concern. One genuine improvement found and noted, not a gap: `Manage/TwoFactorAuthentication.razor` uses `role="status"` for its recovery-code-regeneration message, which the existing "Status messages (4.1.3)" item had flagged as missing everywhere else — that item stays open for the older seven pages, not resolved codebase-wide. No new gaps found beyond what was already open (colour contrast, the MainLayout dismiss-glyph aria-label, and the pre-existing status-messages item). |
 
-Reviewed-hash: e983bcb1ccae084c35a1dac166b641ee245c39a5051a2c9a28d046fd97a80d12
+Reviewed-hash: 515a3d8fc5ec63f288d36f1c4996484f28efd68dec6eb7a8adba1adc9d4bdc77

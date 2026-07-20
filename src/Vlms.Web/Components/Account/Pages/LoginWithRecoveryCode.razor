@@ -1,0 +1,87 @@
+@page "/Account/LoginWithRecoveryCode"
+
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Identity
+@using Vlms.Infrastructure.Identity
+
+@inject SignInManager<VlmsIdentityUser> SignInManager
+@inject IdentityRedirectManager RedirectManager
+@inject ILogger<LoginWithRecoveryCode> Logger
+
+@* Static SSR — see Login.razor's doc comment. Fallback for a caller who has lost their
+   authenticator device — consumes one single-use recovery code (UserManager.GenerateNewTwoFactorRecoveryCodesAsync
+   at enrolment time is what generates the set this draws from — Manage/EnableAuthenticator.razor). *@
+
+<PageTitle>Recovery code verification</PageTitle>
+
+<h1>Recovery code verification</h1>
+
+<p>
+    You have requested to log in with a recovery code. This login will not be remembered until you
+    provide an authenticator app code at log in or disable and re-enable two-factor authentication.
+</p>
+
+@if (_errorMessage is not null)
+{
+    <p class="error" role="alert">@_errorMessage</p>
+}
+
+<EditForm Model="Input" method="post" OnValidSubmit="OnValidSubmitAsync" FormName="login-with-recovery-code">
+    <DataAnnotationsValidator />
+    <ValidationSummary role="alert" />
+
+    <div>
+        <label for="recoveryCode">Recovery code</label>
+        <InputText id="recoveryCode" @bind-Value="Input.RecoveryCode" autocomplete="off" aria-required="true" />
+    </div>
+
+    <button type="submit">Log in</button>
+</EditForm>
+
+@code {
+    // No property initializer — BL0008 (learn.microsoft.com/aspnet/core/diagnostics/bl0008): see
+    // Login.razor's identical comment.
+    [SupplyParameterFromForm]
+    private InputModel Input { get; set; } = default!;
+
+    [SupplyParameterFromQuery]
+    private string? ReturnUrl { get; set; }
+
+    protected override void OnInitialized() => Input ??= new();
+
+    private string? _errorMessage;
+
+    private async Task OnValidSubmitAsync()
+    {
+        var user = await SignInManager.GetTwoFactorAuthenticationUserAsync()
+            ?? throw new InvalidOperationException("Unable to load two-factor authentication user.");
+
+        var recoveryCode = Input.RecoveryCode.Replace(" ", string.Empty);
+
+        var result = await SignInManager.TwoFactorRecoveryCodeSignInAsync(recoveryCode);
+
+        if (result.Succeeded)
+        {
+            Logger.LogInformation("User with ID '{UserId}' logged in with a recovery code.", user.Id);
+            RedirectManager.RedirectTo(ReturnUrl ?? "/");
+        }
+        else if (result.IsLockedOut)
+        {
+            Logger.LogWarning("User account locked out.");
+            _errorMessage = "This account is locked out. Try again later.";
+        }
+        else
+        {
+            Logger.LogWarning("Invalid recovery code entered.");
+            _errorMessage = "Invalid recovery code.";
+        }
+    }
+
+    private sealed class InputModel
+    {
+        [Required]
+        [DataType(DataType.Text)]
+        [Display(Name = "Recovery Code")]
+        public string RecoveryCode { get; set; } = "";
+    }
+}

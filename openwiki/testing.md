@@ -11,11 +11,15 @@ Two non-obvious requirements, both load-bearing (discovered the hard way during 
 1. **Resolve `VlmsDbContext` via a real DI container** (`AddDbContext` + `ServiceProvider`), not `new VlmsDbContext(...)` directly. EF Core only wires a context's internal service provider back to the application's `IServiceProvider` when the context is constructed through DI — and `materializationData.Context.GetService<T>()` inside `SensitiveDataAuditInterceptor` depends on that wiring. A bare `new VlmsDbContext(...)` in a test would silently fail to exercise the same resolution path production uses.
 2. **Give every context the connection string, not a shared `SqliteConnection` instance.** EF's SQLite provider re-registers SQL functions on whichever physical connection it wraps, which SQLite refuses while that connection has an active statement — a real conflict when the audit interceptor opens a second context mid-read (see [access-control.md](access-control.md)). Use a named, shared-cache in-memory database (`Data Source=file:<name>;Mode=Memory;Cache=Shared`) kept alive by one long-lived anchor connection, so each context opens its own physical connection but sees the same data.
 
-If a new test needs a `VlmsDbContext`, copy this pattern rather than reinventing it — don't drop back to `InMemory` or a shared connection instance for convenience. Further examples beyond the reference file: `EntraCurrentUserContextTests`, `UserProvisioningServiceTests`, `AuthenticationStatePrincipalResolverTests`, `LessonProposalServiceTests` (all `tests/Vlms.Tests/Infrastructure/`).
+If a new test needs a `VlmsDbContext`, copy this pattern rather than reinventing it — don't drop back to `InMemory` or a shared connection instance for convenience. Further examples beyond the reference file: `IdentityCurrentUserContextTests`, `AppUserProvisioningServiceTests`, `GuardianInviteServiceTests`, `AuthenticationStatePrincipalResolverTests`, `LessonProposalServiceTests` (all `tests/Vlms.Tests/Infrastructure/`).
 
 ## `FakeCurrentUserContext` (`Infrastructure/FakeCurrentUserContext.cs`)
 
-A minimal `ICurrentUserContext` test double: `new FakeCurrentUserContext(userId, params Role[] roles)`. Used to simulate "the caller" in tests — it only supplies role/identity data; the actual authorization/query-filter logic under test is always the real production code, never mocked. (Its doc comment, like `ICurrentUserContext.cs`'s, still says the real implementation is "a later STATE.md item" — stale now that `EntraCurrentUserContext` exists, harmless but worth a pass next time either file is touched.)
+A minimal `ICurrentUserContext` test double: `new FakeCurrentUserContext(userId, params Role[] roles)`, or `new FakeCurrentUserContext(userId, hasMfaEnabled, params Role[] roles)` when a test needs to control MFA status explicitly (STATE.md "Identity" item 4 — the `hasMfaEnabled`-less overload defaults to `true`, so every test written before MFA enforcement existed keeps testing exactly the property it was written for). Used to simulate "the caller" in tests — it only supplies role/identity/MFA data; the actual authorization/query-filter logic under test is always the real production code, never mocked.
+
+## `TestIdentityServices` (`Infrastructure/TestIdentityServices.cs`)
+
+A small DI-registration helper (STATE.md "Identity" item) that wires a real `UserManager<VlmsIdentityUser>`/Identity store against the test's SQLite-in-memory `VlmsDbContext`, an `EphemeralDataProtectionProvider` (in-memory keys, no disk I/O), and a `FakeNotificationService` (captures invite emails instead of sending them). Needed more broadly than just `AppUserProvisioningServiceTests`/`GuardianInviteServiceTests`: once `GuardianLinkService` started issuing an invite from inside its two entry points, essentially every pre-existing `GuardianLinkServiceTests`/`StudentRegistrationServiceTests` case (their seed guardian never has `AppUserId` set) now exercises the same DI chain, so this factory wires the real shape (matching `Vlms.Web`'s `Program.cs`) rather than each test file inventing its own shortcut. `UserManager<TUser>` is not an interface, so faking it convincingly would be more work than wiring the real one against a test database.
 
 ## `ListLogger<T>` (`Infrastructure/ListLogger.cs`)
 
@@ -45,8 +49,8 @@ never exercised against SQLite (which has no `REVOKE`/database-role model at all
 generates the real migration SQL in-process via `IMigrator.GenerateScript()` against an
 Npgsql-configured context (no live connection needed) and asserts on the literal generated text —
 the same "structurally correct, not yet exercised against a live resource" status this codebase
-already gives `AzureBlobStorage`/`EntraCurrentUserContext` before their live dependencies existed,
-now given to `UseNpgsql` DDL instead of `UseSqlServer` DDL.
+already gives `AzureBlobStorage` before its live dependency existed, now given to `UseNpgsql` DDL
+instead of `UseSqlServer` DDL.
 
 **Testcontainers-backed PostgreSQL integration tests were considered and explicitly not built**: the
 actual risk they'd cover — does `REVOKE ... FROM PUBLIC` really behave as documented against a live

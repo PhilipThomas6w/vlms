@@ -70,10 +70,10 @@ public sealed class LessonProposalServiceTests : IDisposable
     private static void SeedReferenceData(VlmsDbContext context)
     {
         context.Ranks.Add(new Rank { Id = 1, Order = 1, Code = "R1", Name = "Recruit" });
-        context.AppUsers.Add(new AppUser { Id = 1, EntraObjectId = "admin-1", DisplayName = "Admin One", Email = "admin@example.com" });
-        context.AppUsers.Add(new AppUser { Id = 10, EntraObjectId = "teacher-1", DisplayName = "Teacher One", Email = "teacher1@example.com" });
-        context.AppUsers.Add(new AppUser { Id = 11, EntraObjectId = "teacher-2", DisplayName = "Teacher Two", Email = "teacher2@example.com" });
-        context.AppUsers.Add(new AppUser { Id = 20, EntraObjectId = "approver-1", DisplayName = "Approver One", Email = "approver1@example.com" });
+        context.AppUsers.Add(new AppUser { Id = 1, DisplayName = "Admin One", Email = "admin@example.com" });
+        context.AppUsers.Add(new AppUser { Id = 10, DisplayName = "Teacher One", Email = "teacher1@example.com" });
+        context.AppUsers.Add(new AppUser { Id = 11, DisplayName = "Teacher Two", Email = "teacher2@example.com" });
+        context.AppUsers.Add(new AppUser { Id = 20, DisplayName = "Approver One", Email = "approver1@example.com" });
         context.Lessons.Add(new Lesson
         {
             Id = 1,

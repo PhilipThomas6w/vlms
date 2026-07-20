@@ -43,7 +43,18 @@ $componentsRoot = Join-Path $repoRoot "src/Vlms.Web/Components"
 # Home.razor: a shell page with no sensitive content of its own — every link on it is individually
 # gated by <AuthorizeView Policy="..."> per role, not a single page-level policy (see the page).
 # Error.razor / NotFound.razor: framework error pages, nothing sensitive to protect.
-$allowListedPages = @("Home.razor", "Error.razor", "NotFound.razor")
+# Login.razor / Register.razor / LoginWith2fa.razor / LoginWithRecoveryCode.razor / AcceptInvite.razor
+# (STATE.md "Identity" item): every sign-in/account-creation entry point is necessarily reachable by
+# a caller who is not yet authenticated — an [Authorize] attribute here would make it impossible to
+# ever sign in at all. Each renders/accepts no sensitive data of its own (Login/Register/2FA pages
+# only take credentials the caller already knows; AcceptInvite validates a signed, single-use,
+# expiring token before doing anything — see GuardianInviteService's doc comment). Manage/*.razor
+# pages (EnableAuthenticator/TwoFactorAuthentication) are NOT on this list — they carry a plain
+# [Authorize] (any signed-in user), which the check below already accepts.
+$allowListedPages = @(
+    "Home.razor", "Error.razor", "NotFound.razor",
+    "Login.razor", "Register.razor", "LoginWith2fa.razor", "LoginWithRecoveryCode.razor", "AcceptInvite.razor"
+)
 $pageFiles = Get-ChildItem -Path $componentsRoot -Recurse -Filter "*.razor"
 
 foreach ($file in $pageFiles) {

@@ -36,7 +36,7 @@ public sealed class CertificateServiceTests : IDisposable
 
         schema.Context.Ranks.Add(new Rank { Id = 1, Order = 1, Code = "R1", Name = "Recruit" });
         schema.Context.Lessons.Add(new Lesson { Id = 1, RankId = 1, Code = "L1", Title = "Knots 101", ContentBlobKey = "blob/l1", IsActive = true });
-        schema.Context.AppUsers.Add(new AppUser { Id = 10, EntraObjectId = "teacher-1", DisplayName = "Teacher One", Email = "teacher1@example.com" });
+        schema.Context.AppUsers.Add(new AppUser { Id = 10, DisplayName = "Teacher One", Email = "teacher1@example.com" });
         schema.Context.Students.Add(new Student
         {
             Id = 100,

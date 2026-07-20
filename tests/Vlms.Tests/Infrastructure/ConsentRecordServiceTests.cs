@@ -69,8 +69,8 @@ public sealed class ConsentRecordServiceTests : IDisposable
     private static void SeedReferenceData(VlmsDbContext context)
     {
         context.Ranks.Add(new Rank { Id = 1, Order = 1, Code = "R1", Name = "Recruit" });
-        context.AppUsers.Add(new AppUser { Id = 1, EntraObjectId = "admin-1", DisplayName = "Admin One", Email = "admin@example.com" });
-        context.AppUsers.Add(new AppUser { Id = 2, EntraObjectId = "safeguarding-1", DisplayName = "Safeguarding One", Email = "sg@example.com" });
+        context.AppUsers.Add(new AppUser { Id = 1, DisplayName = "Admin One", Email = "admin@example.com" });
+        context.AppUsers.Add(new AppUser { Id = 2, DisplayName = "Safeguarding One", Email = "sg@example.com" });
         context.ParentGuardians.Add(new ParentGuardian { Id = 1, Name = "Jane Parent", ContactInfo = "jane@example.com", IsPrimary = true });
         context.Students.Add(new Student
         {

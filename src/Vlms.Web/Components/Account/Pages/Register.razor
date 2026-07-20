@@ -1,0 +1,103 @@
+@page "/Account/Register"
+
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Identity
+@using Vlms.Infrastructure.Identity
+
+@inject SignInManager<VlmsIdentityUser> SignInManager
+@inject AppUserProvisioningService Provisioning
+@inject IdentityRedirectManager RedirectManager
+
+@* Static SSR, not interactive — same reasoning as Login.razor: SignInManager writes the auth
+   cookie, which needs a normal HTTP request/response, not a live SignalR circuit.
+
+   Scope decision (STATE.md "Identity" item, recorded rather than assumed): self-service registration
+   stays open here, the same shape Microsoft Entra External ID's own hosted sign-up had before this
+   item — a freshly created AppUser gets zero UserRole rows (deny-by-default,
+   AppUserProvisioningService), so an anonymous registrant gains no access at all until an Admin
+   grants a role (a separate, not-yet-built action, unchanged from before this item). This is how
+   staff (Admin/Teacher/Approver/SafeguardingOfficer/Student) accounts get their initial credential —
+   Parent accounts instead come from the guardian invite-accept flow
+   (Components/Pages/Guardianship/AcceptInvite.razor), which is scoped to a specific Student/
+   ParentGuardian pairing and does not use this page at all. *@
+
+<PageTitle>Register</PageTitle>
+
+<h1>Register</h1>
+
+@if (_errorMessage is not null)
+{
+    <p class="error" role="alert">@_errorMessage</p>
+}
+
+<EditForm Model="Input" method="post" OnValidSubmit="RegisterUser" FormName="register">
+    <DataAnnotationsValidator />
+    <ValidationSummary role="alert" />
+
+    <div>
+        <label for="displayName">Name</label>
+        <InputText id="displayName" @bind-Value="Input.DisplayName" aria-required="true" />
+    </div>
+    <div>
+        <label for="email">Email</label>
+        <InputText id="email" @bind-Value="Input.Email" autocomplete="username" aria-required="true" />
+    </div>
+    <div>
+        <label for="password">Password</label>
+        <InputText id="password" type="password" @bind-Value="Input.Password" autocomplete="new-password" aria-required="true" />
+    </div>
+    <div>
+        <label for="confirmPassword">Confirm password</label>
+        <InputText id="confirmPassword" type="password" @bind-Value="Input.ConfirmPassword" autocomplete="new-password" aria-required="true" />
+    </div>
+
+    <button type="submit">Register</button>
+</EditForm>
+
+<p><a href="Account/Login">Already have an account? Log in</a></p>
+
+@code {
+    // No property initializer — BL0008 (learn.microsoft.com/aspnet/core/diagnostics/bl0008): see
+    // Login.razor's identical comment.
+    [SupplyParameterFromForm]
+    private InputModel Input { get; set; } = default!;
+
+    private string? _errorMessage;
+
+    protected override void OnInitialized() => Input ??= new();
+
+    public async Task RegisterUser()
+    {
+        var (result, _, _) = await Provisioning.CreateAsync(Input.Email, Input.Password, Input.DisplayName);
+
+        if (!result.Succeeded)
+        {
+            _errorMessage = string.Join(" ", result.Errors.Select(e => e.Description));
+            return;
+        }
+
+        var identityUser = await SignInManager.UserManager.FindByEmailAsync(Input.Email)
+            ?? throw new InvalidOperationException("Registration succeeded but the new user could not be found.");
+
+        await SignInManager.SignInAsync(identityUser, isPersistent: false);
+        RedirectManager.RedirectTo("/");
+    }
+
+    private sealed class InputModel
+    {
+        [Required]
+        public string DisplayName { get; set; } = "";
+
+        [Required]
+        [EmailAddress]
+        public string Email { get; set; } = "";
+
+        [Required]
+        [DataType(DataType.Password)]
+        public string Password { get; set; } = "";
+
+        [DataType(DataType.Password)]
+        [Compare(nameof(Password), ErrorMessage = "The password and confirmation password do not match.")]
+        public string ConfirmPassword { get; set; } = "";
+    }
+}

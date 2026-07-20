@@ -45,12 +45,12 @@ public sealed class StudentRegistrationServiceTests : IDisposable
 
     public void Dispose() => _anchorConnection.Dispose();
 
-    private sealed class CallerContext(ServiceProvider provider, IServiceScope scope, VlmsDbContext context, ICurrentUserContext currentUser) : IDisposable
+    private sealed class CallerContext(ServiceProvider provider, IServiceScope scope, VlmsDbContext context, ICurrentUserContext currentUser, GuardianLinkService guardianLinks) : IDisposable
     {
         public VlmsDbContext Context { get; } = context;
         public ICurrentUserContext CurrentUser { get; } = currentUser;
 
-        public StudentRegistrationService Service => new(Context, CurrentUser, new GuardianLinkService(Context, CurrentUser));
+        public StudentRegistrationService Service => new(Context, CurrentUser, guardianLinks);
 
         public void Dispose()
         {
@@ -60,28 +60,29 @@ public sealed class StudentRegistrationServiceTests : IDisposable
         }
     }
 
+    // Real DI wiring, not a hand-rolled shortcut — GuardianLinkService now depends on
+    // GuardianInviteService (STATE.md "Identity" item: every guardian seeded below has no
+    // AppUserId, so invite issuance fires for essentially every test in this file). See
+    // TestIdentityServices' own doc comment for why.
     private CallerContext CreateContext(int? userId, params Role[] roles)
     {
         var currentUser = new FakeCurrentUserContext(userId, roles);
 
-        var services = new ServiceCollection();
-        services.AddSingleton<ICurrentUserContext>(currentUser);
-        services.AddDbContext<VlmsDbContext>(options => options.UseSqlite(_connectionString));
-
-        var provider = services.BuildServiceProvider();
+        var provider = TestIdentityServices.BuildServiceProvider(_connectionString, currentUser);
         var scope = provider.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<VlmsDbContext>();
+        var guardianLinks = scope.ServiceProvider.GetRequiredService<GuardianLinkService>();
 
-        return new CallerContext(provider, scope, context, currentUser);
+        return new CallerContext(provider, scope, context, currentUser, guardianLinks);
     }
 
     private static void SeedReferenceData(VlmsDbContext context)
     {
         context.Ranks.Add(new Rank { Id = 1, Order = 1, Code = "R1", Name = "Recruit" }); // lowest Order — the starting rank
         context.Ranks.Add(new Rank { Id = 2, Order = 2, Code = "R2", Name = "Explorer" });
-        context.AppUsers.Add(new AppUser { Id = 1, EntraObjectId = "admin-1", DisplayName = "Admin One", Email = "admin@example.com" });
-        context.AppUsers.Add(new AppUser { Id = 10, EntraObjectId = "teacher-1", DisplayName = "Teacher One", Email = "teacher1@example.com" });
-        context.AppUsers.Add(new AppUser { Id = 99, EntraObjectId = "parent-1", DisplayName = "Parent One", Email = "parent1@example.com" });
+        context.AppUsers.Add(new AppUser { Id = 1, DisplayName = "Admin One", Email = "admin@example.com" });
+        context.AppUsers.Add(new AppUser { Id = 10, DisplayName = "Teacher One", Email = "teacher1@example.com" });
+        context.AppUsers.Add(new AppUser { Id = 99, DisplayName = "Parent One", Email = "parent1@example.com" });
         context.ParentGuardians.Add(new ParentGuardian { Id = 1, Name = "Jane Parent", ContactInfo = "jane@example.com", IsPrimary = true });
         context.SaveChanges();
     }
@@ -267,16 +268,13 @@ public sealed class StudentRegistrationServiceTests : IDisposable
         using var anchor = new SqliteConnection(connectionString);
         anchor.Open();
 
-        var services = new ServiceCollection();
         var currentUser = new FakeCurrentUserContext(1, Role.Admin);
-        services.AddSingleton<ICurrentUserContext>(currentUser);
-        services.AddDbContext<VlmsDbContext>(options => options.UseSqlite(connectionString));
-        using var provider = services.BuildServiceProvider();
+        using var provider = TestIdentityServices.BuildServiceProvider(connectionString, currentUser);
         using var scope = provider.CreateScope();
         using var context = scope.ServiceProvider.GetRequiredService<VlmsDbContext>();
         context.Database.EnsureCreated();
 
-        var sut = new StudentRegistrationService(context, currentUser, new GuardianLinkService(context, currentUser));
+        var sut = new StudentRegistrationService(context, currentUser, scope.ServiceProvider.GetRequiredService<GuardianLinkService>());
 
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => sut.RegisterStudentWithNewGuardianAsync(

@@ -33,7 +33,7 @@ Role-checked inside `NotifyAsync` itself (defense in depth, same pattern as `Con
 
 ## `Vlms.Jobs/Program.cs` wiring
 
-`EmailClient` is constructed from `CommunicationServices:ConnectionString` (appsettings.json — **placeholder-only**, same status `AzureAd` had before a live Entra tenant existed: no live Azure Communication Services resource exists yet). `AzureCommunicationEmailSender`/`NotificationService`/`ConsentExpiryNotifier` are registered, and `ConsentExpiryNotifier.NotifyAsync(result)` is called immediately after `ConsentExpiryJob.RunAsync()` returns, inside the same try/catch that already handles the job's own failures.
+`EmailClient` is constructed from `CommunicationServices:ConnectionString` (appsettings.json — **placeholder-only**, the same "structurally correct, not yet wired to a real resource" status other provider-specific config in this codebase has carried before a live target existed: no live Azure Communication Services resource exists yet). `AzureCommunicationEmailSender`/`NotificationService`/`ConsentExpiryNotifier` are registered, and `ConsentExpiryNotifier.NotifyAsync(result)` is called immediately after `ConsentExpiryJob.RunAsync()` returns, inside the same try/catch that already handles the job's own failures.
 
 ## Tests
 

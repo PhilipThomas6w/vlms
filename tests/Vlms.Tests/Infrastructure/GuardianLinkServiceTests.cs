@@ -36,12 +36,13 @@ public sealed class GuardianLinkServiceTests : IDisposable
 
     public void Dispose() => _anchorConnection.Dispose();
 
-    private sealed class CallerContext(ServiceProvider provider, IServiceScope scope, VlmsDbContext context, ICurrentUserContext currentUser) : IDisposable
+    private sealed class CallerContext(ServiceProvider provider, IServiceScope scope, VlmsDbContext context, ICurrentUserContext currentUser, GuardianLinkService service, FakeNotificationService notifications) : IDisposable
     {
         public VlmsDbContext Context { get; } = context;
         public ICurrentUserContext CurrentUser { get; } = currentUser;
 
-        public GuardianLinkService Service => new(Context, CurrentUser);
+        public GuardianLinkService Service { get; } = service;
+        public FakeNotificationService Notifications { get; } = notifications;
 
         public void Dispose()
         {
@@ -51,28 +52,31 @@ public sealed class GuardianLinkServiceTests : IDisposable
         }
     }
 
+    // Real DI wiring, not a hand-rolled shortcut — GuardianLinkService now depends on
+    // GuardianInviteService (STATE.md "Identity" item: every guardian seeded below has no
+    // AppUserId, so invite issuance fires for essentially every test in this file). See
+    // TestIdentityServices' own doc comment for why.
     private CallerContext CreateContext(int? userId, params Role[] roles)
     {
         var currentUser = new FakeCurrentUserContext(userId, roles);
 
-        var services = new ServiceCollection();
-        services.AddSingleton<ICurrentUserContext>(currentUser);
-        services.AddDbContext<VlmsDbContext>(options => options.UseSqlite(_connectionString));
-
-        var provider = services.BuildServiceProvider();
+        var provider = TestIdentityServices.BuildServiceProvider(_connectionString, currentUser);
         var scope = provider.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<VlmsDbContext>();
+        var service = scope.ServiceProvider.GetRequiredService<GuardianLinkService>();
+        var notifications = scope.ServiceProvider.GetRequiredService<FakeNotificationService>();
 
-        return new CallerContext(provider, scope, context, currentUser);
+        return new CallerContext(provider, scope, context, currentUser, service, notifications);
     }
 
     private static void SeedReferenceData(VlmsDbContext context)
     {
         context.Ranks.Add(new Rank { Id = 1, Order = 1, Code = "R1", Name = "Recruit" });
-        context.AppUsers.Add(new AppUser { Id = 1, EntraObjectId = "admin-1", DisplayName = "Admin One", Email = "admin@example.com" });
-        context.AppUsers.Add(new AppUser { Id = 10, EntraObjectId = "teacher-1", DisplayName = "Teacher One", Email = "teacher1@example.com" });
-        context.AppUsers.Add(new AppUser { Id = 99, EntraObjectId = "parent-1", DisplayName = "Parent One", Email = "parent1@example.com" });
+        context.AppUsers.Add(new AppUser { Id = 1, DisplayName = "Admin One", Email = "admin@example.com" });
+        context.AppUsers.Add(new AppUser { Id = 10, DisplayName = "Teacher One", Email = "teacher1@example.com" });
+        context.AppUsers.Add(new AppUser { Id = 99, DisplayName = "Parent One", Email = "parent1@example.com" });
         context.ParentGuardians.Add(new ParentGuardian { Id = 1, Name = "Jane Parent", ContactInfo = "jane@example.com", IsPrimary = true });
+        context.ParentGuardians.Add(new ParentGuardian { Id = 2, Name = "Registered Parent", ContactInfo = "registered@example.com", IsPrimary = true, AppUserId = 99 });
         context.Students.Add(new Student
         {
             Id = 100,
@@ -270,5 +274,48 @@ public sealed class GuardianLinkServiceTests : IDisposable
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => sut.RegisterGuardianAndLinkAsync(
                 studentId: 9999, guardianName: "New Parent", contactInfo: "new@example.com", isPrimary: false, CancellationToken.None));
+    }
+
+    // --- Guardian invite issuance (STATE.md "Identity" item 5) — wired into both entry points
+    // above whenever the target guardian's AppUserId is null. The precise trigger condition is
+    // "AppUserId is null", not "new vs existing guardian" — see this class's own doc comment. -----
+
+    [Fact]
+    public async Task CreateLinkAsync_ForAGuardianWithoutAnAccount_IssuesAGuardianInvite()
+    {
+        using var admin = CreateContext(1, Role.Admin);
+
+        await admin.Service.CreateLinkAsync(studentId: 100, parentGuardianId: 1, CancellationToken.None);
+
+        Assert.Single(admin.Context.GuardianInvites.Where(i => i.StudentId == 100 && i.ParentGuardianId == 1));
+        Assert.Single(admin.Notifications.SentRequests);
+    }
+
+    [Fact]
+    public async Task CreateLinkAsync_ForAGuardianWhoAlreadyHasAnAccount_DoesNotIssueAnInvite()
+    {
+        // ParentGuardian 2 ("Registered Parent") already has AppUserId = 99 — the existing
+        // ParentGuardianLinkage join already grants them access to the new link via that account;
+        // issuing another invite would be pointless (and unacceptable — GuardianInviteService.AcceptAsync
+        // rejects accepting for an already-registered guardian).
+        using var admin = CreateContext(1, Role.Admin);
+
+        await admin.Service.CreateLinkAsync(studentId: 100, parentGuardianId: 2, CancellationToken.None);
+
+        Assert.Empty(admin.Context.GuardianInvites);
+        Assert.Empty(admin.Notifications.SentRequests);
+    }
+
+    [Fact]
+    public async Task RegisterGuardianAndLinkAsync_AlwaysRegistersANewGuardianWithNoAccount_SoAlwaysIssuesAnInvite()
+    {
+        using var admin = CreateContext(1, Role.Admin);
+
+        var (guardian, _) = await admin.Service.RegisterGuardianAndLinkAsync(
+            studentId: 100, guardianName: "Fresh Parent", contactInfo: "fresh@example.com", isPrimary: true, CancellationToken.None);
+
+        Assert.Single(admin.Context.GuardianInvites.Where(i => i.ParentGuardianId == guardian.Id));
+        Assert.Single(admin.Notifications.SentRequests);
+        Assert.Equal("fresh@example.com", admin.Notifications.SentRequests[0].RecipientEmail);
     }
 }

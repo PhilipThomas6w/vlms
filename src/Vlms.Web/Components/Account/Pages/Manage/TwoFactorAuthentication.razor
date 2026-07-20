@@ -1,0 +1,132 @@
+@page "/Account/Manage/TwoFactorAuthentication"
+@attribute [Authorize]
+
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.EntityFrameworkCore
+@using Vlms.Domain
+@using Vlms.Infrastructure
+@using Vlms.Infrastructure.Identity
+
+@inject UserManager<VlmsIdentityUser> UserManager
+@inject SignInManager<VlmsIdentityUser> SignInManager
+@inject VlmsDbContext Db
+@inject IdentityRedirectManager RedirectManager
+
+@* Static SSR, not interactive — disabling 2FA below calls SignInManager.RefreshSignInAsync, which
+   (like Login.razor's PasswordSignInAsync) writes the auth cookie and so needs a normal HTTP
+   request/response cycle, not a live SignalR circuit. Deliberately NOT gated by any role-specific
+   "RequireX" policy (see Program.cs) — just [Authorize], any signed-in user — because Admin/
+   SafeguardingOfficer must be able to reach this page to enable MFA in the first place; gating it
+   behind an MfaRequirement-carrying policy would be a lockout catch-22 (STATE.md "Identity" item 4's
+   own scope decision: MFA is enforced for those two roles, offered to everyone — this is the
+   "offered" entry point for everyone, including the two roles for whom it later becomes mandatory). *@
+
+<PageTitle>Two-factor authentication</PageTitle>
+
+<h1>Two-factor authentication</h1>
+
+@if (_errorMessage is not null)
+{
+    <p class="error" role="alert">@_errorMessage</p>
+}
+@if (_statusMessage is not null)
+{
+    <p role="status">@_statusMessage</p>
+}
+
+@if (_user is null)
+{
+    <p>Loading...</p>
+}
+else if (_user.TwoFactorEnabled)
+{
+    <p>Two-factor authentication is <strong>enabled</strong> for your account.</p>
+    <p>Recovery codes remaining: @_recoveryCodesLeft</p>
+
+    <form method="post" @formname="regenerate-codes" @onsubmit="RegenerateRecoveryCodesAsync">
+        <AntiforgeryToken />
+        <button type="submit">Generate new recovery codes</button>
+    </form>
+
+    <form method="post" @formname="disable-2fa" @onsubmit="Disable2faAsync">
+        <AntiforgeryToken />
+        <button type="submit">Disable two-factor authentication</button>
+    </form>
+}
+else
+{
+    <p>Two-factor authentication is <strong>not enabled</strong> for your account.</p>
+    @if (_holdsMfaGatedRole)
+    {
+        <p class="error" role="alert">
+            Your role requires two-factor authentication — you will not be able to access
+            Admin/Safeguarding Officer pages until it is enabled.
+        </p>
+    }
+    <p><a href="Account/Manage/EnableAuthenticator">Set up an authenticator app</a></p>
+}
+
+@code {
+    private VlmsIdentityUser? _user;
+    private bool _holdsMfaGatedRole;
+    private int _recoveryCodesLeft;
+    private string? _errorMessage;
+    private string? _statusMessage;
+
+    [CascadingParameter]
+    private Task<Microsoft.AspNetCore.Components.Authorization.AuthenticationState>? AuthenticationState { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthenticationState is null)
+        {
+            return;
+        }
+
+        var principal = (await AuthenticationState).User;
+        _user = await UserManager.GetUserAsync(principal);
+        if (_user is not null)
+        {
+            _recoveryCodesLeft = await UserManager.CountRecoveryCodesAsync(_user);
+
+            // Queried directly against UserRole (not via ICurrentUserContext) — roles are never
+            // baked into claims (adr/0002-roles-as-application-claims.md), so this is a plain data
+            // lookup for display purposes only, not an authorization decision.
+            _holdsMfaGatedRole = await Db.UserRoles.AnyAsync(
+                r => r.UserId == _user.Id && (r.Role == Role.Admin || r.Role == Role.SafeguardingOfficer));
+        }
+    }
+
+    private async Task Disable2faAsync()
+    {
+        if (_user is null)
+        {
+            return;
+        }
+
+        var result = await UserManager.SetTwoFactorEnabledAsync(_user, false);
+        if (!result.Succeeded)
+        {
+            _errorMessage = "An unexpected error occurred disabling two-factor authentication.";
+            return;
+        }
+
+        await SignInManager.RefreshSignInAsync(_user);
+        RedirectManager.RedirectToCurrentPage();
+    }
+
+    private async Task RegenerateRecoveryCodesAsync()
+    {
+        if (_user is null)
+        {
+            return;
+        }
+
+        var codes = await UserManager.GenerateNewTwoFactorRecoveryCodesAsync(_user, 10);
+        _statusMessage =
+            "New recovery codes: " + string.Join(", ", codes ?? Enumerable.Empty<string>()) +
+            " — store these somewhere safe; they will not be shown again.";
+        _recoveryCodesLeft = 10;
+    }
+}

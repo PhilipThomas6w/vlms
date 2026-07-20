@@ -37,10 +37,10 @@ public sealed class ParentDashboardServiceTests : IDisposable
         schema.Context.Lessons.Add(new Lesson { Id = 1, RankId = 1, Code = "L1", Title = "Knots 101", ContentBlobKey = "blob/l1", IsActive = true });
         schema.Context.Lessons.Add(new Lesson { Id = 2, RankId = 1, Code = "L2", Title = "Fire Safety", ContentBlobKey = "blob/l2", IsActive = true });
         schema.Context.RankBadges.Add(new RankBadge { Id = 1, RankId = 1, ImageBlobKey = "badges/recruit.png" });
-        schema.Context.AppUsers.Add(new AppUser { Id = 10, EntraObjectId = "teacher-1", DisplayName = "Teacher One", Email = "teacher1@example.com" });
+        schema.Context.AppUsers.Add(new AppUser { Id = 10, DisplayName = "Teacher One", Email = "teacher1@example.com" });
 
         // Parent A (AppUserId 1) is linked to Alex (Student 100) only.
-        schema.Context.AppUsers.Add(new AppUser { Id = 1, EntraObjectId = "parent-a", DisplayName = "Parent A", Email = "parenta@example.com" });
+        schema.Context.AppUsers.Add(new AppUser { Id = 1, DisplayName = "Parent A", Email = "parenta@example.com" });
         schema.Context.ParentGuardians.Add(new ParentGuardian { Id = 1, Name = "Parent A", ContactInfo = "parenta@example.com", IsPrimary = true, AppUserId = 1 });
         schema.Context.Students.Add(new Student
         {
@@ -80,7 +80,7 @@ public sealed class ParentDashboardServiceTests : IDisposable
         });
 
         // Parent B (AppUserId 2) is linked to Sam (Student 200) only — a completely separate family.
-        schema.Context.AppUsers.Add(new AppUser { Id = 2, EntraObjectId = "parent-b", DisplayName = "Parent B", Email = "parentb@example.com" });
+        schema.Context.AppUsers.Add(new AppUser { Id = 2, DisplayName = "Parent B", Email = "parentb@example.com" });
         schema.Context.ParentGuardians.Add(new ParentGuardian { Id = 2, Name = "Parent B", ContactInfo = "parentb@example.com", IsPrimary = true, AppUserId = 2 });
         schema.Context.Students.Add(new Student
         {
@@ -90,7 +90,7 @@ public sealed class ParentDashboardServiceTests : IDisposable
         schema.Context.StudentGuardianLinks.Add(new StudentGuardianLink { StudentId = 200, ParentGuardianId = 2, CreatedByUserId = 10 });
 
         // Parent C (AppUserId 3) has no linked students at all.
-        schema.Context.AppUsers.Add(new AppUser { Id = 3, EntraObjectId = "parent-c", DisplayName = "Parent C", Email = "parentc@example.com" });
+        schema.Context.AppUsers.Add(new AppUser { Id = 3, DisplayName = "Parent C", Email = "parentc@example.com" });
         schema.Context.ParentGuardians.Add(new ParentGuardian { Id = 3, Name = "Parent C", ContactInfo = "parentc@example.com", IsPrimary = true, AppUserId = 3 });
 
         schema.Context.SaveChanges();

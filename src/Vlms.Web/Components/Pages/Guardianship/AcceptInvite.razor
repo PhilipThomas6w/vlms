@@ -1,0 +1,109 @@
+@page "/guardianship/accept-invite"
+
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Identity
+@using Vlms.Infrastructure.Guardianship
+@using Vlms.Infrastructure.Identity
+@using Vlms.Web.Components.Account
+
+@inject GuardianInviteService InviteService
+@inject SignInManager<VlmsIdentityUser> SignInManager
+@inject IdentityRedirectManager RedirectManager
+
+@* Static SSR, not interactive — same reasoning as Login.razor/Register.razor: signing the new
+   guardian in writes the auth cookie, which needs a normal HTTP request/response, not a live
+   SignalR circuit. This page is deliberately reachable with no [Authorize] attribute — the caller
+   clicking an emailed link is, by definition, not yet signed in (STATE.md "Identity" item 5,
+   replacing the former Microsoft Graph guardian-invitation blocker — see
+   GuardianInviteService/GuardianInvite's doc comments for the full token design). *@
+
+<PageTitle>Set up your account</PageTitle>
+
+<h1>Set up your account</h1>
+
+@if (_errorMessage is not null)
+{
+    <p class="error" role="alert">@_errorMessage</p>
+}
+else
+{
+    <p>Choose a password to finish setting up your Varangians LMS account.</p>
+
+    <EditForm Model="Input" method="post" OnValidSubmit="AcceptAsync" FormName="accept-invite">
+        <input type="hidden" name="Token" value="@Token" />
+        <DataAnnotationsValidator />
+        <ValidationSummary role="alert" />
+
+        <div>
+            <label for="password">Password</label>
+            <InputText id="password" type="password" @bind-Value="Input.Password" autocomplete="new-password" aria-required="true" />
+        </div>
+        <div>
+            <label for="confirmPassword">Confirm password</label>
+            <InputText id="confirmPassword" type="password" @bind-Value="Input.ConfirmPassword" autocomplete="new-password" aria-required="true" />
+        </div>
+
+        <button type="submit">Set up account</button>
+    </EditForm>
+}
+
+@code {
+    // No property initializer — BL0008 (learn.microsoft.com/aspnet/core/diagnostics/bl0008): see
+    // Login.razor's identical comment.
+    [SupplyParameterFromForm]
+    private InputModel Input { get; set; } = default!;
+
+    [SupplyParameterFromQuery]
+    private string? Token { get; set; }
+
+    private string? _errorMessage;
+
+    protected override void OnInitialized()
+    {
+        Input ??= new();
+
+        if (string.IsNullOrEmpty(Token))
+        {
+            _errorMessage = "This invite link is missing its token.";
+        }
+    }
+
+    private async Task AcceptAsync()
+    {
+        if (string.IsNullOrEmpty(Token))
+        {
+            _errorMessage = "This invite link is missing its token.";
+            return;
+        }
+
+        try
+        {
+            var appUser = await InviteService.AcceptAsync(Token, Input.Password);
+
+            var identityUser = await SignInManager.UserManager.FindByIdAsync(appUser.Id.ToString());
+            if (identityUser is null)
+            {
+                _errorMessage = "Account setup succeeded but signing in automatically failed — please log in.";
+                return;
+            }
+
+            await SignInManager.SignInAsync(identityUser, isPersistent: false);
+            RedirectManager.RedirectTo("/parent/dashboard");
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or System.Security.Cryptography.CryptographicException)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+
+    private sealed class InputModel
+    {
+        [Required]
+        [DataType(DataType.Password)]
+        public string Password { get; set; } = "";
+
+        [DataType(DataType.Password)]
+        [Compare(nameof(Password), ErrorMessage = "The password and confirmation password do not match.")]
+        public string ConfirmPassword { get; set; } = "";
+    }
+}

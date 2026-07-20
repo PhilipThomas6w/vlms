@@ -1,5 +1,22 @@
 ﻿@inherits LayoutComponentBase
 
+<nav>
+    <AuthorizeView>
+        <Authorized>
+            Signed in as @context.User.Identity?.Name
+            — <a href="Account/Manage/TwoFactorAuthentication">Two-factor authentication</a>
+            — <form action="Account/Logout" method="post" style="display:inline">
+                <AntiforgeryToken />
+                <input type="hidden" name="returnUrl" value="" />
+                <button type="submit">Log out</button>
+            </form>
+        </Authorized>
+        <NotAuthorized>
+            <a href="Account/Login">Log in</a> | <a href="Account/Register">Register</a>
+        </NotAuthorized>
+    </AuthorizeView>
+</nav>
+
 @Body
 
 <div id="blazor-error-ui" data-nosnippet>

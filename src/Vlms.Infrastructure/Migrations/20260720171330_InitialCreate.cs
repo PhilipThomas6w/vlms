@@ -17,13 +17,38 @@ namespace Vlms.Infrastructure.Migrations
                 columns: table => new
                 {
                     id = table.Column<int>(type: "integer", nullable: false),
-                    entra_object_id = table.Column<string>(type: "text", nullable: false),
                     display_name = table.Column<string>(type: "text", nullable: false),
                     email = table.Column<string>(type: "text", nullable: false)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_app_users", x => x.id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "asp_net_users",
+                columns: table => new
+                {
+                    id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    user_name = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
+                    normalized_user_name = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
+                    email = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
+                    normalized_email = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
+                    email_confirmed = table.Column<bool>(type: "boolean", nullable: false),
+                    password_hash = table.Column<string>(type: "text", nullable: true),
+                    security_stamp = table.Column<string>(type: "text", nullable: true),
+                    concurrency_stamp = table.Column<string>(type: "text", nullable: true),
+                    phone_number = table.Column<string>(type: "text", nullable: true),
+                    phone_number_confirmed = table.Column<bool>(type: "boolean", nullable: false),
+                    two_factor_enabled = table.Column<bool>(type: "boolean", nullable: false),
+                    lockout_end = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
+                    lockout_enabled = table.Column<bool>(type: "boolean", nullable: false),
+                    access_failed_count = table.Column<int>(type: "integer", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_asp_net_users", x => x.id);
                 });
 
             migrationBuilder.CreateTable(
@@ -114,6 +139,67 @@ namespace Vlms.Infrastructure.Migrations
                         name: "FK_user_roles_app_users_user_id",
                         column: x => x.user_id,
                         principalTable: "app_users",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "asp_net_user_claims",
+                columns: table => new
+                {
+                    id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    user_id = table.Column<int>(type: "integer", nullable: false),
+                    claim_type = table.Column<string>(type: "text", nullable: true),
+                    claim_value = table.Column<string>(type: "text", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_asp_net_user_claims", x => x.id);
+                    table.ForeignKey(
+                        name: "FK_asp_net_user_claims_asp_net_users_user_id",
+                        column: x => x.user_id,
+                        principalTable: "asp_net_users",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "asp_net_user_logins",
+                columns: table => new
+                {
+                    login_provider = table.Column<string>(type: "text", nullable: false),
+                    provider_key = table.Column<string>(type: "text", nullable: false),
+                    provider_display_name = table.Column<string>(type: "text", nullable: true),
+                    user_id = table.Column<int>(type: "integer", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_asp_net_user_logins", x => new { x.login_provider, x.provider_key });
+                    table.ForeignKey(
+                        name: "FK_asp_net_user_logins_asp_net_users_user_id",
+                        column: x => x.user_id,
+                        principalTable: "asp_net_users",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "asp_net_user_tokens",
+                columns: table => new
+                {
+                    user_id = table.Column<int>(type: "integer", nullable: false),
+                    login_provider = table.Column<string>(type: "text", nullable: false),
+                    name = table.Column<string>(type: "text", nullable: false),
+                    value = table.Column<string>(type: "text", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_asp_net_user_tokens", x => new { x.user_id, x.login_provider, x.name });
+                    table.ForeignKey(
+                        name: "FK_asp_net_user_tokens_asp_net_users_user_id",
+                        column: x => x.user_id,
+                        principalTable: "asp_net_users",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Cascade);
                 });
@@ -273,6 +359,48 @@ namespace Vlms.Infrastructure.Migrations
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "FK_consent_records_students_student_id",
+                        column: x => x.student_id,
+                        principalTable: "students",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "guardian_invites",
+                columns: table => new
+                {
+                    id = table.Column<int>(type: "integer", nullable: false),
+                    student_id = table.Column<int>(type: "integer", nullable: false),
+                    parent_guardian_id = table.Column<int>(type: "integer", nullable: false),
+                    created_by_user_id = table.Column<int>(type: "integer", nullable: false),
+                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    expires_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    consumed_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
+                    consumed_by_app_user_id = table.Column<int>(type: "integer", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_guardian_invites", x => x.id);
+                    table.ForeignKey(
+                        name: "FK_guardian_invites_app_users_consumed_by_app_user_id",
+                        column: x => x.consumed_by_app_user_id,
+                        principalTable: "app_users",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_guardian_invites_app_users_created_by_user_id",
+                        column: x => x.created_by_user_id,
+                        principalTable: "app_users",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_guardian_invites_parent_guardians_parent_guardian_id",
+                        column: x => x.parent_guardian_id,
+                        principalTable: "parent_guardians",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_guardian_invites_students_student_id",
                         column: x => x.student_id,
                         principalTable: "students",
                         principalColumn: "id",
@@ -441,6 +569,27 @@ namespace Vlms.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateIndex(
+                name: "IX_asp_net_user_claims_user_id",
+                table: "asp_net_user_claims",
+                column: "user_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_asp_net_user_logins_user_id",
+                table: "asp_net_user_logins",
+                column: "user_id");
+
+            migrationBuilder.CreateIndex(
+                name: "EmailIndex",
+                table: "asp_net_users",
+                column: "normalized_email");
+
+            migrationBuilder.CreateIndex(
+                name: "UserNameIndex",
+                table: "asp_net_users",
+                column: "normalized_user_name",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
                 name: "IX_certificates_student_lesson_completion_id",
                 table: "certificates",
                 column: "student_lesson_completion_id",
@@ -471,6 +620,26 @@ namespace Vlms.Infrastructure.Migrations
                 name: "IX_dbs_checks_teacher_user_id",
                 table: "dbs_checks",
                 column: "teacher_user_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_guardian_invites_consumed_by_app_user_id",
+                table: "guardian_invites",
+                column: "consumed_by_app_user_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_guardian_invites_created_by_user_id",
+                table: "guardian_invites",
+                column: "created_by_user_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_guardian_invites_parent_guardian_id",
+                table: "guardian_invites",
+                column: "parent_guardian_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_guardian_invites_student_id",
+                table: "guardian_invites",
+                column: "student_id");
 
             migrationBuilder.CreateIndex(
                 name: "IX_lesson_change_proposals_approver_user_id",
@@ -572,6 +741,15 @@ namespace Vlms.Infrastructure.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
+                name: "asp_net_user_claims");
+
+            migrationBuilder.DropTable(
+                name: "asp_net_user_logins");
+
+            migrationBuilder.DropTable(
+                name: "asp_net_user_tokens");
+
+            migrationBuilder.DropTable(
                 name: "certificates");
 
             migrationBuilder.DropTable(
@@ -579,6 +757,9 @@ namespace Vlms.Infrastructure.Migrations
 
             migrationBuilder.DropTable(
                 name: "dbs_checks");
+
+            migrationBuilder.DropTable(
+                name: "guardian_invites");
 
             migrationBuilder.DropTable(
                 name: "lesson_change_proposals");
@@ -597,6 +778,9 @@ namespace Vlms.Infrastructure.Migrations
 
             migrationBuilder.DropTable(
                 name: "user_roles");
+
+            migrationBuilder.DropTable(
+                name: "asp_net_users");
 
             migrationBuilder.DropTable(
                 name: "student_lesson_completions");

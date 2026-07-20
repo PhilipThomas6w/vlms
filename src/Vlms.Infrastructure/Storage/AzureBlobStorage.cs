@@ -8,10 +8,10 @@ namespace Vlms.Infrastructure.Storage;
 /// (adr/0001-technology-stack.md). Not yet wired into Vlms.Web's DI container — no UI consumes
 /// <c>CertificateService</c> yet (this increment is service-layer only, STATE.md), so there is
 /// nothing to point it at a real storage account for. Kept structurally correct and buildable in
-/// the meantime, the same way <c>EntraCurrentUserContext</c>/Microsoft.Identity.Web were built out
-/// against placeholder Entra config before a live tenant existed (Program.cs, appsettings.json
-/// "AzureAd" section) — wire a "BlobStorage" config section + DI registration when the first
-/// consumer (a Teacher-facing "mark complete" page, or similar) lands.
+/// the meantime — wire a "BlobStorage" config section + DI registration when the first consumer (a
+/// Teacher-facing "mark complete" page, or similar) lands. Superseded by ADR-0005's hosting pivot
+/// (self-hosted VPS local disk, not Azure Blob Storage) — see STATE.md Next item 1; this class is
+/// retained only until that item lands.
 /// </summary>
 public sealed class AzureBlobStorage : IBlobStorage
 {

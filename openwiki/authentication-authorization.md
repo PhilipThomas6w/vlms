@@ -1,80 +1,45 @@
 # Authentication and authorization (as built)
 
-Design source: `docs/adr/0001-technology-stack.md` (Entra External ID choice), `docs/adr/0002-roles-as-application-claims.md` (why roles are app-managed, not Entra groups), `docs/design/low-level-design.md` "Authorization model".
+Design source: `docs/adr/0002-roles-as-application-claims.md` (why roles are app-managed, not baked into the identity provider's own claims), `docs/design/low-level-design.md` "Authorization model". Authentication itself was originally Microsoft Entra External ID (`docs/adr/0001-technology-stack.md`) — **STATE.md's "Identity" item replaced that with self-rolled ASP.NET Core Identity (built-in TOTP MFA)** as part of the hosting pivot to a self-hosted VPS (`docs/adr/0005-hosting-pivot-self-hosted-vps-postgresql.md`), and replaced the Microsoft Graph guardian-invitation mechanism with a self-rolled signed/single-use/expiring invite link (see [guardian-links.md](guardian-links.md)). This page describes the Identity-era design; the Entra-era history (the interactive-render-mode checker round-trip in particular) is kept below because the *property* it proves still matters and the new code was deliberately built to preserve it, not because Entra is still in the codebase.
+
+## `AppUser`/`UserRole` vs ASP.NET Core Identity: the coexistence design
+
+This is the load-bearing judgement call of the whole item, recorded in full on `AppUser`'s own doc comment (`src/Vlms.Domain/AppUser.cs`) — read it before touching either type.
+
+- **`AppUser` (`Vlms.Domain`) stays a plain POCO.** It does not inherit `IdentityUser<int>`. `adr/0002-roles-as-application-claims.md`'s decision — roles are the app-owned `UserRole` table, never baked into the identity provider's own claims/role store — is explicitly unaffected by the Entra→Identity swap; `AppUser` is still the thing every other entity's FK points at (`Student.AssignedTeacherUserId`, `ParentGuardian.AppUserId`, `LessonChangeProposal.ProposedByUserId`, ...).
+- **`VlmsIdentityUser : IdentityUser<int>` (`Vlms.Infrastructure/Identity/VlmsIdentityUser.cs`) is a separate type**, holding Identity's own credential/store row (password hash, security stamp, TOTP secret, `TwoFactorEnabled`, lockout fields). Keeping it in Infrastructure, not Domain, matches this codebase's existing Domain-interface/Infrastructure-implementation split (`ICurrentUserContext`/`IBlobStorage`/`INotificationService`) — Domain stays free of any ASP.NET Core package dependency.
+- **The two rows share a primary key** — the same `int` value, not an independent surrogate key with its own FK column — because every existing FK in this schema already treats `AppUser.Id` as *the* stable user identifier; a separate surrogate key on the Identity side would just be a second number to keep straight for no benefit. `VlmsIdentityUser.Id` is the one place in this schema left at EF Core's default `ValueGeneratedOnAdd` (Identity's `UserManager.CreateAsync` inserts it and lets the database assign the id); `AppUser.Id` stays `ValueGeneratedNever`, but its value is always copied from the just-created `VlmsIdentityUser.Id`, never computed independently (unlike the old Entra-era `UserProvisioningService`'s `Max(Id)+1`).
+- **This pairing is enforced in exactly one place**: `Identity/AppUserProvisioningService.cs`'s `CreateAsync` — `UserManager<VlmsIdentityUser>.CreateAsync` followed by inserting the paired `AppUser` row, both against the same DI-scoped `VlmsDbContext`, composing with an ambient transaction if the caller already opened one (see its own doc comment for the "detect `Database.CurrentTransaction`" pattern) rather than always opening its own. It is **not** enforced as a real database foreign key — tried, then reverted, because it would have forced every one of this codebase's ~150 pre-existing tests that seed a bare `AppUser` row (to represent "a user holding this role") to also fabricate a matching `VlmsIdentityUser` row for a constraint unrelated to what those tests are about. `AppUserProvisioningService` is the only code path anywhere that creates an `AppUser` row, so an orphan can only occur via a bug in that one class — guarded by `AppUserProvisioningServiceTests`.
 
 ## Sign-in wiring (`src/Vlms.Web/Program.cs`)
 
-`Microsoft.Identity.Web`'s `AddMicrosoftIdentityWebApp(builder.Configuration.GetSection("AzureAd"))`. `appsettings.json`'s `AzureAd` section is **placeholder-only** (no live tenant, no secrets) — there is no Entra tenant available to this build, so the OIDC handshake itself is untested; everything downstream of a successful sign-in is tested with a plain `ClaimsPrincipal`, which needs no live tenant.
+`AddIdentityCore<VlmsIdentityUser>()` (not `AddIdentity`) + `.AddSignInManager()` + `.AddDefaultTokenProviders()` + `.AddEntityFrameworkStores<VlmsDbContext>()` — the leaner "no role store" combination, since ASP.NET Core Identity's own role feature (`AspNetRoles`/`AspNetUserRoles`) is never used (roles stay `UserRole`, per adr/0002, unaffected by this swap). `VlmsDbContext` itself inherits `IdentityUserContext<VlmsIdentityUser, int>` (not `IdentityDbContext`, which would add the role tables this codebase doesn't want) and calls `base.OnModelCreating` first, reusing Microsoft's own tested configuration for Identity's four store tables. `AddAuthentication` sets `IdentityConstants.ApplicationScheme`/`.ExternalScheme` via `.AddIdentityCookies()` — the standard Identity cookie wiring, verified against `learn.microsoft.com/aspnet/core/blazor/security/server` rather than assumed.
 
-An `OnTokenValidated` hook calls `UserProvisioningService.FindOrCreateAsync` on every successful sign-in.
+`options.SignIn.RequireConfirmedAccount = false` — no live email-confirmation provider exists yet (STATE.md Next item 2, the SMTP `IEmailSender` item); requiring confirmation with no way to send a confirmation email would permanently lock out every new account.
 
-## Provisioning (`src/Vlms.Infrastructure/Provisioning/UserProvisioningService.cs`)
+## Provisioning: `AppUserProvisioningService` (`src/Vlms.Infrastructure/Identity/AppUserProvisioningService.cs`)
 
-Find-or-create `AppUser` by Entra object ID. **A newly created `AppUser` gets zero `UserRole` rows** — deny-by-default. Role assignment is a separate, not-yet-built, Admin-only action. Worth knowing: new-user IDs are computed as `MaxAsync(Id) + 1` (consistent with the model's application-assigned keys, see [data-access.md](data-access.md)) — the code comments this as race-prone under concurrent first sign-ins but acceptable at this system's tens-of-users scale (`docs/VISION.md`). Revisit if that scale assumption ever changes.
+Creates the paired `VlmsIdentityUser`/`AppUser` row (see the coexistence section above). Used by two callers: the general `/Account/Register` self-service page, and the guardian invite-accept flow (`GuardianInviteService.AcceptAsync` — see [guardian-links.md](guardian-links.md)). **A newly created `AppUser` still gets zero `UserRole` rows** — deny-by-default, the one property STATE.md's item explicitly required to survive the swap. Role assignment remains a separate, not-yet-built, Admin-only action.
+
+**This retires the Entra-era `Provisioning/UserProvisioningService.cs`, and is not a rename of it** — that service's whole reason to exist was *find*-or-create against a federated OIDC claim on every successful Entra sign-in (`OnTokenValidated`), where the account itself was created by Entra's hosted sign-up flow and this codebase only learned about it after the fact. Local Identity has no equivalent federated-provisioning moment — every account is created by an explicit action this codebase's own code drives end to end — so there is nothing left to "find", only "create". Repurposing the old find-or-create shape onto a create-only flow would have left a dead "find" branch pretending to be a rename; a fresh class was written instead.
 
 ## `ICurrentUserContext` implementations
 
-- `NullCurrentUserContext` — deny-by-default, for design-time/migrations tooling and as an internal lookup-context (see [access-control.md](access-control.md)). Never wire as the runtime context.
-- `EntraCurrentUserContext` — the real one, resolves `UserId`/roles from `AppUser`/`UserRole` via the caller's `ClaimsPrincipal`, lazily and cached per instance. Two constructors: one takes an already-resolved `ClaimsPrincipal` directly (used by tests — no ASP.NET Core hosting needed); the other takes the `AuthenticationStateProvider` itself and is what `Program.cs` uses at runtime (see below) — it defers calling `AuthenticationStatePrincipalResolver.Resolve` until `UserId`/`HasRole` is actually *read*, not at construction.
+- `NullCurrentUserContext` — deny-by-default, for design-time/migrations tooling and as an internal lookup-context (see [access-control.md](access-control.md)). `HasMfaEnabled` is `false`. Never wire as the runtime context.
+- `SystemCurrentUserContext` — for the `Vlms.Jobs` WebJob host, no signed-in human caller. Grants exactly `Role.Admin`/`Role.SafeguardingOfficer`; `HasMfaEnabled` is hardcoded `true` (documented reasoning: MFA enforcement gates *interactive sign-in by a human*, which this trusted, narrowly-scoped system principal is not — the same reasoning that already narrowly scopes its roles).
+- `IdentityCurrentUserContext` (`src/Vlms.Infrastructure/Security/IdentityCurrentUserContext.cs`) — the real one, replacing the Entra-era `EntraCurrentUserContext`. Resolves `UserId`/`Roles`/`HasMfaEnabled` from a short-lived `VlmsDbContext` of its own (never the DI-resolved instance — it is itself a constructor dependency *of* `VlmsDbContext`, so depending on the DI-resolved one would be circular), keyed by the caller's `ClaimTypes.NameIdentifier` claim — which under Identity *is* the shared `AppUser`/`VlmsIdentityUser` id directly, no lookup join needed (unlike the Entra object-id claim it replaces). Two constructors, same shape as the Entra-era class: one takes an already-resolved `ClaimsPrincipal` (tests, no ASP.NET Core hosting needed); the other takes the `AuthenticationStateProvider` itself and is what `Program.cs` uses at runtime, deferring resolution until `UserId`/`HasRole`/`HasMfaEnabled` is actually read (see the next section for why this still matters under Identity).
 
 ## Resolving the caller's `ClaimsPrincipal`: `AuthenticationStateProvider`, not `IHttpContextAccessor`
 
-`Program.cs` builds `EntraCurrentUserContext` from the `AuthenticationStateProvider` itself, which
-internally resolves the `ClaimsPrincipal` via
-`AuthenticationStatePrincipalResolver.Resolve(AuthenticationStateProvider)`
-(`src/Vlms.Infrastructure/Security/AuthenticationStatePrincipalResolver.cs`), not
-`IHttpContextAccessor.HttpContext?.User`. This closes a gap the codebase originally shipped with
-(flagged by a checker review on commit c318bc5): `IHttpContextAccessor.HttpContext` is null outside
-the request that established a Blazor Server interactive (SignalR circuit) render — so the old code
-resolved to an empty principal (fails closed, safe, but denies every authorised user) the moment a
-page went interactive. `AuthenticationStateProvider` doesn't have this limitation: ASP.NET Core's
-built-in Blazor Web App wiring (`builder.Services.AddCascadingAuthenticationState()`, in
-`Program.cs`) captures `HttpContext.User` once — during static SSR/the request that establishes the
-circuit — and flows it through the rest of the circuit's lifetime, including every subsequent
-interactive render. This is the officially documented replacement for `IHttpContextAccessor` in
-this scenario ("ASP.NET Core Blazor authentication and authorization" → "Server-side Blazor
-authentication", Microsoft Learn) and is exactly the pattern Microsoft's own Windows-Authentication
-Blazor Web App sample uses for a non-Identity authentication scheme.
+`Program.cs` builds `IdentityCurrentUserContext` from the `AuthenticationStateProvider` itself, which internally resolves the `ClaimsPrincipal` via `AuthenticationStatePrincipalResolver.Resolve(AuthenticationStateProvider)` (`src/Vlms.Infrastructure/Security/AuthenticationStatePrincipalResolver.cs`), not `IHttpContextAccessor.HttpContext?.User`. This closes a gap the codebase originally shipped with under Entra (flagged by a checker review on commit c318bc5, generalized here since the underlying framework behaviour is Blazor Server's own circuit lifecycle, not Entra-specific): `IHttpContextAccessor.HttpContext` is null outside the request that established a Blazor Server interactive (SignalR circuit) render — so the old code resolved to an empty principal (fails closed, safe, but denies every authorised user) the moment a page went interactive. `AuthenticationStateProvider` doesn't have this limitation: ASP.NET Core's built-in Blazor Web App wiring (`builder.Services.AddCascadingAuthenticationState()`, in `Program.cs`) captures `HttpContext.User` once — during static SSR/the request that establishes the circuit — and flows it through the rest of the circuit's lifetime, including every subsequent interactive render.
 
-`AuthenticationStatePrincipalResolver.Resolve` blocks synchronously
-(`GetAwaiter().GetResult()`) on `GetAuthenticationStateAsync()` rather than awaiting it, because
-`ICurrentUserContext.HasRole`/`UserId` must stay synchronous (they run inside `VlmsDbContext`'s EF
-Core query filter lambdas — adr/0004-sensitive-data-access-control.md — which can't be made async).
-**This is safe only for consumers that resolve `ICurrentUserContext` inside a rendered Razor
-component's DI scope** (interactive pages/policies, resource-based authorization handlers) — by
-that point the framework has already captured and stored the `AuthenticationState` via ASP.NET
-Core's built-in `ServerAuthenticationStateProvider`, so `GetAuthenticationStateAsync()` returns an
-already-completed `Task`: no blocking on live I/O, no deadlock. It is **not** safe in general: a
-checker round-trip (STATE.md's log, follow-up on commit d2adf82) found that this codebase
-originally called `AuthenticationStatePrincipalResolver.Resolve` *eagerly*, inside `Program.cs`'s
-`ICurrentUserContext` DI factory, before constructing `EntraCurrentUserContext`. That factory also
-runs during the OIDC `OnTokenValidated` callback (`UserProvisioningService` → `VlmsDbContext` →
-`ICurrentUserContext`), which is not a rendered component's DI scope — `ServerAuthenticationStateProvider`
-throws `InvalidOperationException` there because no component has called `SetAuthenticationState` yet
-(the test double's message string approximates this for test purposes; it is not a verbatim quote of
-the framework's actual exception text — don't rely on matching it).
-Every sign-in threw, and no `AppUser`/`UserRole` rows were ever created.
+Under Identity, `Program.cs` registers `IdentityRevalidatingAuthenticationStateProvider` as the concrete `AuthenticationStateProvider` — the officially documented provider for Blazor Web App + Server interactivity + ASP.NET Core Identity (`learn.microsoft.com/aspnet/core/blazor/security/server`), which periodically re-validates the caller's security stamp so a revoked/changed credential doesn't stay "signed in" indefinitely for a connected circuit. **Verified, not assumed, that the safety argument below still holds under this provider**: `IdentityRevalidatingAuthenticationStateProvider` subclasses `RevalidatingServerAuthenticationStateProvider`, itself a subclass of the same `ServerAuthenticationStateProvider` the Entra-era provider used — `GetAuthenticationStateAsync()` is unchanged by revalidation; the periodic re-validation runs on its own background timer, not inside that call.
 
-**The actual fix, and the property that now holds:** resolution is genuinely deferred, not merely
-moved. `EntraCurrentUserContext`'s `AuthenticationStateProvider` constructor stores the provider and
-only calls `AuthenticationStatePrincipalResolver.Resolve` inside its `Lazy<...>`, forced solely by a
-read of `UserId`/`HasRole`. `Program.cs`'s DI factory no longer calls `Resolve` itself — it just
-passes the `AuthenticationStateProvider` through. `UserProvisioningService` only touches
-`AppUser`/`UserRole` directly and never reads `ICurrentUserContext.UserId`/`HasRole`, so the OIDC
-path constructs `EntraCurrentUserContext` but never forces resolution — no throw, regardless of DI
-scope. Component-scope consumers (which do read `UserId`/`HasRole`) still land in the safe case
-described above. Verified by `AuthenticationStatePrincipalResolverTests`
-(`tests/Vlms.Tests/Infrastructure/`): a `FakeAuthenticationStateProvider` resolves a role through
-`EntraCurrentUserContext` with no `IHttpContextAccessor`/`HttpContext` anywhere in the object graph
-(the original interactive-render gap); a `ThrowingUntilPrimedAuthenticationStateProvider` reproduces
-the real `ServerAuthenticationStateProvider`'s unprimed-throw behaviour and proves both that
-constructing `EntraCurrentUserContext` against it never throws, and that the real
-`UserProvisioningService` → `VlmsDbContext` → `ICurrentUserContext` chain completes cleanly even
-though reading `UserId`/`HasRole` on that same instance would throw (the regression fix).
+`AuthenticationStatePrincipalResolver.Resolve` blocks synchronously (`GetAwaiter().GetResult()`) on `GetAuthenticationStateAsync()` rather than awaiting it, because `ICurrentUserContext.HasRole`/`UserId`/`HasMfaEnabled` must stay synchronous (they run inside `VlmsDbContext`'s EF Core query filter lambdas — adr/0004-sensitive-data-access-control.md — which can't be made async). **This is safe only for consumers that resolve `ICurrentUserContext` inside a rendered Razor component's DI scope** (interactive pages/policies, resource-based authorization handlers) — by that point the framework has already captured and stored the `AuthenticationState`, so `GetAuthenticationStateAsync()` returns an already-completed `Task`: no blocking on live I/O, no deadlock. It is **not** safe in general: a checker round-trip under Entra (STATE.md's log, follow-up on commit d2adf82) found that this codebase originally called `AuthenticationStatePrincipalResolver.Resolve` *eagerly*, inside `Program.cs`'s `ICurrentUserContext` DI factory, before constructing the current-user-context implementation. That factory also runs during account-creation/sign-in flows (`AppUserProvisioningService`/`GuardianInviteService.AcceptAsync` → `VlmsDbContext` → `ICurrentUserContext`, under Identity; `UserProvisioningService`'s OIDC callback under Entra), which is not a rendered component's DI scope — `ServerAuthenticationStateProvider` throws `InvalidOperationException` there because no component has called `SetAuthenticationState` yet.
 
-Routes.razor uses `AuthorizeRouteView` (not a plain `RouteView`), which is what makes a page's
-`@attribute [Authorize(Policy = "...")]` actually enforced, cascading the resulting
-`Task<AuthenticationState>` down to the page — see [web.md](web.md).
+**The actual fix, and the property that now holds — carried over unchanged into the Identity-era class:** resolution is genuinely deferred, not merely moved. `IdentityCurrentUserContext`'s `AuthenticationStateProvider` constructor stores the provider and only calls `AuthenticationStatePrincipalResolver.Resolve` inside its `Lazy<...>`, forced solely by a read of `UserId`/`HasRole`/`HasMfaEnabled`. `Program.cs`'s DI factory doesn't call `Resolve` itself — it just passes the `AuthenticationStateProvider` through. Neither `AppUserProvisioningService` nor `GuardianInviteService.AcceptAsync` reads `ICurrentUserContext.UserId`/`HasRole`/`HasMfaEnabled` on the newly-created account's context (they don't even construct one for it — `AppUser` rows are written directly), so no throw occurs regardless of DI scope. Verified by `AuthenticationStatePrincipalResolverTests` and `IdentityCurrentUserContextTests` (`tests/Vlms.Tests/Infrastructure/`).
+
+Routes.razor uses `AuthorizeRouteView` (not a plain `RouteView`), which is what makes a page's `@attribute [Authorize(Policy = "...")]` actually enforced, cascading the resulting `Task<AuthenticationState>` down to the page — see [web.md](web.md).
 
 ## Authorization model
 
@@ -85,6 +50,21 @@ Routes.razor uses `AuthorizeRouteView` (not a plain `RouteView`), which is what 
   - `TeacherStudentAccessHandler` — role-only (Teachers see all students by design, `docs/design/low-level-design.md`), no per-resource check.
 
 All three were adversarially checked (Opus-model checker) for the specific failure mode of "the deny path is accidentally permissive" — confirmed clean, see `STATE.md`'s log entry for that review.
+
+## MFA enforcement (STATE.md "Identity" item 4)
+
+TOTP multi-factor authentication is **enforced for `Role.Admin`/`Role.SafeguardingOfficer` specifically — globally, for every authorized action, not just the safeguarding-sensitive pages — and merely offered (available to enrol, never required) for every other role.** "Globally" is deliberate: a caller who holds Admin or SafeguardingOfficer at all is blocked from every policy-gated page/resource until MFA is enabled, even a page a different role they also hold would otherwise satisfy on its own — the simpler, more conservative rule to state ("if you hold a safeguarding-sensitive role, MFA is mandatory, full stop") rather than "MFA is required only on the specific policy that happens to need that role today".
+
+Two enforcement points, defense-in-depth, matching this codebase's existing "not just page-level gating" discipline:
+
+- **Page/resource layer**: `MfaRequirement`/`MfaRequirementHandler` (`src/Vlms.Infrastructure/Authorization/`) — added to *every* policy in `Program.cs`'s `AddAuthorization` block (all six `Require{Role}` policies, `StudentAccess`, `RequireAdminOrTeacher`, `RequireAdminOrSafeguardingOfficer`), not just the Admin/SafeguardingOfficer-specific ones. `MfaRequirementHandler` succeeds unless the caller holds Admin or SafeguardingOfficer without `ICurrentUserContext.HasMfaEnabled`.
+- **Data layer**: `VlmsDbContext`'s `HasQueryFilter` on `ConsentSensitiveDetails`/`DbsCheck` now reads `(_currentUser.HasRole(Role.Admin) || _currentUser.HasRole(Role.SafeguardingOfficer)) && _currentUser.HasMfaEnabled` — see [access-control.md](access-control.md). Without this, an Admin/SafeguardingOfficer who never enrolled MFA could still be blocked from the `/safeguarding/*` pages by the handler above yet still read these entities through any other code path querying `VlmsDbContext` directly.
+
+`Manage/TwoFactorAuthentication.razor`/`Manage/EnableAuthenticator.razor` (both under `src/Vlms.Web/Components/Account/Pages/`) are the enrolment pages — gated by a plain `[Authorize]` (any signed-in user), **not** an `MfaRequirement`-carrying policy, deliberately: gating the enrolment page itself behind an MFA requirement would be a lockout catch-22 for the exact roles that need it. `EnableAuthenticator.razor` shows only the manual "enter this key" shared secret, not a scannable QR code — a documented scope decision (no built-in .NET QR encoder; a third-party rendering library was judged more new dependency than this "fewest moving parts" project takes on for what the manual key already achieves) — see its own doc comment.
+
+## Guardian invite issuance (STATE.md "Identity" item 5)
+
+Replaces the Microsoft Graph guardian-invitation mechanism (`docs/design/data-design.md`'s "Guardian link verification" section) with a self-rolled signed, single-use, expiring invite link — full design in [guardian-links.md](guardian-links.md) and the `GuardianInvite`/`GuardianInviteService` doc comments. In outline: `GuardianLinkService` calls `GuardianInviteService.IssueAsync` immediately after creating a `StudentGuardianLink`, whenever the target `ParentGuardian.AppUserId` is still null; the emailed link carries an ASP.NET Core Data Protection `ITimeLimitedDataProtector`-protected token (not a bespoke HMAC scheme — verified against Microsoft's own Data Protection consumer-API docs); `Components/Pages/Guardianship/AcceptInvite.razor` validates the token, calls `GuardianInviteService.AcceptAsync` (which creates the account via `AppUserProvisioningService` and marks the invite consumed, atomically), then signs the new guardian in directly via `SignInManager` — a step that must live in `Vlms.Web`, not Infrastructure, since it needs `HttpContext` to write the auth cookie.
 
 ## Curriculum-management policies
 

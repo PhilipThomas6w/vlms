@@ -15,4 +15,6 @@ public sealed class NullCurrentUserContext : ICurrentUserContext
     public int? UserId => null;
 
     public bool HasRole(Role role) => false;
+
+    public bool HasMfaEnabled => false;
 }

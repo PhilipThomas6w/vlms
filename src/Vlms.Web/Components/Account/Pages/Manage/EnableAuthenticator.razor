@@ -1,0 +1,165 @@
+@page "/Account/Manage/EnableAuthenticator"
+@attribute [Authorize]
+
+@using System.ComponentModel.DataAnnotations
+@using System.Text.Encodings.Web
+@using Microsoft.AspNetCore.Identity
+@using Vlms.Infrastructure.Identity
+
+@inject UserManager<VlmsIdentityUser> UserManager
+@inject SignInManager<VlmsIdentityUser> SignInManager
+@inject IdentityRedirectManager RedirectManager
+
+@* Static SSR — see TwoFactorAuthentication.razor's doc comment (SignInManager.RefreshSignInAsync
+   on success writes the auth cookie).
+
+   Scope decision, recorded (STATE.md "Identity" item 4): no QR code image is generated here — only
+   the manual "enter this key" shared-secret text, which every compliant authenticator app accepts
+   as an alternative to scanning (Microsoft/Google Authenticator both support it). A scannable QR
+   code needs a third-party rendering library (e.g. Net.Codecrete.QrCodeGenerator — there is no
+   built-in .NET QR encoder) — an extra dependency this "fewest moving parts" solo-maintained project
+   (adr/0003's own reasoning, already applied to reject axe-core/gitleaks/heavier tooling elsewhere)
+   does not take on for what a manual key already achieves. The otpauth:// URI format below is
+   still built and shown as text (some authenticator apps accept pasting it directly), verified
+   against Microsoft Learn's own QR-code-enrolment guidance for the URI shape
+   (learn.microsoft.com/aspnet/core/security/authentication/identity-enable-qrcodes) even though the
+   QR rendering step itself is out of scope. *@
+
+<PageTitle>Configure authenticator app</PageTitle>
+
+<h1>Configure authenticator app</h1>
+
+@if (_errorMessage is not null)
+{
+    <p class="error" role="alert">@_errorMessage</p>
+}
+
+@if (_recoveryCodes is not null)
+{
+    <h2>Recovery codes</h2>
+    <p>
+        <strong>Put these codes in a safe place.</strong> If you lose your authenticator device and
+        don't have an unused recovery code, you will lose access to your account.
+    </p>
+    <ul>
+        @foreach (var recoveryCode in _recoveryCodes)
+        {
+            <li><code>@recoveryCode</code></li>
+        }
+    </ul>
+    <p><a href="Account/Manage/TwoFactorAuthentication">Done</a></p>
+}
+else
+{
+    <ol>
+        <li>
+            Download a two-factor authenticator app, such as Microsoft Authenticator or Google
+            Authenticator, for your phone.
+        </li>
+        <li>
+            <p>Enter this key into your authenticator app (spaces and casing don't matter):</p>
+            <p><kbd>@_sharedKey</kbd></p>
+        </li>
+        <li>
+            <p>Once you have added the key, enter the 6-digit code the app displays below.</p>
+            <EditForm Model="Input" method="post" OnValidSubmit="OnValidSubmitAsync" FormName="send-code">
+                <DataAnnotationsValidator />
+                <ValidationSummary role="alert" />
+                <div>
+                    <label for="code">Verification code</label>
+                    <InputText id="code" @bind-Value="Input.Code" autocomplete="off" aria-required="true" />
+                </div>
+                <button type="submit">Verify and enable</button>
+            </EditForm>
+        </li>
+    </ol>
+}
+
+@code {
+    private VlmsIdentityUser? _user;
+    private string? _sharedKey;
+    private string[]? _recoveryCodes;
+    private string? _errorMessage;
+
+    // No property initializer — BL0008 (learn.microsoft.com/aspnet/core/diagnostics/bl0008): see
+    // Login.razor's identical comment.
+    [SupplyParameterFromForm]
+    private InputModel Input { get; set; } = default!;
+
+    [CascadingParameter]
+    private Task<Microsoft.AspNetCore.Components.Authorization.AuthenticationState>? AuthenticationState { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Input ??= new();
+
+        if (AuthenticationState is null)
+        {
+            return;
+        }
+
+        var principal = (await AuthenticationState).User;
+        _user = await UserManager.GetUserAsync(principal);
+        if (_user is null)
+        {
+            return;
+        }
+
+        var unformattedKey = await UserManager.GetAuthenticatorKeyAsync(_user);
+        if (string.IsNullOrEmpty(unformattedKey))
+        {
+            await UserManager.ResetAuthenticatorKeyAsync(_user);
+            unformattedKey = await UserManager.GetAuthenticatorKeyAsync(_user);
+        }
+
+        _sharedKey = FormatKey(unformattedKey!);
+    }
+
+    private async Task OnValidSubmitAsync()
+    {
+        if (_user is null)
+        {
+            return;
+        }
+
+        var verificationCode = Input.Code.Replace(" ", string.Empty).Replace("-", string.Empty);
+
+        var isTokenValid = await UserManager.VerifyTwoFactorTokenAsync(
+            _user, UserManager.Options.Tokens.AuthenticatorTokenProvider, verificationCode);
+
+        if (!isTokenValid)
+        {
+            _errorMessage = "Verification code is invalid.";
+            return;
+        }
+
+        await UserManager.SetTwoFactorEnabledAsync(_user, true);
+        _recoveryCodes = (await UserManager.GenerateNewTwoFactorRecoveryCodesAsync(_user, 10))?.ToArray() ?? [];
+
+        await SignInManager.RefreshSignInAsync(_user);
+    }
+
+    private static string FormatKey(string unformattedKey)
+    {
+        var result = new System.Text.StringBuilder();
+        var currentPosition = 0;
+        while (currentPosition + 4 < unformattedKey.Length)
+        {
+            result.Append(unformattedKey.AsSpan(currentPosition, 4)).Append(' ');
+            currentPosition += 4;
+        }
+        if (currentPosition < unformattedKey.Length)
+        {
+            result.Append(unformattedKey.AsSpan(currentPosition));
+        }
+
+        return result.ToString().ToLowerInvariant();
+    }
+
+    private sealed class InputModel
+    {
+        [Required]
+        [StringLength(7, MinimumLength = 6)]
+        public string Code { get; set; } = "";
+    }
+}

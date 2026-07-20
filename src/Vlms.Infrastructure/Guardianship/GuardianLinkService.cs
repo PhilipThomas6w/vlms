@@ -41,16 +41,32 @@ namespace Vlms.Infrastructure.Guardianship;
 /// StudentRankProgress row (the precondition PromotionService's doc comment flags as expected to
 /// land with "student registration"); that belongs to a not-yet-built student-registration/
 /// enrolment flow, added as a new STATE.md Next item by this change.
+///
+/// **Guardian invite issuance (STATE.md "Identity" item 5, replacing the former Microsoft Graph
+/// invitation blocker) — wired in here, not as a separate step the caller must remember:** both
+/// entry points below call <see cref="IssueInviteIfUnregisteredAsync"/> immediately after creating
+/// the <see cref="StudentGuardianLink"/>. The precise trigger condition is
+/// <c>guardian.AppUserId is null</c> — NOT "new vs existing guardian" (data-design.md's own
+/// "the Admin/Teacher enters the guardian's details" wording describes the common case, but the
+/// correct condition is narrower): a guardian who already has an Identity account from an earlier
+/// child needs no new invite when a second child is linked — <c>ParentGuardianLinkage</c>'s existing
+/// join already grants them access to the new link via their one existing <c>AppUserId</c> the
+/// moment it exists, so issuing another invite there would be pointless (and, if accepted, would
+/// throw — <c>GuardianInviteService.AcceptAsync</c> rejects accepting an invite for a guardian who
+/// already has an account). See <see cref="Vlms.Domain.GuardianInvite"/>'s doc comment for the full
+/// design.
 /// </summary>
 public sealed class GuardianLinkService
 {
     private readonly VlmsDbContext _db;
     private readonly ICurrentUserContext _currentUser;
+    private readonly GuardianInviteService _guardianInvites;
 
-    public GuardianLinkService(VlmsDbContext db, ICurrentUserContext currentUser)
+    public GuardianLinkService(VlmsDbContext db, ICurrentUserContext currentUser, GuardianInviteService guardianInvites)
     {
         _db = db;
         _currentUser = currentUser;
+        _guardianInvites = guardianInvites;
     }
 
     /// <summary>
@@ -64,7 +80,7 @@ public sealed class GuardianLinkService
         var createdByUserId = RequireResolvedUserId();
 
         _ = await _db.Students.SingleAsync(s => s.Id == studentId, ct);
-        _ = await _db.ParentGuardians.SingleAsync(g => g.Id == parentGuardianId, ct);
+        var guardian = await _db.ParentGuardians.SingleAsync(g => g.Id == parentGuardianId, ct);
 
         await RequireNoExistingLinkAsync(studentId, parentGuardianId, ct);
 
@@ -77,6 +93,9 @@ public sealed class GuardianLinkService
 
         _db.StudentGuardianLinks.Add(link);
         await _db.SaveChangesAsync(ct);
+
+        await IssueInviteIfUnregisteredAsync(studentId, guardian, ct);
+
         return link;
     }
 
@@ -113,7 +132,24 @@ public sealed class GuardianLinkService
         _db.StudentGuardianLinks.Add(link);
 
         await _db.SaveChangesAsync(ct);
+
+        // A brand-new ParentGuardian created right here always has AppUserId == null (it was just
+        // constructed above with no AppUserId set), so this always issues an invite for this entry
+        // point — unlike CreateLinkAsync, where the guardian may already be registered.
+        await IssueInviteIfUnregisteredAsync(studentId, guardian, ct);
+
         return (guardian, link);
+    }
+
+    /// <summary>See this class's doc comment for the exact trigger condition and why.</summary>
+    private async Task IssueInviteIfUnregisteredAsync(int studentId, ParentGuardian guardian, CancellationToken ct)
+    {
+        if (guardian.AppUserId is not null)
+        {
+            return;
+        }
+
+        _ = await _guardianInvites.IssueAsync(studentId, guardian.Id, ct);
     }
 
     /// <summary>data-design.md's StudentGuardianLink composite key already prevents a duplicate row

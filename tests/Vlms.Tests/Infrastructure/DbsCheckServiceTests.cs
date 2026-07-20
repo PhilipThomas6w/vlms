@@ -67,9 +67,9 @@ public sealed class DbsCheckServiceTests : IDisposable
 
     private static void SeedReferenceData(VlmsDbContext context)
     {
-        context.AppUsers.Add(new AppUser { Id = 1, EntraObjectId = "admin-1", DisplayName = "Admin One", Email = "admin@example.com" });
-        context.AppUsers.Add(new AppUser { Id = 2, EntraObjectId = "safeguarding-1", DisplayName = "Safeguarding One", Email = "sg@example.com" });
-        context.AppUsers.Add(new AppUser { Id = 10, EntraObjectId = "teacher-1", DisplayName = "Teacher One", Email = "teacher1@example.com" });
+        context.AppUsers.Add(new AppUser { Id = 1, DisplayName = "Admin One", Email = "admin@example.com" });
+        context.AppUsers.Add(new AppUser { Id = 2, DisplayName = "Safeguarding One", Email = "sg@example.com" });
+        context.AppUsers.Add(new AppUser { Id = 10, DisplayName = "Teacher One", Email = "teacher1@example.com" });
         context.UserRoles.Add(new UserRole { UserId = 10, Role = Role.Teacher });
         context.SaveChanges();
     }
