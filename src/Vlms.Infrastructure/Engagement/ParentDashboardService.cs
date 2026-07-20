@@ -49,9 +49,10 @@ public sealed record ParentDashboardStudent(
 /// Include/ThenInclude chains through nullable navigation properties, and keeps every join
 /// translatable regardless of provider.
 ///
-/// **Design-gap check resolved, no gap found (STATE.md):** the certificate join deliberately does
-/// not filter on <see cref="StudentLessonCompletion.IsReversed"/> — see the comment on that join
-/// below for the full reasoning.
+/// **Decision reversed by Philip (STATE.md, 2026-07-20):** the certificate join filters out
+/// certificates whose underlying <see cref="StudentLessonCompletion.IsReversed"/> is true — see the
+/// comment on that join below for the full reasoning. This supersedes an earlier "no gap found"
+/// conclusion (commit 922cc69) that deliberately left reversed completions' certificates visible.
 /// </summary>
 public sealed class ParentDashboardService
 {
@@ -98,24 +99,21 @@ public sealed class ParentDashboardService
             .Join(_db.Ranks, x => x.RankId, r => r.Id, (x, r) => new { x.StudentId, x.AwardedAt, RankName = r.Name })
             .ToListAsync(ct);
 
-        // Deliberately does NOT filter out certificates whose underlying StudentLessonCompletion has
-        // IsReversed == true (checked against data-design.md/low-level-design.md/functional.md before
-        // concluding this, per STATE.md's design-gap item — not an oversight). functional.md's only
-        // description of reversal is Teacher self-correction of a completion entry ("can self-correct/
-        // reverse their own entry"), and the only place IsReversed is consumed anywhere in this codebase
-        // is PromotionService, which excludes reversed completions from rank-progression counting — the
-        // precedented meaning of "reversed" here is "doesn't count toward progression", not "never
-        // happened". Nothing in the docs describes Certificate as having any lifecycle beyond
-        // generation (data-design.md: "Real tracked record, not implicit"), and there is no
-        // revocation/cascade rule for it anywhere. A Certificate already records a specific completion
-        // event that was celebrated and (per data-design.md's open item) may already be in a parent's
-        // hands — reversal correcting the underlying progression count is a separate concern from
-        // retroactively unissuing a certificate. If a real data-entry mistake needs a certificate pulled
-        // too, that is a distinct, undecided requirement — not something to infer from IsReversed.
+        // Filters out certificates whose underlying StudentLessonCompletion has IsReversed == true.
+        // Decision made by Philip, 2026-07-20 (STATE.md), superseding an earlier "no gap found"
+        // conclusion (commit 922cc69) that had deliberately left these visible on the reasoning that
+        // PromotionService's precedent treats "reversed" as "doesn't count toward progression", not
+        // "never happened". That conclusion is now judged wrong: a reversal is a Teacher self-correction
+        // meaning "this completion shouldn't have happened" (functional.md), and a certificate generated
+        // from a completion that shouldn't have happened is itself wrong to show a parent — the
+        // certificate's validity is derivative of the completion it was generated from, not independent
+        // of it. This is the second flip on this exact question (see the design-gap history in
+        // openwiki/parent-dashboard.md) — do not silently revert it again without a fresh, deliberate
+        // decision recorded the same way this one was.
         var certificates = await _db.Certificates
             .Join(_db.StudentLessonCompletions, c => c.StudentLessonCompletionId, slc => slc.Id,
-                (c, slc) => new { c.GeneratedAt, c.BlobKey, slc.StudentId, slc.LessonId })
-            .Where(x => studentIds.Contains(x.StudentId))
+                (c, slc) => new { c.GeneratedAt, c.BlobKey, slc.StudentId, slc.LessonId, slc.IsReversed })
+            .Where(x => studentIds.Contains(x.StudentId) && !x.IsReversed)
             .Join(_db.Lessons, x => x.LessonId, l => l.Id, (x, l) => new { x.StudentId, x.GeneratedAt, x.BlobKey, LessonTitle = l.Title })
             .ToListAsync(ct);
 

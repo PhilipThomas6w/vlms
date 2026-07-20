@@ -61,10 +61,10 @@ public sealed class ParentDashboardServiceTests : IDisposable
         schema.Context.Certificates.Add(new Certificate { Id = 1, StudentLessonCompletionId = 1, GeneratedAt = new DateTime(2025, 6, 1, 0, 0, 0, DateTimeKind.Utc), BlobKey = "certificates/100/1.pdf" });
 
         // Alex also has a reversed completion (Teacher self-correction of a data-entry mistake) whose
-        // certificate was already generated before the reversal. STATE.md's design-gap item: does
-        // reversal cascade to certificate visibility? Resolved against data-design.md/functional.md —
-        // no, it does not (see ParentDashboardService's certificate-join comment) — so this certificate
-        // is expected to still appear on the dashboard.
+        // certificate was already generated before the reversal. Philip's decision, 2026-07-20
+        // (STATE.md): a certificate generated from a reversed completion is itself wrong and must be
+        // hidden from the parent dashboard (see ParentDashboardService's certificate-join comment) — so
+        // this certificate ("Fire Safety") is expected to be absent from the dashboard.
         schema.Context.StudentLessonCompletions.Add(new StudentLessonCompletion
         {
             Id = 2, StudentId = 100, LessonId = 2, CompletedByUserId = 10,
@@ -138,24 +138,22 @@ public sealed class ParentDashboardServiceTests : IDisposable
         Assert.Equal("Recruit", alex.CurrentRankName);
         Assert.NotNull(alex.CurrentRankStartedAt);
         Assert.Single(alex.Badges, b => b.RankName == "Recruit");
-        Assert.Single(alex.Certificates, c => c.LessonTitle == "Knots 101");
+        var certificate = Assert.Single(alex.Certificates);
+        Assert.Equal("Knots 101", certificate.LessonTitle);
         Assert.Equal(ConsentStatus.Approved, alex.ConsentStatus);
         Assert.Equal(new DateOnly(2026, 12, 31), alex.ConsentExpiryDate);
     }
 
     /// <summary>
-    /// STATE.md design-gap item (flagged by the Opus checker review of commit 4501d80): does
-    /// reversing a StudentLessonCompletion cascade to hiding its already-generated Certificate?
-    /// Resolved against data-design.md/low-level-design.md/functional.md — no: reversal's only
-    /// documented meaning is Teacher self-correction of a completion entry, and the only existing
-    /// consumer of IsReversed (PromotionService) treats it purely as "doesn't count toward rank
-    /// progression", not "never happened". A Certificate has no documented lifecycle beyond
-    /// generation, so a reversed completion's certificate is expected to still show — this is a
-    /// deliberate regression guard for that conclusion (see ParentDashboardService's certificate-join
-    /// comment), not an oversight to "fix" later.
+    /// Philip's decision, 2026-07-20 (STATE.md): a Certificate must be hidden from a parent's dashboard
+    /// when the StudentLessonCompletion it was generated from has IsReversed == true — reversal means
+    /// "this shouldn't have happened", so a certificate generated from a reversed completion is itself
+    /// wrong and must not be shown to a parent. This reverses the earlier "no gap found" conclusion
+    /// (commit 922cc69) that the previous version of this test locked in (both certificates present).
+    /// See ParentDashboardService's certificate-join comment for the full reasoning.
     /// </summary>
     [Fact]
-    public async Task GetDashboardAsync_CertificateForReversedCompletion_IsStillShown_ReversalDoesNotCascadeToCertificates()
+    public async Task GetDashboardAsync_CertificateForReversedCompletion_IsHidden_ReversalCascadesToCertificateVisibility()
     {
         var parentA = new FakeCurrentUserContext(userId: 1, Role.Parent);
         using var run = CreateContext(parentA);
@@ -163,9 +161,9 @@ public sealed class ParentDashboardServiceTests : IDisposable
         var result = await run.Service(parentA).GetDashboardAsync();
 
         var alex = Assert.Single(result);
-        Assert.Equal(2, alex.Certificates.Count);
-        Assert.Contains(alex.Certificates, c => c.LessonTitle == "Knots 101");
-        Assert.Contains(alex.Certificates, c => c.LessonTitle == "Fire Safety");
+        var certificate = Assert.Single(alex.Certificates);
+        Assert.Equal("Knots 101", certificate.LessonTitle);
+        Assert.DoesNotContain(alex.Certificates, c => c.LessonTitle == "Fire Safety");
     }
 
     /// <summary>
