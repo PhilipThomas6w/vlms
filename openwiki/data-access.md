@@ -13,6 +13,8 @@
 
 - `20260717224824_InitialCreate` — the full 16-entity model, ADR-0004 mechanism included from the start (not retrofitted).
 - `20260717232412_AddAppUserLinkToStudentAndParentGuardian` — adds `Student.AppUserId` / `ParentGuardian.AppUserId` (nullable, restrict-delete FKs to `AppUser`), for the self/parent-login gap found and fixed during the authentication work. Does not touch the query filters or interceptor.
+- `20260719101824_DenyUpdateDeleteOnSensitiveDataAccessLogs` — pure DDL, no entity/model changes: originally denied `UPDATE`/`DELETE` on `SensitiveDataAccessLogs` to a dedicated `VlmsAppRole` (ADR-0004 §4 tamper protection).
+- `20260719223944_SupersedeVlmsAppRoleWithPublicDenyOnSensitiveDataAccessLogs` — pure DDL: drops `VlmsAppRole` and re-targets the same `DENY` to `public` instead, so the protection can never be left inert by a forgotten role-membership step. See [access-control.md](access-control.md)'s "Tamper protection" section for the full rationale and the current, effective SQL.
 
 `VlmsDbContextFactory` (`src/Vlms.Infrastructure/VlmsDbContextFactory.cs`) is the EF Core design-time factory used by `dotnet ef` tooling — it has no request context, so it uses `NullCurrentUserContext`. The gate's own `dotnet ef migrations has-pending-model-changes` check (run by the maker/checker cycle, not currently a `build/verify.ps1` stage) is the way to catch model/migration drift; consider wiring it into `verify.ps1` if migrations become a frequent source of drift.
 

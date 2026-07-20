@@ -1,10 +1,43 @@
 # The `build/verify.ps1` gate
 
 `pwsh -File build/verify.ps1` (full) / `-Fast` (quick). Stages, in order: `build` (`dotnet build
--warnaserror`), `test` (`dotnet test`), `secrets` (gitleaks or a regex fallback), then — full runs
-only — `access-control (ASVS 5.0 V8)` and `accessibility (WCAG 2.2 AA)`. Every stage is designed to
-be genuinely falsifiable (`loop-harness:verify-gate-authoring`'s standard) — none of them print a
-placeholder and always exit 0.
+-warnaserror`), `test` (`dotnet test`), `secrets` (`build/check-secrets.ps1` — gitleaks if installed,
+else a hardened regex fallback), then — full runs only — `access-control (ASVS 5.0 V8)` and
+`accessibility (WCAG 2.2 AA)`. Every stage is designed to be genuinely falsifiable
+(`loop-harness:verify-gate-authoring`'s standard) — none of them print a placeholder and always exit
+0.
+
+## The `secrets` stage (`build/check-secrets.ps1`, runs in both `-Fast` and full)
+
+gitleaks is not installed in this environment (confirmed, not assumed), and this is a solo-developer
+"fewest moving parts" build — making the gate the Stop hook runs on every turn end depend on a
+newly-provisioned external binary is exactly the kind of moving part `adr/0003`'s reasoning rejects
+elsewhere (e.g. no axe-core/browser driver for the accessibility stage). So the regex fallback is a
+first-class, load-bearing path, not a placeholder — gitleaks stays the preferred path if ever
+installed.
+
+Credential shapes matched, checked against real Azure/SQL/Entra formats rather than guessed: Azure
+Storage `AccountKey=`, Azure Communication Services `accesskey=` (one 30+ base64-char pattern covers
+both — real ACS keys are 44 chars, Storage 88), SQL `Password=`/`pwd=` (both quoted and unquoted
+connection-string forms), Entra/Graph client secret values (gitleaks' own `azure-ad-client-secret`
+shape) plus explicit `ClientSecret=`/`client_secret:` assignments, and the pre-existing AWS-key/PEM
+patterns. False positives are filtered by scoping the `PLACEHOLDER` sentinel check to the matched
+credential *value* (case-sensitive), not the whole line — verified clean against this repo's own
+`appsettings.json`/`Vlms.Jobs/appsettings.json` placeholders and the local-dev `Trusted_Connection`
+string. Test/fixture files are excluded by real path segments (`tests/` directories, `*fixture*`
+filenames), not a bare substring — a file like `latest-import.json` is deliberately **not** excluded
+just because it contains "test".
+
+**Checker-FAIL round-trip (commit `a78cc18`, after the initial tightening in `59a069a`) found three
+real holes**, all since fixed: (1) the new unquoted-only password pattern had *dropped* coverage for
+a quoted hardcoded password (`password = "..."`) that the pre-tightening regex used to catch — fixed
+by making the opening quote optional; (2) the `PLACEHOLDER` filter was whole-line and
+case-insensitive, so a real key sharing a line with any casing of "placeholder" scanned clean — fixed
+by scoping it to the matched value, case-sensitively; (3) the `test`/`fixture` exclusion was a bare
+substring (matching "la**test**"), not path-segment-anchored — fixed as described above. Each hole
+was verified by deliberate break/restore (a throwaway probe reproducing the exact failure mode,
+confirmed to flip the stage from 0 to 1 and back), the same discipline the two full-only stages below
+use.
 
 ## The two full-only stages
 

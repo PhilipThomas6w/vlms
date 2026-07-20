@@ -7,15 +7,21 @@ See `docs/design/architecture.md` and `docs/adr/` for design intent and rational
 ```
 Vlms.slnx
 src/
-  Vlms.Domain/            entities, Role enum, ICurrentUserContext (no EF Core dependency)
-  Vlms.Infrastructure/     EF Core DbContext, auth, provisioning, migrations (depends on Vlms.Domain)
+  Vlms.Domain/            entities, Role enum, ICurrentUserContext, IBlobStorage, INotificationService (no EF Core dependency)
+  Vlms.Infrastructure/     EF Core DbContext, auth, provisioning, migrations, services (depends on Vlms.Domain)
   Vlms.Web/                Blazor Web App, Server interactivity (depends on Vlms.Domain + Vlms.Infrastructure)
+  Vlms.Jobs/               WebJob host: ConsentExpiryJob + ConsentExpiryNotifier, run as a Triggered
+                           WebJob (adr/0003) — depends on Vlms.Domain + Vlms.Infrastructure, same as
+                           Vlms.Web; not deployed by anything in this repo yet (no live Azure
+                           environment) — see openwiki/safeguarding-consent.md
 tests/
   Vlms.Tests/               xUnit, SQLite-in-memory (depends on Vlms.Domain; references Infrastructure types via project ref)
 build/
   verify.ps1                the gate: dotnet build -warnaserror, dotnet test, secrets scan, and
                              (full runs only) an ASVS 5.0 V8 access-control review + a WCAG 2.2 AA
                              accessibility check — see openwiki/verify-gate.md
+  check-secrets.ps1         the secrets-scan stage's script (runs in both -Fast and full; gitleaks if
+                             present, else a hardened regex fallback — see openwiki/verify-gate.md)
   check-access-control.ps1  the ASVS stage's script (static scan + checklist-currency gate)
   check-accessibility.ps1   the WCAG stage's script (static scan + checklist-currency gate)
   lib-checklist-currency.ps1  shared content-hash helper both stages above dot-source
@@ -33,7 +39,7 @@ No separate API project exists or is planned — `docs/design/integration.md` co
 
 - **Sensitive-data access control** (`docs/adr/0004-sensitive-data-access-control.md`) — EF Core global query filters + an `IMaterializationInterceptor` audit log. See [access-control.md](access-control.md).
 - **Authentication/authorization** (`docs/adr/0001`, `docs/adr/0002`) — Entra External ID + app-managed roles + resource-based handlers. See [authentication-authorization.md](authentication-authorization.md).
-- **Scheduled work** (`docs/adr/0003-scheduled-jobs-webjobs.md`) — Azure App Service WebJobs; not yet implemented (`STATE.md` Next item 4, `ConsentExpiryJob`).
+- **Scheduled work** (`docs/adr/0003-scheduled-jobs-webjobs.md`) — Azure App Service WebJobs. Implemented: `ConsentExpiryJob` (daily consent/DBS expiry + 8-week at-risk flagging) plus `ConsentExpiryNotifier` (safeguarding-critical email escalation), hosted by the `Vlms.Jobs` console project above — not yet deployed anywhere (no live Azure environment). See [safeguarding-consent.md](safeguarding-consent.md) and [notifications.md](notifications.md).
 
 ## Target framework and stack
 
