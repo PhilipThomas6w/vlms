@@ -21,6 +21,41 @@ A minimal `ICurrentUserContext` test double: `new FakeCurrentUserContext(userId,
 
 A minimal `ILogger<T>` test double, same spirit as `FakeCurrentUserContext`/`InMemoryBlobStorage`: records every logged `(LogLevel, formatted message)` pair to a list so a test can assert on log severity (e.g. `ConsentExpiryJob`'s Error-vs-Warning escalation distinction, see [safeguarding-consent.md](safeguarding-consent.md)) without pulling in a mocking library.
 
+## Test-provider strategy after the PostgreSQL pivot (adr/0005) — decided explicitly, not assumed
+
+adr/0005-hosting-pivot-self-hosted-vps-postgresql.md moved the production provider from Azure SQL
+Database to self-hosted PostgreSQL and flagged the test-provider question as open ("whether to keep
+[SQLite] as-is or move to a real PostgreSQL instance in tests ... is an open implementation
+decision"). **Decision: the SQLite-in-memory-via-DI pattern above stays the default for the whole
+suite; it was never a production-provider stand-in even before this pivot** — `VlmsDbContext`'s own
+query filters (`ConsentSensitiveDetails`/`DbsCheck`) and `SensitiveDataAuditInterceptor`
+(`IMaterializationInterceptor`) operate at EF Core's LINQ-to-Entities/materialization layer, above
+whichever relational provider is plugged in underneath (`UseSqlServer`/`UseNpgsql`/SQLite) — none of
+that logic is expressed in provider-specific SQL, so its behaviour is provider-independent by
+construction, not just by observation. This was checked, not assumed: every existing
+`SensitiveDataAccessControlTests`/`ConsentRecordServiceTests`/`DbsCheckServiceTests`/etc. test still
+passes unchanged after the provider swap (166/166 including new tests, no test logic touched), which
+is exactly the confirmation this decision needed rather than trusting the reasoning alone.
+
+**What genuinely is provider-specific, and how it's still tested:** only raw SQL DDL written via
+`MigrationBuilder.Sql()` — currently just `RevokeUpdateDeleteOnSensitiveDataAccessLog`'s tamper-
+protection statement (`REVOKE UPDATE, DELETE ... FROM PUBLIC`, PostgreSQL-specific syntax with
+PostgreSQL-specific semantics — see [access-control.md](access-control.md)). That migration is
+never exercised against SQLite (which has no `REVOKE`/database-role model at all); `MigrationsTests.cs`
+generates the real migration SQL in-process via `IMigrator.GenerateScript()` against an
+Npgsql-configured context (no live connection needed) and asserts on the literal generated text —
+the same "structurally correct, not yet exercised against a live resource" status this codebase
+already gives `AzureBlobStorage`/`EntraCurrentUserContext` before their live dependencies existed,
+now given to `UseNpgsql` DDL instead of `UseSqlServer` DDL.
+
+**Testcontainers-backed PostgreSQL integration tests were considered and explicitly not built**: the
+actual risk they'd cover — does `REVOKE ... FROM PUBLIC` really behave as documented against a live
+server — was addressed by reading current PostgreSQL documentation directly (cited in the migration's
+doc comment and access-control.md) rather than by standing up new test infrastructure a solo-
+maintained "fewest moving parts" build (adr/0003's reasoning) would then have to keep running. If a
+genuine PostgreSQL-specific behavioural bug is ever suspected (not just "we haven't tried it against
+a real server yet"), that's the trigger to revisit this, not a standing TODO.
+
 ## What "real, not tautological" means here (per two adversarial checker reviews)
 
 - Deny tests must exercise an actual mismatch (an unlinked `ParentGuardian`, a `Student` with a different `AppUserId`), not just "the mock returns false".

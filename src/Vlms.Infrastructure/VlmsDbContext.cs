@@ -1,13 +1,17 @@
 using Microsoft.EntityFrameworkCore;
 using Vlms.Domain;
 using Vlms.Infrastructure.Auditing;
+using Vlms.Infrastructure.Naming;
 
 namespace Vlms.Infrastructure;
 
 /// <summary>
-/// EF Core context for VLMS (Azure SQL Database, adr/0001-technology-stack.md). Applies the
-/// whole-entity sensitive-data restriction and read-audit logging from
-/// adr/0004-sensitive-data-access-control.md.
+/// EF Core context for VLMS (self-hosted PostgreSQL,
+/// adr/0005-hosting-pivot-self-hosted-vps-postgresql.md — supersedes the original Azure SQL
+/// Database row of adr/0001-technology-stack.md; the access-control/audit design below is
+/// provider-independent and did not change). Applies the whole-entity sensitive-data restriction
+/// and read-audit logging from adr/0004-sensitive-data-access-control.md, and PostgreSQL's own
+/// snake_case identifier convention to every table/column name (<see cref="SnakeCaseNamingConvention"/>).
 /// </summary>
 public sealed class VlmsDbContext : DbContext
 {
@@ -186,5 +190,11 @@ public sealed class VlmsDbContext : DbContext
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedOnAdd();
         });
+
+        // Applied last, after every table/property above has its (PascalCase-default) name —
+        // renames every table and column to PostgreSQL's own idiomatic snake_case convention. See
+        // SnakeCaseNamingConvention's doc comment for the scope decision (tables/columns only, not
+        // constraint/index names) and why this is hand-rolled rather than a third-party package.
+        SnakeCaseNamingConvention.Apply(modelBuilder);
     }
 }

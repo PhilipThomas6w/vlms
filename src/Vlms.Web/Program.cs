@@ -28,9 +28,10 @@ builder.Services.AddRazorComponents()
 // AuthorizeRouteView consumes the resulting Task<AuthenticationState> cascading parameter.
 builder.Services.AddCascadingAuthenticationState();
 
-// --- Data access (adr/0001-technology-stack.md: Azure SQL Database) -------------------------
+// --- Data access (adr/0005-hosting-pivot-self-hosted-vps-postgresql.md: self-hosted PostgreSQL,
+// supersedes adr/0001-technology-stack.md's original Azure SQL Database row) -------------------
 builder.Services.AddDbContext<VlmsDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("VlmsDatabase")));
+    options.UseNpgsql(builder.Configuration.GetConnectionString("VlmsDatabase")));
 
 // --- Current-user context: EntraCurrentUserContext (not NullCurrentUserContext, which stays
 // reserved for design-time/migration use in VlmsDbContextFactory) is what VlmsDbContext resolves

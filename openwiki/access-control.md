@@ -35,54 +35,81 @@ content-hash currency check on a paired human checklist
 full mechanism and the chapter-numbering correction (this is ASVS 5.0 V8 Authorization, not V1 —
 V1 in 5.0 is "Encoding and Sanitization").
 
-## Tamper protection (built)
+## Tamper protection (built — ported to PostgreSQL, adr/0005)
 
-`SensitiveDataAccessLog` has `UPDATE`/`DELETE` denied at the database permission level. Two
-migrations are involved: `DenyUpdateDeleteOnSensitiveDataAccessLogs` added the original DENY, and
-`SupersedeVlmsAppRoleWithPublicDenyOnSensitiveDataAccessLogs` re-targeted it (both in
-`src/Vlms.Infrastructure/Migrations/`). The current, effective statement is:
+`SensitiveDataAccessLog`'s table (`sensitive_data_access_logs`, snake_case per the naming
+convention — [data-access.md](data-access.md)) has `UPDATE`/`DELETE` revoked from `PUBLIC` via a
+single migration, `RevokeUpdateDeleteOnSensitiveDataAccessLog`
+(`src/Vlms.Infrastructure/Migrations/`) — the one-migration net effect of the two now-deleted SQL
+Server DENY migrations (`DenyUpdateDeleteOnSensitiveDataAccessLogs` /
+`SupersedeVlmsAppRoleWithPublicDenyOnSensitiveDataAccessLogs`), whose history and rationale remain
+recorded in ADR-0004 §4/Alternatives. The statement:
 
 ```sql
-IF EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'VlmsAppRole' AND type = 'R')
-BEGIN
-    DROP ROLE VlmsAppRole;
-END
-
-DENY UPDATE, DELETE ON dbo.SensitiveDataAccessLogs TO public;
+REVOKE UPDATE, DELETE ON sensitive_data_access_logs FROM PUBLIC;
 ```
 
-**Why `public`, not a dedicated role (pass-5 decision, see ADR-0004 §4).** The original migration
-denied to a dedicated `VlmsAppRole` that the production principal had to be explicitly added to. A
-checker review flagged that as a forgettable-provisioning gap: a role starts with zero members, so
-the DENY was inert until someone remembered to add the principal — the migration could run cleanly
-and the audit log still be fully mutable. The DENY is now applied to `public`, which **every**
-database user belongs to and cannot be removed from (verified against Microsoft Learn:
-[Database-Level Roles](https://learn.microsoft.com/en-us/sql/relational-databases/security/authentication-access/database-level-roles)),
-so it protects every current and future principal automatically — nothing to provision, nothing to
-forget. `DENY` overrides all grants except for object owners and `sysadmin`
-([DENY (Transact-SQL)](https://learn.microsoft.com/en-us/sql/t-sql/statements/deny-transact-sql)),
-so the only principals that can still mutate the log are `dbo` (owner of the table) and `sysadmin` /
-the Azure SQL server principal — the unavoidable DBA-level identities. The redundant `VlmsAppRole`
-is dropped.
+**This is *not* semantically equivalent to SQL Server's `DENY ... TO public` — checked against
+current PostgreSQL documentation rather than assumed, and the gap is disclosed here rather than
+implied away (per the migration's own, more detailed doc comment).** Three verified facts, not one:
 
-**Residual requirement (tracked in `docs/governance/raid.md` D-004):** the app must connect as a
-least-privilege contained user (`db_datareader` + `db_datawriter`), never `db_owner`/object-owner/
-server-admin, or it bypasses this DENY; and any future retention-purge of expired audit rows must
-run as a deliberately elevated principal. `INSERT` is deliberately not denied — the
-`SensitiveDataAuditInterceptor`'s own writes must keep working — and `TRUNCATE` is not denied either,
-since neither the ADR nor `governance/security-compliance.md` names it.
+1. SQL Server's `DENY` **overrides** every other grant a principal holds ("DENY takes precedence
+   over all permissions" — [DENY (Transact-SQL)](https://learn.microsoft.com/en-us/sql/t-sql/statements/deny-transact-sql)).
+   PostgreSQL's privilege model has no override concept: `REVOKE ... FROM PUBLIC` removes only the
+   privilege a role held *via* `PUBLIC`. A role holding `UPDATE`/`DELETE` some other way — an
+   explicit direct `GRANT`, or by owning the table — is completely unaffected
+   ("revoking SELECT privilege from PUBLIC does not necessarily mean that all roles have lost
+   SELECT privilege on the object: those who have it granted directly ... will still have it" —
+   [REVOKE](https://www.postgresql.org/docs/current/sql-revoke.html)). It's also not persistent the
+   way `DENY` is: a later `GRANT ... TO PUBLIC` would silently restore what this `REVOKE` removed.
+2. PostgreSQL grants **no default privileges to `PUBLIC` on tables at all**
+   ("No privileges are granted to PUBLIC by default on tables ..." —
+   [Privileges](https://www.postgresql.org/docs/current/ddl-priv.html)) — unlike SQL Server, where
+   `public`'s membership is what made the original DENY meaningful on day one. On a freshly created
+   table this `REVOKE` has nothing to revoke; it's defensive against a future accidental
+   `GRANT ... TO PUBLIC`, not an active restriction from the start.
+3. Consequently, **who can still `UPDATE`/`DELETE` this table is a strictly larger set than "the
+   owner and a superuser"** — the analogy this ADR originally expected (mirroring SQL Server's
+   `dbo`/`sysadmin`). It's *any* role ever explicitly granted `UPDATE`/`DELETE` directly, or that
+   owns the table. The load-bearing control is therefore entirely operational, more so than under
+   SQL Server: the app's connecting role must never be this table's owner and must never be granted
+   `UPDATE`/`DELETE` on it directly (only `SELECT`/`INSERT`, which
+   `SensitiveDataAuditInterceptor`'s own writes need) — tracked in `docs/governance/raid.md` D-004.
 
-This is raw SQL Server T-SQL and is never applied against the SQLite in-memory provider the test
-suite uses — tests build schema via `Database.EnsureCreated()` from the current model, never
+**A true `DENY`-equivalent does exist in PostgreSQL — Row-Level Security — and was deliberately not
+built here.** `ALTER TABLE ... FORCE ROW LEVEL SECURITY` plus `CREATE POLICY ... FOR UPDATE
+USING (false)` / `FOR DELETE USING (false)` blocks `UPDATE`/`DELETE` for every role including the
+table owner, with only a superuser (or a role with `BYPASSRLS`) exempt — verified against
+[Row Security Policies](https://www.postgresql.org/docs/current/ddl-rowsecurity.html). Not built in
+this migration because enabling row security requires an explicit policy for *every* command that
+must keep working, or that command is default-denied too ("if row-level security is enabled for a
+table, but no applicable policies exist, a 'default deny' policy is assumed" — same page) — getting
+that wrong would silently block the audit interceptor's own `INSERT` path, the single most
+safety-critical write in this codebase, inside what this item scoped as a same-provider *port*, not
+a mechanism redesign. Tracked as a new, separate, deliberately higher-scrutiny follow-up item
+(STATE.md Next) rather than attempted here.
+
+**Residual requirement (tracked in `docs/governance/raid.md` D-004, generalised for PostgreSQL):**
+the app must connect as a least-privilege role — able to `SELECT`/`INSERT` on
+`sensitive_data_access_logs` but never granted `UPDATE`/`DELETE`, and never the table owner or a
+superuser/`BYPASSRLS` role; any future retention-purge of expired audit rows must run as a
+deliberately elevated role. `INSERT` is deliberately not revoked — the
+`SensitiveDataAuditInterceptor`'s own writes must keep working — and `TRUNCATE` is not revoked
+either, since neither the ADR nor `governance/security-compliance.md` names it.
+
+This is raw PostgreSQL-specific SQL and is never applied against the SQLite in-memory provider the
+test suite uses — tests build schema via `Database.EnsureCreated()` from the current model, never
 `Database.Migrate()`, and neither `Vlms.Web` nor `Vlms.Jobs` calls `Database.Migrate()` either
-(migrations are only ever applied via an explicit `dotnet ef database update` against a real SQL
-Server). `dotnet ef migrations has-pending-model-changes` confirms both migrations have no
-entity/model drift — they're pure DDL. Verified via `tests/Vlms.Tests/Infrastructure/MigrationsTests.cs`,
+(migrations are only ever applied via an explicit `dotnet ef database update` against a real
+PostgreSQL server). `dotnet ef migrations has-pending-model-changes` confirms the migration has no
+entity/model drift — it's pure DDL. Verified via `tests/Vlms.Tests/Infrastructure/MigrationsTests.cs`,
 which generates the real migration SQL in-process through EF Core's `IMigrator.GenerateScript()` (the
-same mechanism `dotnet ef migrations script` uses) and asserts the effective `DENY` now targets
-`public`, targets the right table, drops the superseded `VlmsAppRole`, and doesn't over-deny
-`INSERT`/`TRUNCATE` — a genuine, if narrow, regression guard given `DENY` can't be exercised against
-a live SQL Server from this test suite.
+same mechanism `dotnet ef migrations script` uses, now against the Npgsql-configured context) and
+asserts the exact `REVOKE` statement is present, targets the right table, is applied after the table
+is created, and doesn't over-revoke `INSERT`/`TRUNCATE` — a genuine, if narrow, regression guard given
+this can't be exercised against a live PostgreSQL server from this test suite. It proves the literal,
+disclosed-as-partial statement is present — not that it achieves `DENY`'s override semantics, which
+it verifiably doesn't (above).
 
 The 6-year retention period itself (a purge/retention job for `SensitiveDataAccessLog`) is a separate,
 not-yet-built concern.

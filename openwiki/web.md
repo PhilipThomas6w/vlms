@@ -8,7 +8,7 @@ Blazor Web App, **Server** interactivity (not Auto/WebAssembly — see [architec
 
 ## `appsettings.json`
 
-`AzureAd` section is placeholder-only — `PLACEHOLDER-*` values, explicit comment pointing at Key Vault for real secrets. `ConnectionStrings:VlmsDatabase` is a local/dev connection string, not real Azure SQL credentials. Do not commit real values here; this file is meant to stay safe to commit as-is.
+`AzureAd` section is placeholder-only — `PLACEHOLDER-*` values, explicit comment pointing at Key Vault for real secrets (still Entra-shaped; Next item 1 in STATE.md replaces it with self-rolled ASP.NET Core Identity per adr/0005). `ConnectionStrings:VlmsDatabase` is a local/dev PostgreSQL connection string (`Host=...;Database=...;Username=...;Password=PLACEHOLDER`, adr/0005-hosting-pivot-self-hosted-vps-postgresql.md), not real production credentials. Do not commit real values here; this file is meant to stay safe to commit as-is.
 
 ## Page-level authorization: `AuthorizeRouteView` + `[Authorize(Policy = "...")]`
 

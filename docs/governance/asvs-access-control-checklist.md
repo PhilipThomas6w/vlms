@@ -70,9 +70,15 @@ whether the *design* is still sound, not just whether the code matches last time
 - [ ] `SystemCurrentUserContext` (used only by the `Vlms.Jobs` WebJob host) still grants exactly
       `Role.Admin`/`Role.SafeguardingOfficer` and nothing broader — it is a narrow, named exception
       to "no code bypasses the filter", not a general bypass.
-- [ ] `SensitiveDataAccessLog`'s database-level tamper protection (`DENY UPDATE`/`DELETE` for the
-      app's SQL principal, per adr/0004 §4) — confirm current status against `STATE.md` Next item 1;
-      this is tracked there, not silently assumed done by this checklist.
+- [ ] `SensitiveDataAccessLog`'s database-level tamper protection — now `REVOKE UPDATE, DELETE ON
+      sensitive_data_access_logs FROM PUBLIC` on PostgreSQL (adr/0004 §4 pass 6,
+      adr/0005-hosting-pivot-self-hosted-vps-postgresql.md; was SQL Server `DENY ... TO public`).
+      **This is verified weaker than the SQL Server original, not equivalent** — see adr/0004 §4 and
+      openwiki/access-control.md for the checked-against-current-docs explanation. Confirm the
+      residual, now-more-load-bearing requirement is still tracked (`governance/raid.md` D-004: the
+      app's connecting role must never be this table's owner and must never be explicitly granted
+      `UPDATE`/`DELETE` on it) and that the Row-Level-Security hardening that would close the gap is
+      still an open, not silently-forgotten, `STATE.md` Next item.
 
 ## V16 Security Logging — manual review items
 
@@ -89,5 +95,6 @@ whether the *design* is still sound, not just whether the code matches last time
 | Reviewed by | Date | Notes |
 |---|---|---|
 | Philip Luke Thomas | 2026-07-19 | Initial checklist authored alongside the verify.ps1 gate stage. All items above checked against the codebase as it stood at this review; no gaps found beyond the already-tracked `STATE.md` Next item 1 (audit-log tamper protection SQL). |
+| Philip Luke Thomas | 2026-07-20 | Re-reviewed after the EF Core provider migration to PostgreSQL (adr/0005) invalidated the recorded hash — `VlmsDbContext.cs`/`Vlms.Web/Program.cs` changed (provider swap only: `UseSqlServer`→`UseNpgsql`, doc comments; zero authorization logic touched). Walked every item above against the current code: role/policy list, Approver's lack of any sensitive-data path, resource-handler scoping, `StudentGuardianLink` creation sites, and the `HasQueryFilter`/`SystemCurrentUserContext` predicates are all byte-for-byte unchanged — confirmed by reading the current files, not assumed from the diff being "just a provider swap". The one substantive update: the tamper-protection bullet now names the PostgreSQL `REVOKE` mechanism and its verified-weaker-than-SQL-Server-DENY caveat (see adr/0004 §4 pass 6) rather than the retired SQL Server `DENY`. No new gaps found beyond the already-tracked Row-Level-Security follow-up (`STATE.md` Next). |
 
-Reviewed-hash: c34fd590399e87de84c068fb08adb89d337a1c4e407364e7381be4090ceb38ad
+Reviewed-hash: 0a39a395000bb78d04d712e2bfce2ba9ac5e850b89b3364581a621aeecd2b365

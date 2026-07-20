@@ -2,9 +2,9 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Vlms.Infrastructure;
 
 #nullable disable
@@ -12,98 +12,117 @@ using Vlms.Infrastructure;
 namespace Vlms.Infrastructure.Migrations
 {
     [DbContext(typeof(VlmsDbContext))]
-    [Migration("20260717232412_AddAppUserLinkToStudentAndParentGuardian")]
-    partial class AddAppUserLinkToStudentAndParentGuardian
+    [Migration("20260720144617_RevokeUpdateDeleteOnSensitiveDataAccessLog")]
+    partial class RevokeUpdateDeleteOnSensitiveDataAccessLog
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.0")
-                .HasAnnotation("Relational:MaxIdentifierLength", 128);
+                .HasAnnotation("ProductVersion", "10.0.4")
+                .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
-            SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
+            NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
             modelBuilder.Entity("Vlms.Domain.AppUser", b =>
                 {
                     b.Property<int>("Id")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
 
                     b.Property<string>("DisplayName")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text")
+                        .HasColumnName("display_name");
 
                     b.Property<string>("Email")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text")
+                        .HasColumnName("email");
 
                     b.Property<string>("EntraObjectId")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text")
+                        .HasColumnName("entra_object_id");
 
                     b.HasKey("Id");
 
-                    b.ToTable("AppUsers");
+                    b.ToTable("app_users");
                 });
 
             modelBuilder.Entity("Vlms.Domain.Certificate", b =>
                 {
                     b.Property<int>("Id")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
 
                     b.Property<string>("BlobKey")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text")
+                        .HasColumnName("blob_key");
 
                     b.Property<DateTime>("GeneratedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("generated_at");
 
                     b.Property<int>("StudentLessonCompletionId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("student_lesson_completion_id");
 
                     b.HasKey("Id");
 
                     b.HasIndex("StudentLessonCompletionId")
                         .IsUnique();
 
-                    b.ToTable("Certificates");
+                    b.ToTable("certificates");
                 });
 
             modelBuilder.Entity("Vlms.Domain.ConsentRecord", b =>
                 {
                     b.Property<int>("Id")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
 
                     b.Property<int?>("ApprovedByUserId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("approved_by_user_id");
 
                     b.Property<bool>("DataSharingConsent")
-                        .HasColumnType("bit");
+                        .HasColumnType("boolean")
+                        .HasColumnName("data_sharing_consent");
 
                     b.Property<DateOnly>("ExpiryDate")
-                        .HasColumnType("date");
+                        .HasColumnType("date")
+                        .HasColumnName("expiry_date");
 
                     b.Property<DateOnly>("PeriodEnd")
-                        .HasColumnType("date");
+                        .HasColumnType("date")
+                        .HasColumnName("period_end");
 
                     b.Property<DateOnly>("PeriodStart")
-                        .HasColumnType("date");
+                        .HasColumnType("date")
+                        .HasColumnName("period_start");
 
                     b.Property<bool>("PhotoMediaConsent")
-                        .HasColumnType("bit");
+                        .HasColumnType("boolean")
+                        .HasColumnName("photo_media_consent");
 
                     b.Property<int>("Status")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("status");
 
                     b.Property<int>("StudentId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("student_id");
 
                     b.Property<int>("SubmittedByParentId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("submitted_by_parent_id");
 
                     b.Property<bool>("TransportOffsiteConsent")
-                        .HasColumnType("bit");
+                        .HasColumnType("boolean")
+                        .HasColumnName("transport_offsite_consent");
 
                     b.HasKey("Id");
 
@@ -113,128 +132,156 @@ namespace Vlms.Infrastructure.Migrations
 
                     b.HasIndex("SubmittedByParentId");
 
-                    b.ToTable("ConsentRecords");
+                    b.ToTable("consent_records");
                 });
 
             modelBuilder.Entity("Vlms.Domain.ConsentSensitiveDetails", b =>
                 {
                     b.Property<int>("Id")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
 
                     b.Property<int>("ConsentRecordId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("consent_record_id");
 
                     b.Property<string>("DietarySEN")
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text")
+                        .HasColumnName("dietary_sen");
 
                     b.Property<string>("EmergencyContact")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text")
+                        .HasColumnName("emergency_contact");
 
                     b.Property<string>("EmergencyMedicalInfo")
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text")
+                        .HasColumnName("emergency_medical_info");
 
                     b.HasKey("Id");
 
                     b.HasIndex("ConsentRecordId")
                         .IsUnique();
 
-                    b.ToTable("ConsentSensitiveDetails");
+                    b.ToTable("consent_sensitive_details");
                 });
 
             modelBuilder.Entity("Vlms.Domain.DbsCheck", b =>
                 {
                     b.Property<int>("Id")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
 
                     b.Property<string>("CertificateNumber")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text")
+                        .HasColumnName("certificate_number");
 
                     b.Property<DateOnly>("CheckDate")
-                        .HasColumnType("date");
+                        .HasColumnType("date")
+                        .HasColumnName("check_date");
 
                     b.Property<DateOnly>("ExpiryDate")
-                        .HasColumnType("date");
+                        .HasColumnType("date")
+                        .HasColumnName("expiry_date");
 
                     b.Property<int>("Status")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("status");
 
                     b.Property<int>("TeacherUserId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("teacher_user_id");
 
                     b.HasKey("Id");
 
                     b.HasIndex("TeacherUserId");
 
-                    b.ToTable("DbsChecks");
+                    b.ToTable("dbs_checks");
                 });
 
             modelBuilder.Entity("Vlms.Domain.Lesson", b =>
                 {
                     b.Property<int>("Id")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
 
                     b.Property<string>("Code")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text")
+                        .HasColumnName("code");
 
                     b.Property<string>("ContentBlobKey")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text")
+                        .HasColumnName("content_blob_key");
 
                     b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
 
                     b.Property<int>("RankId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("rank_id");
 
                     b.Property<string>("Title")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text")
+                        .HasColumnName("title");
 
                     b.HasKey("Id");
 
                     b.HasIndex("RankId");
 
-                    b.ToTable("Lessons");
+                    b.ToTable("lessons");
                 });
 
             modelBuilder.Entity("Vlms.Domain.LessonChangeProposal", b =>
                 {
                     b.Property<int>("Id")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
 
                     b.Property<string>("ApprovalComments")
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text")
+                        .HasColumnName("approval_comments");
 
                     b.Property<int?>("ApproverUserId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("approver_user_id");
 
                     b.Property<int>("ChangeType")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("change_type");
 
                     b.Property<DateTime?>("DecidedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("decided_at");
 
                     b.Property<int?>("LessonId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("lesson_id");
 
                     b.Property<int>("ProposedByUserId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("proposed_by_user_id");
 
                     b.Property<string>("ProposedContent")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text")
+                        .HasColumnName("proposed_content");
 
                     b.Property<int?>("ResubmissionOfProposalId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("resubmission_of_proposal_id");
 
                     b.Property<int>("Status")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("status");
 
                     b.Property<DateTime>("SubmittedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("submitted_at");
 
                     b.HasKey("Id");
 
@@ -246,130 +293,156 @@ namespace Vlms.Infrastructure.Migrations
 
                     b.HasIndex("ResubmissionOfProposalId");
 
-                    b.ToTable("LessonChangeProposals");
+                    b.ToTable("lesson_change_proposals");
                 });
 
             modelBuilder.Entity("Vlms.Domain.ParentGuardian", b =>
                 {
                     b.Property<int>("Id")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
 
                     b.Property<int?>("AppUserId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("app_user_id");
 
                     b.Property<string>("ContactInfo")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text")
+                        .HasColumnName("contact_info");
 
                     b.Property<bool>("IsPrimary")
-                        .HasColumnType("bit");
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_primary");
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text")
+                        .HasColumnName("name");
 
                     b.HasKey("Id");
 
                     b.HasIndex("AppUserId");
 
-                    b.ToTable("ParentGuardians");
+                    b.ToTable("parent_guardians");
                 });
 
             modelBuilder.Entity("Vlms.Domain.Rank", b =>
                 {
                     b.Property<int>("Id")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
 
                     b.Property<string>("Code")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text")
+                        .HasColumnName("code");
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text")
+                        .HasColumnName("name");
 
                     b.Property<int>("Order")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("order");
 
                     b.HasKey("Id");
 
-                    b.ToTable("Ranks");
+                    b.ToTable("ranks");
                 });
 
             modelBuilder.Entity("Vlms.Domain.RankBadge", b =>
                 {
                     b.Property<int>("Id")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
 
                     b.Property<string>("ImageBlobKey")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text")
+                        .HasColumnName("image_blob_key");
 
                     b.Property<int>("RankId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("rank_id");
 
                     b.HasKey("Id");
 
                     b.HasIndex("RankId");
 
-                    b.ToTable("RankBadges");
+                    b.ToTable("rank_badges");
                 });
 
             modelBuilder.Entity("Vlms.Domain.SensitiveDataAccessLog", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<int>("AccessType")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("access_type");
 
                     b.Property<DateTime>("AccessedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("accessed_at");
 
                     b.Property<string>("Entity")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text")
+                        .HasColumnName("entity");
 
                     b.Property<int>("EntityId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("entity_id");
 
                     b.Property<int?>("UserId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("user_id");
 
                     b.HasKey("Id");
 
-                    b.ToTable("SensitiveDataAccessLogs");
+                    b.ToTable("sensitive_data_access_logs");
                 });
 
             modelBuilder.Entity("Vlms.Domain.Student", b =>
                 {
                     b.Property<int>("Id")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
 
                     b.Property<int?>("AppUserId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("app_user_id");
 
                     b.Property<int?>("AssignedTeacherUserId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("assigned_teacher_user_id");
 
                     b.Property<int>("CurrentRankId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("current_rank_id");
 
                     b.Property<DateOnly>("DateOfBirth")
-                        .HasColumnType("date");
+                        .HasColumnType("date")
+                        .HasColumnName("date_of_birth");
 
                     b.Property<DateOnly>("EnrolmentDate")
-                        .HasColumnType("date");
+                        .HasColumnType("date")
+                        .HasColumnName("enrolment_date");
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text")
+                        .HasColumnName("name");
 
                     b.Property<int>("Status")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("status");
 
                     b.HasKey("Id");
 
@@ -379,22 +452,26 @@ namespace Vlms.Infrastructure.Migrations
 
                     b.HasIndex("CurrentRankId");
 
-                    b.ToTable("Students");
+                    b.ToTable("students");
                 });
 
             modelBuilder.Entity("Vlms.Domain.StudentBadge", b =>
                 {
                     b.Property<int>("Id")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
 
                     b.Property<DateTime>("AwardedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("awarded_at");
 
                     b.Property<int>("RankBadgeId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("rank_badge_id");
 
                     b.Property<int>("StudentId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("student_id");
 
                     b.HasKey("Id");
 
@@ -402,19 +479,22 @@ namespace Vlms.Infrastructure.Migrations
 
                     b.HasIndex("StudentId");
 
-                    b.ToTable("StudentBadges");
+                    b.ToTable("student_badges");
                 });
 
             modelBuilder.Entity("Vlms.Domain.StudentGuardianLink", b =>
                 {
                     b.Property<int>("StudentId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("student_id");
 
                     b.Property<int>("ParentGuardianId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("parent_guardian_id");
 
                     b.Property<int>("CreatedByUserId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("created_by_user_id");
 
                     b.HasKey("StudentId", "ParentGuardianId");
 
@@ -422,34 +502,42 @@ namespace Vlms.Infrastructure.Migrations
 
                     b.HasIndex("ParentGuardianId");
 
-                    b.ToTable("StudentGuardianLinks");
+                    b.ToTable("student_guardian_links");
                 });
 
             modelBuilder.Entity("Vlms.Domain.StudentLessonCompletion", b =>
                 {
                     b.Property<int>("Id")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
 
                     b.Property<DateTime>("CompletedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("completed_at");
 
                     b.Property<int>("CompletedByUserId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("completed_by_user_id");
 
                     b.Property<bool>("IsReversed")
-                        .HasColumnType("bit");
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_reversed");
 
                     b.Property<int>("LessonId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("lesson_id");
 
                     b.Property<string>("Note")
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text")
+                        .HasColumnName("note");
 
                     b.Property<DateTime?>("ReversedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("reversed_at");
 
                     b.Property<int>("StudentId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("student_id");
 
                     b.HasKey("Id");
 
@@ -459,25 +547,30 @@ namespace Vlms.Infrastructure.Migrations
 
                     b.HasIndex("StudentId");
 
-                    b.ToTable("StudentLessonCompletions");
+                    b.ToTable("student_lesson_completions");
                 });
 
             modelBuilder.Entity("Vlms.Domain.StudentRankProgress", b =>
                 {
                     b.Property<int>("Id")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
 
                     b.Property<DateTime?>("CompletedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("completed_at");
 
                     b.Property<int>("RankId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("rank_id");
 
                     b.Property<DateTime>("StartedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("started_at");
 
                     b.Property<int>("StudentId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("student_id");
 
                     b.HasKey("Id");
 
@@ -485,20 +578,22 @@ namespace Vlms.Infrastructure.Migrations
 
                     b.HasIndex("StudentId");
 
-                    b.ToTable("StudentRankProgresses");
+                    b.ToTable("student_rank_progresses");
                 });
 
             modelBuilder.Entity("Vlms.Domain.UserRole", b =>
                 {
                     b.Property<int>("UserId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("user_id");
 
                     b.Property<int>("Role")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("role");
 
                     b.HasKey("UserId", "Role");
 
-                    b.ToTable("UserRoles");
+                    b.ToTable("user_roles");
                 });
 
             modelBuilder.Entity("Vlms.Domain.Certificate", b =>

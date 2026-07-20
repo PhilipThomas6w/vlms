@@ -36,7 +36,7 @@ using Vlms.Infrastructure.Security;
 var builder = Host.CreateApplicationBuilder(args);
 
 builder.Services.AddDbContext<VlmsDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("VlmsDatabase")));
+    options.UseNpgsql(builder.Configuration.GetConnectionString("VlmsDatabase")));
 
 // No signed-in human caller for a scheduled job — see SystemCurrentUserContext's doc comment for
 // exactly which two roles it grants and why (only what the sensitive-data query filter needs).
