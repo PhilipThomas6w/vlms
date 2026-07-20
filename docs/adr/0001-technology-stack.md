@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Partially superseded by `adr/0005-hosting-pivot-self-hosted-vps-postgresql.md` (Hosting, Database, Identity, File storage, Email rows). Client (Blazor Web App) and PDF generation (QuestPDF) rows remain in effect.
 
 ## Context
 

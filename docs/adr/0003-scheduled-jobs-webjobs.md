@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Amended by `adr/0005-hosting-pivot-self-hosted-vps-postgresql.md` — execution host changes from an Azure App Service WebJob to a systemd timer/cron on the self-hosted VPS. The decision below ("a plain console app, not a dedicated scheduler SDK") is unchanged.
 
 ## Context
 

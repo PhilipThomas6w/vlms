@@ -4,6 +4,8 @@
 
 Accepted (revised after design review: pass 2 corrected the masking mechanism itself, pass 3 corrected the audit-write mechanism; later revised again at implementation time — pass 5 re-targeted the tamper-protection DENY from a dedicated `VlmsAppRole` to `public` to close a forgettable-provisioning gap — see Context, Decision §4, and Alternatives considered)
 
+**Pending implementation change (pass 6):** `adr/0005-hosting-pivot-self-hosted-vps-postgresql.md` moves the database engine from Azure SQL Database to self-hosted PostgreSQL. The access-control *design* here — EF Core global query filters on `DbsCheck`/`ConsentSensitiveDetails`, the `IMaterializationInterceptor` read-audit trail — is provider-independent and does not change. Only §4's tamper-protection DDL changes dialect: `DENY UPDATE, DELETE ON dbo.SensitiveDataAccessLogs TO public` (SQL Server) becomes `REVOKE UPDATE, DELETE ON sensitive_data_access_log FROM PUBLIC` (PostgreSQL) — same structural guarantee, ported not redesigned. Tracked as a build item, not decided further here.
+
 ## Context
 
 VLMS stores special-category and children's personal data directly (`DbsCheck`, and originally three sensitive fields on `ConsentRecord`) with a confirmed, role-specific access model: `DbsCheck` is restricted entirely to Admin/Safeguarding Officer; the sensitive consent fields are masked from Teacher and Approver, who nonetheless still need `ConsentRecord.Status`/`ExpiryDate` to enforce the consent-blocks-lesson-completion rule (FR-003).
