@@ -9,8 +9,10 @@ namespace Vlms.Infrastructure.Progress;
 /// <summary>
 /// Certificate generation (docs/design/low-level-design.md "CertificateService", STATE.md):
 /// generates a PDF via QuestPDF from a minimal template, uploads it to blob storage (via
-/// <see cref="IBlobStorage"/> — adr/0001-technology-stack.md: Azure Blob Storage; the real
-/// implementation is <c>Storage/AzureBlobStorage.cs</c>, tests inject an in-memory fake), and
+/// <see cref="IBlobStorage"/> — originally Azure Blob Storage under adr/0001-technology-stack.md,
+/// now local disk on the self-hosted VPS under
+/// adr/0005-hosting-pivot-self-hosted-vps-postgresql.md; the real implementation is
+/// <c>Storage/LocalDiskBlobStorage.cs</c>, tests inject an in-memory fake), and
 /// writes a <see cref="Certificate"/> row. data-design.md: "Auto-generated on completion" — one
 /// certificate per <see cref="StudentLessonCompletion"/> (1:1), not just on promotion.
 ///

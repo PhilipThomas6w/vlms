@@ -15,7 +15,9 @@ namespace Vlms.Infrastructure.Notifications;
 ///
 /// Takes an already-constructed <see cref="EmailClient"/> (built from a connection string by the
 /// caller — see <c>Vlms.Jobs/Program.cs</c>), the same "caller builds the SDK client, this class
-/// just uses it" shape as <c>Storage/AzureBlobStorage.cs</c> takes a <c>BlobServiceClient</c>.
+/// just uses it" shape the now-removed <c>Storage/AzureBlobStorage.cs</c> used to take a
+/// <c>BlobServiceClient</c> (superseded by <c>Storage/LocalDiskBlobStorage.cs</c>,
+/// adr/0005-hosting-pivot-self-hosted-vps-postgresql.md).
 /// </summary>
 public sealed class AzureCommunicationEmailSender : IEmailSender
 {

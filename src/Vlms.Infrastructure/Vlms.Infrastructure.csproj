@@ -33,9 +33,6 @@
     <!-- Certificate PDF generation (adr/0001-technology-stack.md), Community licence — see
          Progress/CertificateService.cs for where QuestPDF.Settings.License is set. -->
     <PackageReference Include="QuestPDF" Version="2026.7.1" />
-    <!-- Azure Blob Storage (adr/0001-technology-stack.md) — backs IBlobStorage's real
-         implementation, Storage/AzureBlobStorage.cs. -->
-    <PackageReference Include="Azure.Storage.Blobs" Version="12.29.1" />
     <!-- Azure Communication Services Email (adr/0001-technology-stack.md) — backs
          INotificationService's real implementation, Notifications/AzureCommunicationEmailSender.cs.
          API shape verified against Microsoft Learn (see that file's doc comment). -->
