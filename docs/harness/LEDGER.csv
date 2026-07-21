@@ -75,3 +75,20 @@ date,work_item,change_class,session_tokens_est,model,outcome,notes
 2026-07-20,"_(none)_",n/a,271700,n/a,pass,auto-logged by run-verify.ps1
 2026-07-21,"_(none)_",n/a,271700,n/a,pass,auto-logged by run-verify.ps1
 2026-07-21,"_(none)_",n/a,279893,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"_(none)_",n/a,279893,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"_(none)_",n/a,287802,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"_(none)_",n/a,287802,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"_(none)_",n/a,289408,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"_(none)_",n/a,289408,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"- **File storage: replace `AzureBlobStorage` with a local-disk-backed `IBlobStorage` implementation.** Certificates/lesson assets live on the VPS's local disk under an app-data path; off-box backup mechanism (target object-store provider still TBD per ADR-0005 — Cloudflare R2 vs Backblaze B2) can follow the same ""structurally correct, not yet wired to a real target"" pattern this project already used for `AzureBlobStorage` before a live Azure resource existed, if the concrete provider isn't picked yet when this item is worked.",n/a,297554,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"- **File storage: replace `AzureBlobStorage` with a local-disk-backed `IBlobStorage` implementation.** Certificates/lesson assets live on the VPS's local disk under an app-data path; off-box backup mechanism (target object-store provider still TBD per ADR-0005 — Cloudflare R2 vs Backblaze B2) can follow the same ""structurally correct, not yet wired to a real target"" pattern this project already used for `AzureBlobStorage` before a live Azure resource existed, if the concrete provider isn't picked yet when this item is worked.",n/a,297554,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"_(none)_",n/a,297554,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"_(none)_",n/a,303472,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"_(none)_",n/a,303472,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"_(none)_",n/a,303472,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"_(none)_",n/a,303708,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"_(none)_",n/a,303708,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"_(none)_",n/a,309906,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"_(none)_",n/a,309906,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"- **Email: replace `AzureCommunicationEmailSender` with an SMTP-based `IEmailSender` implementation.** Verify the chosen library's current API against its own docs before implementing (raw `System.Net.Mail.SmtpClient` is obsolete per Microsoft's own guidance — check what Microsoft currently recommends instead). Sending path (existing M365 mailbox vs. a free-tier transactional provider) is still TBD per ADR-0005 — same ""structurally correct, not yet wired"" allowance as item 3 if not picked yet.",n/a,319569,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"- **Email: replace `AzureCommunicationEmailSender` with an SMTP-based `IEmailSender` implementation.** Verify the chosen library's current API against its own docs before implementing (raw `System.Net.Mail.SmtpClient` is obsolete per Microsoft's own guidance — check what Microsoft currently recommends instead). Sending path (existing M365 mailbox vs. a free-tier transactional provider) is still TBD per ADR-0005 — same ""structurally correct, not yet wired"" allowance as item 3 if not picked yet.",n/a,319569,n/a,pass,auto-logged by run-verify.ps1

@@ -17,11 +17,13 @@
 // before their dependencies existed): this project's publish output is deployed into Vlms.Web's App
 // Service under App_Data/jobs/triggered/ConsentExpiryJob/, per the classic Azure WebJobs deployment
 // model (learn.microsoft.com/azure/app-service/webjobs-create) — co-located with the same App
-// Service plan, per adr/0003. Azure Communication Services Email similarly has no live resource yet
-// — CommunicationServices:ConnectionString/SenderAddress in appsettings.json are placeholders, same
-// status as AzureAd's before a live Entra tenant existed.
+// Service plan, per adr/0003; this row of adr/0003 is itself pending STATE.md Next item 1's systemd
+// timer retarget, not yet done. Email sends via SMTP (adr/0005-hosting-pivot-self-hosted-vps-postgresql.md,
+// superseding Azure Communication Services Email) — Smtp:Host/Port/Username/Password/FromAddress/
+// UseStartTls in appsettings.json are placeholders, same status AzureAd's/CommunicationServices'
+// config had before a live target existed; the org's existing Microsoft 365 mailbox vs. a free-tier
+// transactional provider is still an open pick per the ADR.
 
-using Azure.Communication.Email;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -55,17 +57,24 @@ builder.Services.AddScoped(sp => new ConsentExpiryJob(
     sp.GetRequiredService<ILogger<ConsentExpiryJob>>(),
     builder.Configuration.GetValue("Safeguarding:ExpiryWarningWindowDays", ConsentExpiryJob.DefaultExpiryWarningWindowDays)));
 
-// --- Notifications (STATE.md, low-level-design.md "NotificationService") — Azure Communication
-// Services Email, wired the same placeholder-config way AzureAd was before a live Entra tenant
-// existed. EmailClient(string) takes a connection string directly (verified against Microsoft
-// Learn — see AzureCommunicationEmailSender's doc comment).
-builder.Services.AddSingleton(sp => new EmailClient(
-    sp.GetRequiredService<IConfiguration>().GetValue<string>("CommunicationServices:ConnectionString")
-        ?? throw new InvalidOperationException("CommunicationServices:ConnectionString is not configured.")));
-builder.Services.AddSingleton<IEmailSender>(sp => new AzureCommunicationEmailSender(
-    sp.GetRequiredService<EmailClient>(),
-    sp.GetRequiredService<IConfiguration>().GetValue<string>("CommunicationServices:SenderAddress")
-        ?? throw new InvalidOperationException("CommunicationServices:SenderAddress is not configured.")));
+// --- Notifications (STATE.md, low-level-design.md "NotificationService") — SMTP
+// (adr/0005-hosting-pivot-self-hosted-vps-postgresql.md, superseding Azure Communication Services
+// Email), wired the same placeholder-config way AzureAd/CommunicationServices were before a live
+// target existed. SmtpEmailSender's own doc comment has the verified MailKit API details;
+// Username/Password are optional (null skips SMTP AUTH) — see that constructor's guard clause.
+builder.Services.AddSingleton<IEmailSender>(sp =>
+{
+    var configuration = sp.GetRequiredService<IConfiguration>();
+    return new SmtpEmailSender(
+        configuration.GetValue<string>("Smtp:Host")
+            ?? throw new InvalidOperationException("Smtp:Host is not configured."),
+        configuration.GetValue("Smtp:Port", 587),
+        configuration.GetValue<string>("Smtp:Username"),
+        configuration.GetValue<string>("Smtp:Password"),
+        configuration.GetValue<string>("Smtp:FromAddress")
+            ?? throw new InvalidOperationException("Smtp:FromAddress is not configured."),
+        configuration.GetValue("Smtp:UseStartTls", true));
+});
 builder.Services.AddSingleton<INotificationService, NotificationService>();
 builder.Services.AddScoped<ConsentExpiryNotifier>();
 

@@ -1,4 +1,3 @@
-using Azure.Communication.Email;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -109,19 +108,26 @@ builder.Services.AddScoped<ParentDashboardService>();
 builder.Services.AddScoped<ProgressReportingService>();
 
 // --- Notifications (adr/0001-technology-stack.md, low-level-design.md "NotificationService") —
-// now wired into Vlms.Web itself, not just Vlms.Jobs (STATE.md "Identity" item 5: guardian invite
+// wired into Vlms.Web itself, not just Vlms.Jobs (STATE.md "Identity" item 5: guardian invite
 // emails are sent from the web app, at the moment the Admin/Teacher creates the link — there is no
-// batch/job context to defer this to, unlike ConsentExpiryNotifier's daily-sweep digest). Same
-// placeholder-config status CommunicationServices had in Vlms.Jobs before a live Azure Communication
-// Services resource existed — appsettings.json's "CommunicationServices" section. Superseded by the
-// SMTP-based IEmailSender STATE.md Next item 2 names once that lands.
-builder.Services.AddSingleton(sp => new EmailClient(
-    sp.GetRequiredService<IConfiguration>().GetValue<string>("CommunicationServices:ConnectionString")
-        ?? throw new InvalidOperationException("CommunicationServices:ConnectionString is not configured.")));
-builder.Services.AddSingleton<IEmailSender>(sp => new AzureCommunicationEmailSender(
-    sp.GetRequiredService<EmailClient>(),
-    sp.GetRequiredService<IConfiguration>().GetValue<string>("CommunicationServices:SenderAddress")
-        ?? throw new InvalidOperationException("CommunicationServices:SenderAddress is not configured.")));
+// batch/job context to defer this to, unlike ConsentExpiryNotifier's daily-sweep digest). SMTP
+// (adr/0005-hosting-pivot-self-hosted-vps-postgresql.md — supersedes Azure Communication Services
+// Email), wired the same placeholder-config way CommunicationServices/AzureAd were before a live
+// target existed — appsettings.json's "Smtp" section. SmtpEmailSender's own doc comment has the
+// verified MailKit API details; Username/Password are optional (null skips SMTP AUTH).
+builder.Services.AddSingleton<IEmailSender>(sp =>
+{
+    var configuration = sp.GetRequiredService<IConfiguration>();
+    return new SmtpEmailSender(
+        configuration.GetValue<string>("Smtp:Host")
+            ?? throw new InvalidOperationException("Smtp:Host is not configured."),
+        configuration.GetValue("Smtp:Port", 587),
+        configuration.GetValue<string>("Smtp:Username"),
+        configuration.GetValue<string>("Smtp:Password"),
+        configuration.GetValue<string>("Smtp:FromAddress")
+            ?? throw new InvalidOperationException("Smtp:FromAddress is not configured."),
+        configuration.GetValue("Smtp:UseStartTls", true));
+});
 builder.Services.AddSingleton<INotificationService, NotificationService>();
 
 // --- Authorization: one policy per Role.Enum value (role-based), plus a resource-based
