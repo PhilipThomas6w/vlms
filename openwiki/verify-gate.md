@@ -16,17 +16,19 @@ elsewhere (e.g. no axe-core/browser driver for the accessibility stage). So the 
 first-class, load-bearing path, not a placeholder — gitleaks stays the preferred path if ever
 installed.
 
-Credential shapes matched, checked against real Azure/SQL/Entra formats rather than guessed: Azure
-Storage `AccountKey=`, Azure Communication Services `accesskey=` (one 30+ base64-char pattern covers
-both — real ACS keys are 44 chars, Storage 88), SQL `Password=`/`pwd=` (both quoted and unquoted
-connection-string forms), Entra/Graph client secret values (gitleaks' own `azure-ad-client-secret`
-shape) plus explicit `ClientSecret=`/`client_secret:` assignments, and the pre-existing AWS-key/PEM
-patterns. False positives are filtered by scoping the `PLACEHOLDER` sentinel check to the matched
-credential *value* (case-sensitive), not the whole line — verified clean against this repo's own
-`appsettings.json`/`Vlms.Jobs/appsettings.json` placeholders and the local-dev `Trusted_Connection`
-string. Test/fixture files are excluded by real path segments (`tests/` directories, `*fixture*`
-filenames), not a bare substring — a file like `latest-import.json` is deliberately **not** excluded
-just because it contains "test".
+Credential shapes matched, kept current with the actual stack rather than left on autopilot (see
+"2026-07-21 currency pass" below): AWS access key id (`AKIA...`) and AWS secret access key
+(`AWS_SECRET_ACCESS_KEY=...` — the S3-compatible off-box backup credential pair `pg-backup.sh` uses),
+PEM private key blocks, SQL/connection-string `password=`/`pwd=` (quoted or unquoted), the JSON
+config-key form `"password": "..."` (colon syntax — `appsettings.json`'s own `Smtp:Password`), and
+PostgreSQL's `CREATE ROLE ... PASSWORD '...'` syntax (space + single-quote, not `=`). False positives
+are filtered by scoping the `PLACEHOLDER` sentinel check to the matched credential *value*
+(case-sensitive), not the whole line — verified clean against this repo's own
+`appsettings.json`/`Vlms.Jobs/appsettings.json`/`deploy/postgres/*.sql` placeholders and the
+local-dev connection string. Test/fixture files are excluded by real path segments (`tests/`
+directories, `*fixture*` filenames), not a bare substring — a file like `latest-import.json` is
+deliberately **not** excluded just because it contains "test". Scanned file types:
+`*.cs, *.json, *.yaml, *.yml, *.sql, *.sh, *.service, *.timer, Caddyfile`.
 
 **Checker-FAIL round-trip (commit `a78cc18`, after the initial tightening in `59a069a`) found three
 real holes**, all since fixed: (1) the new unquoted-only password pattern had *dropped* coverage for
@@ -38,6 +40,24 @@ substring (matching "la**test**"), not path-segment-anchored — fixed as descri
 was verified by deliberate break/restore (a throwaway probe reproducing the exact failure mode,
 confirmed to flip the stage from 0 to 1 and back), the same discipline the two full-only stages below
 use.
+
+**2026-07-21 currency pass (ADR-0005 hosting-pivot verify-gate audit, STATE.md):** re-examined every
+pattern against the post-pivot stack rather than assuming the pre-pivot set still applied. Removed as
+genuinely dead weight — verified by grepping the whole repo and confirming zero remaining references,
+not assumed from the ADR alone — the Azure Storage/Communication-Services `AccountKey=`/`accesskey=`
+pattern and both Entra/Graph client-secret patterns: `Azure.Storage.Blobs`, `Azure.Communication.Email`,
+and `Microsoft.Identity.Web`/`Microsoft.Graph` are all fully removed package references, and self-rolled
+ASP.NET Core Identity has no OAuth-client/client-secret concept anywhere in its design — these shapes
+are structurally impossible now, not just unlikely. Added three patterns/file types found missing by
+testing the *existing* patterns against this stack's real config rather than assuming they still
+fired: the JSON config-key `password`/`pwd` pattern (`appsettings.json`'s `Smtp:Password` uses `:`,
+which the `=`-anchored pattern never matched — a real hardcoded SMTP password there would previously
+have scanned clean), the PostgreSQL `CREATE ROLE ... PASSWORD '...'` pattern (`deploy/postgres/`'s
+space+quote syntax, also missed by the `=`-anchored pattern), and the AWS secret-access-key pattern
+(the existing `AKIA` pattern only covers the access-key-ID half of the pair `pg-backup.sh` documents).
+Also widened file-type coverage to `*.sql`/`*.sh`/`*.service`/`*.timer`/`Caddyfile` — the pre-pivot
+Include list predates `deploy/` entirely and silently scanned none of it. Each new/changed pattern
+verified by the same break/restore discipline as the `a78cc18` round-trip above.
 
 ## The two full-only stages
 
@@ -103,6 +123,29 @@ against the current codebase, update its Sign-off table, then run
 the printed `Reviewed-hash:` line over the old one. Don't paste a hash without actually reviewing —
 the mechanism only proves the checklist was *touched* at the current code state, not that the review
 was thorough; that part is still on the human.
+
+**Cumulative-drift confirmation (2026-07-21, ADR-0005 hosting-pivot verify-gate audit):** each of the
+six hosting-pivot items re-reviewed its checklist incrementally as it landed (see the ASVS checklist's
+own Sign-off table), but no pass had re-read the checklist *as a whole* against the *cumulative* state
+of the code since all six landed. Did that read here: walked every bullet in both checklists against
+the current `Program.cs`, `VlmsDbContext.cs`, `Authorization/*.cs`, `SystemCurrentUserContext.cs`, the
+`StudentGuardianLink` creation call sites, the `.Select(...)`-near-`DbsCheck` grep, and the current
+Razor page inventory — not just trusting that six individually-correct incremental reviews compose
+into a correct whole. No drift found: every claim in both checklists still matches the code exactly
+(role/policy list, `MfaRequirement` on every policy, the `HasQueryFilter`/`HasMfaEnabled` predicate,
+`SystemCurrentUserContext`'s exact grants, `ConsentExpiryJob.SweepDbsAsync`'s materialize-before-project
+fix still intact, and the WCAG checklist's page inventory still matches `Components/` exactly — the
+last three pivot items, file storage/scheduled-jobs/deployment-scripting, touched no `.razor`/`app.css`
+file at all, so the WCAG hash's currency was never in question). Both checklists' recorded hashes are
+unchanged since no hashed file changed during this audit.
+
+**`dotnet ef migrations has-pending-model-changes` (same audit pass):** confirmed still runs clean
+against the current Npgsql-configured `VlmsDbContext` — `cd src/Vlms.Infrastructure && dotnet ef
+migrations has-pending-model-changes` reports "No changes have been made to the model since the last
+migration." This isn't a `verify.ps1` stage (see `data-access.md`'s own note — it relies on
+`VlmsDbContextFactory`, the design-time factory, and is run by the maker/checker cycle directly), so
+there was nothing in the gate script itself to change; confirmed rather than assumed per this audit's
+own instruction, not skipped because it "should" still work.
 
 ## Verified falsifiable, not just written
 
