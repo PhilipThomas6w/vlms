@@ -1,0 +1,48 @@
+# vlms-jobs.service — runs Vlms.Jobs (ConsentExpiryJob + ConsentExpiryNotifier) to completion.
+#
+# Triggered exclusively by vlms-jobs.timer (see vlms-jobs.timer in this directory) — this unit has
+# no [Install] section and is deliberately never `systemctl enable`d directly; enabling the timer is
+# what wires it into boot. Type=oneshot is systemd's analogue of the Azure WebJobs "Triggered" mode
+# this replaces (docs/adr/0003-scheduled-jobs-webjobs.md, amended by
+# docs/adr/0005-hosting-pivot-self-hosted-vps-postgresql.md): the unit is considered started, runs
+# the process to completion, and is considered stopped again once it exits — there is no long-running
+# "Continuous" mode here (verified against systemd.service(5): "the service manager will consider the
+# unit up after the main process exits"). RemainAfterExit is left at its default (no) — nothing in
+# this system depends on the unit continuing to show "active" after exit, unlike services designed to
+# gate other units.
+#
+# Assumed VPS layout (adjust to match whatever `deploy/` provisioning script lands per STATE.md Next
+# item 1 — these paths are this item's own convention, not yet exercised by a real VPS):
+#   - a dedicated, unprivileged system user/group "vlms" (created by the provisioning script, not
+#     this file) owns the published output and the config below — this process never needs root.
+#   - `dotnet publish src/Vlms.Jobs -c Release -o /opt/vlms/jobs` (framework-dependent deployment —
+#     the same .NET runtime install Vlms.Web's own Kestrel process already requires on this VPS, so
+#     no extra runtime dependency is introduced by this job).
+#   - real secrets (PostgreSQL connection string, SMTP credentials) live in /etc/vlms/jobs.env
+#     (systemd EnvironmentFile format: KEY=VALUE per line, double-underscore section separator, e.g.
+#     ConnectionStrings__VlmsDatabase=..., ASPNETCORE_ENVIRONMENT is not applicable here since this is
+#     not an ASP.NET Core host) — never committed to this repository; appsettings.json's own
+#     `_comment` fields already flag its checked-in values as placeholders for exactly this reason.
+#
+# See deploy/systemd/README.md for install/update steps.
+
+[Unit]
+Description=VLMS scheduled jobs (ConsentExpiryJob: consent/DBS expiry + at-risk sweep, plus safeguarding-critical email escalation)
+Documentation=https://github.com/ (see docs/adr/0003-scheduled-jobs-webjobs.md and docs/adr/0005-hosting-pivot-self-hosted-vps-postgresql.md in the repository)
+After=network-online.target postgresql.service
+Wants=network-online.target
+# Not co-located with vlms-web.service's own [Unit] dependencies — the two are independent units, a
+# deliberate improvement over the original Azure WebJob's shared-App-Service-plan-lifecycle coupling
+# (see adr/0003's "Amendment" note in Consequences).
+
+[Service]
+Type=oneshot
+User=vlms
+Group=vlms
+WorkingDirectory=/opt/vlms/jobs
+EnvironmentFile=-/etc/vlms/jobs.env
+ExecStart=/usr/bin/dotnet /opt/vlms/jobs/Vlms.Jobs.dll
+# Matches ConsentExpiryJob's own bounded, non-interactive workload (a bulk read/flag sweep plus a
+# handful of retried emails) — generous enough that a slow retry/backoff cycle in NotificationService
+# doesn't get killed mid-run, without masking a genuinely hung process indefinitely.
+TimeoutStartSec=300

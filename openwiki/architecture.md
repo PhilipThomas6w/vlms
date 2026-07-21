@@ -10,10 +10,16 @@ src/
   Vlms.Domain/            entities, Role enum, ICurrentUserContext, IBlobStorage, INotificationService (no EF Core dependency)
   Vlms.Infrastructure/     EF Core DbContext, auth, provisioning, migrations, services (depends on Vlms.Domain)
   Vlms.Web/                Blazor Web App, Server interactivity (depends on Vlms.Domain + Vlms.Infrastructure)
-  Vlms.Jobs/               WebJob host: ConsentExpiryJob + ConsentExpiryNotifier, run as a Triggered
-                           WebJob (adr/0003) — depends on Vlms.Domain + Vlms.Infrastructure, same as
-                           Vlms.Web; not deployed by anything in this repo yet (no live Azure
-                           environment) — see openwiki/safeguarding-consent.md
+  Vlms.Jobs/               Scheduled-job host: ConsentExpiryJob + ConsentExpiryNotifier, run to
+                           completion once daily (adr/0003, amended by adr/0005 to run via a systemd
+                           timer/service on the VPS instead of an Azure WebJob) — depends on
+                           Vlms.Domain + Vlms.Infrastructure, same as Vlms.Web; not deployed by
+                           anything in this repo yet (no live VPS environment) — see
+                           openwiki/safeguarding-consent.md
+deploy/
+  systemd/                 vlms-jobs.service + vlms-jobs.timer (systemd unit pair invoking Vlms.Jobs's
+                           published output daily at 03:00 UTC) + README.md — see
+                           openwiki/safeguarding-consent.md
 tests/
   Vlms.Tests/               xUnit, SQLite-in-memory (depends on Vlms.Domain; references Infrastructure types via project ref)
 build/
@@ -39,7 +45,7 @@ No separate API project exists or is planned — `docs/design/integration.md` co
 
 - **Sensitive-data access control** (`docs/adr/0004-sensitive-data-access-control.md`) — EF Core global query filters + an `IMaterializationInterceptor` audit log. See [access-control.md](access-control.md).
 - **Authentication/authorization** (`docs/adr/0002`) — self-rolled ASP.NET Core Identity (TOTP MFA) + app-managed roles + resource-based handlers (originally Microsoft Entra External ID, `docs/adr/0001`; replaced by STATE.md's "Identity" item as part of the hosting pivot, adr/0005). See [authentication-authorization.md](authentication-authorization.md).
-- **Scheduled work** (`docs/adr/0003-scheduled-jobs-webjobs.md`) — Azure App Service WebJobs. Implemented: `ConsentExpiryJob` (daily consent/DBS expiry + 8-week at-risk flagging) plus `ConsentExpiryNotifier` (safeguarding-critical email escalation), hosted by the `Vlms.Jobs` console project above — not yet deployed anywhere (no live Azure environment). See [safeguarding-consent.md](safeguarding-consent.md) and [notifications.md](notifications.md).
+- **Scheduled work** (`docs/adr/0003-scheduled-jobs-webjobs.md`, amended by `docs/adr/0005-hosting-pivot-self-hosted-vps-postgresql.md`) — a systemd timer/service pair on the self-hosted VPS (`deploy/systemd/`), replacing the original Azure App Service WebJobs folder convention. Implemented: `ConsentExpiryJob` (daily consent/DBS expiry + 8-week at-risk flagging) plus `ConsentExpiryNotifier` (safeguarding-critical email escalation), hosted by the `Vlms.Jobs` console project above — not yet deployed anywhere (no live VPS environment). See [safeguarding-consent.md](safeguarding-consent.md) and [notifications.md](notifications.md).
 
 ## Target framework and stack
 

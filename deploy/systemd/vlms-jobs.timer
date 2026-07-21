@@ -1,0 +1,33 @@
+# vlms-jobs.timer — schedules vlms-jobs.service daily at 03:00 UTC, replacing the Azure WebJobs
+# settings.job NCRONTAB schedule ("0 0 3 * * *", daily 03:00 UTC) this job ran on before
+# docs/adr/0005-hosting-pivot-self-hosted-vps-postgresql.md retargeted its execution host.
+#
+# OnCalendar syntax verified against systemd.time(7)/systemd.timer(5), not assumed:
+#   - "*-*-* 03:00:00" means "every year, every month, every day, at 03:00:00" (a daily calendar
+#     event, the calendar-expression equivalent of the WebJob's own "every day" NCRONTAB fields).
+#   - An explicit "UTC" suffix is used rather than relying on the VPS's local system clock/timezone
+#     matching UTC by default the way Azure App Service's WebJobs host did — this is a deliberate,
+#     documented choice to make the 03:00 UTC schedule exact regardless of how the VPS's `timedatectl`
+#     is configured, not an assumption that it will already be UTC.
+#   - Validate with `systemd-analyze calendar '*-*-* 03:00:00 UTC'` after installing, which prints the
+#     normalised form and the next two elapse times.
+#
+# Persistent=true: if the VPS is down at 03:00 UTC (reboot, patching, power loss — a real possibility
+# on a self-hosted single VPS with no managed-platform SLA underneath it, per adr/0005's Consequences),
+# the timer fires the missed run once the system is back up rather than silently skipping that day's
+# consent/DBS expiry sweep entirely. This has no equivalent decision point in the original Azure
+# WebJobs setup (App Service's own uptime SLA made a missed-trigger-due-to-host-downtime scenario much
+# less likely) — named explicitly here as a new, deliberate choice for the self-hosted context.
+#
+# See deploy/systemd/README.md for install/update steps.
+
+[Unit]
+Description=Daily timer for vlms-jobs.service (VLMS ConsentExpiryJob sweep, 03:00 UTC)
+
+[Timer]
+OnCalendar=*-*-* 03:00:00 UTC
+Persistent=true
+Unit=vlms-jobs.service
+
+[Install]
+WantedBy=timers.target

@@ -1,28 +1,32 @@
-// Vlms.Jobs — the Azure App Service Triggered WebJob host for ConsentExpiryJob
+// Vlms.Jobs — the scheduled-job host for ConsentExpiryJob
 // (docs/adr/0003-scheduled-jobs-webjobs.md, docs/design/low-level-design.md "ConsentExpiryJob").
 //
-// This process runs once and exits (Triggered WebJob semantics — the schedule in settings.job
-// drives when it runs; the process itself has no timer loop). All the actual sweep/flag/escalation
-// logic lives in Vlms.Infrastructure.Safeguarding.ConsentExpiryJob, which is fully unit-tested
-// independently of this host (tests/Vlms.Tests/Infrastructure/ConsentExpiryJobTests.cs) — this
-// file's only job is wiring: configuration, a VlmsDbContext, the SystemCurrentUserContext (no
-// signed-in human caller exists for a scheduled job), and console logging (which Application
-// Insights picks up once deployed — see the ADR's monitoring note). Since STATE.md's
-// NotificationService item, it also wires ConsentExpiryNotifier and calls it straight after
-// RunAsync — closing the loop ConsentExpiryJob's own doc comment named ("once NotificationService
-// exists it can call RunAsync and translate the returned ConsentExpiryJobResult into real emails").
+// This process runs once and exits — the schedule lives entirely outside the process, in a systemd
+// timer (deploy/systemd/vlms-jobs.timer), not a timer loop in here. All the actual sweep/flag/
+// escalation logic lives in Vlms.Infrastructure.Safeguarding.ConsentExpiryJob, which is fully
+// unit-tested independently of this host (tests/Vlms.Tests/Infrastructure/ConsentExpiryJobTests.cs)
+// — this file's only job is wiring: configuration, a VlmsDbContext, the SystemCurrentUserContext (no
+// signed-in human caller exists for a scheduled job), and console logging (captured by
+// systemd/journald — see deploy/systemd/README.md's monitoring note, journalctl -u vlms-jobs.service
+// replaces the Application Insights alerting the original ADR named for the Azure WebJobs host).
+// Since STATE.md's NotificationService item, it also wires ConsentExpiryNotifier and calls it
+// straight after RunAsync — closing the loop ConsentExpiryJob's own doc comment named ("once
+// NotificationService exists it can call RunAsync and translate the returned ConsentExpiryJobResult
+// into real emails").
 //
-// Deployment (not performed by this codebase/build/verify.ps1 — no live Azure environment exists
-// yet, same "structurally correct, not yet wired" status as AzureBlobStorage/EntraCurrentUserContext
-// before their dependencies existed): this project's publish output is deployed into Vlms.Web's App
-// Service under App_Data/jobs/triggered/ConsentExpiryJob/, per the classic Azure WebJobs deployment
-// model (learn.microsoft.com/azure/app-service/webjobs-create) — co-located with the same App
-// Service plan, per adr/0003; this row of adr/0003 is itself pending STATE.md Next item 1's systemd
-// timer retarget, not yet done. Email sends via SMTP (adr/0005-hosting-pivot-self-hosted-vps-postgresql.md,
-// superseding Azure Communication Services Email) — Smtp:Host/Port/Username/Password/FromAddress/
-// UseStartTls in appsettings.json are placeholders, same status AzureAd's/CommunicationServices'
-// config had before a live target existed; the org's existing Microsoft 365 mailbox vs. a free-tier
-// transactional provider is still an open pick per the ADR.
+// Deployment (not performed by this codebase/build/verify.ps1 — no live VPS environment exists yet,
+// same "structurally correct, not yet wired" status as LocalDiskBlobStorage/IdentityCurrentUserContext
+// before their dependencies existed): docs/adr/0005-hosting-pivot-self-hosted-vps-postgresql.md
+// retargets this project's deployment from the Azure App Service WebJobs folder convention
+// (App_Data/jobs/triggered/...) to a systemd timer/service pair on the self-hosted VPS —
+// deploy/systemd/vlms-jobs.service + deploy/systemd/vlms-jobs.timer, invoking this same published
+// console app unchanged; adr/0003's "plain console app, not a scheduler SDK" reasoning is unaffected,
+// only *where* the schedule lives changes. Email sends via SMTP
+// (adr/0005-hosting-pivot-self-hosted-vps-postgresql.md, superseding Azure Communication Services
+// Email) — Smtp:Host/Port/Username/Password/FromAddress/UseStartTls in appsettings.json are
+// placeholders, same status AzureAd's/CommunicationServices' config had before a live target existed;
+// the org's existing Microsoft 365 mailbox vs. a free-tier transactional provider is still an open
+// pick per the ADR.
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
