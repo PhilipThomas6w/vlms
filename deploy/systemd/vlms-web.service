@@ -1,0 +1,70 @@
+# vlms-web.service — runs Vlms.Web's Kestrel process behind Caddy (deploy/Caddyfile), per
+# docs/adr/0005-hosting-pivot-self-hosted-vps-postgresql.md ("Kestrel behind Caddy, automatic HTTPS
+# via Let's Encrypt"). STATE.md hosting-pivot item 6 — sibling to deploy/systemd/vlms-jobs.service
+# (see that file/its README for the equivalent scheduled-job unit; this is the always-on web unit).
+#
+# Type=simple (the default — deliberately left unset rather than Type=notify), verified against
+# Microsoft's own current Linux-reverse-proxy deployment guidance rather than assumed
+# (learn.microsoft.com/aspnet/core/host-and-deploy/linux-nginx, 2026 revision): its own example
+# systemd unit for exactly this topology (Kestrel behind a reverse proxy, managed by systemd) uses
+# no `Type=` line and no `Microsoft.Extensions.Hosting.Systemd`/`UseSystemd()` integration at all —
+# `Vlms.Web`'s `Program.cs` has no such package reference or call (confirmed by reading it directly,
+# not assumed from Vlms.Jobs's own doc comments), so there is no `sd_notify` READY=1 signal for
+# Type=notify to wait on; adding that integration purely to switch Type would be new complexity this
+# deployment shape doesn't call for, not a gap being left open.
+#
+# ASPNETCORE_URLS is set explicitly below rather than relying on Kestrel's built-in default —
+# appsettings.json/appsettings.*.json carry no Kestrel:Endpoints section and no ASPNETCORE_URLS is
+# set anywhere in this repo (confirmed by reading them directly), so Kestrel would otherwise fall
+# back to its own default (http://localhost:5000) — the same default Microsoft's own linux-nginx
+# guide's example targets ("Kestrel at http://127.0.0.1:5000"). Binding explicitly to the loopback
+# address on that same port, rather than trusting the implicit default to keep meaning the same
+# thing across .NET versions, is the safer, self-documenting choice — and Caddy's reverse_proxy
+# target (deploy/Caddyfile) must match whatever this line says.
+#
+# Assumed VPS layout (same conventions as vlms-jobs.service — adjust if the real provisioning
+# script lands on a different one; nothing here is load-bearing beyond "some path the published
+# output actually lives at"):
+#   - the same dedicated, unprivileged system user/group "vlms" used by vlms-jobs.service — this
+#     process never needs root, and Caddy (a separate systemd unit, its own package-managed service)
+#     is what binds the privileged 80/443 ports, not this one.
+#   - `dotnet publish src/Vlms.Web -c Release -o /opt/vlms/web` (framework-dependent deployment —
+#     requires the .NET runtime installed on the VPS; see deploy/README.md).
+#   - real secrets (PostgreSQL connection string as the least-privilege vlms_app role — never the
+#     table owner/a superuser, governance/raid.md D-004 — plus SMTP credentials, the Data Protection
+#     key ring location, and App:PublicBaseUrl once a real domain exists) live in /etc/vlms/web.env
+#     (systemd EnvironmentFile format: KEY=VALUE per line, double-underscore section separator, e.g.
+#     ConnectionStrings__VlmsDatabase=...) — never committed to this repository; appsettings.json's
+#     own `_comment` fields already flag its checked-in values as placeholders for exactly this
+#     reason.
+#
+# See deploy/README.md for the full install narrative (this file is one piece of it).
+
+[Unit]
+Description=VLMS web application (Vlms.Web — Blazor Web App, Server interactivity, behind Caddy)
+Documentation=https://github.com/ (see docs/adr/0001-technology-stack.md and docs/adr/0005-hosting-pivot-self-hosted-vps-postgresql.md in the repository)
+After=network-online.target postgresql.service
+Wants=network-online.target
+# Independent of vlms-jobs.service (see that unit's own [Unit] section / adr/0003's "Amendment"
+# note) — a Vlms.Web restart no longer implicitly restarts the scheduled job, and vice versa.
+
+[Service]
+Type=simple
+User=vlms
+Group=vlms
+WorkingDirectory=/opt/vlms/web
+EnvironmentFile=-/etc/vlms/web.env
+Environment=ASPNETCORE_ENVIRONMENT=Production
+Environment=ASPNETCORE_URLS=http://127.0.0.1:5000
+ExecStart=/usr/bin/dotnet /opt/vlms/web/Vlms.Web.dll
+# Restart/KillSignal/RestartSec verified against Microsoft's current linux-nginx guide's own example
+# unit rather than invented — its systemd example service block uses exactly these three lines for
+# an ASP.NET Core Kestrel process managed by systemd (graceful shutdown via SIGINT, matching
+# ASP.NET Core's own documented shutdown-signal handling, rather than the default SIGTERM).
+Restart=always
+RestartSec=10
+KillSignal=SIGINT
+SyslogIdentifier=vlms-web
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,26 @@
+# vlms-backup.timer — schedules vlms-backup.service daily at 02:00 UTC, one hour ahead of
+# vlms-jobs.timer's 03:00 UTC ConsentExpiryJob run (deploy/systemd/vlms-jobs.timer) — a deliberate
+# ordering choice, not arbitrary: the nightly backup captures the database state before the daily
+# consent/DBS-expiry sweep and its safeguarding-critical email escalation run against it, so a
+# restore from last night's backup always reflects "before today's sweep," never a half-applied
+# sweep. The two jobs don't share any lock/coordination mechanism — this hour of separation is the
+# whole of how they avoid overlapping on a system this small.
+#
+# OnCalendar/Persistent syntax and reasoning are identical to deploy/systemd/vlms-jobs.timer's own
+# (verified against systemd.time(7)/systemd.timer(5) there) — not re-derived here; see that file's
+# comments for the citations. Persistent=true for the same reason: a missed 02:00 UTC run (VPS
+# down for a reboot/patch) should catch up once the system is back, not silently skip a night's
+# backup entirely.
+#
+# See deploy/README.md for install/verify steps.
+
+[Unit]
+Description=Daily timer for vlms-backup.service (VLMS PostgreSQL backup, 02:00 UTC)
+
+[Timer]
+OnCalendar=*-*-* 02:00:00 UTC
+Persistent=true
+Unit=vlms-backup.service
+
+[Install]
+WantedBy=timers.target

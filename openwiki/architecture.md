@@ -19,7 +19,20 @@ src/
 deploy/
   systemd/                 vlms-jobs.service + vlms-jobs.timer (systemd unit pair invoking Vlms.Jobs's
                            published output daily at 03:00 UTC) + README.md — see
-                           openwiki/safeguarding-consent.md
+                           openwiki/safeguarding-consent.md; vlms-web.service (Vlms.Web's Kestrel
+                           process, Type=simple, ASPNETCORE_URLS=http://127.0.0.1:5000)
+  Caddyfile                reverse proxy in front of vlms-web.service's Kestrel process, automatic
+                           HTTPS via Let's Encrypt — placeholder domain, real one filled in at
+                           provisioning time
+  postgres/                00-create-roles-and-database.sql (vlms_owner/vlms_app roles + the "vlms"
+                           database) + 10-grant-app-privileges.sql (least-privilege grants —
+                           governance/raid.md D-004: vlms_app gets SELECT/INSERT only on
+                           sensitive_data_access_logs, never UPDATE/DELETE)
+  backup/                  pg-backup.sh (pg_dump -Fc, shipped via `aws s3 cp --endpoint-url` to an
+                           S3-compatible bucket — provider still undecided per adr/0005) +
+                           vlms-backup.service/.timer (daily 02:00 UTC, ahead of vlms-jobs.timer)
+  README.md                end-to-end VPS setup narrative tying the above together — see
+                           openwiki/web.md's "Deployment (self-hosted VPS)" section
 tests/
   Vlms.Tests/               xUnit, SQLite-in-memory (depends on Vlms.Domain; references Infrastructure types via project ref)
 build/
@@ -46,6 +59,7 @@ No separate API project exists or is planned — `docs/design/integration.md` co
 - **Sensitive-data access control** (`docs/adr/0004-sensitive-data-access-control.md`) — EF Core global query filters + an `IMaterializationInterceptor` audit log. See [access-control.md](access-control.md).
 - **Authentication/authorization** (`docs/adr/0002`) — self-rolled ASP.NET Core Identity (TOTP MFA) + app-managed roles + resource-based handlers (originally Microsoft Entra External ID, `docs/adr/0001`; replaced by STATE.md's "Identity" item as part of the hosting pivot, adr/0005). See [authentication-authorization.md](authentication-authorization.md).
 - **Scheduled work** (`docs/adr/0003-scheduled-jobs-webjobs.md`, amended by `docs/adr/0005-hosting-pivot-self-hosted-vps-postgresql.md`) — a systemd timer/service pair on the self-hosted VPS (`deploy/systemd/`), replacing the original Azure App Service WebJobs folder convention. Implemented: `ConsentExpiryJob` (daily consent/DBS expiry + 8-week at-risk flagging) plus `ConsentExpiryNotifier` (safeguarding-critical email escalation), hosted by the `Vlms.Jobs` console project above — not yet deployed anywhere (no live VPS environment). See [safeguarding-consent.md](safeguarding-consent.md) and [notifications.md](notifications.md).
+- **Hosting/deployment** (`docs/adr/0005-hosting-pivot-self-hosted-vps-postgresql.md`) — scripts/config only, no live VPS/account yet: `deploy/Caddyfile` (Kestrel behind Caddy, automatic HTTPS), `deploy/systemd/vlms-web.service` (`Vlms.Web`'s Kestrel process — `Type=simple`, no `UseSystemd()` integration, verified against Microsoft's current Linux-reverse-proxy deployment guidance), `deploy/postgres/` (least-privilege `vlms_app` role vs. the schema-owning `vlms_owner` role — `governance/raid.md` D-004), `deploy/backup/` (`pg_dump` shipped to an S3-compatible bucket, provider still undecided). `Vlms.Web/Program.cs` gained `UseForwardedHeaders()` for this reverse-proxy topology — see [web.md](web.md)'s "Deployment (self-hosted VPS)" section. See `deploy/README.md` for the full setup narrative.
 
 ## Target framework and stack
 

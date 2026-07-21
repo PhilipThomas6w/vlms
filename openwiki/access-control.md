@@ -99,6 +99,23 @@ deliberately elevated role. `INSERT` is deliberately not revoked — the
 `SensitiveDataAuditInterceptor`'s own writes must keep working — and `TRUNCATE` is not revoked
 either, since neither the ADR nor `governance/security-compliance.md` names it.
 
+**This requirement is now operationalized, not just documented (STATE.md hosting-pivot item 6,
+`deploy/postgres/`):** `00-create-roles-and-database.sql` creates two roles, not one —
+`vlms_owner` (owns the database/every table `dotnet ef database update` creates — migrations must
+never run as `vlms_app`, since a table's owner always has full privileges regardless of any
+`GRANT`/`REVOKE`) and `vlms_app` (the actual production connection identity, owning nothing).
+`10-grant-app-privileges.sql`, run once the schema exists, is what makes D-004 true in practice:
+every ordinary table gets `vlms_app` full CRUD via a dynamic `information_schema.tables` loop, but
+`sensitive_data_access_logs` is explicitly carved out to `SELECT, INSERT` only. An
+`ALTER DEFAULT PRIVILEGES FOR ROLE vlms_owner` statement extends the same broad CRUD grant to
+tables created by future migrations automatically — with a loud, explicit warning in that file that
+a future audit/tamper-protected table would silently inherit full CRUD from that statement unless
+someone revisits it (docs/governance/asvs-access-control-checklist.md's V16 Security Logging item's
+"has any new code path skipped the audit mechanism" discipline is the closest existing checklist
+habit this warning extends, though no bullet names this SQL file specifically yet). See
+`deploy/README.md` for the full install order and its own verification step (a live
+`UPDATE sensitive_data_access_logs` as `vlms_app` must fail with a permission-denied error).
+
 This is raw PostgreSQL-specific SQL and is never applied against the SQLite in-memory provider the
 test suite uses — tests build schema via `Database.EnsureCreated()` from the current model, never
 `Database.Migrate()`, and neither `Vlms.Web` nor `Vlms.Jobs` calls `Database.Migrate()` either

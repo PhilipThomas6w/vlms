@@ -1,0 +1,39 @@
+# vlms-backup.service — runs pg-backup.sh (this directory) to completion: a nightly PostgreSQL
+# logical backup, shipped off-box (adr/0005-hosting-pivot-self-hosted-vps-postgresql.md). Same
+# Type=oneshot / systemd-timer-triggered shape as deploy/systemd/vlms-jobs.service — see that
+# file's own comments for the citations behind Type=oneshot's semantics; not repeated here.
+#
+# Triggered exclusively by vlms-backup.timer (see this directory) — this unit has no [Install]
+# section and is never `systemctl enable`d directly, same convention as vlms-jobs.service.
+#
+# Assumed layout (adjust to match wherever the real provisioning script lands — see
+# deploy/README.md):
+#   - runs as the same dedicated, unprivileged "vlms" system user/group as vlms-web.service/
+#     vlms-jobs.service — a database backup script needs no more privilege than the application
+#     itself already has (it connects as the same vlms_app role — see pg-backup.sh's own comment
+#     for why that's a deliberate choice, not an oversight), and no root/superuser access at all.
+#   - pg-backup.sh lives at /opt/vlms/backup/pg-backup.sh (this directory's contents, copied/
+#     symlinked there — see deploy/README.md's install steps).
+#   - real configuration (PGUSER/PGPASSWORD, BACKUP_S3_* credentials) lives in
+#     /etc/vlms/backup.env — never committed to this repository, same EnvironmentFile convention
+#     and mode/ownership (0640, root:vlms) as jobs.env/web.env.
+#
+# See deploy/README.md for install/verify steps.
+
+[Unit]
+Description=VLMS nightly PostgreSQL backup (pg_dump, shipped to off-box S3-compatible storage)
+Documentation=https://github.com/ (see docs/adr/0005-hosting-pivot-self-hosted-vps-postgresql.md in the repository)
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=vlms
+Group=vlms
+WorkingDirectory=/opt/vlms/backup
+EnvironmentFile=-/etc/vlms/backup.env
+ExecStart=/opt/vlms/backup/pg-backup.sh
+# A full dump + upload of a solo/tens-of-users system's data volume is expected to be quick, but
+# generous enough headroom is given not to race a slow off-box upload on a modest VPS uplink —
+# same reasoning vlms-jobs.service's own TimeoutStartSec comment gives for its figure.
+TimeoutStartSec=600

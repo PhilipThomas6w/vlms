@@ -98,3 +98,12 @@ date,work_item,change_class,session_tokens_est,model,outcome,notes
 2026-07-21,"_(none)_",n/a,327847,n/a,pass,auto-logged by run-verify.ps1
 2026-07-21,"_(none)_",n/a,327847,n/a,pass,auto-logged by run-verify.ps1
 2026-07-21,"- **Scheduled jobs: retarget `Vlms.Jobs`'s deployment story from the Azure WebJobs folder convention to a systemd timer/cron on the self-hosted VPS.** `Vlms.Jobs` itself is already a plain console app (not the WebJobs SDK) — expect this to be mostly deployment scripting (a systemd unit + timer file), not a C# rewrite; confirm that expectation rather than assuming no code changes at all are needed.",n/a,334577,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"_(none)_",n/a,334577,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"_(none)_",n/a,340861,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"_(none)_",n/a,340861,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"_(none)_",n/a,340861,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"_(none)_",n/a,341133,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"_(none)_",n/a,341133,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"- **Deployment scripting: Caddyfile, systemd unit templates, PostgreSQL setup script, `pg_dump`-to-object-storage backup cron, and a VPS setup README.** Scripts/config only — this item does **not** create any real VPS, account, or paid resource; actual provisioning needs Philip's explicit go-ahead on provider/region/budget first (`docs/adr/0005` Consequences), separately from this being ready to run once he gives it.",n/a,349460,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"- **Deployment scripting: Caddyfile, systemd unit templates, PostgreSQL setup script, `pg_dump`-to-object-storage backup cron, and a VPS setup README.** Scripts/config only — this item does **not** create any real VPS, account, or paid resource; actual provisioning needs Philip's explicit go-ahead on provider/region/budget first (`docs/adr/0005` Consequences), separately from this being ready to run once he gives it.",n/a,349460,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"- **Deployment scripting: Caddyfile, systemd unit templates, PostgreSQL setup script, `pg_dump`-to-object-storage backup cron, and a VPS setup README.** Scripts/config only — this item does **not** create any real VPS, account, or paid resource; actual provisioning needs Philip's explicit go-ahead on provider/region/budget first (`docs/adr/0005` Consequences), separately from this being ready to run once he gives it.",n/a,360423,n/a,pass,auto-logged by run-verify.ps1

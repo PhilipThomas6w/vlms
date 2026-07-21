@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Vlms.Domain;
@@ -205,6 +206,29 @@ builder.Services.AddIdentityCore<VlmsIdentityUser>(options =>
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
+
+// --- Forwarded Headers Middleware (deploy/Caddyfile, adr/0005-hosting-pivot-self-hosted-vps-postgresql.md:
+// "Kestrel behind Caddy") — required, not optional, whenever Kestrel sits behind a TLS-terminating
+// reverse proxy on the same box: without it, every request reaches Kestrel as plain HTTP (Caddy
+// talks to Kestrel over loopback HTTP per vlms-web.service's ASPNETCORE_URLS), so Request.IsHttps
+// is false even though the browser's own connection to Caddy was HTTPS — which would make
+// UseHttpsRedirection() below redirect every already-HTTPS request, and would make ASP.NET Core
+// Identity's auth cookie (CookieAuthenticationOptions.Cookie.SecurePolicy, default SameAsRequest)
+// get issued without the Secure flag in production, a real regression for an app that handles
+// safeguarding data. Verified against Microsoft's current documentation rather than assumed
+// (learn.microsoft.com/aspnet/core/host-and-deploy/proxy-load-balancer): must run before UseHsts()/
+// UseHttpsRedirection() so Request.Scheme is corrected before either inspects it; the exact
+// deployment topology this ADR describes — a single reverse proxy, on the same host, reachable
+// only via loopback — is precisely the "default KnownNetworks/KnownProxies (loopback only)"
+// scenario that page names as needing no extra KnownProxies configuration, so none is added here.
+// (ForwardedHeaders defaults to None — the desired headers must be set explicitly, per the same
+// page.) This line has no effect in Development (nothing proxies to it there, so the headers are
+// simply never present) and is unconditional rather than gated to non-Development for that reason.
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+});
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);

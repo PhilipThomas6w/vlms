@@ -1,0 +1,47 @@
+# Caddyfile — reverse proxy in front of Vlms.Web's Kestrel process, with automatic HTTPS via
+# Let's Encrypt. docs/adr/0005-hosting-pivot-self-hosted-vps-postgresql.md ("Kestrel behind Caddy,
+# automatic HTTPS via Let's Encrypt"). STATE.md hosting-pivot item 6.
+#
+# PLACEHOLDER-DOMAIN.example below is a placeholder the owner must fill in with the real domain
+# name once one is registered/pointed at the VPS — no domain has been decided (adr/0005
+# Consequences: provisioning itself, including domain/DNS, needs Philip's explicit go-ahead,
+# separately from this file being ready to use). appsettings.json's own "App:PublicBaseUrl" carries
+# the identical placeholder convention for the same reason (used to build the guardian invite
+# accept-link — see GuardianInviteService's doc comment) — update both together.
+#
+# Automatic HTTPS syntax verified against Caddy's own current documentation
+# (caddyserver.com/docs/quick-starts/reverse-proxy, caddyserver.com/docs/automatic-https) rather
+# than assumed: a bare site-address label followed by a directive is genuinely sufficient — "Caddy
+# will serve your proxy over HTTPS automatically and by default if it knows the hostname (domain
+# name)"; for any hostname other than localhost, Caddy obtains a publicly-trusted certificate
+# (Let's Encrypt by default) and manages renewal itself. No separate certbot/acme.sh
+# install/cron/renewal-hook is needed or wired here — that whole mechanism is what choosing Caddy
+# over nginx/Apache buys this deployment, per the ADR.
+#
+# Preconditions for the ACME challenge to succeed (not this file's job to satisfy, but real and
+# worth stating plainly rather than assuming they'll just work): DNS for the real domain must
+# already point at this VPS's public IP, and ports 80 and 443 must be reachable from the public
+# internet (Caddy uses 80 for the HTTP-01 challenge / HTTP->HTTPS redirect, 443 for TLS-ALPN and the
+# actual site) — a VPS firewall (ufw, cloud provider security group, etc.) must allow both before
+# first run, or certificate issuance will fail.
+#
+# Debian/Ubuntu package install (caddyserver.com/docs/install) sets Caddy up as its own systemd
+# service ("caddy") automatically and reads /etc/caddy/Caddyfile by default — this file is meant to
+# be installed there (see deploy/README.md), not run standalone; it is a separate systemd unit from
+# vlms-web.service/vlms-jobs.service, not one this repo's own unit files manage.
+
+PLACEHOLDER-DOMAIN.example {
+	# Proxies to Vlms.Web's Kestrel process — must match vlms-web.service's
+	# ASPNETCORE_URLS=http://127.0.0.1:5000 exactly; both are this deployment's own convention, not
+	# a framework default, so keep them in sync if either changes.
+	reverse_proxy 127.0.0.1:5000
+
+	# Access logging, per-site (caddyserver.com/docs/caddyfile/directives/log). Caddy rotates by
+	# size by default (100 MiB, keeping the 10 most recent, gzip-compressed, up to 90 days) — the
+	# roll_* sub-directives are left at their documented defaults rather than overridden, since
+	# nothing about this deployment's expected traffic volume (tens of users) calls for a different
+	# rotation policy yet.
+	log {
+		output file /var/log/caddy/vlms-web-access.log
+	}
+}
