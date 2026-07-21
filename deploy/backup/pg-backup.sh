@@ -24,9 +24,13 @@ set -euo pipefail
 #       these being set, deliberately, to avoid a second place connection details could drift from
 #       the app's own ConnectionStrings:VlmsDatabase. PGUSER=vlms_app — the SAME least-privilege
 #       runtime role Vlms.Web/Vlms.Jobs connect as (deploy/postgres/10-grant-app-privileges.sql):
-#       it holds SELECT on every table, including sensitive_data_access_logs (SELECT/INSERT only,
-#       governance/raid.md D-004), which is exactly and only what a read-only backup needs — no
-#       third, more-privileged credential is introduced solely for backups. PGPASSWORD is used here
+#       it holds SELECT on every ordinary table, SELECT/INSERT only (never UPDATE/DELETE) on
+#       sensitive_data_access_logs (governance/raid.md D-004), and — as of this file's own
+#       10-grant-app-privileges.sql fix — a read-only SELECT grant on __EFMigrationsHistory too
+#       (added specifically so this script's whole-database pg_dump can read that table without
+#       erroring; vlms_app still cannot write it, so it still cannot run migrations). That is
+#       exactly and only what a read-only backup needs — no third, more-privileged credential is
+#       introduced solely for backups. PGPASSWORD is used here
 #       (rather than a .pgpass file, which PostgreSQL's own docs prefer) to stay consistent with
 #       this repository's existing EnvironmentFile-based secrets convention, a deliberate choice,
 #       not an oversight.
@@ -95,8 +99,13 @@ echo "pg-backup.sh: done"
 # S3-compatible bucket — no live VPS or object-storage account exists yet (adr/0005 Consequences:
 # provisioning needs Philip's explicit go-ahead, separately from this being ready to run once given
 # one). What IS verified: the pg_dump/aws CLI flag syntax against each tool's own current
-# documentation (cited above), and that PGUSER=vlms_app's grants (deploy/postgres/10-grant-app-privileges.sql)
-# are sufficient for a full logical dump (SELECT on every table). "A backup that has never been
-# test-restored is not a backup" (adr/0005's own words) — the first real run of this script, and a
-# real `pg_restore` test-restore of its output, are both operational verification steps for whoever
-# stands up the real VPS, not something this scripted-only item can complete itself. ***
+# documentation (cited above), and that PGUSER=vlms_app's grants
+# (deploy/postgres/10-grant-app-privileges.sql) are sufficient for a full logical dump — SELECT on
+# every ordinary table, SELECT-only on sensitive_data_access_logs, and (as of this file's own fix,
+# checker round-trip) a SELECT-only grant on __EFMigrationsHistory specifically added so this
+# whole-database pg_dump does not abort with "permission denied for table __EFMigrationsHistory".
+# Before that grant existed, this exact claim was FALSE and the first real run would have failed —
+# see STATE.md's Deployment-scripting Done entry Log for that round-trip. "A backup that has never
+# been test-restored is not a backup" (adr/0005's own words) — the first real run of this script,
+# and a real `pg_restore` test-restore of its output, are both operational verification steps for
+# whoever stands up the real VPS, not something this scripted-only item can complete itself. ***

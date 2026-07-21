@@ -38,9 +38,16 @@
 -- has no override effect on a role holding a direct GRANT. Getting this file's grant list wrong is
 -- the one way this whole tamper-protection design could be silently defeated.
 --
--- __EFMigrationsHistory is excluded entirely (no grant at all) — vlms_app never runs migrations at
--- runtime (confirmed: neither Vlms.Web's nor Vlms.Jobs's Program.cs calls Database.Migrate() — see
--- STATE.md's tamper-protection Done entry), so it has no legitimate reason to read or write it.
+-- __EFMigrationsHistory is excluded from the blanket CRUD grant above — vlms_app never runs
+-- migrations at runtime (confirmed: neither Vlms.Web's nor Vlms.Jobs's Program.cs calls
+-- Database.Migrate() — see STATE.md's tamper-protection Done entry), so it has no legitimate
+-- reason to write it. It DOES get a read-only SELECT grant below: pg_dump (deploy/backup/pg-backup.sh)
+-- connects as vlms_app for the nightly logical backup and dumps every table's data via
+-- SELECT/COPY, aborting non-zero on the first permission error — without this grant,
+-- `pg_dump -Fc` of the whole database fails outright with "permission denied for table
+-- __EFMigrationsHistory" the first time it runs. SELECT does not let vlms_app run migrations or
+-- write to the table, so this does not weaken the least-privilege/tamper-protection design above.
+GRANT SELECT ON public."__EFMigrationsHistory" TO vlms_app;
 
 GRANT CONNECT ON DATABASE vlms TO vlms_app;
 GRANT USAGE ON SCHEMA public TO vlms_app;
