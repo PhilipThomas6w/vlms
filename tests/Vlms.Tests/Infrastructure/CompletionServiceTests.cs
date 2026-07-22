@@ -44,6 +44,9 @@ public sealed class CompletionServiceTests : IDisposable
         public CompletionService Service =>
             new(Context, CurrentUser, new PromotionService(Context), new CertificateService(Context, blobStorage));
 
+        public CompletionService ServiceWithReversalWindow(int reversalWindowDays) =>
+            new(Context, CurrentUser, new PromotionService(Context), new CertificateService(Context, blobStorage), reversalWindowDays);
+
         public void Dispose()
         {
             Context.Dispose();
@@ -201,5 +204,328 @@ public sealed class CompletionServiceTests : IDisposable
         using var verify = CreateContext(1, Role.Admin);
         var student = await verify.Context.Students.SingleAsync(s => s.Id == 100);
         Assert.Equal(2, student.CurrentRankId);
+    }
+
+    // --- ReverseAsync (STATE.md "Teacher-facing reverse a completion flow", functional.md: "can
+    // self-correct/reverse their own entry (e.g. within some reasonable window)") -----------------
+
+    [Fact]
+    public async Task ReverseAsync_ByRecordingTeacher_WithinWindow_SetsIsReversedAndReversedAt()
+    {
+        using (var setup = CreateContext(1, Role.Admin))
+        {
+            AddConsent(setup.Context, id: 10, studentId: 100, ConsentStatus.Approved, DateOnly.FromDateTime(DateTime.UtcNow.AddMonths(6)));
+        }
+
+        int completionId;
+        using (var teacher = CreateContext(10, Role.Teacher))
+        {
+            var completion = await teacher.Service.MarkCompleteAsync(studentId: 100, lessonId: 1, note: "Did well", CancellationToken.None);
+            completionId = completion.Id;
+        }
+
+        using (var teacher = CreateContext(10, Role.Teacher))
+        {
+            var reversed = await teacher.Service.ReverseAsync(completionId, note: "Wrong student ticked", CancellationToken.None);
+            Assert.True(reversed.IsReversed);
+            Assert.NotNull(reversed.ReversedAt);
+        }
+
+        using var verify = CreateContext(1, Role.Admin);
+        var stored = await verify.Context.StudentLessonCompletions.SingleAsync(c => c.Id == completionId);
+        Assert.True(stored.IsReversed);
+        Assert.NotNull(stored.ReversedAt);
+        // Reversal note is appended to the existing completion note, not overwritten (see
+        // ReverseAsync's doc comment — data-design.md names only one Note field).
+        Assert.Equal("Did well\nReversed: Wrong student ticked", stored.Note);
+    }
+
+    [Fact]
+    public async Task ReverseAsync_WithNoExistingNote_ReversalNoteBecomesTheWholeNote()
+    {
+        using (var setup = CreateContext(1, Role.Admin))
+        {
+            AddConsent(setup.Context, id: 11, studentId: 100, ConsentStatus.Approved, DateOnly.FromDateTime(DateTime.UtcNow.AddMonths(6)));
+        }
+
+        int completionId;
+        using (var teacher = CreateContext(10, Role.Teacher))
+        {
+            var completion = await teacher.Service.MarkCompleteAsync(studentId: 100, lessonId: 1, note: null, CancellationToken.None);
+            completionId = completion.Id;
+        }
+
+        using (var teacher = CreateContext(10, Role.Teacher))
+        {
+            await teacher.Service.ReverseAsync(completionId, note: "Marked in error", CancellationToken.None);
+        }
+
+        using var verify = CreateContext(1, Role.Admin);
+        var stored = await verify.Context.StudentLessonCompletions.SingleAsync(c => c.Id == completionId);
+        Assert.Equal("Reversed: Marked in error", stored.Note);
+    }
+
+    [Fact]
+    public async Task ReverseAsync_WithNoReversalNote_LeavesExistingNoteUnchanged()
+    {
+        using (var setup = CreateContext(1, Role.Admin))
+        {
+            AddConsent(setup.Context, id: 12, studentId: 100, ConsentStatus.Approved, DateOnly.FromDateTime(DateTime.UtcNow.AddMonths(6)));
+        }
+
+        int completionId;
+        using (var teacher = CreateContext(10, Role.Teacher))
+        {
+            var completion = await teacher.Service.MarkCompleteAsync(studentId: 100, lessonId: 1, note: "Original note", CancellationToken.None);
+            completionId = completion.Id;
+        }
+
+        using (var teacher = CreateContext(10, Role.Teacher))
+        {
+            await teacher.Service.ReverseAsync(completionId, note: null, CancellationToken.None);
+        }
+
+        using var verify = CreateContext(1, Role.Admin);
+        var stored = await verify.Context.StudentLessonCompletions.SingleAsync(c => c.Id == completionId);
+        Assert.True(stored.IsReversed);
+        Assert.Equal("Original note", stored.Note);
+    }
+
+    [Fact]
+    public async Task ReverseAsync_ByDifferentTeacher_Throws_AndRecordsNoMutation()
+    {
+        using (var setup = CreateContext(1, Role.Admin))
+        {
+            AddConsent(setup.Context, id: 13, studentId: 100, ConsentStatus.Approved, DateOnly.FromDateTime(DateTime.UtcNow.AddMonths(6)));
+            setup.Context.AppUsers.Add(new AppUser { Id = 11, DisplayName = "Teacher Two", Email = "teacher2@example.com" });
+            setup.Context.SaveChanges();
+        }
+
+        int completionId;
+        using (var teacher = CreateContext(10, Role.Teacher))
+        {
+            var completion = await teacher.Service.MarkCompleteAsync(studentId: 100, lessonId: 1, note: null, CancellationToken.None);
+            completionId = completion.Id;
+        }
+
+        using (var otherTeacher = CreateContext(11, Role.Teacher))
+        {
+            await Assert.ThrowsAsync<UnauthorizedAccessException>(
+                () => otherTeacher.Service.ReverseAsync(completionId, note: null, CancellationToken.None));
+        }
+
+        using var verify = CreateContext(1, Role.Admin);
+        var stored = await verify.Context.StudentLessonCompletions.SingleAsync(c => c.Id == completionId);
+        Assert.False(stored.IsReversed);
+        Assert.Null(stored.ReversedAt);
+    }
+
+    [Theory]
+    [InlineData(Role.Admin)]
+    [InlineData(Role.Approver)]
+    [InlineData(Role.Parent)]
+    [InlineData(Role.SafeguardingOfficer)]
+    [InlineData(Role.Student)]
+    public async Task ReverseAsync_ByNonTeacher_Throws_AndRecordsNoMutation(Role role)
+    {
+        using (var setup = CreateContext(1, Role.Admin))
+        {
+            AddConsent(setup.Context, id: 14, studentId: 100, ConsentStatus.Approved, DateOnly.FromDateTime(DateTime.UtcNow.AddMonths(6)));
+        }
+
+        int completionId;
+        using (var teacher = CreateContext(10, Role.Teacher))
+        {
+            var completion = await teacher.Service.MarkCompleteAsync(studentId: 100, lessonId: 1, note: null, CancellationToken.None);
+            completionId = completion.Id;
+        }
+
+        using (var caller = CreateContext(99, role))
+        {
+            await Assert.ThrowsAsync<UnauthorizedAccessException>(
+                () => caller.Service.ReverseAsync(completionId, note: null, CancellationToken.None));
+        }
+
+        using var verify = CreateContext(1, Role.Admin);
+        var stored = await verify.Context.StudentLessonCompletions.SingleAsync(c => c.Id == completionId);
+        Assert.False(stored.IsReversed);
+        Assert.Null(stored.ReversedAt);
+    }
+
+    [Fact]
+    public async Task ReverseAsync_AlreadyReversed_Throws()
+    {
+        using (var setup = CreateContext(1, Role.Admin))
+        {
+            AddConsent(setup.Context, id: 15, studentId: 100, ConsentStatus.Approved, DateOnly.FromDateTime(DateTime.UtcNow.AddMonths(6)));
+        }
+
+        int completionId;
+        using (var teacher = CreateContext(10, Role.Teacher))
+        {
+            var completion = await teacher.Service.MarkCompleteAsync(studentId: 100, lessonId: 1, note: null, CancellationToken.None);
+            completionId = completion.Id;
+            await teacher.Service.ReverseAsync(completionId, note: null, CancellationToken.None);
+        }
+
+        using (var teacher = CreateContext(10, Role.Teacher))
+        {
+            await Assert.ThrowsAsync<InvalidOperationException>(
+                () => teacher.Service.ReverseAsync(completionId, note: null, CancellationToken.None));
+        }
+    }
+
+    [Fact]
+    public async Task ReverseAsync_UnknownCompletionId_Throws()
+    {
+        using var teacher = CreateContext(10, Role.Teacher);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => teacher.Service.ReverseAsync(completionId: 999, note: null, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task ReverseAsync_OutsideDefaultWindow_Throws()
+    {
+        int completionId;
+        using (var setup = CreateContext(1, Role.Admin))
+        {
+            AddConsent(setup.Context, id: 16, studentId: 100, ConsentStatus.Approved, DateOnly.FromDateTime(DateTime.UtcNow.AddMonths(6)));
+            completionId = 500;
+            setup.Context.StudentLessonCompletions.Add(new StudentLessonCompletion
+            {
+                Id = completionId,
+                StudentId = 100,
+                LessonId = 1,
+                CompletedByUserId = 10,
+                // 8 days ago — one day past CompletionService.DefaultReversalWindowDays (7).
+                CompletedAt = DateTime.UtcNow.AddDays(-8),
+                IsReversed = false
+            });
+            setup.Context.SaveChanges();
+        }
+
+        using var teacher = CreateContext(10, Role.Teacher);
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => teacher.Service.ReverseAsync(completionId, note: null, CancellationToken.None));
+        Assert.Contains("window has passed", ex.Message);
+
+        using var verify = CreateContext(1, Role.Admin);
+        var stored = await verify.Context.StudentLessonCompletions.SingleAsync(c => c.Id == completionId);
+        Assert.False(stored.IsReversed);
+    }
+
+    [Fact]
+    public async Task ReverseAsync_WithinDefaultWindow_Succeeds()
+    {
+        int completionId;
+        using (var setup = CreateContext(1, Role.Admin))
+        {
+            AddConsent(setup.Context, id: 17, studentId: 100, ConsentStatus.Approved, DateOnly.FromDateTime(DateTime.UtcNow.AddMonths(6)));
+            completionId = 501;
+            setup.Context.StudentLessonCompletions.Add(new StudentLessonCompletion
+            {
+                Id = completionId,
+                StudentId = 100,
+                LessonId = 1,
+                CompletedByUserId = 10,
+                // 6 days ago — still inside the default 7-day window.
+                CompletedAt = DateTime.UtcNow.AddDays(-6),
+                IsReversed = false
+            });
+            setup.Context.SaveChanges();
+        }
+
+        using var teacher = CreateContext(10, Role.Teacher);
+        var reversed = await teacher.Service.ReverseAsync(completionId, note: null, CancellationToken.None);
+        Assert.True(reversed.IsReversed);
+    }
+
+    /// <summary>
+    /// Proves the reversal window is genuinely configurable, not just a hardcoded number that
+    /// happens to be read from a constant — the same "configurable constructor parameter actually
+    /// changes behaviour" property <c>ConsentExpiryJobTests</c>/<c>NotificationServiceTests</c>
+    /// already established for their own configurable defaults.
+    /// </summary>
+    [Fact]
+    public async Task ReverseAsync_WithConfiguredShorterWindow_RejectsWhatTheDefaultWindowWouldAllow()
+    {
+        int completionId;
+        using (var setup = CreateContext(1, Role.Admin))
+        {
+            AddConsent(setup.Context, id: 18, studentId: 100, ConsentStatus.Approved, DateOnly.FromDateTime(DateTime.UtcNow.AddMonths(6)));
+            completionId = 502;
+            setup.Context.StudentLessonCompletions.Add(new StudentLessonCompletion
+            {
+                Id = completionId,
+                StudentId = 100,
+                LessonId = 1,
+                CompletedByUserId = 10,
+                // 2 days ago — inside the default 7-day window, but outside a configured 1-day one.
+                CompletedAt = DateTime.UtcNow.AddDays(-2),
+                IsReversed = false
+            });
+            setup.Context.SaveChanges();
+        }
+
+        using var teacher = CreateContext(10, Role.Teacher);
+        var shortWindowService = teacher.ServiceWithReversalWindow(1);
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => shortWindowService.ReverseAsync(completionId, note: null, CancellationToken.None));
+
+        var longWindowService = teacher.ServiceWithReversalWindow(30);
+        var reversed = await longWindowService.ReverseAsync(completionId, note: null, CancellationToken.None);
+        Assert.True(reversed.IsReversed);
+    }
+
+    [Fact]
+    public void Constructor_WithNonPositiveReversalWindow_Throws()
+    {
+        using var teacher = CreateContext(10, Role.Teacher);
+        Assert.Throws<ArgumentOutOfRangeException>(() => teacher.ServiceWithReversalWindow(0));
+        Assert.Throws<ArgumentOutOfRangeException>(() => teacher.ServiceWithReversalWindow(-1));
+    }
+
+    /// <summary>
+    /// The property that actually matters (STATE.md's own framing): proves a completion reversed
+    /// through the real <see cref="CompletionService.ReverseAsync"/> write path — not test seed data
+    /// setting <see cref="StudentLessonCompletion.IsReversed"/> directly, which is all
+    /// <see cref="PromotionServiceTests"/> does — is genuinely excluded from
+    /// <see cref="PromotionService"/>'s rank-progression counting. Sequence: complete L1, reverse it,
+    /// then complete L2 — since L1's completion no longer counts, the rank isn't yet fully complete
+    /// (still 1 of 2 active lessons), so no promotion happens even though both lessons have at some
+    /// point had a completion recorded. Re-completing L1 afterward promotes normally.
+    /// </summary>
+    [Fact]
+    public async Task ReverseAsync_ThenCompletingRemainingLesson_DoesNotTriggerPromotion_UntilReversedLessonIsRedone()
+    {
+        using (var setup = CreateContext(1, Role.Admin))
+        {
+            AddConsent(setup.Context, id: 19, studentId: 100, ConsentStatus.Approved, DateOnly.FromDateTime(DateTime.UtcNow.AddMonths(6)));
+        }
+
+        int firstCompletionId;
+        using (var teacher = CreateContext(10, Role.Teacher))
+        {
+            var first = await teacher.Service.MarkCompleteAsync(studentId: 100, lessonId: 1, note: null, CancellationToken.None);
+            firstCompletionId = first.Id;
+            await teacher.Service.ReverseAsync(firstCompletionId, note: "Wrong lesson", CancellationToken.None);
+            await teacher.Service.MarkCompleteAsync(studentId: 100, lessonId: 2, note: null, CancellationToken.None);
+        }
+
+        using (var verify = CreateContext(1, Role.Admin))
+        {
+            var student = await verify.Context.Students.SingleAsync(s => s.Id == 100);
+            Assert.Equal(1, student.CurrentRankId); // still Recruit — L1's only completion is reversed
+        }
+
+        using (var teacher = CreateContext(10, Role.Teacher))
+        {
+            await teacher.Service.MarkCompleteAsync(studentId: 100, lessonId: 1, note: "Redone correctly", CancellationToken.None);
+        }
+
+        using var finalVerify = CreateContext(1, Role.Admin);
+        var promotedStudent = await finalVerify.Context.Students.SingleAsync(s => s.Id == 100);
+        Assert.Equal(2, promotedStudent.CurrentRankId); // now promoted — both active lessons genuinely complete
     }
 }

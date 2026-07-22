@@ -20,7 +20,7 @@ All subsequent per-student data (badges, certificates, consent) is fetched via s
 
 A regression test (`ParentDashboardServiceTests.GetDashboardAsync_CertificateForReversedCompletion_IsHidden_ReversalCascadesToCertificateVisibility`) proves the current behaviour: exactly one certificate is returned for the non-reversed completion, and the reversed completion's certificate ("Fire Safety") is absent.
 
-**Related, out of scope for this decision:** there is no production code path anywhere in `src/` that actually sets `IsReversed = true` — only test seed data does. No Teacher-facing "reverse a completion" UI/service exists yet; tracked separately in STATE.md `## Next`.
+**Closed:** the gap this section used to name ("no production code path anywhere in `src/` actually sets `IsReversed = true` — only test seed data does") is fixed — `CompletionService.ReverseAsync` (see [progress-tracking.md](progress-tracking.md)) is the Teacher-facing write path, with a page at `/progress/completions`. `ParentDashboardServiceTests.GetDashboardAsync_CertificateHiddenAfterGenuineReversal_ViaCompletionServiceReverseAsync` proves the certificate-hiding behaviour above holds for a completion reversed through that real write path, not just for one seeded directly with `IsReversed = true` — closing the loop this section's own history had left open.
 
 ## Page (`src/Vlms.Web/Components/Pages/Parent/ParentDashboard.razor`)
 

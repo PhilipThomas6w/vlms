@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Vlms.Domain;
 using Vlms.Infrastructure;
 using Vlms.Infrastructure.Engagement;
+using Vlms.Infrastructure.Progress;
 using Xunit;
 
 namespace Vlms.Tests.Infrastructure;
@@ -164,6 +165,57 @@ public sealed class ParentDashboardServiceTests : IDisposable
         var certificate = Assert.Single(alex.Certificates);
         Assert.Equal("Knots 101", certificate.LessonTitle);
         Assert.DoesNotContain(alex.Certificates, c => c.LessonTitle == "Fire Safety");
+    }
+
+    /// <summary>
+    /// The property that actually matters (STATE.md's own framing for the reversal-flow item): proves
+    /// a certificate is hidden after its underlying completion is reversed through the real
+    /// <see cref="CompletionService.ReverseAsync"/> write path — not test seed data setting
+    /// <see cref="StudentLessonCompletion.IsReversed"/> directly, which is all the fixture above and
+    /// the test right below it do. Seeds a fresh, non-reversed completion/certificate for Alex, checks
+    /// it starts visible, reverses it as the recording Teacher, then checks it disappears.
+    /// </summary>
+    [Fact]
+    public async Task GetDashboardAsync_CertificateHiddenAfterGenuineReversal_ViaCompletionServiceReverseAsync()
+    {
+        int completionId;
+        using (var seed = CreateContext(new FakeCurrentUserContext(userId: 1, Role.Admin)))
+        {
+            completionId = 3;
+            seed.Context.StudentLessonCompletions.Add(new StudentLessonCompletion
+            {
+                Id = completionId, StudentId = 100, LessonId = 1, CompletedByUserId = 10,
+                CompletedAt = DateTime.UtcNow.AddDays(-1), IsReversed = false
+            });
+            seed.Context.Certificates.Add(new Certificate
+            {
+                Id = 3, StudentLessonCompletionId = completionId, GeneratedAt = DateTime.UtcNow.AddDays(-1), BlobKey = "certificates/100/3.pdf"
+            });
+            seed.Context.SaveChanges();
+        }
+
+        var parentA = new FakeCurrentUserContext(userId: 1, Role.Parent);
+
+        using (var before = CreateContext(parentA))
+        {
+            var alexBefore = Assert.Single(await before.Service(parentA).GetDashboardAsync());
+            Assert.Contains(alexBefore.Certificates, c => c.BlobKey == "certificates/100/3.pdf");
+        }
+
+        using (var reverse = CreateContext(new FakeCurrentUserContext(userId: 10, Role.Teacher)))
+        {
+            var completionService = new CompletionService(
+                reverse.Context,
+                new FakeCurrentUserContext(userId: 10, Role.Teacher),
+                new PromotionService(reverse.Context),
+                new CertificateService(reverse.Context, new InMemoryBlobStorage()));
+
+            await completionService.ReverseAsync(completionId, note: "Recorded against the wrong lesson", CancellationToken.None);
+        }
+
+        using var after = CreateContext(parentA);
+        var alexAfter = Assert.Single(await after.Service(parentA).GetDashboardAsync());
+        Assert.DoesNotContain(alexAfter.Certificates, c => c.BlobKey == "certificates/100/3.pdf");
     }
 
     /// <summary>

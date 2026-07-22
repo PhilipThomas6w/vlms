@@ -1,0 +1,147 @@
+@page "/progress/completions"
+@attribute [Authorize(Policy = "RequireTeacher")]
+@rendermode InteractiveServer
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.EntityFrameworkCore
+@using Vlms.Domain
+@using Vlms.Infrastructure
+@using Vlms.Infrastructure.Progress
+@inject VlmsDbContext Db
+@inject ICurrentUserContext CurrentUser
+@inject CompletionService CompletionService
+
+<PageTitle>My recorded completions</PageTitle>
+
+<h1>My recorded completions</h1>
+
+<p>
+    Lists lesson completions you personally recorded. You can self-correct/reverse your own entry
+    (functional.md) within @CompletionService.DefaultReversalWindowDays days of recording it — no
+    separate correction gate through Admin. A reversal excludes the completion from rank-promotion
+    counting and hides any certificate it generated; it does not undo a promotion that already
+    happened.
+</p>
+
+@if (_errorMessage is not null)
+{
+    <p class="error" role="alert">@_errorMessage</p>
+}
+
+<table>
+    <thead>
+        <tr>
+            <th>Student</th>
+            <th>Lesson</th>
+            <th>Completed</th>
+            <th>Note</th>
+            <th>Status</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var completion in _completions)
+        {
+            <tr>
+                <td>@completion.Student?.Name</td>
+                <td>@completion.Lesson?.Title</td>
+                <td>@completion.CompletedAt.ToString("g")</td>
+                <td>@completion.Note</td>
+                <td>
+                    @if (completion.IsReversed)
+                    {
+                        <text>Reversed @completion.ReversedAt?.ToString("g")</text>
+                    }
+                    else
+                    {
+                        <text>Active</text>
+                    }
+                </td>
+                <td>
+                    @if (!completion.IsReversed)
+                    {
+                        <button type="button" @onclick="() => StartReverse(completion)">Reverse</button>
+                    }
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@if (_reversingCompletion is not null)
+{
+    <h2>Reverse completion: @_reversingCompletion.Student?.Name — @_reversingCompletion.Lesson?.Title</h2>
+    <EditForm Model="_reversalForm" OnValidSubmit="ConfirmReverseAsync">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div>
+            <label for="reversalNote">Reason (optional)</label>
+            <InputTextArea id="reversalNote" @bind-Value="_reversalForm.Note" />
+        </div>
+
+        <button type="submit">Confirm reversal</button>
+        <button type="button" @onclick="CancelReverse">Cancel</button>
+    </EditForm>
+}
+
+@code {
+    private List<StudentLessonCompletion> _completions = new();
+    private StudentLessonCompletion? _reversingCompletion;
+    private ReversalFormModel _reversalForm = new();
+    private string? _errorMessage;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        var userId = CurrentUser.UserId;
+        _completions = userId is null
+            ? new List<StudentLessonCompletion>()
+            : await Db.StudentLessonCompletions
+                .Include(c => c.Student)
+                .Include(c => c.Lesson)
+                .Where(c => c.CompletedByUserId == userId)
+                .OrderByDescending(c => c.CompletedAt)
+                .Take(50)
+                .ToListAsync();
+    }
+
+    private void StartReverse(StudentLessonCompletion completion)
+    {
+        _errorMessage = null;
+        _reversingCompletion = completion;
+        _reversalForm = new ReversalFormModel();
+    }
+
+    private void CancelReverse()
+    {
+        _reversingCompletion = null;
+        _errorMessage = null;
+    }
+
+    private async Task ConfirmReverseAsync()
+    {
+        if (_reversingCompletion is null)
+        {
+            return;
+        }
+
+        _errorMessage = null;
+
+        try
+        {
+            await CompletionService.ReverseAsync(_reversingCompletion.Id, _reversalForm.Note);
+            _reversingCompletion = null;
+            await LoadAsync();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+
+    private sealed class ReversalFormModel
+    {
+        public string? Note { get; set; }
+    }
+}

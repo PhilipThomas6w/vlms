@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Vlms.Domain;
 using Vlms.Infrastructure;
+using Vlms.Infrastructure.Progress;
 using Vlms.Infrastructure.Reporting;
 using Vlms.Infrastructure.Safeguarding;
 using Vlms.Infrastructure.Security;
@@ -151,6 +152,74 @@ public sealed class ProgressReportingServiceTests : IDisposable
         Assert.Collection(report.PromotionHistory,
             e => { Assert.Equal(104, e.StudentId); Assert.Equal("Evan", e.StudentName); Assert.Equal("Pioneer", e.RankName); Assert.Equal(new DateTime(2024, 7, 1, 0, 0, 0, DateTimeKind.Utc), e.CompletedAt); },
             e => { Assert.Equal(102, e.StudentId); Assert.Equal("Casey", e.StudentName); Assert.Equal("Recruit", e.RankName); Assert.Equal(new DateTime(2024, 3, 1, 0, 0, 0, DateTimeKind.Utc), e.CompletedAt); });
+    }
+
+    /// <summary>
+    /// The property that actually matters (STATE.md's own framing for the reversal-flow item): proves
+    /// <see cref="ProgressReportingService.GetProgressStatsAsync"/>'s <c>TotalLessonCompletions</c>
+    /// count genuinely drops once a completion is reversed through the real
+    /// <see cref="CompletionService.ReverseAsync"/> write path — not test seed data setting
+    /// <see cref="StudentLessonCompletion.IsReversed"/> directly (all of
+    /// <see cref="SeedProgressStatsScenario"/>'s completions are seeded that way; this test is the one
+    /// exception).
+    /// </summary>
+    [Fact]
+    public async Task GetProgressStatsAsync_TotalLessonCompletions_DropsAfterGenuineReversal_ViaCompletionServiceReverseAsync()
+    {
+        using (var seed = CreateContext(SystemCurrentUserContext.Instance))
+        {
+            var db = seed.Context;
+            db.Database.EnsureCreated();
+            db.Ranks.Add(new Rank { Id = 1, Order = 1, Code = "R1", Name = "Recruit" });
+            db.Lessons.Add(new Lesson { Id = 1, RankId = 1, Code = "L1", Title = "Knots", ContentBlobKey = "b1", IsActive = true });
+            db.AppUsers.Add(new AppUser { Id = 10, DisplayName = "Teacher One", Email = "t1@example.com" });
+            db.ParentGuardians.Add(new ParentGuardian { Id = 900, Name = "Frankie's Parent", ContactInfo = "parent900@example.com", IsPrimary = true });
+            db.Students.Add(NewStudent(900, "Frankie", StudentStatus.Active, 1, new DateOnly(2024, 1, 1)));
+            db.StudentRankProgresses.Add(new StudentRankProgress { Id = 900, StudentId = 900, RankId = 1, StartedAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), CompletedAt = null });
+            db.ConsentRecords.Add(new ConsentRecord
+            {
+                Id = 900, StudentId = 900, PeriodStart = new DateOnly(2024, 1, 1), PeriodEnd = new DateOnly(2026, 12, 31),
+                PhotoMediaConsent = true, TransportOffsiteConsent = true, DataSharingConsent = true,
+                Status = ConsentStatus.Approved, SubmittedByParentId = 900, ExpiryDate = new DateOnly(2026, 12, 31)
+            });
+            db.SaveChanges();
+        }
+
+        int completionId;
+        using (var teacherCtx = CreateContext(new FakeCurrentUserContext(userId: 10, Role.Teacher)))
+        {
+            var completionService = new CompletionService(
+                teacherCtx.Context,
+                new FakeCurrentUserContext(userId: 10, Role.Teacher),
+                new PromotionService(teacherCtx.Context),
+                new CertificateService(teacherCtx.Context, new InMemoryBlobStorage()));
+
+            var completion = await completionService.MarkCompleteAsync(studentId: 900, lessonId: 1, note: null, CancellationToken.None);
+            completionId = completion.Id;
+        }
+
+        using (var before = CreateContext(SystemCurrentUserContext.Instance))
+        {
+            var admin = new FakeCurrentUserContext(userId: 1, Role.Admin);
+            var reportBefore = await before.Service(admin).GetProgressStatsAsync();
+            Assert.Equal(1, reportBefore.TotalLessonCompletions);
+        }
+
+        using (var reverseCtx = CreateContext(new FakeCurrentUserContext(userId: 10, Role.Teacher)))
+        {
+            var completionService = new CompletionService(
+                reverseCtx.Context,
+                new FakeCurrentUserContext(userId: 10, Role.Teacher),
+                new PromotionService(reverseCtx.Context),
+                new CertificateService(reverseCtx.Context, new InMemoryBlobStorage()));
+
+            await completionService.ReverseAsync(completionId, note: "Recorded for the wrong student", CancellationToken.None);
+        }
+
+        using var after = CreateContext(SystemCurrentUserContext.Instance);
+        var adminAfter = new FakeCurrentUserContext(userId: 1, Role.Admin);
+        var reportAfter = await after.Service(adminAfter).GetProgressStatsAsync();
+        Assert.Equal(0, reportAfter.TotalLessonCompletions);
     }
 
     [Theory]

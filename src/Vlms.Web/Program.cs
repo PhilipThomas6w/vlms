@@ -11,10 +11,12 @@ using Vlms.Infrastructure.Engagement;
 using Vlms.Infrastructure.Guardianship;
 using Vlms.Infrastructure.Identity;
 using Vlms.Infrastructure.Notifications;
+using Vlms.Infrastructure.Progress;
 using Vlms.Infrastructure.Registration;
 using Vlms.Infrastructure.Reporting;
 using Vlms.Infrastructure.Safeguarding;
 using Vlms.Infrastructure.Security;
+using Vlms.Infrastructure.Storage;
 using Vlms.Web.Components;
 using Vlms.Web.Components.Account;
 
@@ -107,6 +109,21 @@ builder.Services.AddScoped<ParentDashboardService>();
 // why this isn't the Admin-or-SafeguardingOfficer pattern the consent/DBS pages use). At-risk
 // flagging reuses AtRiskStudentFlagging, the same computation ConsentExpiryJob's daily sweep uses.
 builder.Services.AddScoped<ProgressReportingService>();
+
+// --- Progress tracking (docs/design/low-level-design.md "CompletionService"/"PromotionService"/
+// "CertificateService", STATE.md "Teacher-facing reverse a completion flow") — first wired into
+// Vlms.Web here: Progress/CompletionReversals.razor (the Teacher-facing reversal page) is the first
+// UI consumer of CompletionService, which is exactly the moment progress-tracking.md's own doc
+// comment on LocalDiskBlobStorage named as the trigger to finally wire IBlobStorage/
+// CertificateService/PromotionService into DI (previously "structurally correct, not yet wired" —
+// no page referenced any of them). "Storage:LocalRootPath" mirrors the "Smtp"/"App" sections above:
+// a local-dev default (LocalDiskBlobStorage.DefaultRootPath, App_Data/blobs) when unset, overridden
+// for a real deployment path via appsettings.json/an environment variable.
+builder.Services.AddScoped<IBlobStorage>(sp =>
+    new LocalDiskBlobStorage(sp.GetRequiredService<IConfiguration>().GetValue<string>("Storage:LocalRootPath")));
+builder.Services.AddScoped<PromotionService>();
+builder.Services.AddScoped<CertificateService>();
+builder.Services.AddScoped<CompletionService>();
 
 // --- Notifications (adr/0001-technology-stack.md, low-level-design.md "NotificationService") —
 // wired into Vlms.Web itself, not just Vlms.Jobs (STATE.md "Identity" item 5: guardian invite

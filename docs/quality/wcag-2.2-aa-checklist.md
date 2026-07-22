@@ -32,11 +32,24 @@ The current pages (`src/Vlms.Web/Components/Pages/`): `Home.razor`,
 `Guardianship/GuardianLinks.razor`, `Guardianship/AcceptInvite.razor`,
 `Registration/RegisterStudent.razor`, `Safeguarding/ConsentRecords.razor`,
 `Safeguarding/DbsChecks.razor`, `Parent/ParentDashboard.razor`,
-`Reporting/ProgressReporting.razor`, plus the shared `Layout/MainLayout.razor`/
-`Layout/ReconnectModal.razor` — and, new this review (STATE.md "Identity" item —
+`Reporting/ProgressReporting.razor`, `Progress/CompletionReversals.razor`, plus the shared
+`Layout/MainLayout.razor`/`Layout/ReconnectModal.razor` — and (STATE.md "Identity" item —
 `src/Vlms.Web/Components/Account/Pages/`): `Login.razor`, `Register.razor`, `LoginWith2fa.razor`,
 `LoginWithRecoveryCode.razor`, `Manage/EnableAuthenticator.razor`,
 `Manage/TwoFactorAuthentication.razor`.
+
+- [ ] **`Progress/CompletionReversals.razor`, reviewed this pass (STATE.md "Teacher-facing reverse a
+      completion flow"):** follows the same established pattern as the other eight form/list pages —
+      its one `InputTextArea` (the reversal-reason field) has a matching `<label for="...">`
+      (mechanically enforced by `build/check-accessibility.ps1`); its error path uses
+      `<p class="error" role="alert">`, same as `RegisterStudent.razor`'s `_errorMessage` pattern;
+      its list-then-inline-form shape (a table of completions, a reversal form that appears below it
+      when "Reverse" is clicked) mirrors `Curriculum/TeacherProposals.razor`'s existing
+      list-then-form pattern, not a new one. No new colour/contrast surface (plain table/form markup
+      against the existing unstyled `app.css`, same open item as every other page below). Falls
+      under the same still-open "Status messages (4.1.3)" gap as the other seven form pages — a
+      successful reversal clears the inline form and reloads the list with no explicit success
+      message, same as `RegisterStudent.razor`'s reload-and-clear behaviour that item already covers.
 
 - [ ] **New Identity/Account pages, reviewed this pass:** all six follow the same pattern already
       established elsewhere in this codebase — every `<input>`/`InputText`/`InputCheckbox` has a
@@ -103,5 +116,6 @@ The current pages (`src/Vlms.Web/Components/Pages/`): `Home.razor`,
 | Philip Luke Thomas | 2026-07-19 | Initial checklist authored alongside the verify.ps1 gate stage. Colour contrast and the MainLayout dismiss-glyph aria-label are the two items most likely to need real follow-up once branding lands; not blocking for this increment since no VLMS-specific visual design exists yet to review against. |
 | Philip Luke Thomas | 2026-07-20 | Re-reviewed after STATE.md's "Identity" item added six new Account pages (Login/Register/LoginWith2fa/LoginWithRecoveryCode/Manage/EnableAuthenticator/Manage/TwoFactorAuthentication), one new content page (`Guardianship/AcceptInvite.razor`), and a persistent nav bar in `MainLayout.razor`. Read every new/changed file, not just the diff. All six Account pages follow this codebase's existing label/role="alert" conventions (new bullet above); the QR-code alt-text question that a TOTP enrolment page would normally raise doesn't arise here — no QR code is generated, a documented scope decision. `MainLayout.razor`'s new `<nav>` is semantic markup, reviewed under the existing "Consistent navigation" item (updated above) rather than as a new concern. One genuine improvement found and noted, not a gap: `Manage/TwoFactorAuthentication.razor` uses `role="status"` for its recovery-code-regeneration message, which the existing "Status messages (4.1.3)" item had flagged as missing everywhere else — that item stays open for the older seven pages, not resolved codebase-wide. No new gaps found beyond what was already open (colour contrast, the MainLayout dismiss-glyph aria-label, and the pre-existing status-messages item). |
 | Philip Luke Thomas | 2026-07-21 | **Cumulative audit pass** (ADR-0005 hosting-pivot verify-gate audit, STATE.md), not triggered by a hash mismatch — `build/verify.ps1` reported this checklist current before this review. Confirmed, rather than assumed, that none of the three ADR-0005 hosting-pivot items landed after the row above (file storage/`LocalDiskBlobStorage`, email/`SmtpEmailSender`, scheduled-jobs/systemd, deployment-scripting) touched any `.razor` file or `wwwroot/app.css` — checked each Done entry's own file list, not inferred from "they sound backend-only". A repo-wide listing of `src/Vlms.Web/Components/**/*.razor` confirms the page inventory named in "Manual review items" above is still exhaustive and unchanged (no page added or removed). No new gaps found beyond what was already open (colour contrast, the MainLayout dismiss-glyph aria-label, and the status-messages item). Hash unchanged (no hashed file changed). |
+| Philip Luke Thomas | 2026-07-22 | Re-reviewed after the Teacher-facing completion-reversal item (STATE.md) added one new page, `Progress/CompletionReversals.razor`, invalidating the recorded hash. Reviewed the new page directly (new bullet above): its `InputTextArea`/`label` pairing and `role="alert"` error handling both follow this codebase's existing conventions rather than introducing a new one, mechanically confirmed for the label pairing by `build/check-accessibility.ps1` itself. No other `.razor` file or `wwwroot/app.css` changed in this item (confirmed via `git diff`, not assumed) — every other page's status is unchanged from the row above. No new gaps found beyond what was already open (colour contrast, the MainLayout dismiss-glyph aria-label, and the status-messages item — which this new page also falls under, noted in its own bullet rather than silently exempted). |
 
-Reviewed-hash: 515a3d8fc5ec63f288d36f1c4996484f28efd68dec6eb7a8adba1adc9d4bdc77
+Reviewed-hash: c65ac7d35dd4ef52b7b06d8a7435e388a69540973267e28e4c4fe10d964d9826
