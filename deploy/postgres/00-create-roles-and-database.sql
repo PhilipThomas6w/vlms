@@ -26,6 +26,19 @@
 --                10-grant-app-privileges.sql (run after migrations create the schema) is what
 --                grants it exactly what it needs.
 --
+-- Neither role is created with BYPASSRLS, confirmed rather than assumed
+-- (docs/adr/0004-sensitive-data-access-control.md §6 pass 8, added once the
+-- EnforceRowLevelSecurityOnSensitiveDataAccessLog migration made this attribute load-bearing: a
+-- role with BYPASSRLS, like a superuser, bypasses Row-Level Security entirely, including the
+-- FORCE ROW LEVEL SECURITY that migration relies on to bind sensitive_data_access_logs's owner).
+-- postgresql.org/docs/current/sql-createrole.html: "NOBYPASSRLS is the default. Only superuser
+-- roles or roles with BYPASSRLS can specify BYPASSRLS" — this script never specifies BYPASSRLS for
+-- either role below, both are explicitly NOSUPERUSER, and neither statement below grants BYPASSRLS
+-- afterwards anywhere in this repository (grep this repo for "BYPASSRLS" to confirm nothing does),
+-- so both roles keep the NOBYPASSRLS default. If this ever changes, re-read adr/0004 §6 pass 8
+-- first — granting BYPASSRLS to vlms_app or vlms_owner would silently defeat the RLS tamper
+-- protection that migration exists to provide.
+--
 -- Passwords below are PLACEHOLDER sentinels, same convention as appsettings.json's own checked-in
 -- placeholders (never a real credential in this repository) — replace both before running, and
 -- never commit the replaced values anywhere; they belong in each role's own use (vlms_owner: a

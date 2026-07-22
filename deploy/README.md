@@ -71,9 +71,10 @@ sudo apt install -y caddy
 
 Read `deploy/postgres/00-create-roles-and-database.sql` and
 `deploy/postgres/10-grant-app-privileges.sql` first — both files carry the actual reasoning
-(`governance/raid.md` D-004, `docs/adr/0004-sensitive-data-access-control.md` §4 pass 6) for why
-this is two roles and two scripts, not one of each. Summary of the order (getting this order wrong
-defeats the least-privilege design — re-read the scripts, don't just copy these commands blind):
+(`governance/raid.md` D-004, `docs/adr/0004-sensitive-data-access-control.md` §4 pass 6/§6 pass 8)
+for why this is two roles and two scripts, not one of each. Summary of the order (getting this order
+wrong defeats the least-privilege design — re-read the scripts, don't just copy these commands
+blind):
 
 ```sh
 # 1. Create vlms_owner (migrator/schema-owner role) + vlms_app (runtime role) + the "vlms" database.
@@ -82,8 +83,10 @@ sudo -u postgres psql -f deploy/postgres/00-create-roles-and-database.sql
 #   not by editing and re-running this file (CREATE ROLE only runs once, guarded by the DO block).
 
 # 2. Apply EF Core migrations AS vlms_owner — this is what actually creates every table, owned by
-#    vlms_owner (never vlms_app — that's the whole point). From a machine with the .NET SDK/dotnet-ef
-#    tool and this repository checked out:
+#    vlms_owner (never vlms_app — that's the whole point), and (via
+#    EnforceRowLevelSecurityOnSensitiveDataAccessLog) enables + forces Row-Level Security on
+#    sensitive_data_access_logs. From a machine with the .NET SDK/dotnet-ef tool and this repository
+#    checked out:
 dotnet ef database update --project src/Vlms.Infrastructure --startup-project src/Vlms.Web \
   --connection "Host=<vps-host>;Database=vlms;Username=vlms_owner;Password=<the real vlms_owner password>"
 
@@ -104,6 +107,40 @@ If that `UPDATE` succeeds, stop and re-check `deploy/postgres/10-grant-app-privi
 `governance/raid.md` D-004 before going any further — this is the one point in this whole
 deployment where a mistake silently defeats the audit-log tamper-protection mechanism items 1/2 of
 this pivot already built.
+
+**Additional verification, added for the `EnforceRowLevelSecurityOnSensitiveDataAccessLog` migration
+(`docs/adr/0004-sensitive-data-access-control.md` §6 pass 8):** the check above proves the
+privilege-grant layer (`REVOKE ... FROM PUBLIC`) blocks `vlms_app`. It does not, by itself, prove the
+*additional* Row-Level Security layer is active, or that it also binds `vlms_owner` (the table
+owner) specifically — the property that made this pass necessary in the first place, since a
+`REVOKE` alone never touched the owner. Confirm both, connected as the `postgres` superuser (a
+non-superuser cannot see `pg_policies`/`relforcerowsecurity` meaningfully differently, but the
+`psql` commands below are simplest run as superuser regardless):
+
+```sh
+sudo -u postgres psql -d vlms -c \
+  "SELECT relrowsecurity, relforcerowsecurity FROM pg_class WHERE relname = 'sensitive_data_access_logs';"
+# expected: relrowsecurity = t, relforcerowsecurity = t (both true — ENABLE and FORCE are both set)
+
+sudo -u postgres psql -d vlms -c \
+  "SELECT policyname, cmd FROM pg_policies WHERE tablename = 'sensitive_data_access_logs';"
+# expected: exactly two rows — sensitive_data_access_logs_allow_select (cmd 'r'),
+# sensitive_data_access_logs_allow_insert (cmd 'a'). No row for UPDATE/DELETE.
+
+# Then, connected AS vlms_owner specifically (not postgres) — this is the check that proves FORCE is
+# actually binding the owner, not just present in the catalog:
+PGPASSWORD='<vlms_owner password>' psql -h <vps-host> -U vlms_owner -d vlms \
+  -c "UPDATE sensitive_data_access_logs SET user_id = NULL;"
+# expected: ERROR: permission denied for table sensitive_data_access_logs (or a row-security-policy
+# error) — vlms_owner OWNS this table and would normally bypass RLS entirely; if this UPDATE
+# succeeds, FORCE ROW LEVEL SECURITY did not apply and this migration has not achieved what it was
+# built for. Stop and re-check the migration before going further.
+```
+
+If either check fails (fewer than two policies, `relforcerowsecurity` is `f`, or the `vlms_owner`
+`UPDATE` succeeds), the RLS layer has not been applied as designed — re-check that
+`EnforceRowLevelSecurityOnSensitiveDataAccessLog` actually ran (`dotnet ef migrations list` against
+the live connection) before assuming step 2 completed correctly.
 
 ## 4. Publish and place `Vlms.Web` / `Vlms.Jobs`
 
@@ -173,7 +210,10 @@ sudo systemctl reload caddy
       pg_stat_activity WHERE datname = 'vlms' GROUP BY usename;"` should show only `vlms_app`
       connections from the application (`vlms_owner` should appear only during a migration run).
 - [ ] Re-run the `UPDATE sensitive_data_access_logs` permission-denied check from step 3 once more
-      against the live system, not just once at setup time.
+      against the live system, not just once at setup time — including the `vlms_owner` variant
+      (step 3's "additional verification" for the RLS migration), since that is the check that
+      proves the table owner is genuinely bound by `FORCE ROW LEVEL SECURITY` and not just exempt
+      the way it would be under `ENABLE` alone.
 - [ ] `sudo systemctl start vlms-jobs.service` (manual one-off run) completes and
       `journalctl -u vlms-jobs.service` shows the expected `ConsentExpiryJob completed: ...` line
       (`deploy/systemd/README.md`'s own verification section covers this in more depth).

@@ -88,4 +88,109 @@ public class MigrationsTests
         Assert.True(createTableIndex >= 0, "Expected InitialCreate to create the sensitive_data_access_logs table.");
         Assert.True(revokeIndex > createTableIndex, "The REVOKE must be applied after the table is created.");
     }
+
+    // --- EnforceRowLevelSecurityOnSensitiveDataAccessLog (adr/0004 §4/§5 pass 8) ---
+    //
+    // Same honest limits as the tests above: GenerateScript() proves the literal SQL text, clause
+    // choice, and statement ordering are correct — the same code path `dotnet ef migrations script`
+    // uses — not that a live PostgreSQL server executes them with the documented RLS semantics
+    // (verified instead against current PostgreSQL documentation; see the migration's own doc
+    // comment and adr/0004 §4 pass 8). This suite deliberately checks more than "the UPDATE/DELETE
+    // gap is closed" — per this item's own instruction, it also proves the SELECT/INSERT permissive
+    // policies are present with the right clause (USING for SELECT, WITH CHECK — not USING — for
+    // INSERT), since a swapped clause would be exactly the kind of subtle mistake that looks
+    // plausible but silently blocks the audit interceptor's own INSERT path at runtime.
+
+    [Fact]
+    public void MigrationScript_EnablesAndForcesRowLevelSecurity()
+    {
+        var script = GenerateFullMigrationScript();
+
+        Assert.Contains(
+            "ALTER TABLE sensitive_data_access_logs ENABLE ROW LEVEL SECURITY;",
+            script);
+        Assert.Contains(
+            "ALTER TABLE sensitive_data_access_logs FORCE ROW LEVEL SECURITY;",
+            script);
+    }
+
+    [Fact]
+    public void MigrationScript_EnableIsAppliedBeforeForce()
+    {
+        // FORCE only has meaning once ENABLE has made row security apply to the table at all — the
+        // migration's doc comment explains why both are required and in this order; this locks that
+        // ordering in rather than trusting the source order alone.
+        var script = GenerateFullMigrationScript();
+
+        var enableIndex = script.IndexOf(
+            "ALTER TABLE sensitive_data_access_logs ENABLE ROW LEVEL SECURITY;",
+            StringComparison.Ordinal);
+        var forceIndex = script.IndexOf(
+            "ALTER TABLE sensitive_data_access_logs FORCE ROW LEVEL SECURITY;",
+            StringComparison.Ordinal);
+
+        Assert.True(enableIndex >= 0, "Expected ENABLE ROW LEVEL SECURITY to be present.");
+        Assert.True(forceIndex > enableIndex, "FORCE must be applied after ENABLE.");
+    }
+
+    [Fact]
+    public void MigrationScript_SelectPolicyUsesUsingNotWithCheck()
+    {
+        // SELECT has no row being written to validate — only USING (row visibility) is meaningful.
+        var script = GenerateFullMigrationScript();
+
+        Assert.Contains(
+            "CREATE POLICY sensitive_data_access_logs_allow_select ON sensitive_data_access_logs FOR SELECT USING (true);",
+            script);
+    }
+
+    [Fact]
+    public void MigrationScript_InsertPolicyUsesWithCheckNotUsing()
+    {
+        // The specific risk this item's own instructions flagged: INSERT must be validated via
+        // WITH CHECK, not USING (there is no existing row for INSERT to filter with USING). Assert
+        // the exact clause, and separately assert the wrong clause is absent for this policy so a
+        // future accidental "USING (true)" on the INSERT policy would fail this test.
+        var script = GenerateFullMigrationScript();
+
+        Assert.Contains(
+            "CREATE POLICY sensitive_data_access_logs_allow_insert ON sensitive_data_access_logs FOR INSERT WITH CHECK (true);",
+            script);
+        Assert.DoesNotContain(
+            "CREATE POLICY sensitive_data_access_logs_allow_insert ON sensitive_data_access_logs FOR INSERT USING (true);",
+            script);
+    }
+
+    [Fact]
+    public void MigrationScript_DoesNotDefinePermissiveUpdateOrDeletePolicy()
+    {
+        // The actual DENY-equivalent: no permissive UPDATE/DELETE policy means those commands are
+        // default-denied for every role (including the table owner, under FORCE) once RLS is
+        // enabled. Proving the negative directly, not just that a search for "FOR UPDATE"/"FOR
+        // DELETE" against this table turns up nothing incidentally.
+        var script = GenerateFullMigrationScript();
+
+        Assert.DoesNotContain("ON sensitive_data_access_logs FOR UPDATE", script);
+        Assert.DoesNotContain("ON sensitive_data_access_logs FOR DELETE", script);
+    }
+
+    [Fact]
+    public void MigrationScript_RowLevelSecurityIsAppliedAfterInitialCreateAndRevoke()
+    {
+        // Must land after both the table exists and the prior REVOKE migration — proving this is a
+        // later, additive migration (kept, not folded backwards into either earlier one).
+        var script = GenerateFullMigrationScript();
+
+        var createTableIndex = script.IndexOf("CREATE TABLE sensitive_data_access_logs", StringComparison.Ordinal);
+        var revokeIndex = script.IndexOf(
+            "REVOKE UPDATE, DELETE ON sensitive_data_access_logs FROM PUBLIC;",
+            StringComparison.Ordinal);
+        var enableIndex = script.IndexOf(
+            "ALTER TABLE sensitive_data_access_logs ENABLE ROW LEVEL SECURITY;",
+            StringComparison.Ordinal);
+
+        Assert.True(createTableIndex >= 0);
+        Assert.True(revokeIndex > createTableIndex);
+        Assert.True(enableIndex > revokeIndex, "RLS must be applied after the prior REVOKE migration.");
+    }
 }

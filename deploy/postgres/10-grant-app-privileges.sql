@@ -78,6 +78,15 @@ $$;
 -- append-only write pattern exactly. If this table does not yet exist when this script runs
 -- (e.g. run before migrations by mistake), this statement errors loudly rather than silently
 -- granting nothing — a fail-closed outcome, not a fail-open one.
+--
+-- Since docs/adr/0004-sensitive-data-access-control.md §6 pass 8
+-- (EnforceRowLevelSecurityOnSensitiveDataAccessLog), this GRANT is no longer the only thing
+-- standing between vlms_app and UPDATE/DELETE on this table — Row-Level Security
+-- (ENABLE + FORCE ROW LEVEL SECURITY, no permissive UPDATE/DELETE policy) independently
+-- default-denies both commands for every role, including vlms_owner. This GRANT still matters
+-- (it governs the separate privilege-grant layer, and matters more for vlms_app's SELECT/INSERT,
+-- which the RLS policies permit but still require the underlying GRANT to reach) — it is not made
+-- redundant by RLS, the two are deliberately independent layers (see adr/0004 §6(d)).
 GRANT SELECT, INSERT ON public.sensitive_data_access_logs TO vlms_app;
 
 -- Sequences: NOT granted here, and deliberately so — every primary key in this schema uses a real

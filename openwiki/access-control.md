@@ -37,7 +37,7 @@ content-hash currency check on a paired human checklist
 full mechanism and the chapter-numbering correction (this is ASVS 5.0 V8 Authorization, not V1 —
 V1 in 5.0 is "Encoding and Sanitization").
 
-## Tamper protection (built — ported to PostgreSQL, adr/0005)
+## Tamper protection (built — ported to PostgreSQL adr/0005, structurally strengthened with RLS adr/0004 §6 pass 8)
 
 `SensitiveDataAccessLog`'s table (`sensitive_data_access_logs`, snake_case per the naming
 convention — [data-access.md](data-access.md)) has `UPDATE`/`DELETE` revoked from `PUBLIC` via a
@@ -132,6 +132,76 @@ it verifiably doesn't (above).
 
 The 6-year retention period itself (a purge/retention job for `SensitiveDataAccessLog`) is a separate,
 not-yet-built concern.
+
+## Row-Level Security (pass 8, `EnforceRowLevelSecurityOnSensitiveDataAccessLog`) — the actual DENY-equivalent, now built
+
+The gap the section above discloses (REVOKE has no override effect on the table owner or on a
+directly-`GRANT`ed role) is now structurally closed for every role this deployment creates, via a
+second migration applied after the one above:
+
+```sql
+ALTER TABLE sensitive_data_access_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sensitive_data_access_logs FORCE ROW LEVEL SECURITY;
+
+CREATE POLICY sensitive_data_access_logs_allow_select
+    ON sensitive_data_access_logs FOR SELECT USING (true);
+
+CREATE POLICY sensitive_data_access_logs_allow_insert
+    ON sensitive_data_access_logs FOR INSERT WITH CHECK (true);
+
+-- Deliberately no UPDATE/DELETE policy.
+```
+
+**Why both `ENABLE` and `FORCE` are needed, verified against
+[Row Security Policies](https://www.postgresql.org/docs/current/ddl-rowsecurity.html):** `ENABLE`
+turns row security on for the table at all, but by itself still exempts the table owner —
+"table owners normally bypass row security... though a table owner can choose to be subject to row
+security with `ALTER TABLE ... FORCE ROW LEVEL SECURITY`." Since `vlms_owner` (the table's owner) is
+exactly the principal the REVOKE-only design above couldn't touch, `FORCE` is the clause that
+actually matters here.
+
+**Why "no permissive UPDATE/DELETE policy" is a DENY, not an oversight:** "if no policy exists for
+the table, a default-deny policy is used, meaning that no rows are visible or can be modified" —
+this applies per-command, so `SELECT`/`INSERT` can be permissive while `UPDATE`/`DELETE`, having no
+policy of their own, are separately and fully denied, for every role including the owner under
+`FORCE`.
+
+**`USING` vs `WITH CHECK` (get this right — it's the easy way to accidentally write a broken
+policy):** `USING` filters *existing* rows a command may see/target; `WITH CHECK` validates rows
+being *written*. `INSERT` has no existing row to filter, so its policy is
+`FOR INSERT WITH CHECK (true)`, never `USING (true)` — a swapped clause here would be exactly the
+kind of subtle mistake that looks plausible but doesn't do what it appears to.
+
+**Why the permissive policies are safe for `SensitiveDataAuditInterceptor`'s own write (the single
+most safety-critical write in this codebase):** the interceptor's `INSERT` has no row-specific
+predicate to satisfy — `WITH CHECK (true)` admits it unconditionally for `vlms_app` and for
+`vlms_owner` under `FORCE` alike, so it cannot be silently blocked. `FOR SELECT USING (true)` keeps
+ordinary reads of this table working unchanged (this table was never read-restricted; RLS here is
+purely a tamper-protection control on `UPDATE`/`DELETE`).
+
+**Who is still exempt — the honest residual, stated rather than implied away:** only a genuine
+PostgreSQL superuser session, or a role explicitly granted `BYPASSRLS` — verified: "superusers and
+roles with the BYPASSRLS attribute always bypass the row security system." `BYPASSRLS` defaults off
+and neither `vlms_owner` nor `vlms_app` is ever granted it or `SUPERUSER`
+(`deploy/postgres/00-create-roles-and-database.sql`, both explicitly `NOSUPERUSER`) — so for the
+roles this deployment actually creates, this is a true DENY-equivalent, the same residual class SQL
+Server's original DENY always carried via `sysadmin`.
+
+**Kept, not replaced:** the pass-6 `REVOKE` migration is untouched — genuine defense in depth (a
+future accidental `GRANT UPDATE ... TO PUBLIC` would undo the REVOKE, but RLS's default-deny would
+still block the resulting `UPDATE`/`DELETE` independently), not redundancy.
+
+**What was verified vs not, the same honesty this page has applied throughout:** PostgreSQL's
+documented RLS semantics were checked directly (cited above and in the migration's own doc comment
+and `docs/adr/0004-sensitive-data-access-control.md` §6), and `MigrationsTests.cs`'s
+`GenerateScript()` pattern proves the exact SQL text, statement ordering, and `USING`/`WITH CHECK`
+clause choice are correct. **Not verified: execution against a live PostgreSQL server** — no
+Testcontainers-backed or other live-PostgreSQL test exists in this repo (no Docker daemon is
+available in this project's build/dev environment, confirmed rather than assumed), consistent with
+this repo's existing test-provider strategy (below). A manual verification procedure for whoever
+first deploys this migration is in `deploy/README.md`'s step 3 (confirm `pg_policies` shows exactly
+the two policies, `relforcerowsecurity` is `true`, and — the check that actually matters — a live
+`UPDATE` as `vlms_owner` itself still fails).
 
 ## Tests
 
