@@ -32,11 +32,25 @@ The current pages (`src/Vlms.Web/Components/Pages/`): `Home.razor`,
 `Guardianship/GuardianLinks.razor`, `Guardianship/AcceptInvite.razor`,
 `Registration/RegisterStudent.razor`, `Safeguarding/ConsentRecords.razor`,
 `Safeguarding/DbsChecks.razor`, `Parent/ParentDashboard.razor`,
-`Reporting/ProgressReporting.razor`, `Progress/CompletionReversals.razor`, plus the shared
+`Reporting/ProgressReporting.razor`, `Reporting/RecordsDueForDeletion.razor`,
+`Progress/CompletionReversals.razor`, plus the shared
 `Layout/MainLayout.razor`/`Layout/ReconnectModal.razor` — and (STATE.md "Identity" item —
 `src/Vlms.Web/Components/Account/Pages/`): `Login.razor`, `Register.razor`, `LoginWith2fa.razor`,
 `LoginWithRecoveryCode.razor`, `Manage/EnableAuthenticator.razor`,
 `Manage/TwoFactorAuthentication.razor`.
+
+- [ ] **`Reporting/RecordsDueForDeletion.razor`, reviewed this pass (STATE.md "'Records due for
+      deletion' report"):** a read-only report page, no `EditForm`/`Input*` components at all — no
+      label-pairing question arises (nothing for `build/check-accessibility.ps1`'s label check to
+      even find). Its error path uses `<p class="error" role="alert">`, the same pattern as every
+      other page. Two data tables (`<table>`/`<thead>`/`<tbody>` with real `<th>` header cells),
+      same structure as `ProgressReporting.razor`'s existing tables — no new pattern introduced. Not
+      in scope for the "Status messages (4.1.3)" gap below: like `ProgressReporting.razor`, it has no
+      form submission at all (nothing to confirm/report back after), so that item's "seven form
+      pages" framing doesn't apply to it, same reasoning already applied to `ProgressReporting.razor`
+      itself. The two new plain `<a>` links to it (from `Home.razor`'s existing `RequireAdmin`
+      `<AuthorizeView>` block, and from `ProgressReporting.razor`) are real anchor elements, covered
+      by the existing "Consistent navigation" item below, not a new concern.
 
 - [ ] **`Progress/CompletionReversals.razor`, reviewed this pass (STATE.md "Teacher-facing reverse a
       completion flow"):** follows the same established pattern as the other eight form/list pages —
@@ -117,5 +131,6 @@ The current pages (`src/Vlms.Web/Components/Pages/`): `Home.razor`,
 | Philip Luke Thomas | 2026-07-20 | Re-reviewed after STATE.md's "Identity" item added six new Account pages (Login/Register/LoginWith2fa/LoginWithRecoveryCode/Manage/EnableAuthenticator/Manage/TwoFactorAuthentication), one new content page (`Guardianship/AcceptInvite.razor`), and a persistent nav bar in `MainLayout.razor`. Read every new/changed file, not just the diff. All six Account pages follow this codebase's existing label/role="alert" conventions (new bullet above); the QR-code alt-text question that a TOTP enrolment page would normally raise doesn't arise here — no QR code is generated, a documented scope decision. `MainLayout.razor`'s new `<nav>` is semantic markup, reviewed under the existing "Consistent navigation" item (updated above) rather than as a new concern. One genuine improvement found and noted, not a gap: `Manage/TwoFactorAuthentication.razor` uses `role="status"` for its recovery-code-regeneration message, which the existing "Status messages (4.1.3)" item had flagged as missing everywhere else — that item stays open for the older seven pages, not resolved codebase-wide. No new gaps found beyond what was already open (colour contrast, the MainLayout dismiss-glyph aria-label, and the pre-existing status-messages item). |
 | Philip Luke Thomas | 2026-07-21 | **Cumulative audit pass** (ADR-0005 hosting-pivot verify-gate audit, STATE.md), not triggered by a hash mismatch — `build/verify.ps1` reported this checklist current before this review. Confirmed, rather than assumed, that none of the three ADR-0005 hosting-pivot items landed after the row above (file storage/`LocalDiskBlobStorage`, email/`SmtpEmailSender`, scheduled-jobs/systemd, deployment-scripting) touched any `.razor` file or `wwwroot/app.css` — checked each Done entry's own file list, not inferred from "they sound backend-only". A repo-wide listing of `src/Vlms.Web/Components/**/*.razor` confirms the page inventory named in "Manual review items" above is still exhaustive and unchanged (no page added or removed). No new gaps found beyond what was already open (colour contrast, the MainLayout dismiss-glyph aria-label, and the status-messages item). Hash unchanged (no hashed file changed). |
 | Philip Luke Thomas | 2026-07-22 | Re-reviewed after the Teacher-facing completion-reversal item (STATE.md) added one new page, `Progress/CompletionReversals.razor`, invalidating the recorded hash. Reviewed the new page directly (new bullet above): its `InputTextArea`/`label` pairing and `role="alert"` error handling both follow this codebase's existing conventions rather than introducing a new one, mechanically confirmed for the label pairing by `build/check-accessibility.ps1` itself. No other `.razor` file or `wwwroot/app.css` changed in this item (confirmed via `git diff`, not assumed) — every other page's status is unchanged from the row above. No new gaps found beyond what was already open (colour contrast, the MainLayout dismiss-glyph aria-label, and the status-messages item — which this new page also falls under, noted in its own bullet rather than silently exempted). |
+| Philip Luke Thomas | 2026-08-05 | Re-reviewed after the "records due for deletion" report item (STATE.md) added one new page, `Reporting/RecordsDueForDeletion.razor`, plus two link-only edits (`Home.razor`, `Reporting/ProgressReporting.razor`), invalidating the recorded hash. Reviewed the new page directly (new bullet above): it is read-only with no `EditForm`/`Input*` surface at all, so the label-pairing question this checklist otherwise tracks per-page simply doesn't arise for it; its error handling reuses the existing `<p class="error" role="alert">` pattern; its two data tables mirror `ProgressReporting.razor`'s existing table structure, no new markup pattern. Explicitly checked whether it falls under the open "Status messages (4.1.3)" gap and confirmed it doesn't — same reasoning already applied to `ProgressReporting.razor` (no form submission on either page, so there is no "silently reset form" for that item to be about). The two new navigation links are plain `<a>` elements, covered by the existing "Consistent navigation" item, not a new concern. Confirmed via `git diff` that no other `.razor` file or `wwwroot/app.css` changed in this item — every other page's status is unchanged from the row above. No new gaps found beyond what was already open (colour contrast, the MainLayout dismiss-glyph aria-label, and the status-messages item). |
 
-Reviewed-hash: c65ac7d35dd4ef52b7b06d8a7435e388a69540973267e28e4c4fe10d964d9826
+Reviewed-hash: 8ad1534753715098bc032d74772d9011c1165d811da4addb37b09fc4d4372462

@@ -31,7 +31,9 @@ public sealed record DbsExpiryFlag(
 public sealed record ConsentExpiryJobResult(
     IReadOnlyList<ConsentExpiryFlag> ConsentFlags,
     IReadOnlyList<DbsExpiryFlag> DbsFlags,
-    IReadOnlyList<AtRiskStudentFlag> AtRiskStudents);
+    IReadOnlyList<AtRiskStudentFlag> AtRiskStudents,
+    IReadOnlyList<StudentDueForDeletion> StudentsDueForDeletion,
+    IReadOnlyList<DbsCheckDueForDeletion> DbsChecksDueForDeletion);
 
 /// <summary>
 /// The daily sweep named in docs/design/low-level-design.md ("ConsentExpiryJob") and
@@ -70,6 +72,18 @@ public sealed record ConsentExpiryJobResult(
 /// <see cref="RunAsync"/> and translate <see cref="ConsentExpiryJobResult"/> into real emails with
 /// retry/backoff (low-level-design.md's NotificationService failure-handling paragraph) instead of,
 /// or alongside, this logging.
+///
+/// 4. <b>Retention flagging</b> (STATE.md "'Records due for deletion' report") —
+/// data-design.md's own wording sources that report "from ConsentExpiryJob's wider sweep", so this
+/// job's sweep is widened, the same way item 2's at-risk flagging already was: computed by the
+/// shared <see cref="Reporting.RetentionFlagging"/> helper (own doc comment has the full reasoning,
+/// including the genuine "no leaving date recorded anywhere" schema gap this surfaced) and logged
+/// at Warning — not Error, since this is administrative housekeeping ("manual, Admin-triggered
+/// deletion"), not a safeguarding-critical block the way expired consent/DBS are. Not passed to
+/// <c>ConsentExpiryNotifier</c> — that class's own scope decision is that only
+/// <see cref="ConsentExpiryFlag.IsExpired"/>/<see cref="DbsExpiryFlag.IsExpired"/> = true flags are
+/// "safeguarding-critical"; retention due-for-deletion is a distinct, non-critical concern, browsable
+/// on demand via the new Admin-only <c>Reporting.RecordsDueForDeletionService</c>.
 ///
 /// Authorization: role-checked inside <see cref="RunAsync"/> (<see cref="RequireAdminOrSafeguardingOfficer"/>),
 /// the same defense-in-depth pattern every other service in this codebase uses. In production the
@@ -119,10 +133,13 @@ public sealed class ConsentExpiryJob
         var consentFlags = await SweepConsentAsync(today, ct);
         var dbsFlags = await SweepDbsAsync(today, ct);
         var atRiskStudents = await AtRiskStudentFlagging.GetAtRiskStudentsAsync(_db, now, ct);
+        var studentsDueForDeletion = await RetentionFlagging.GetStudentsDueForDeletionAsync(_db, now, ct);
+        var dbsChecksDueForDeletion = await RetentionFlagging.GetDbsChecksDueForDeletionAsync(_db, today, ct);
 
-        LogFlags(consentFlags, dbsFlags, atRiskStudents);
+        LogFlags(consentFlags, dbsFlags, atRiskStudents, studentsDueForDeletion, dbsChecksDueForDeletion);
 
-        return new ConsentExpiryJobResult(consentFlags, dbsFlags, atRiskStudents);
+        return new ConsentExpiryJobResult(
+            consentFlags, dbsFlags, atRiskStudents, studentsDueForDeletion, dbsChecksDueForDeletion);
     }
 
     /// <summary>
@@ -240,7 +257,9 @@ public sealed class ConsentExpiryJob
     private void LogFlags(
         IReadOnlyList<ConsentExpiryFlag> consentFlags,
         IReadOnlyList<DbsExpiryFlag> dbsFlags,
-        IReadOnlyList<AtRiskStudentFlag> atRiskStudents)
+        IReadOnlyList<AtRiskStudentFlag> atRiskStudents,
+        IReadOnlyList<StudentDueForDeletion> studentsDueForDeletion,
+        IReadOnlyList<DbsCheckDueForDeletion> dbsChecksDueForDeletion)
     {
         foreach (var flag in consentFlags)
         {
@@ -279,6 +298,20 @@ public sealed class ConsentExpiryJob
             _logger.LogWarning(
                 "At-risk: student {StudentId} ({StudentName}) has had no lesson completion in {DaysSinceLastActivity} days (>= {ThresholdDays}-day threshold) — surfaced to Admin for proactive follow-up.",
                 flag.StudentId, flag.StudentName, flag.DaysSinceLastActivity, AtRiskStudentFlagging.AtRiskThresholdDays);
+        }
+
+        foreach (var flag in studentsDueForDeletion)
+        {
+            _logger.LogWarning(
+                "Retention: student {StudentId} ({StudentName}) graduated {GraduatedAt} and is {DaysPastRetention} day(s) past the {RetentionYears}-year retention period — due for manual Admin-triggered deletion.",
+                flag.StudentId, flag.StudentName, flag.GraduatedAt, flag.DaysPastRetention, RetentionFlagging.StudentRetentionYears);
+        }
+
+        foreach (var flag in dbsChecksDueForDeletion)
+        {
+            _logger.LogWarning(
+                "Retention: DBS check {DbsCheckId} for teacher {TeacherUserId} ({TeacherName}) expired {ExpiryDate} and is {DaysPastRetention} day(s) past the {RetentionYears}-year retention period — due for manual Admin-triggered deletion.",
+                flag.DbsCheckId, flag.TeacherUserId, flag.TeacherName, flag.ExpiryDate, flag.DaysPastRetention, RetentionFlagging.DbsCheckRetentionYears);
         }
     }
 

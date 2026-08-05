@@ -1,0 +1,103 @@
+@page "/reporting/records-due-for-deletion"
+@attribute [Authorize(Policy = "RequireAdmin")]
+@rendermode InteractiveServer
+@using Vlms.Infrastructure.Reporting
+@inject RecordsDueForDeletionService ReportService
+
+<PageTitle>Records due for deletion</PageTitle>
+
+<h1>Records due for deletion</h1>
+
+<p>
+    Student and DBS check records past their UK GDPR retention period
+    (docs/governance/security-compliance.md "Retention": Student records 3 years from leaving/
+    graduating, DBS checks 6 years after expiry). This is a flagging report only — deletion itself
+    stays a manual, Admin-triggered action outside this system; nothing on this page deletes
+    anything.
+</p>
+
+@if (_errorMessage is not null)
+{
+    <p class="error" role="alert">@_errorMessage</p>
+}
+else if (_report is null)
+{
+    <p>Loading…</p>
+}
+else
+{
+    <h2>Students</h2>
+    <p>Graduated students whose graduation date is more than 3 years ago.</p>
+    @if (_report.Students.Count == 0)
+    {
+        <p>No student records are currently due for deletion.</p>
+    }
+    else
+    {
+        <table>
+            <thead>
+                <tr>
+                    <th>Student</th>
+                    <th>Graduated</th>
+                    <th>Days past retention</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var flag in _report.Students)
+                {
+                    <tr>
+                        <td>@flag.StudentName</td>
+                        <td>@flag.GraduatedAt.ToString("d MMMM yyyy")</td>
+                        <td>@flag.DaysPastRetention</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+
+    <h2>DBS checks</h2>
+    <p>DBS check records whose expiry date is more than 6 years ago.</p>
+    @if (_report.DbsChecks.Count == 0)
+    {
+        <p>No DBS check records are currently due for deletion.</p>
+    }
+    else
+    {
+        <table>
+            <thead>
+                <tr>
+                    <th>Teacher</th>
+                    <th>Expired</th>
+                    <th>Days past retention</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var flag in _report.DbsChecks)
+                {
+                    <tr>
+                        <td>@flag.TeacherName</td>
+                        <td>@flag.ExpiryDate.ToString("d MMMM yyyy")</td>
+                        <td>@flag.DaysPastRetention</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+}
+
+@code {
+    private RecordsDueForDeletionReport? _report;
+    private string? _errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _report = await ReportService.GetReportAsync();
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+}

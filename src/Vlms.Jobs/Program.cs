@@ -93,8 +93,9 @@ try
 {
     var result = await job.RunAsync();
     logger.LogInformation(
-        "ConsentExpiryJob completed: {ConsentFlagCount} consent flag(s), {DbsFlagCount} DBS flag(s), {AtRiskCount} at-risk student(s).",
-        result.ConsentFlags.Count, result.DbsFlags.Count, result.AtRiskStudents.Count);
+        "ConsentExpiryJob completed: {ConsentFlagCount} consent flag(s), {DbsFlagCount} DBS flag(s), {AtRiskCount} at-risk student(s), {StudentsDueForDeletionCount} student(s) due for deletion, {DbsChecksDueForDeletionCount} DBS check(s) due for deletion.",
+        result.ConsentFlags.Count, result.DbsFlags.Count, result.AtRiskStudents.Count,
+        result.StudentsDueForDeletion.Count, result.DbsChecksDueForDeletion.Count);
 
     var notificationOutcomes = await notifier.NotifyAsync(result);
     logger.LogInformation(

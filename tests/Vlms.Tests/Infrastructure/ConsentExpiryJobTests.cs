@@ -412,4 +412,110 @@ public sealed class ConsentExpiryJobTests : IDisposable
 
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => sut.RunAsync());
     }
+
+    /// <summary>
+    /// STATE.md "'Records due for deletion' report" — data-design.md sources that report "from
+    /// ConsentExpiryJob's wider sweep", so this job's sweep is widened via the shared
+    /// <see cref="Reporting.RetentionFlagging"/> helper (own doc comment has the full reasoning,
+    /// including why only Graduated students and DBS-expiry can be flagged — no "leaving date" is
+    /// recorded anywhere for Inactive students or for a teacher leaving).
+    /// </summary>
+    [Fact]
+    public async Task RunAsync_FlagsStudentsAndDbsChecksPastRetention()
+    {
+        var now = DateTime.UtcNow;
+
+        using (var seed = CreateContext(SystemCurrentUserContext.Instance))
+        {
+            seed.Context.Students.Add(NewStudent(600, "Graduated Long Ago", StudentStatus.Graduated, DateOnly.FromDateTime(now.AddYears(-6))));
+            seed.Context.StudentRankProgresses.Add(new StudentRankProgress { Id = 1, StudentId = 600, RankId = 1, StartedAt = now.AddYears(-6), CompletedAt = now.AddYears(-4) });
+
+            seed.Context.Students.Add(NewStudent(601, "Recently Graduated", StudentStatus.Graduated, DateOnly.FromDateTime(now.AddYears(-2))));
+            seed.Context.StudentRankProgresses.Add(new StudentRankProgress { Id = 2, StudentId = 601, RankId = 1, StartedAt = now.AddYears(-2), CompletedAt = now.AddYears(-1) });
+
+            // Inactive: never flagged in this increment — no leaving date exists anywhere.
+            seed.Context.Students.Add(NewStudent(602, "Left Long Ago (Inactive)", StudentStatus.Inactive, DateOnly.FromDateTime(now.AddYears(-6))));
+
+            seed.Context.AppUsers.Add(new AppUser { Id = 60, DisplayName = "Teacher Past Retention", Email = "t60@example.com" });
+            seed.Context.UserRoles.Add(new UserRole { UserId = 60, Role = Role.Teacher });
+            seed.Context.DbsChecks.Add(NewDbsCheck(61, 60, DateOnly.FromDateTime(now.AddYears(-7))));
+
+            seed.Context.AppUsers.Add(new AppUser { Id = 62, DisplayName = "Teacher Within Retention", Email = "t62@example.com" });
+            seed.Context.UserRoles.Add(new UserRole { UserId = 62, Role = Role.Teacher });
+            seed.Context.DbsChecks.Add(NewDbsCheck(63, 62, DateOnly.FromDateTime(now.AddYears(-5))));
+
+            seed.Context.SaveChanges();
+        }
+
+        using var run = CreateContext(SystemCurrentUserContext.Instance);
+        var sut = new ConsentExpiryJob(run.Context, SystemCurrentUserContext.Instance, new ListLogger<ConsentExpiryJob>());
+
+        var result = await sut.RunAsync();
+
+        var flaggedStudent = Assert.Single(result.StudentsDueForDeletion);
+        Assert.Equal(600, flaggedStudent.StudentId);
+        Assert.DoesNotContain(result.StudentsDueForDeletion, s => s.StudentId == 601);
+        Assert.DoesNotContain(result.StudentsDueForDeletion, s => s.StudentId == 602);
+
+        var flaggedDbsCheck = Assert.Single(result.DbsChecksDueForDeletion);
+        Assert.Equal(61, flaggedDbsCheck.DbsCheckId);
+        Assert.DoesNotContain(result.DbsChecksDueForDeletion, d => d.DbsCheckId == 63);
+    }
+
+    [Fact]
+    public async Task RunAsync_LogsRetentionFlagsAtWarning()
+    {
+        var now = DateTime.UtcNow;
+
+        using (var seed = CreateContext(SystemCurrentUserContext.Instance))
+        {
+            seed.Context.Students.Add(NewStudent(700, "Graduated Long Ago", StudentStatus.Graduated, DateOnly.FromDateTime(now.AddYears(-6))));
+            seed.Context.StudentRankProgresses.Add(new StudentRankProgress { Id = 1, StudentId = 700, RankId = 1, StartedAt = now.AddYears(-6), CompletedAt = now.AddYears(-4) });
+
+            seed.Context.AppUsers.Add(new AppUser { Id = 70, DisplayName = "Teacher Past Retention", Email = "t70@example.com" });
+            seed.Context.UserRoles.Add(new UserRole { UserId = 70, Role = Role.Teacher });
+            seed.Context.DbsChecks.Add(NewDbsCheck(71, 70, DateOnly.FromDateTime(now.AddYears(-7))));
+
+            seed.Context.SaveChanges();
+        }
+
+        using var run = CreateContext(SystemCurrentUserContext.Instance);
+        var logger = new ListLogger<ConsentExpiryJob>();
+        var sut = new ConsentExpiryJob(run.Context, SystemCurrentUserContext.Instance, logger);
+
+        await sut.RunAsync();
+
+        Assert.Contains(logger.Entries, e => e.Level == LogLevel.Warning && e.Message.Contains("Retention") && e.Message.Contains("700"));
+        Assert.Contains(logger.Entries, e => e.Level == LogLevel.Warning && e.Message.Contains("Retention") && e.Message.Contains("71"));
+    }
+
+    /// <summary>
+    /// Same regression guard as <see cref="RunAsync_SweepingDbsChecks_WritesOneSensitiveDataAccessLogEntryPerDbsCheckRead"/>,
+    /// but proving <see cref="Reporting.RetentionFlagging.GetDbsChecksDueForDeletionAsync"/>'s own
+    /// materialization independently triggers the audit interceptor — using a Flagged-status check
+    /// that <see cref="ConsentExpiryJob.SweepDbsAsync"/>'s Clear-only sweep would never read, so any
+    /// audit row for it can only have come from the retention sweep.
+    /// </summary>
+    [Fact]
+    public async Task RunAsync_SweepingRetentionDbsChecks_WritesSensitiveDataAccessLogEntry_ForANonClearCheck()
+    {
+        var now = DateTime.UtcNow;
+
+        using (var seed = CreateContext(SystemCurrentUserContext.Instance))
+        {
+            seed.Context.AppUsers.Add(new AppUser { Id = 80, DisplayName = "Teacher Flagged Past Retention", Email = "t80@example.com" });
+            seed.Context.UserRoles.Add(new UserRole { UserId = 80, Role = Role.Teacher });
+            seed.Context.DbsChecks.Add(NewDbsCheck(81, 80, DateOnly.FromDateTime(now.AddYears(-7)), DbsCheckStatus.Flagged));
+            seed.Context.SaveChanges();
+        }
+
+        using var run = CreateContext(SystemCurrentUserContext.Instance);
+        var sut = new ConsentExpiryJob(run.Context, SystemCurrentUserContext.Instance, new ListLogger<ConsentExpiryJob>());
+
+        await sut.RunAsync();
+
+        using var verify = CreateContext(SystemCurrentUserContext.Instance);
+        var logEntry = Assert.Single(verify.Context.SensitiveDataAccessLogs.Where(l => l.Entity == nameof(DbsCheck) && l.EntityId == 81));
+        Assert.Equal(SensitiveAccessType.View, logEntry.AccessType);
+    }
 }

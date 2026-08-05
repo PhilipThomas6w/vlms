@@ -110,6 +110,12 @@ builder.Services.AddScoped<ParentDashboardService>();
 // flagging reuses AtRiskStudentFlagging, the same computation ConsentExpiryJob's daily sweep uses.
 builder.Services.AddScoped<ProgressReportingService>();
 
+// --- "Records due for deletion" report (STATE.md, data-design.md "Deletion enforcement — interim
+// decision", security-compliance.md "Retention") — Admin-only, same reasoning as
+// ProgressReportingService above (see RecordsDueForDeletionService's own doc comment). Reuses the
+// RetentionFlagging helper ConsentExpiryJob's daily sweep also now calls.
+builder.Services.AddScoped<RecordsDueForDeletionService>();
+
 // --- Progress tracking (docs/design/low-level-design.md "CompletionService"/"PromotionService"/
 // "CertificateService", STATE.md "Teacher-facing reverse a completion flow") — first wired into
 // Vlms.Web here: Progress/CompletionReversals.razor (the Teacher-facing reversal page) is the first

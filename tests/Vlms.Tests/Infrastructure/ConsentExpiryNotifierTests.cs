@@ -85,7 +85,9 @@ public sealed class ConsentExpiryNotifierTests : IDisposable
         var result = new ConsentExpiryJobResult(
             ConsentFlags: [new ConsentExpiryFlag(100, "Approaching Only", 1, DateOnly.FromDateTime(DateTime.UtcNow.AddDays(10)), IsExpired: false)],
             DbsFlags: [],
-            AtRiskStudents: [new AtRiskStudentFlag(200, "At Risk Only", DateTime.UtcNow.AddDays(-60), 60)]);
+            AtRiskStudents: [new AtRiskStudentFlag(200, "At Risk Only", DateTime.UtcNow.AddDays(-60), 60)],
+            StudentsDueForDeletion: [],
+            DbsChecksDueForDeletion: []);
 
         var outcomes = await sut.NotifyAsync(result);
 
@@ -103,7 +105,9 @@ public sealed class ConsentExpiryNotifierTests : IDisposable
         var result = new ConsentExpiryJobResult(
             ConsentFlags: [new ConsentExpiryFlag(100, "Expired Student", 1, DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-5)), IsExpired: true)],
             DbsFlags: [],
-            AtRiskStudents: []);
+            AtRiskStudents: [],
+            StudentsDueForDeletion: [],
+            DbsChecksDueForDeletion: []);
 
         var outcomes = await sut.NotifyAsync(result);
 
@@ -126,7 +130,9 @@ public sealed class ConsentExpiryNotifierTests : IDisposable
         var result = new ConsentExpiryJobResult(
             ConsentFlags: [],
             DbsFlags: [new DbsExpiryFlag(3, "Teacher One", 1, DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-5)), IsExpired: true)],
-            AtRiskStudents: []);
+            AtRiskStudents: [],
+            StudentsDueForDeletion: [],
+            DbsChecksDueForDeletion: []);
 
         var outcomes = await sut.NotifyAsync(result);
 
@@ -142,7 +148,7 @@ public sealed class ConsentExpiryNotifierTests : IDisposable
         var notificationService = new FakeNotificationService();
         var sut = new ConsentExpiryNotifier(run.Context, noRoleCaller, notificationService);
 
-        var result = new ConsentExpiryJobResult([], [], []);
+        var result = new ConsentExpiryJobResult([], [], [], [], []);
 
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => sut.NotifyAsync(result));
         Assert.Empty(notificationService.SentRequests);

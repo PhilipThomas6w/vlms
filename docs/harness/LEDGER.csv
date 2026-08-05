@@ -132,3 +132,9 @@ date,work_item,change_class,session_tokens_est,model,outcome,notes
 2026-07-22,"_(none)_",n/a,428747,n/a,pass,auto-logged by run-verify.ps1
 2026-07-22,"_(none)_",n/a,428747,n/a,pass,auto-logged by run-verify.ps1
 2026-07-22,"- **Teacher-facing ""reverse a completion"" flow does not exist.** Found while investigating the certificate/reversal item earlier: `StudentLessonCompletion.IsReversed`/`ReversedAt` are read by `PromotionService`/`ProgressReportingService`/`AtRiskStudentFlagging`/`ParentDashboardService`, and `functional.md` documents Teacher self-correction/reversal as a feature (""can self-correct/reverse their own entry (e.g. within some reasonable window)""), but no service or UI anywhere in `src/` ever sets `IsReversed = true` — only test seed data does.",n/a,440323,n/a,pass,auto-logged by run-verify.ps1
+2026-07-22,"_(none)_",n/a,440323,n/a,pass,auto-logged by run-verify.ps1
+2026-07-22,"_(none)_",n/a,448245,n/a,pass,auto-logged by run-verify.ps1
+2026-07-23,"_(none)_",n/a,4610,n/a,pass,auto-logged by run-verify.ps1
+2026-08-05,"_(none)_",n/a,19028,n/a,pass,auto-logged by run-verify.ps1
+2026-08-05,"_(none)_",n/a,19028,n/a,pass,auto-logged by run-verify.ps1
+2026-08-05,"- **""Records due for deletion"" report.** `docs/design/data-design.md`/`docs/governance/security-compliance.md` name this as the interim retention-enforcement mechanism: an Admin-facing report flagging `Student` records past 3 years from leaving/graduating and `DbsCheck` records past 6 years from expiry/the teacher leaving, sourced from a `ConsentExpiryJob`-style sweep — manual, Admin-triggered deletion once flagged, not automated purge (confirmed deliberate interim choice, not an oversight). Confirmed nothing in `src/` implements this yet.",n/a,25036,n/a,pass,auto-logged by run-verify.ps1
