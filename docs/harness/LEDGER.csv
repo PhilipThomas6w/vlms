@@ -145,3 +145,10 @@ date,work_item,change_class,session_tokens_est,model,outcome,notes
 2026-08-05,"_(none)_",n/a,33853,n/a,pass,auto-logged by run-verify.ps1
 2026-08-11,"- **WCAG ""Status messages (4.1.3)"" gap.** `docs/quality/wcag-2.2-aa-checklist.md` itself flags this as still open across the seven older form pages — form-submission feedback has no `role=""status""`/`role=""alert""`, unlike the newer `/progress/completions` page which already uses `<p role=""status"">`. Close the gap on the older pages to match.",n/a,39428,n/a,pass,auto-logged by run-verify.ps1
 2026-08-11,"- **WCAG ""Status messages (4.1.3)"" gap.** `docs/quality/wcag-2.2-aa-checklist.md` itself flags this as still open across the seven older form pages — form-submission feedback has no `role=""status""`/`role=""alert""`, unlike the newer `/progress/completions` page which already uses `<p role=""status"">`. Close the gap on the older pages to match.",n/a,39428,n/a,pass,auto-logged by run-verify.ps1
+2026-08-11,"_(none)_",n/a,39428,n/a,pass,auto-logged by run-verify.ps1
+2026-08-11,"_(none)_",n/a,46979,n/a,pass,auto-logged by run-verify.ps1
+2026-08-11,"_(none)_",n/a,46979,n/a,pass,auto-logged by run-verify.ps1
+2026-08-11,"_(none)_",n/a,46979,n/a,pass,auto-logged by run-verify.ps1
+2026-08-11,"_(none)_",n/a,47994,n/a,pass,auto-logged by run-verify.ps1
+2026-08-11,"_(none)_",n/a,47994,n/a,pass,auto-logged by run-verify.ps1
+2026-08-11,"- **`MainLayout.razor` dismiss-glyph missing `aria-label`.** `docs/quality/wcag-2.2-aa-checklist.md` flagged this at authoring time as likely follow-up. Small, contained fix.",n/a,50861,n/a,pass,auto-logged by run-verify.ps1
