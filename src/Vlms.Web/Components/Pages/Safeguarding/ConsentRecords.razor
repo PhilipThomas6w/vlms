@@ -24,6 +24,10 @@
 {
     <p class="error" role="alert">@_errorMessage</p>
 }
+@if (_statusMessage is not null)
+{
+    <p role="status">@_statusMessage</p>
+}
 
 <h2>Existing records</h2>
 <table>
@@ -126,6 +130,7 @@
     private Dictionary<int, ConsentSensitiveDetails> _sensitiveDetailsByRecordId = new();
     private ConsentFormModel _form = new();
     private string? _errorMessage;
+    private string? _statusMessage;
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
 
@@ -156,6 +161,7 @@
     private async Task SubmitAsync()
     {
         _errorMessage = null;
+        _statusMessage = null;
 
         try
         {
@@ -173,6 +179,7 @@
                 string.IsNullOrWhiteSpace(_form.DietarySEN) ? null : _form.DietarySEN);
 
             _form = new ConsentFormModel();
+            _statusMessage = "Consent record created.";
             await LoadAsync();
         }
         catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException or ArgumentException)
@@ -184,10 +191,12 @@
     private async Task DecideAsync(int consentRecordId, bool approve)
     {
         _errorMessage = null;
+        _statusMessage = null;
 
         try
         {
             await ConsentService.DecideAsync(consentRecordId, approve);
+            _statusMessage = approve ? "Consent record approved." : "Consent record rejected.";
             await LoadAsync();
         }
         catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException or ArgumentException)

@@ -23,6 +23,10 @@
 {
     <p class="error" role="alert">@_errorMessage</p>
 }
+@if (_statusMessage is not null)
+{
+    <p role="status">@_statusMessage</p>
+}
 
 <h2>Existing checks</h2>
 <table>
@@ -104,6 +108,7 @@
     private Dictionary<int, string> _teacherNames = new();
     private DbsCheckFormModel _form = new();
     private string? _errorMessage;
+    private string? _statusMessage;
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
 
@@ -135,6 +140,7 @@
     private async Task SubmitAsync()
     {
         _errorMessage = null;
+        _statusMessage = null;
 
         try
         {
@@ -146,6 +152,7 @@
                 _form.Status);
 
             _form = new DbsCheckFormModel();
+            _statusMessage = "DBS check recorded.";
             await LoadAsync();
         }
         catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException or ArgumentException)
@@ -157,10 +164,12 @@
     private async Task UpdateStatusAsync(int dbsCheckId, DbsCheckStatus newStatus)
     {
         _errorMessage = null;
+        _statusMessage = null;
 
         try
         {
             await DbsService.UpdateStatusAsync(dbsCheckId, newStatus);
+            _statusMessage = $"DBS check status updated to {newStatus}.";
             await LoadAsync();
         }
         catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException or ArgumentException)

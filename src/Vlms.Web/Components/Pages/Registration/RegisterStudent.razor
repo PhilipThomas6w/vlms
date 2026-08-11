@@ -24,6 +24,10 @@
 {
     <p class="error" role="alert">@_errorMessage</p>
 }
+@if (_statusMessage is not null)
+{
+    <p role="status">@_statusMessage</p>
+}
 
 <h2>New student</h2>
 <EditForm Model="_form" OnValidSubmit="SubmitAsync">
@@ -87,6 +91,7 @@
     private List<ParentGuardian> _guardians = new();
     private StudentFormModel _form = new();
     private string? _errorMessage;
+    private string? _statusMessage;
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
 
@@ -103,6 +108,7 @@
     private async Task SubmitAsync()
     {
         _errorMessage = null;
+        _statusMessage = null;
 
         try
         {
@@ -120,6 +126,7 @@
             }
 
             _form = new StudentFormModel();
+            _statusMessage = "Student registered.";
             await LoadAsync();
         }
         catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException or ArgumentException)

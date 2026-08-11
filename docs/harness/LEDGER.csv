@@ -138,3 +138,10 @@ date,work_item,change_class,session_tokens_est,model,outcome,notes
 2026-08-05,"_(none)_",n/a,19028,n/a,pass,auto-logged by run-verify.ps1
 2026-08-05,"_(none)_",n/a,19028,n/a,pass,auto-logged by run-verify.ps1
 2026-08-05,"- **""Records due for deletion"" report.** `docs/design/data-design.md`/`docs/governance/security-compliance.md` name this as the interim retention-enforcement mechanism: an Admin-facing report flagging `Student` records past 3 years from leaving/graduating and `DbsCheck` records past 6 years from expiry/the teacher leaving, sourced from a `ConsentExpiryJob`-style sweep — manual, Admin-triggered deletion once flagged, not automated purge (confirmed deliberate interim choice, not an oversight). Confirmed nothing in `src/` implements this yet.",n/a,25036,n/a,pass,auto-logged by run-verify.ps1
+2026-08-05,"_(none)_",n/a,25036,n/a,pass,auto-logged by run-verify.ps1
+2026-08-05,"_(none)_",n/a,32592,n/a,pass,auto-logged by run-verify.ps1
+2026-08-05,"_(none)_",n/a,32592,n/a,pass,auto-logged by run-verify.ps1
+2026-08-05,"_(none)_",n/a,33853,n/a,pass,auto-logged by run-verify.ps1
+2026-08-05,"_(none)_",n/a,33853,n/a,pass,auto-logged by run-verify.ps1
+2026-08-11,"- **WCAG ""Status messages (4.1.3)"" gap.** `docs/quality/wcag-2.2-aa-checklist.md` itself flags this as still open across the seven older form pages — form-submission feedback has no `role=""status""`/`role=""alert""`, unlike the newer `/progress/completions` page which already uses `<p role=""status"">`. Close the gap on the older pages to match.",n/a,39428,n/a,pass,auto-logged by run-verify.ps1
+2026-08-11,"- **WCAG ""Status messages (4.1.3)"" gap.** `docs/quality/wcag-2.2-aa-checklist.md` itself flags this as still open across the seven older form pages — form-submission feedback has no `role=""status""`/`role=""alert""`, unlike the newer `/progress/completions` page which already uses `<p role=""status"">`. Close the gap on the older pages to match.",n/a,39428,n/a,pass,auto-logged by run-verify.ps1

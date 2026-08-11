@@ -26,6 +26,10 @@
 {
     <p class="error" role="alert">@_errorMessage</p>
 }
+@if (_statusMessage is not null)
+{
+    <p role="status">@_statusMessage</p>
+}
 
 <table>
     <thead>
@@ -89,6 +93,7 @@
     private StudentLessonCompletion? _reversingCompletion;
     private ReversalFormModel _reversalForm = new();
     private string? _errorMessage;
+    private string? _statusMessage;
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
 
@@ -109,6 +114,7 @@
     private void StartReverse(StudentLessonCompletion completion)
     {
         _errorMessage = null;
+        _statusMessage = null;
         _reversingCompletion = completion;
         _reversalForm = new ReversalFormModel();
     }
@@ -117,6 +123,7 @@
     {
         _reversingCompletion = null;
         _errorMessage = null;
+        _statusMessage = null;
     }
 
     private async Task ConfirmReverseAsync()
@@ -127,11 +134,13 @@
         }
 
         _errorMessage = null;
+        _statusMessage = null;
 
         try
         {
             await CompletionService.ReverseAsync(_reversingCompletion.Id, _reversalForm.Note);
             _reversingCompletion = null;
+            _statusMessage = "Completion reversed.";
             await LoadAsync();
         }
         catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException)

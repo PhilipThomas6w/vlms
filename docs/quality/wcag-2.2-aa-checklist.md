@@ -60,10 +60,12 @@ The current pages (`src/Vlms.Web/Components/Pages/`): `Home.razor`,
       its list-then-inline-form shape (a table of completions, a reversal form that appears below it
       when "Reverse" is clicked) mirrors `Curriculum/TeacherProposals.razor`'s existing
       list-then-form pattern, not a new one. No new colour/contrast surface (plain table/form markup
-      against the existing unstyled `app.css`, same open item as every other page below). Falls
-      under the same still-open "Status messages (4.1.3)" gap as the other seven form pages — a
-      successful reversal clears the inline form and reloads the list with no explicit success
-      message, same as `RegisterStudent.razor`'s reload-and-clear behaviour that item already covers.
+      against the existing unstyled `app.css`, same open item as every other page below). **Update
+      (STATE.md "WCAG 'Status messages (4.1.3)' gap"):** this page did have the same gap flagged
+      here at the time — a successful reversal cleared the inline form and reloaded the list with
+      no explicit success message — and has now been fixed alongside the seven form pages (see the
+      "Status messages" item below for the full mechanism/reasoning); it gained a
+      `<p role="status">@_statusMessage</p>` element set to "Completion reversed." on success.
 
 - [ ] **New Identity/Account pages, reviewed this pass:** all six follow the same pattern already
       established elsewhere in this codebase — every `<input>`/`InputText`/`InputCheckbox` has a
@@ -78,9 +80,10 @@ The current pages (`src/Vlms.Web/Components/Pages/`): `Home.razor`,
       alt-text question arises) — only a manually-typed shared-secret key, which sidesteps the
       "QR code needs accessible alt text describing the underlying secret" problem entirely rather
       than solving it. `Manage/TwoFactorAuthentication.razor`'s recovery-code regeneration message
-      uses `<p role="status">` — this is a genuine improvement on the "Status messages (4.1.3)" gap
-      already flagged below for the older seven pages (still open there), not something to
-      re-flag here.
+      uses `<p role="status">` — at the time this bullet was written, this was a genuine
+      improvement on the "Status messages (4.1.3)" gap then still open on the older seven pages;
+      that gap is now closed everywhere (see the "Status messages" item below), and this bullet is
+      kept as the historical origin of the pattern the fix replicated, not a re-flag.
 
 - [ ] **Colour contrast (1.4.3/1.4.11):** `wwwroot/app.css` (the Blazor project template's default
       stylesheet, not yet restyled for VLMS) gives text and UI-component colours a 4.5:1 (text) /
@@ -116,12 +119,74 @@ The current pages (`src/Vlms.Web/Components/Pages/`): `Home.razor`,
       every page via `AuthorizeView`/`NotAuthorized`) — semantic `<nav>`, real `<a>`/`<button>`
       elements, no new pattern to review beyond confirming it (like `Home.razor`'s list) still reads
       and reflows sensibly at 400% zoom / 320px viewport width as more links are added.
-- [ ] **Status messages (4.1.3):** confirm success paths (e.g. `RegisterStudent.razor` clearing the
-      form and reloading the guardian list after a successful submit) surface a perceivable
-      confirmation to assistive tech, not just a silently-reset form — currently no explicit success
-      message exists on any of the seven form pages; decide whether that's an accessibility gap
-      worth a follow-up `STATE.md` item, or acceptable given the page's own reload-and-clear
-      behaviour is itself a visible change.
+- [x] **Status messages (4.1.3) — closed (STATE.md "WCAG 'Status messages (4.1.3)' gap").** The
+      open question this item originally posed has been decided explicitly, not left open: a
+      form silently resetting and its list silently reloading is **not** an equivalent substitute
+      for a perceivable status message. A sighted mouse user sees the visual change (a fresh empty
+      form, a new row in the table); a screen-reader user tabbing through a form that has simply
+      been re-rendered from scratch gets no announcement that anything happened at all — the two
+      experiences are not equivalent, so this was a real 4.1.3 gap, not an acceptable substitute.
+      Fixed on all seven form pages this item's own framing names —
+      `Curriculum/TeacherProposals.razor`, `Curriculum/ApproverProposals.razor`,
+      `Guardianship/GuardianLinks.razor`, `Registration/RegisterStudent.razor`,
+      `Safeguarding/ConsentRecords.razor`, `Safeguarding/DbsChecks.razor`, and
+      `Guardianship/AcceptInvite.razor` (see below for why `AcceptInvite.razor` needed no code
+      change despite being one of the seven) — plus `Progress/CompletionReversals.razor`, an
+      eighth page. `CompletionReversals.razor` is **not** one of the original seven (it shipped
+      later, in the Teacher-facing completion-reversal item) but was found, on direct inspection
+      of the file, to have the identical gap: its own bullet above already flagged it as falling
+      "under the same still-open... gap as the other seven", and this pass fixed it too rather
+      than leaving one known instance of the same gap unaddressed. (This corrects an inaccurate
+      premise in this WCAG item's own task framing, which assumed `CompletionReversals.razor`
+      already had a `role="status"` message — direct inspection of the file before making any
+      change found no such element anywhere in it; the actual, and only, pre-existing example of
+      this pattern in the codebase was `Manage/TwoFactorAuthentication.razor`'s recovery-code
+      message, per the bullet above.)
+
+      **Mechanism, matching the established `Manage/TwoFactorAuthentication.razor` pattern
+      exactly:** each page gained a `private string? _statusMessage;` field and a
+      `<p role="status">@_statusMessage</p>` element rendered directly under the existing
+      `<p class="error" role="alert">@_errorMessage</p>` element. `role="status"` (an implicit
+      ARIA live region, `aria-live="polite"`) was chosen over `role="alert"` for every one of
+      these messages, deliberately: they are all confirmations that an action the user just
+      initiated completed as expected (a proposal submitted, a link created, a record recorded, a
+      decision applied, a completion reversed) — advisory information the user does not need
+      interrupted for, the same class of message `TwoFactorAuthentication.razor`'s own recovery-
+      code message already established as `role="status"`. This holds even for the "negative"-
+      sounding outcomes on this list — `ApproverProposals.razor`'s "Proposal rejected." and
+      `ConsentRecords.razor`'s "Consent record rejected." — because those are not failures; they
+      are the successful completion of a decision the Approver/Safeguarding Officer deliberately
+      made. A genuine failure on every one of these pages already uses, and continues to use,
+      `<p class="error" role="alert">@_errorMessage</p>` (an assertive live region) — that
+      distinction (advisory success vs. must-interrupt failure) is the basis for the role choice
+      throughout, not a per-page judgement call re-litigated each time.
+
+      **`Guardianship/AcceptInvite.razor` — deliberately not given a `role="status"` element,
+      despite being one of the seven pages this item names.** Its success path does not stay on
+      the page with a silently-reset form the way the other six do — `AcceptAsync` calls
+      `SignInManager.SignInAsync` followed immediately by
+      `RedirectManager.RedirectTo("/parent/dashboard")`, a full page navigation away. This is the
+      same "success navigates away" shape `Account/Pages/Login.razor` and its sibling Account
+      pages already have (see the "New Identity/Account pages" bullet above, which reviewed those
+      pages' error/label handling but did not previously need to reason about their success paths
+      explicitly — none of them raised a status-message question until this item went looking): a
+      full navigation is itself the perceivable, assistive-tech-visible change (a new page loads,
+      a new `<h1>`/title is announced), so there is no "silent" moment for a live region to
+      announce, on `AcceptInvite.razor` or on any of those Account pages either. A new regression
+      test
+      (`StatusMessageAccessibilityTests.AcceptInvite_HasNoStatusRoleElement_BecauseSuccessRedirectsAway`)
+      locks this reasoning in as a tripwire, not a silent omission — if a future change makes
+      `AcceptInvite.razor` stay on the page after success, that test starts failing and this
+      exclusion needs revisiting.
+
+      New lightweight markup-content test suite,
+      `tests/Vlms.Tests/Web/StatusMessageAccessibilityTests.cs` (same convention as
+      `PwaAssetsTests.cs` — reads `.razor` files directly off disk, no browser/axe-core, per
+      ADR-0003 "fewest moving parts" and this checklist's own stated reasoning for not adopting
+      browser-driven a11y tooling): asserts each of the eight fixed pages both declares the
+      `<p role="status">@_statusMessage</p>` element and actually sets `_statusMessage` to a
+      concrete string on its success path(s) — not just that the field exists unused — plus the
+      `AcceptInvite.razor` tripwire above.
 
 ## Sign-off
 
@@ -132,5 +197,6 @@ The current pages (`src/Vlms.Web/Components/Pages/`): `Home.razor`,
 | Philip Luke Thomas | 2026-07-21 | **Cumulative audit pass** (ADR-0005 hosting-pivot verify-gate audit, STATE.md), not triggered by a hash mismatch — `build/verify.ps1` reported this checklist current before this review. Confirmed, rather than assumed, that none of the three ADR-0005 hosting-pivot items landed after the row above (file storage/`LocalDiskBlobStorage`, email/`SmtpEmailSender`, scheduled-jobs/systemd, deployment-scripting) touched any `.razor` file or `wwwroot/app.css` — checked each Done entry's own file list, not inferred from "they sound backend-only". A repo-wide listing of `src/Vlms.Web/Components/**/*.razor` confirms the page inventory named in "Manual review items" above is still exhaustive and unchanged (no page added or removed). No new gaps found beyond what was already open (colour contrast, the MainLayout dismiss-glyph aria-label, and the status-messages item). Hash unchanged (no hashed file changed). |
 | Philip Luke Thomas | 2026-07-22 | Re-reviewed after the Teacher-facing completion-reversal item (STATE.md) added one new page, `Progress/CompletionReversals.razor`, invalidating the recorded hash. Reviewed the new page directly (new bullet above): its `InputTextArea`/`label` pairing and `role="alert"` error handling both follow this codebase's existing conventions rather than introducing a new one, mechanically confirmed for the label pairing by `build/check-accessibility.ps1` itself. No other `.razor` file or `wwwroot/app.css` changed in this item (confirmed via `git diff`, not assumed) — every other page's status is unchanged from the row above. No new gaps found beyond what was already open (colour contrast, the MainLayout dismiss-glyph aria-label, and the status-messages item — which this new page also falls under, noted in its own bullet rather than silently exempted). |
 | Philip Luke Thomas | 2026-08-05 | Re-reviewed after the "records due for deletion" report item (STATE.md) added one new page, `Reporting/RecordsDueForDeletion.razor`, plus two link-only edits (`Home.razor`, `Reporting/ProgressReporting.razor`), invalidating the recorded hash. Reviewed the new page directly (new bullet above): it is read-only with no `EditForm`/`Input*` surface at all, so the label-pairing question this checklist otherwise tracks per-page simply doesn't arise for it; its error handling reuses the existing `<p class="error" role="alert">` pattern; its two data tables mirror `ProgressReporting.razor`'s existing table structure, no new markup pattern. Explicitly checked whether it falls under the open "Status messages (4.1.3)" gap and confirmed it doesn't — same reasoning already applied to `ProgressReporting.razor` (no form submission on either page, so there is no "silently reset form" for that item to be about). The two new navigation links are plain `<a>` elements, covered by the existing "Consistent navigation" item, not a new concern. Confirmed via `git diff` that no other `.razor` file or `wwwroot/app.css` changed in this item — every other page's status is unchanged from the row above. No new gaps found beyond what was already open (colour contrast, the MainLayout dismiss-glyph aria-label, and the status-messages item). |
+| Philip Luke Thomas | 2026-08-11 | **Closed the "Status messages (4.1.3)" gap** (STATE.md "WCAG 'Status messages (4.1.3)' gap"), genuinely re-reviewed item-by-item against current code, not hash-refreshed. Read every `.razor` file that changed before writing anything, not just the diff: added a `<p role="status">@_statusMessage</p>` element (matching `Manage/TwoFactorAuthentication.razor`'s established pattern exactly) to `Curriculum/TeacherProposals.razor`, `Curriculum/ApproverProposals.razor`, `Guardianship/GuardianLinks.razor`, `Registration/RegisterStudent.razor`, `Safeguarding/ConsentRecords.razor`, `Safeguarding/DbsChecks.razor` (the six that needed a code change from the seven this item's own framing names), and `Progress/CompletionReversals.razor` (an eighth page, not one of the seven, found by direct inspection to have the identical gap despite this task's own inaccurate framing that it already had the pattern — corrected in the "Status messages" bullet above). `Guardianship/AcceptInvite.razor` — the seventh named page — deliberately received no code change: its success path redirects away rather than staying on the page with a silently-reset form, so there is no silent moment for a live region to announce (full reasoning and a regression tripwire test in the "Status messages" bullet above). Made the explicit call the item's own open question posed (a silently-reset form is not an equivalent substitute for a status message to a screen-reader user) rather than deferring it again. New test suite `tests/Vlms.Tests/Web/StatusMessageAccessibilityTests.cs` (16 tests: 254 → 270) — the same lightweight markup-content-assertion convention as `PwaAssetsTests.cs`, no browser tooling. Reviewed every other bullet in this checklist against the current code while in these files: colour contrast, keyboard operability, error identification, non-text content, and consistent navigation are all unaffected by this change (no new focusable elements beyond the status `<p>` itself, which is not interactive; no new pages; no CSS changes) and stay exactly as previously recorded — confirmed by re-reading each bullet against the actual diff, not assumed unaffected. Checked `openwiki/web.md` and `openwiki/access-control.md` for existing accessibility-status prose to update — neither describes it at all (grepped for "accessibility"/"WCAG"/`role="status"`/`role="alert"`, zero matches in either); `openwiki/verify-gate.md`'s accessibility-stage section is generic (describes the mechanism, not per-page gap detail) and stays accurate unchanged. No openwiki page needed updating. |
 
-Reviewed-hash: 8ad1534753715098bc032d74772d9011c1165d811da4addb37b09fc4d4372462
+Reviewed-hash: 4c1fb9ef190749f0138c701db64eeeb1b70f6024a529f1e8dd91a3e864afe745

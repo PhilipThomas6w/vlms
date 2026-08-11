@@ -25,6 +25,10 @@
 {
     <p class="error" role="alert">@_errorMessage</p>
 }
+@if (_statusMessage is not null)
+{
+    <p role="status">@_statusMessage</p>
+}
 
 <h2>Lessons</h2>
 <table>
@@ -142,6 +146,7 @@
     private ProposalFormModel? _form;
     private string _formTitle = "";
     private string? _errorMessage;
+    private string? _statusMessage;
     private int? _resubmitOriginalId;
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
@@ -164,6 +169,7 @@
     private void StartCreate()
     {
         _errorMessage = null;
+        _statusMessage = null;
         _resubmitOriginalId = null;
         _formTitle = "Propose a new lesson";
         _form = new ProposalFormModel
@@ -177,6 +183,7 @@
     private void StartEdit(Lesson lesson)
     {
         _errorMessage = null;
+        _statusMessage = null;
         _resubmitOriginalId = null;
         _formTitle = $"Propose an edit to {lesson.Title}";
         _form = new ProposalFormModel
@@ -194,6 +201,7 @@
     private void StartRetire(Lesson lesson)
     {
         _errorMessage = null;
+        _statusMessage = null;
         _resubmitOriginalId = null;
         _formTitle = $"Propose retiring {lesson.Title}";
         _form = new ProposalFormModel
@@ -211,6 +219,7 @@
     private void StartResubmit(LessonChangeProposal proposal)
     {
         _errorMessage = null;
+        _statusMessage = null;
         _resubmitOriginalId = proposal.Id;
         _formTitle = "Resubmit proposal";
         var content = JsonSerializer.Deserialize<ProposedLessonContent>(proposal.ProposedContent)
@@ -232,6 +241,7 @@
         _form = null;
         _resubmitOriginalId = null;
         _errorMessage = null;
+        _statusMessage = null;
     }
 
     private async Task SubmitProposalAsync()
@@ -242,6 +252,7 @@
         }
 
         _errorMessage = null;
+        _statusMessage = null;
 
         var content = new ProposedLessonContent
         {
@@ -251,6 +262,8 @@
             ContentBlobKey = _form.ContentBlobKey,
             IsActive = _form.ChangeType == LessonChangeType.Retire ? false : _form.IsActive
         };
+
+        var wasResubmit = _resubmitOriginalId is not null;
 
         try
         {
@@ -265,6 +278,7 @@
 
             _form = null;
             _resubmitOriginalId = null;
+            _statusMessage = wasResubmit ? "Proposal resubmitted for approval." : "Proposal submitted for approval.";
             await LoadAsync();
         }
         catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException)

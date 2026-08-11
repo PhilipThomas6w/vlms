@@ -21,6 +21,10 @@
 {
     <p class="error" role="alert">@_errorMessage</p>
 }
+@if (_statusMessage is not null)
+{
+    <p role="status">@_statusMessage</p>
+}
 
 <table>
     <thead>
@@ -59,6 +63,7 @@
     private List<LessonChangeProposal> _pending = new();
     private readonly Dictionary<int, string> _comments = new();
     private string? _errorMessage;
+    private string? _statusMessage;
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
 
@@ -79,10 +84,12 @@
     private async Task ApproveAsync(int proposalId)
     {
         _errorMessage = null;
+        _statusMessage = null;
         try
         {
             await ProposalService.ApproveAsync(proposalId);
             _comments.Remove(proposalId);
+            _statusMessage = "Proposal approved.";
             await LoadAsync();
         }
         catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException)
@@ -94,6 +101,7 @@
     private async Task RejectAsync(int proposalId)
     {
         _errorMessage = null;
+        _statusMessage = null;
         var comments = GetComments(proposalId);
         if (string.IsNullOrWhiteSpace(comments))
         {
@@ -105,6 +113,7 @@
         {
             await ProposalService.RejectAsync(proposalId, comments);
             _comments.Remove(proposalId);
+            _statusMessage = "Proposal rejected.";
             await LoadAsync();
         }
         catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException)
