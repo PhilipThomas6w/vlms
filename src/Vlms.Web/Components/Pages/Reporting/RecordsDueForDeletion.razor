@@ -27,7 +27,11 @@ else if (_report is null)
 else
 {
     <h2>Students</h2>
-    <p>Graduated students whose graduation date is more than 3 years ago.</p>
+    <p>
+        Graduated students whose graduation date is more than 3 years ago, and Inactive students
+        (<a href="/retention/mark-as-left">marked as left</a>) whose leaving date is more than 3
+        years ago.
+    </p>
     @if (_report.Students.Count == 0)
     {
         <p>No student records are currently due for deletion.</p>
@@ -38,7 +42,8 @@ else
             <thead>
                 <tr>
                     <th>Student</th>
-                    <th>Graduated</th>
+                    <th>Reason</th>
+                    <th>Date</th>
                     <th>Days past retention</th>
                 </tr>
             </thead>
@@ -47,7 +52,8 @@ else
                 {
                     <tr>
                         <td>@flag.StudentName</td>
-                        <td>@flag.GraduatedAt.ToString("d MMMM yyyy")</td>
+                        <td>@flag.Reason</td>
+                        <td>@flag.AnchorDate.ToString("d MMMM yyyy")</td>
                         <td>@flag.DaysPastRetention</td>
                     </tr>
                 }
@@ -56,7 +62,10 @@ else
     }
 
     <h2>DBS checks</h2>
-    <p>DBS check records whose expiry date is more than 6 years ago.</p>
+    <p>
+        DBS check records whose expiry date is more than 6 years ago, or whose teacher
+        (<a href="/retention/mark-as-left">marked as left</a>) left more than 6 years ago.
+    </p>
     @if (_report.DbsChecks.Count == 0)
     {
         <p>No DBS check records are currently due for deletion.</p>
@@ -67,7 +76,9 @@ else
             <thead>
                 <tr>
                     <th>Teacher</th>
-                    <th>Expired</th>
+                    <th>Expiry</th>
+                    <th>Reason</th>
+                    <th>Retention anchor date</th>
                     <th>Days past retention</th>
                 </tr>
             </thead>
@@ -77,6 +88,8 @@ else
                     <tr>
                         <td>@flag.TeacherName</td>
                         <td>@flag.ExpiryDate.ToString("d MMMM yyyy")</td>
+                        <td>@flag.Reason</td>
+                        <td>@flag.AnchorDate.ToString("d MMMM yyyy")</td>
                         <td>@flag.DaysPastRetention</td>
                     </tr>
                 }

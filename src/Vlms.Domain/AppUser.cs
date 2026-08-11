@@ -49,5 +49,37 @@ public sealed class AppUser
     public required string DisplayName { get; init; }
     public required string Email { get; init; }
 
+    /// <summary>
+    /// STATE.md "Manual 'leaving' flag..." — set by the Admin-only
+    /// <c>Retention.LeavingService.MarkTeacherLeftAsync</c>, feeding
+    /// <c>Reporting.RetentionFlagging</c>'s "6 years after expiry <i>or the teacher leaving</i>"
+    /// <see cref="DbsCheck"/> retention check (docs/governance/security-compliance.md). Mirrors
+    /// <see cref="StudentLessonCompletion.IsReversed"/>/<see cref="StudentLessonCompletion.ReversedAt"/>'s
+    /// shape (a bool plus its own captured timestamp) rather than folding both into one nullable
+    /// field, for the same reason: an explicit boolean reads clearly at every call site, and the
+    /// timestamp is only meaningful once the boolean is true.
+    ///
+    /// <b>Schema-placement judgement call, documented rather than left implicit:</b> this field lives
+    /// directly on <see cref="AppUser"/> — generic to any <see cref="AppUser"/> row, not a new
+    /// Teacher-specific entity — even though STATE.md's item only asks for a Teacher-leaving concept.
+    /// This follows the precedent <see cref="DbsCheck"/> itself already set: there is no dedicated
+    /// "Teacher" entity anywhere in this codebase, only an <see cref="AppUser"/> row that happens to
+    /// hold a <see cref="UserRole"/> of <see cref="Role.Teacher"/> — <see cref="DbsCheck.TeacherUserId"/>
+    /// already points at a plain <see cref="AppUser"/>, validated Teacher-role-holding at write time
+    /// (<c>Safeguarding.DbsCheckService.RecordAsync</c>), not by type. Introducing a new entity just
+    /// for "has this user left" would be inconsistent with that existing shape for no benefit — a
+    /// generic field is simpler, and every other role (Admin/Approver/Parent/SafeguardingOfficer)
+    /// leaving the organisation is an equally plausible future need this field costs nothing extra to
+    /// also support. What *is* scoped to Teacher is the action itself:
+    /// <c>LeavingService.MarkTeacherLeftAsync</c> validates the target holds <see cref="Role.Teacher"/>
+    /// before setting this (same validation <see cref="DbsCheck"/> recording already does), matching
+    /// STATE.md's item wording exactly; nothing stops the field existing on a non-Teacher row, but
+    /// nothing in this codebase's write paths ever sets it for one either.
+    /// </summary>
+    public bool HasLeft { get; init; }
+
+    /// <summary>See <see cref="HasLeft"/>. Null unless <see cref="HasLeft"/> is true.</summary>
+    public DateTime? LeftAt { get; init; }
+
     public ICollection<UserRole> Roles { get; init; } = new List<UserRole>();
 }

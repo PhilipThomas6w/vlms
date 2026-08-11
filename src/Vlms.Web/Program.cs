@@ -14,6 +14,7 @@ using Vlms.Infrastructure.Notifications;
 using Vlms.Infrastructure.Progress;
 using Vlms.Infrastructure.Registration;
 using Vlms.Infrastructure.Reporting;
+using Vlms.Infrastructure.Retention;
 using Vlms.Infrastructure.Safeguarding;
 using Vlms.Infrastructure.Security;
 using Vlms.Infrastructure.Storage;
@@ -115,6 +116,11 @@ builder.Services.AddScoped<ProgressReportingService>();
 // ProgressReportingService above (see RecordsDueForDeletionService's own doc comment). Reuses the
 // RetentionFlagging helper ConsentExpiryJob's daily sweep also now calls.
 builder.Services.AddScoped<RecordsDueForDeletionService>();
+
+// --- Manual "leaving" flag for students and teachers (STATE.md "Manual 'leaving' flag..."),
+// feeding RetentionFlagging above — Admin-only, no self-service path (see LeavingService's own doc
+// comment for the schema-placement judgement call on AppUser.HasLeft/LeftAt).
+builder.Services.AddScoped<LeavingService>();
 
 // --- Progress tracking (docs/design/low-level-design.md "CompletionService"/"PromotionService"/
 // "CertificateService", STATE.md "Teacher-facing reverse a completion flow") — first wired into

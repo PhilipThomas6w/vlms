@@ -114,6 +114,14 @@ namespace Vlms.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("email");
 
+                    b.Property<bool>("HasLeft")
+                        .HasColumnType("boolean")
+                        .HasColumnName("has_left");
+
+                    b.Property<DateTime?>("LeftAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("left_at");
+
                     b.HasKey("Id");
 
                     b.ToTable("app_users");
@@ -549,6 +557,10 @@ namespace Vlms.Infrastructure.Migrations
                     b.Property<DateOnly>("EnrolmentDate")
                         .HasColumnType("date")
                         .HasColumnName("enrolment_date");
+
+                    b.Property<DateTime?>("LeftAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("left_at");
 
                     b.Property<string>("Name")
                         .IsRequired()

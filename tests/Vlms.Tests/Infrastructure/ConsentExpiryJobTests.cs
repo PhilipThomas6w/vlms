@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Vlms.Domain;
 using Vlms.Infrastructure;
+using Vlms.Infrastructure.Reporting;
 using Vlms.Infrastructure.Safeguarding;
 using Vlms.Infrastructure.Security;
 using Xunit;
@@ -67,14 +68,15 @@ public sealed class ConsentExpiryJobTests : IDisposable
         return new CallerContext(provider, scope, context);
     }
 
-    private static Student NewStudent(int id, string name, StudentStatus status, DateOnly enrolmentDate) => new()
+    private static Student NewStudent(int id, string name, StudentStatus status, DateOnly enrolmentDate, DateTime? leftAt = null) => new()
     {
         Id = id,
         Name = name,
         DateOfBirth = new DateOnly(2012, 1, 1),
         CurrentRankId = 1,
         Status = status,
-        EnrolmentDate = enrolmentDate
+        EnrolmentDate = enrolmentDate,
+        LeftAt = leftAt
     };
 
     private static ConsentRecord NewConsent(int id, int studentId, DateOnly expiryDate) => new()
@@ -349,10 +351,19 @@ public sealed class ConsentExpiryJobTests : IDisposable
         // into an anonymous type, which EF Core's IMaterializationInterceptor never fires for
         // (only real mapped-entity materialization triggers SensitiveDataAuditInterceptor) — so no
         // SensitiveDataAccessLog row was ever written for this daily job's reads of every teacher's
-        // DBS status. This asserts one audit row is written per DbsCheck row the sweep reads.
-        Assert.Equal(2, logEntries.Count);
+        // DBS status. This asserts one audit row is written per DbsCheck row actually materialized.
+        //
+        // 3, not 4: SweepDbsAsync materializes checks 21/23 (2 rows). RetentionFlagging.
+        // GetDbsChecksDueForDeletionAsync (STATE.md "Manual 'leaving' flag..." item) then reads
+        // every DbsCheck row (21/23/25) against the same VlmsDbContext/change tracker within this
+        // one RunAsync call — EF Core's identity resolution returns the already-tracked 21/23
+        // instances without re-materializing them (no new audit rows), while 25 is materialized for
+        // the first time here and adds exactly one more row. Verified empirically (this assertion
+        // failed at 2 before being corrected to 3, not assumed).
+        Assert.Equal(3, logEntries.Count);
         Assert.Equal(21, logEntries[0].EntityId);
         Assert.Equal(23, logEntries[1].EntityId);
+        Assert.Equal(25, logEntries[2].EntityId);
         Assert.All(logEntries, e => Assert.Equal(SensitiveAccessType.View, e.AccessType));
     }
 
@@ -416,9 +427,13 @@ public sealed class ConsentExpiryJobTests : IDisposable
     /// <summary>
     /// STATE.md "'Records due for deletion' report" — data-design.md sources that report "from
     /// ConsentExpiryJob's wider sweep", so this job's sweep is widened via the shared
-    /// <see cref="Reporting.RetentionFlagging"/> helper (own doc comment has the full reasoning,
-    /// including why only Graduated students and DBS-expiry can be flagged — no "leaving date" is
-    /// recorded anywhere for Inactive students or for a teacher leaving).
+    /// <see cref="Reporting.RetentionFlagging"/> helper (own doc comment has the full reasoning).
+    /// Also covers STATE.md's later "Manual 'leaving' flag..." item: Inactive students with a
+    /// recorded <see cref="Student.LeftAt"/>, and DBS checks whose teacher has left, are now
+    /// genuinely flaggable too — see <c>RunAsync_FlagsLeftStudentsAndLeftTeacherDbsChecks</c> below
+    /// for the dedicated discriminating tests. Student 602 here stays an Inactive-with-no-LeftAt
+    /// anomaly case (should never occur given <see cref="Retention.LeavingService"/> always sets both
+    /// together, but is not database-enforced) — deliberately not flagged, not fabricated a date.
     /// </summary>
     [Fact]
     public async Task RunAsync_FlagsStudentsAndDbsChecksPastRetention()
@@ -433,7 +448,7 @@ public sealed class ConsentExpiryJobTests : IDisposable
             seed.Context.Students.Add(NewStudent(601, "Recently Graduated", StudentStatus.Graduated, DateOnly.FromDateTime(now.AddYears(-2))));
             seed.Context.StudentRankProgresses.Add(new StudentRankProgress { Id = 2, StudentId = 601, RankId = 1, StartedAt = now.AddYears(-2), CompletedAt = now.AddYears(-1) });
 
-            // Inactive: never flagged in this increment — no leaving date exists anywhere.
+            // Inactive with no LeftAt recorded — a data anomaly, not the normal LeavingService path.
             seed.Context.Students.Add(NewStudent(602, "Left Long Ago (Inactive)", StudentStatus.Inactive, DateOnly.FromDateTime(now.AddYears(-6))));
 
             seed.Context.AppUsers.Add(new AppUser { Id = 60, DisplayName = "Teacher Past Retention", Email = "t60@example.com" });
@@ -454,12 +469,60 @@ public sealed class ConsentExpiryJobTests : IDisposable
 
         var flaggedStudent = Assert.Single(result.StudentsDueForDeletion);
         Assert.Equal(600, flaggedStudent.StudentId);
+        Assert.Equal(StudentDeletionReason.Graduated, flaggedStudent.Reason);
         Assert.DoesNotContain(result.StudentsDueForDeletion, s => s.StudentId == 601);
         Assert.DoesNotContain(result.StudentsDueForDeletion, s => s.StudentId == 602);
 
         var flaggedDbsCheck = Assert.Single(result.DbsChecksDueForDeletion);
         Assert.Equal(61, flaggedDbsCheck.DbsCheckId);
+        Assert.Equal(DbsCheckDeletionReason.Expired, flaggedDbsCheck.Reason);
         Assert.DoesNotContain(result.DbsChecksDueForDeletion, d => d.DbsCheckId == 63);
+    }
+
+    /// <summary>
+    /// Dedicated discriminating test for STATE.md's "Manual 'leaving' flag for students and
+    /// teachers" item: an Inactive student with a leaving date past 3 years IS flagged
+    /// (<see cref="StudentDeletionReason.Left"/>) and one within 3 years is NOT; a DBS
+    /// check whose teacher left more than 6 years ago IS flagged
+    /// (<see cref="DbsCheckDeletionReason.TeacherLeft"/>), anchored on the earlier
+    /// leaving date rather than the check's own (not-yet-due) expiry date, and one whose teacher left
+    /// less than 6 years ago is NOT.
+    /// </summary>
+    [Fact]
+    public async Task RunAsync_FlagsLeftStudentsAndLeftTeacherDbsChecks()
+    {
+        var now = DateTime.UtcNow;
+
+        using (var seed = CreateContext(SystemCurrentUserContext.Instance))
+        {
+            seed.Context.Students.Add(NewStudent(610, "Left Long Ago", StudentStatus.Inactive, DateOnly.FromDateTime(now.AddYears(-10)), leftAt: now.AddYears(-4)));
+            seed.Context.Students.Add(NewStudent(611, "Recently Left", StudentStatus.Inactive, DateOnly.FromDateTime(now.AddYears(-10)), leftAt: now.AddYears(-1)));
+
+            // ExpiryDate is comfortably within its own 6-year retention window — only the teacher's
+            // leaving (4 years before ExpiryDate, so >6 years before "now") brings this row due.
+            seed.Context.AppUsers.Add(new AppUser { Id = 64, DisplayName = "Teacher Left Long Ago", Email = "t64@example.com", HasLeft = true, LeftAt = now.AddYears(-7) });
+            seed.Context.UserRoles.Add(new UserRole { UserId = 64, Role = Role.Teacher });
+            seed.Context.DbsChecks.Add(NewDbsCheck(65, 64, DateOnly.FromDateTime(now.AddYears(-3))));
+
+            seed.Context.AppUsers.Add(new AppUser { Id = 66, DisplayName = "Teacher Recently Left", Email = "t66@example.com", HasLeft = true, LeftAt = now.AddYears(-2) });
+            seed.Context.UserRoles.Add(new UserRole { UserId = 66, Role = Role.Teacher });
+            seed.Context.DbsChecks.Add(NewDbsCheck(67, 66, DateOnly.FromDateTime(now.AddYears(-1))));
+
+            seed.Context.SaveChanges();
+        }
+
+        using var run = CreateContext(SystemCurrentUserContext.Instance);
+        var sut = new ConsentExpiryJob(run.Context, SystemCurrentUserContext.Instance, new ListLogger<ConsentExpiryJob>());
+
+        var result = await sut.RunAsync();
+
+        var flaggedStudent = Assert.Single(result.StudentsDueForDeletion, s => s.StudentId == 610);
+        Assert.Equal(StudentDeletionReason.Left, flaggedStudent.Reason);
+        Assert.DoesNotContain(result.StudentsDueForDeletion, s => s.StudentId == 611);
+
+        var flaggedDbsCheck = Assert.Single(result.DbsChecksDueForDeletion, d => d.DbsCheckId == 65);
+        Assert.Equal(DbsCheckDeletionReason.TeacherLeft, flaggedDbsCheck.Reason);
+        Assert.DoesNotContain(result.DbsChecksDueForDeletion, d => d.DbsCheckId == 67);
     }
 
     [Fact]

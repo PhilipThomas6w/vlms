@@ -303,15 +303,15 @@ public sealed class ConsentExpiryJob
         foreach (var flag in studentsDueForDeletion)
         {
             _logger.LogWarning(
-                "Retention: student {StudentId} ({StudentName}) graduated {GraduatedAt} and is {DaysPastRetention} day(s) past the {RetentionYears}-year retention period — due for manual Admin-triggered deletion.",
-                flag.StudentId, flag.StudentName, flag.GraduatedAt, flag.DaysPastRetention, RetentionFlagging.StudentRetentionYears);
+                "Retention: student {StudentId} ({StudentName}) {Reason} on {AnchorDate} and is {DaysPastRetention} day(s) past the {RetentionYears}-year retention period — due for manual Admin-triggered deletion.",
+                flag.StudentId, flag.StudentName, flag.Reason, flag.AnchorDate, flag.DaysPastRetention, RetentionFlagging.StudentRetentionYears);
         }
 
         foreach (var flag in dbsChecksDueForDeletion)
         {
             _logger.LogWarning(
-                "Retention: DBS check {DbsCheckId} for teacher {TeacherUserId} ({TeacherName}) expired {ExpiryDate} and is {DaysPastRetention} day(s) past the {RetentionYears}-year retention period — due for manual Admin-triggered deletion.",
-                flag.DbsCheckId, flag.TeacherUserId, flag.TeacherName, flag.ExpiryDate, flag.DaysPastRetention, RetentionFlagging.DbsCheckRetentionYears);
+                "Retention: DBS check {DbsCheckId} for teacher {TeacherUserId} ({TeacherName}), reason {Reason}, anchor date {AnchorDate}, is {DaysPastRetention} day(s) past the {RetentionYears}-year retention period — due for manual Admin-triggered deletion.",
+                flag.DbsCheckId, flag.TeacherUserId, flag.TeacherName, flag.Reason, flag.AnchorDate, flag.DaysPastRetention, RetentionFlagging.DbsCheckRetentionYears);
         }
     }
 

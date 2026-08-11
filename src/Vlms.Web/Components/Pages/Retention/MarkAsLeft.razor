@@ -1,0 +1,148 @@
+@page "/retention/mark-as-left"
+@attribute [Authorize(Policy = "RequireAdmin")]
+@rendermode InteractiveServer
+@using Microsoft.EntityFrameworkCore
+@using Vlms.Domain
+@using Vlms.Infrastructure
+@using Vlms.Infrastructure.Retention
+@inject VlmsDbContext Db
+@inject LeavingService LeavingService
+
+<PageTitle>Mark as left</PageTitle>
+
+<h1>Mark as left</h1>
+
+<p>
+    A manual, Admin-only action (STATE.md "Manual 'leaving' flag for students and teachers") — not
+    inferred from disengagement/activity. Marking a Student or Teacher as having left records the
+    date automatically (the moment you click the button, not a backdated date you choose) and feeds
+    the <a href="/reporting/records-due-for-deletion">records due for deletion</a> retention report.
+    This does not delete anything and does not affect promotions, badges, or certificates.
+</p>
+
+@if (_errorMessage is not null)
+{
+    <p class="error" role="alert">@_errorMessage</p>
+}
+@if (_statusMessage is not null)
+{
+    <p role="status">@_statusMessage</p>
+}
+
+<h2>Students</h2>
+@if (_activeStudents.Count == 0)
+{
+    <p>No Active students.</p>
+}
+else
+{
+    <table>
+        <thead>
+            <tr>
+                <th>Student</th>
+                <th>Enrolment date</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var student in _activeStudents)
+            {
+                <tr>
+                    <td>@student.Name</td>
+                    <td>@student.EnrolmentDate.ToString("d MMMM yyyy")</td>
+                    <td><button @onclick="() => MarkStudentInactiveAsync(student.Id)">Mark as left</button></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+<h2>Teachers</h2>
+@if (_currentTeachers.Count == 0)
+{
+    <p>No Teachers who have not already been marked as left.</p>
+}
+else
+{
+    <table>
+        <thead>
+            <tr>
+                <th>Teacher</th>
+                <th>Email</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var teacher in _currentTeachers)
+            {
+                <tr>
+                    <td>@teacher.DisplayName</td>
+                    <td>@teacher.Email</td>
+                    <td><button @onclick="() => MarkTeacherLeftAsync(teacher.Id)">Mark as left</button></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<Student> _activeStudents = new();
+    private List<AppUser> _currentTeachers = new();
+    private string? _errorMessage;
+    private string? _statusMessage;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _activeStudents = await Db.Students
+            .Where(s => s.Status == StudentStatus.Active)
+            .OrderBy(s => s.Name)
+            .ToListAsync();
+
+        var teacherUserIds = await Db.UserRoles
+            .Where(r => r.Role == Role.Teacher)
+            .Select(r => r.UserId)
+            .Distinct()
+            .ToListAsync();
+
+        _currentTeachers = await Db.AppUsers
+            .Where(u => teacherUserIds.Contains(u.Id) && !u.HasLeft)
+            .OrderBy(u => u.DisplayName)
+            .ToListAsync();
+    }
+
+    private async Task MarkStudentInactiveAsync(int studentId)
+    {
+        _errorMessage = null;
+        _statusMessage = null;
+
+        try
+        {
+            var student = await LeavingService.MarkStudentInactiveAsync(studentId);
+            _statusMessage = $"{student.Name} marked as left (Inactive).";
+            await LoadAsync();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+
+    private async Task MarkTeacherLeftAsync(int teacherUserId)
+    {
+        _errorMessage = null;
+        _statusMessage = null;
+
+        try
+        {
+            var teacher = await LeavingService.MarkTeacherLeftAsync(teacherUserId);
+            _statusMessage = $"{teacher.DisplayName} marked as left.";
+            await LoadAsync();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+}
