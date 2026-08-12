@@ -13,7 +13,11 @@
 }
 
     #blazor-error-ui .dismiss {
+        background: none;
+        border: none;
         cursor: pointer;
+        font: inherit;
+        padding: 0;
         position: absolute;
         right: 0.75rem;
         top: 0.5rem;

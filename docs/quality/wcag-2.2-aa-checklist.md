@@ -106,9 +106,15 @@ The current pages (`src/Vlms.Web/Components/Pages/`): `Home.razor`,
       PWA entry) — re-check this item specifically once real branding lands, not just at this
       review.
 - [x] **Keyboard operability (2.1.1) / focus order (2.4.3) — closed (STATE.md "WCAG 'Keyboard
-      operability (2.1.1) / focus order (2.4.3)' checklist review").** Genuine item-by-item review,
-      not a hash-refresh — every current page read directly, not assumed compliant because it's
-      "standard Blazor markup". **No defect found; no code change made.** Checked, across every
+      operability (2.1.1) / focus order (2.4.3)' checklist review", corrected by a subsequent
+      checker-FAIL round-trip fix — see the correction paragraph after the `ReconnectModal.razor`
+      sub-bullet below before relying on this item).** Genuine item-by-item review of every
+      `EditForm`/`<form>` page, not a hash-refresh — every current page read directly, not assumed
+      compliant because it's "standard Blazor markup". **No defect found among the pages reviewed
+      below; no code change made in that pass** — but that pass's page inventory never considered
+      `Layout/MainLayout.razor` (not a routable page, so it fell outside the "every current page"
+      framing this review actually used), and `MainLayout.razor` did have a real 2.1.1 defect, found
+      by a checker review and fixed afterwards — see the correction below. Checked, across every
       `.razor` file under `src/Vlms.Web/Components/`, for the concrete ways this codebase (or the
       Blazor template it started from) could have broken native keyboard operability: a repo-wide
       grep for `tabindex` returned zero matches (nothing overrides the browser's default tab order
@@ -164,6 +170,37 @@ The current pages (`src/Vlms.Web/Components/Pages/`): `Home.razor`,
           Web-App-template-default markup and script, not VLMS-authored, confirmed by comparing
           against the official `dotnet new blazor` template's own `ReconnectModal` files — still
           reviewed here since it ships in the app, per this item's own instruction.
+    - [x] **Checker-FAIL round-trip correction — `Layout/MainLayout.razor`'s `#blazor-error-ui`
+          dismiss control, a real 2.1.1 defect the review above missed entirely.** The pass above
+          reviewed every `EditForm`/`<form>` page and `ReconnectModal.razor`'s `<dialog>`, and closed
+          this item on that basis — but never once considered `MainLayout.razor` itself, which is not
+          a routable `@page` and so fell outside that review's own "every current page" framing. A
+          checker review of that closure found the gap: the "Non-text content beyond `<img>` (1.1.1)"
+          item (below) had already named and photographed this exact element — a `<span
+          class="dismiss" aria-label="Dismiss">🗙</span>` inside `#blazor-error-ui` — and that item's
+          own write-up *explicitly deferred* keyboard operability to "a separate, distinct,
+          already-tracked WCAG item", i.e. this one, by name. This item's own review pass never
+          followed that pointer back. Confirmed the defect was real, not assumed: a `<span>` is not a
+          native interactive element and carries no `tabindex`, so it never enters the browser's
+          default tab order regardless of `MainLayout.razor.css`'s `cursor: pointer` styling — a
+          keyboard-only user could reach and activate the adjacent "Reload" `<a>` but had no way at
+          all to reach "Dismiss". **Fix:** changed the element to `<button type="button"
+          class="dismiss" aria-label="Dismiss">🗙</button>` (`MainLayout.razor`), with
+          `MainLayout.razor.css`'s `.dismiss` rule gaining `background: none; border: none; font:
+          inherit; padding: 0;` so the button renders identically to the previous span rather than
+          with default browser button chrome. Verified, not assumed, that Blazor's own boot-script
+          wiring still finds and dismisses via the new element: read `BootErrors.ts`
+          (`dotnet/aspnetcore`) directly — `showErrorNotification()` selects dismiss targets via
+          `document.querySelectorAll('#blazor-error-ui .dismiss')`, a pure class selector with no
+          element-type assumption, and sets `.onclick` on whatever it finds — so a `<button
+          class="dismiss">` is selected and wired exactly as the `<span>` was, and a `<button>`'s
+          native click-on-Enter/Space behaviour now also fires that same handler, with zero JS
+          changes needed anywhere in this project. New regression test
+          `MainLayoutAccessibilityTests.DismissControl_IsARealButton_NotASpan` (`tests/Vlms.Tests/
+          Web/MainLayoutAccessibilityTests.cs`) asserts the element is a `<button>`, not a `<span>`.
+          The item above stays `[x]` (the property it actually reviewed — every `EditForm`/`<form>`
+          page plus `ReconnectModal.razor` — was and remains true) but is no longer an honest closure
+          of *all* of 2.1.1 without this correction read alongside it.
 - [ ] **Error identification (3.3.1) / suggestion (3.3.3):** every page's `<ValidationSummary />`
       and inline `role="alert"` error `<p>` (see `RegisterStudent.razor`'s `_errorMessage` pattern,
       reused across the Safeguarding/Guardianship/Registration pages) describes the problem in text,
@@ -284,4 +321,6 @@ The current pages (`src/Vlms.Web/Components/Pages/`): `Home.razor`,
 
 | Philip Luke Thomas | 2026-08-12 | **Closed the "Keyboard operability (2.1.1) / focus order (2.4.3)" item** (STATE.md "WCAG 'Keyboard operability (2.1.1) / focus order (2.4.3)' checklist review"), genuinely re-reviewed item-by-item against current code, not hash-refreshed — `build/verify.ps1` reported this checklist current before this review (confirmed via `-PrintHash`: current source hash matched the recorded one exactly). No defect found and no code change made — a real review outcome, not an assumption: repo-wide greps for `tabindex` (zero hits), `.focus(` (zero hits across every `.razor`/`.js`/`.cs` file), and `@onclick` (every hit attached to a real `<button>`, never an `onclick`-only `<div>`/`<span>`) confirmed nothing in this codebase overrides the browser's native keyboard/focus behaviour; `wwwroot/app.css`'s only `outline: none` rule is scoped to `h1:focus` (the Blazor template's own non-interactive page-title focus-ring suppression, not a Tab-reachable control) and no page-scoped `.razor.css` declares `outline` at all. All eight `EditForm` pages plus the six Account `EditForm`/`<form>` pages read directly and confirmed to use only natively-focusable elements in plain document order. `RegisterStudent.razor`/`GuardianLinks.razor`'s `InputRadioGroup`-driven conditional sections specifically confirmed to use Razor `@if`/`@else` (full DOM add/remove) rather than CSS-hide, with the newly-shown fields immediately following the radio group in document order in both branches — no focus trap, no skip. `Layout/ReconnectModal.razor.js` read directly and confirmed to call the real `HTMLDialogElement.showModal()`/`.close()` API (not an `open`-attribute/class toggle), which is what gives it native browser focus-trap-on-open/restore-on-close for free; confirmed nothing else in this codebase's own code references or overrides that dialog. Full findings recorded in the item's own bullet above, not just this row. No `.razor` file or `wwwroot/app.css` changed by this item, so the recorded hash below is unchanged — confirmed, not assumed, by running `build/check-accessibility.ps1 -PrintHash` before and relying on the unchanged file set. Reviewed every other bullet in this checklist against current code while in these files: colour contrast, error identification, non-text content, status messages, and consistent navigation are all unaffected (nothing this review touched changes any of them) and stay exactly as previously recorded. |
 
-Reviewed-hash: 9509badc53ea96e45fbc2b7e35109bd672e82f923a8f2409e57d60e9deea62c9
+| Philip Luke Thomas | 2026-08-12 | **Checker-FAIL round-trip correction to the row immediately above.** An adversarial checker review of that closure (commit 21b4a9c) found it wrong: the review claimed "every current page" and "no defect found", but never considered `Layout/MainLayout.razor` (not a routable page, so silently outside that review's own page inventory) — and `MainLayout.razor` did have a real, live 2.1.1 defect: `#blazor-error-ui`'s dismiss control was a `<span class="dismiss" aria-label="Dismiss">🗙</span>`, non-interactive, no `tabindex`, never reachable by keyboard regardless of its `cursor: pointer` styling. This is not a new discovery — the "Non-text content" item's own 2026-08-11 closure (row above) had already named this exact element and explicitly deferred keyboard operability to this item, by name, and this item's review pass never followed that pointer back before closing itself. **Fix:** `MainLayout.razor`'s `<span>` changed to `<button type="button" class="dismiss" aria-label="Dismiss">🗙</button>`; `MainLayout.razor.css`'s `.dismiss` rule gained a button-chrome reset (`background: none; border: none; font: inherit; padding: 0;`) so it renders identically to the previous span. Verified, not assumed, that this doesn't need any JS change: read `BootErrors.ts` (`dotnet/aspnetcore`) directly — `showErrorNotification()` wires dismiss handling via `document.querySelectorAll('#blazor-error-ui .dismiss')`, a pure class selector, so the new `<button>` is found and wired exactly as the `<span>` was, and now also responds to native Enter/Space activation. New regression test `MainLayoutAccessibilityTests.DismissControl_IsARealButton_NotASpan` added alongside the pre-existing `DismissGlyph_HasAriaLabel` test. Full reasoning recorded in the new checker-FAIL correction sub-bullet directly under the "Keyboard operability" item above (not overwriting the original review's record of the eight `EditForm`/`ReconnectModal.razor` pages, which remains true as far as it went) — the item stays `[x]` since that reviewed scope is genuinely defect-free, but is only an honest closure of 2.1.1 in full when read together with this correction. `MainLayout.razor`/`MainLayout.razor.css` are the only source changes in this fix — confirmed via `git diff` — so the recorded hash below is regenerated to cover them, and every other bullet in this checklist was re-checked against current code while in these files: colour contrast, error identification, non-text content (its own text is unaffected — the `aria-label` it added is untouched by this fix), status messages, and consistent navigation all stay exactly as previously recorded. |
+
+Reviewed-hash: 813cc0e14b724dc80596bf65b787ab26d3d04b7251a8ff39ecc17389f925593f
