@@ -100,7 +100,7 @@ accepts as satisfying "every routable page has `[Authorize]`".
       pages by `MfaRequirementHandler` yet still read these entities through any other code path
       querying `VlmsDbContext` directly. No additional role has been added to either filter without
       an explicit, documented decision.
-- [ ] `SystemCurrentUserContext` (used only by the `Vlms.Jobs` WebJob host) still grants exactly
+- [ ] `SystemCurrentUserContext` (used only by the `Vlms.Jobs` systemd-timer-invoked console host) still grants exactly
       `Role.Admin`/`Role.SafeguardingOfficer` and nothing broader, and its `HasMfaEnabled` is hardcoded
       `true` (documented in its own doc comment: MFA enforcement gates *interactive sign-in* by a
       human, which this trusted, narrowly-scoped system principal is not) — it is a narrow, named
