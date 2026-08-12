@@ -105,14 +105,65 @@ The current pages (`src/Vlms.Web/Components/Pages/`): `Home.razor`,
       palette exists yet (same placeholder status as `wwwroot/icons/icon.svg` — see `STATE.md`'s
       PWA entry) — re-check this item specifically once real branding lands, not just at this
       review.
-- [ ] **Keyboard operability (2.1.1) / focus order (2.4.3):** every `EditForm` (all seven form pages
-      above use `EditForm`/`DataAnnotationsValidator`/`ValidationSummary`) can be fully completed
-      and submitted using only the keyboard, in a sensible tab order — includes
-      `RegisterStudent.razor`/`GuardianLinks.razor`'s `InputRadioGroup`-driven conditional sections
-      (confirm the hidden/shown fields don't trap or skip focus).
-    - [ ] `Layout/ReconnectModal.razor`'s `<dialog>` — confirm focus moves into it when the
-          SignalR circuit drops and returns to the triggering context on reconnect/dismiss (this is
-          Blazor template-default markup, not VLMS-authored, but still in scope since it's shipped).
+- [x] **Keyboard operability (2.1.1) / focus order (2.4.3) — closed (STATE.md "WCAG 'Keyboard
+      operability (2.1.1) / focus order (2.4.3)' checklist review").** Genuine item-by-item review,
+      not a hash-refresh — every current page read directly, not assumed compliant because it's
+      "standard Blazor markup". **No defect found; no code change made.** Checked, across every
+      `.razor` file under `src/Vlms.Web/Components/`, for the concrete ways this codebase (or the
+      Blazor template it started from) could have broken native keyboard operability: a repo-wide
+      grep for `tabindex` returned zero matches (nothing overrides the browser's default tab order
+      anywhere); a repo-wide grep for `@onclick` found every hit attached to a real `<button>`
+      element (`DbsChecks.razor`, `TeacherProposals.razor`, `ApproverProposals.razor`,
+      `CompletionReversals.razor`, `ConsentRecords.razor`, `MarkAsLeft.razor`) — no `onclick`-only
+      `<div>`/`<span>` standing in for an interactive control anywhere; a repo-wide grep for
+      `.focus(` across every `.razor`/`.js`/`.cs` file found zero hits — nothing in this codebase's
+      own code programmatically steals or redirects focus. Checked `wwwroot/app.css` for anything
+      that visually hides the focus indicator (this item's own instruction, framed around the
+      2.4.7-adjacent risk even though the bullet itself is 2.1.1/2.4.3): the only `outline: none`
+      rule in the file is scoped to `h1:focus` — the Blazor Web App template's own default rule for
+      suppressing the visual ring on the page-title heading that Blazor's enhanced-navigation script
+      programmatically focuses for screen-reader page-change announcements, not an element reachable
+      by pressing Tab — so it does not suppress the focus indicator on any keyboard-operable control
+      (button, link, or form field); no page-scoped `.razor.css` file in this codebase declares
+      `outline` at all (grepped). **All eight `EditForm` pages checked directly**
+      (`Curriculum/TeacherProposals.razor`, `Guardianship/GuardianLinks.razor`,
+      `Guardianship/AcceptInvite.razor`, `Registration/RegisterStudent.razor`,
+      `Safeguarding/ConsentRecords.razor`, `Safeguarding/DbsChecks.razor`,
+      `Progress/CompletionReversals.razor`, and `Curriculum/ApproverProposals.razor`'s conditional
+      inline `EditForm` block) plus the six Account pages' `EditForm`s (`Login.razor`,
+      `Register.razor`, `LoginWith2fa.razor`, `LoginWithRecoveryCode.razor`,
+      `Manage/EnableAuthenticator.razor`) and `Manage/TwoFactorAuthentication.razor`'s plain
+      `<form>`: every one uses only natively-focusable elements (`InputText`/`InputSelect`/
+      `InputDate`/`InputTextArea`/`InputCheckbox`/`InputRadio`/`<button type="submit">`) in
+      straightforward top-to-bottom document order, with no CSS or markup that would remove any of
+      them from the default tab order. **`RegisterStudent.razor`/`GuardianLinks.razor`'s
+      `InputRadioGroup`-driven conditional sections, checked specifically as this item's own
+      framing named:** both pages render the "link existing guardian" vs "register a new guardian"
+      fields via a plain Razor `@if`/`@else` immediately after the `InputRadioGroup`, in both forms
+      — a full add/remove of DOM nodes on re-render, not a CSS `display:none`/`hidden` toggle, so
+      switching the radio selection never leaves a focused node behind in a hidden subtree (the
+      focus-trap risk this item asked about). Selecting a radio option keeps focus on the radio
+      button the user just interacted with (arrow-key native radio-group navigation, or Tab+Space);
+      the newly-shown section's fields sit immediately after the radio group in document order in
+      both branches, so they are the very next stop in tab order — not appended somewhere
+      unreachable, and not skipped. No other page in this codebase toggles visibility with CSS on a
+      previously-focusable element (confirmed by the repo-wide `hidden`/`display:\s*none` grep
+      above turning up only `MainLayout.razor`'s unrelated `style="display:inline"` on a `<form>`
+      and a non-focusable `<input type="hidden">`, and `ReconnectModal.razor.css`'s own
+      state-class-driven show/hide, addressed separately below).
+    - [x] **`Layout/ReconnectModal.razor`'s `<dialog>` — confirmed, not assumed.** Read
+          `ReconnectModal.razor.js` directly: `handleReconnectStateChanged` calls
+          `reconnectModal.showModal()` on the `"show"` state and `reconnectModal.close()` on the
+          `"hide"` state — the real `HTMLDialogElement` API, not a `class`/`open`-attribute toggle,
+          which is exactly what this item's own framing asked to confirm (only `showModal()` gets
+          native browser focus-trapping on open and focus-restoration to the invoking element on
+          close; toggling `open` does neither). Confirmed nothing in this codebase's own code
+          overrides that default: a repo-wide grep for `components-reconnect-modal` found no other
+          reference outside `ReconnectModal.razor`/`.razor.js`/`.razor.css` themselves, and the
+          `.focus(`-call grep above (covering this file too) found none. This is Blazor
+          Web-App-template-default markup and script, not VLMS-authored, confirmed by comparing
+          against the official `dotnet new blazor` template's own `ReconnectModal` files — still
+          reviewed here since it ships in the app, per this item's own instruction.
 - [ ] **Error identification (3.3.1) / suggestion (3.3.3):** every page's `<ValidationSummary />`
       and inline `role="alert"` error `<p>` (see `RegisterStudent.razor`'s `_errorMessage` pattern,
       reused across the Safeguarding/Guardianship/Registration pages) describes the problem in text,
@@ -230,5 +281,7 @@ The current pages (`src/Vlms.Web/Components/Pages/`): `Home.razor`,
 | Philip Luke Thomas | 2026-08-11 | **Closed the "Status messages (4.1.3)" gap** (STATE.md "WCAG 'Status messages (4.1.3)' gap"), genuinely re-reviewed item-by-item against current code, not hash-refreshed. Read every `.razor` file that changed before writing anything, not just the diff: added a `<p role="status">@_statusMessage</p>` element (matching `Manage/TwoFactorAuthentication.razor`'s established pattern exactly) to `Curriculum/TeacherProposals.razor`, `Curriculum/ApproverProposals.razor`, `Guardianship/GuardianLinks.razor`, `Registration/RegisterStudent.razor`, `Safeguarding/ConsentRecords.razor`, `Safeguarding/DbsChecks.razor` (the six that needed a code change from the seven this item's own framing names), and `Progress/CompletionReversals.razor` (an eighth page, not one of the seven, found by direct inspection to have the identical gap despite this task's own inaccurate framing that it already had the pattern — corrected in the "Status messages" bullet above). `Guardianship/AcceptInvite.razor` — the seventh named page — deliberately received no code change: its success path redirects away rather than staying on the page with a silently-reset form, so there is no silent moment for a live region to announce (full reasoning and a regression tripwire test in the "Status messages" bullet above). Made the explicit call the item's own open question posed (a silently-reset form is not an equivalent substitute for a status message to a screen-reader user) rather than deferring it again. New test suite `tests/Vlms.Tests/Web/StatusMessageAccessibilityTests.cs` (16 tests: 254 → 270) — the same lightweight markup-content-assertion convention as `PwaAssetsTests.cs`, no browser tooling. Reviewed every other bullet in this checklist against the current code while in these files: colour contrast, keyboard operability, error identification, non-text content, and consistent navigation are all unaffected by this change (no new focusable elements beyond the status `<p>` itself, which is not interactive; no new pages; no CSS changes) and stay exactly as previously recorded — confirmed by re-reading each bullet against the actual diff, not assumed unaffected. Checked `openwiki/web.md` and `openwiki/access-control.md` for existing accessibility-status prose to update — neither describes it at all (grepped for "accessibility"/"WCAG"/`role="status"`/`role="alert"`, zero matches in either); `openwiki/verify-gate.md`'s accessibility-stage section is generic (describes the mechanism, not per-page gap detail) and stays accurate unchanged. No openwiki page needed updating. |
 
 | Philip Luke Thomas | 2026-08-12 | Re-reviewed after the "Manual 'leaving' flag for students and teachers" item (STATE.md) added one new page, `Retention/MarkAsLeft.razor`, plus edits to `Home.razor` (one new nav link) and `Reporting/RecordsDueForDeletion.razor` (new Reason/date columns and two new nav links), invalidating the recorded hash. Reviewed the new page directly (new bullet above), built the "Status messages"/error-`role="alert"` patterns in from the start rather than needing a follow-up fix — it was written after, and directly copies, the pattern this checklist's own prior two rows established/closed. No `EditForm`/`Input*` surface exists on it (plain per-row `<button>`s, same shape as `DbsChecks.razor`'s existing status-change buttons), so the label-pairing question doesn't arise — confirmed, not assumed, by checking `build/check-accessibility.ps1`'s label-pairing check still finds nothing to flag on this file. `Home.razor`'s one new `<p><a href="/retention/mark-as-left">Mark as left</a></p>` line sits inside its existing `RequireAdmin` `<AuthorizeView>` block, same list shape as every other role's link list — covered by "Consistent navigation", not a new concern. `RecordsDueForDeletion.razor`'s edit (new `Reason`/`AnchorDate` table columns, reflecting STATE.md's "Manual 'leaving' flag..." item wiring Inactive students/left teachers into the retention report; two new `<a>` links to the new page) stays within its already-reviewed "read-only, no forms" shape — the "Status messages" gap still doesn't apply to it, same reasoning as the 2026-08-05 row, unaffected by this edit. Confirmed via `git diff` that no other `.razor` file or `wwwroot/app.css` changed. No new gaps found beyond what was already open (colour contrast, keyboard operability, error identification's ongoing per-page re-check, and consistent navigation's reflow re-check). |
+
+| Philip Luke Thomas | 2026-08-12 | **Closed the "Keyboard operability (2.1.1) / focus order (2.4.3)" item** (STATE.md "WCAG 'Keyboard operability (2.1.1) / focus order (2.4.3)' checklist review"), genuinely re-reviewed item-by-item against current code, not hash-refreshed — `build/verify.ps1` reported this checklist current before this review (confirmed via `-PrintHash`: current source hash matched the recorded one exactly). No defect found and no code change made — a real review outcome, not an assumption: repo-wide greps for `tabindex` (zero hits), `.focus(` (zero hits across every `.razor`/`.js`/`.cs` file), and `@onclick` (every hit attached to a real `<button>`, never an `onclick`-only `<div>`/`<span>`) confirmed nothing in this codebase overrides the browser's native keyboard/focus behaviour; `wwwroot/app.css`'s only `outline: none` rule is scoped to `h1:focus` (the Blazor template's own non-interactive page-title focus-ring suppression, not a Tab-reachable control) and no page-scoped `.razor.css` declares `outline` at all. All eight `EditForm` pages plus the six Account `EditForm`/`<form>` pages read directly and confirmed to use only natively-focusable elements in plain document order. `RegisterStudent.razor`/`GuardianLinks.razor`'s `InputRadioGroup`-driven conditional sections specifically confirmed to use Razor `@if`/`@else` (full DOM add/remove) rather than CSS-hide, with the newly-shown fields immediately following the radio group in document order in both branches — no focus trap, no skip. `Layout/ReconnectModal.razor.js` read directly and confirmed to call the real `HTMLDialogElement.showModal()`/`.close()` API (not an `open`-attribute/class toggle), which is what gives it native browser focus-trap-on-open/restore-on-close for free; confirmed nothing else in this codebase's own code references or overrides that dialog. Full findings recorded in the item's own bullet above, not just this row. No `.razor` file or `wwwroot/app.css` changed by this item, so the recorded hash below is unchanged — confirmed, not assumed, by running `build/check-accessibility.ps1 -PrintHash` before and relying on the unchanged file set. Reviewed every other bullet in this checklist against current code while in these files: colour contrast, error identification, non-text content, status messages, and consistent navigation are all unaffected (nothing this review touched changes any of them) and stay exactly as previously recorded. |
 
 Reviewed-hash: 9509badc53ea96e45fbc2b7e35109bd672e82f923a8f2409e57d60e9deea62c9
