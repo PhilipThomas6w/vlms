@@ -68,7 +68,7 @@
     <h2>@_formTitle</h2>
     <EditForm Model="_form" OnValidSubmit="SubmitProposalAsync">
         <DataAnnotationsValidator />
-        <ValidationSummary />
+        <ValidationSummary role="alert" />
 
         @if (_form.ChangeType == LessonChangeType.Create)
         {

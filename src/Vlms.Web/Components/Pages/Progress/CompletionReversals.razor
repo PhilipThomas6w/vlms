@@ -76,7 +76,7 @@
     <h2>Reverse completion: @_reversingCompletion.Student?.Name — @_reversingCompletion.Lesson?.Title</h2>
     <EditForm Model="_reversalForm" OnValidSubmit="ConfirmReverseAsync">
         <DataAnnotationsValidator />
-        <ValidationSummary />
+        <ValidationSummary role="alert" />
 
         <div>
             <label for="reversalNote">Reason (optional)</label>

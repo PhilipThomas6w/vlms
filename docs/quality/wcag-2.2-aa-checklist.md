@@ -201,12 +201,95 @@ The current pages (`src/Vlms.Web/Components/Pages/`): `Home.razor`,
           The item above stays `[x]` (the property it actually reviewed — every `EditForm`/`<form>`
           page plus `ReconnectModal.razor` — was and remains true) but is no longer an honest closure
           of *all* of 2.1.1 without this correction read alongside it.
-- [ ] **Error identification (3.3.1) / suggestion (3.3.3):** every page's `<ValidationSummary />`
-      and inline `role="alert"` error `<p>` (see `RegisterStudent.razor`'s `_errorMessage` pattern,
-      reused across the Safeguarding/Guardianship/Registration pages) describes the problem in text,
-      not colour/icon alone, and is announced to assistive tech (confirm `role="alert"` is present
-      on every such element — `RegisterStudent.razor` has it; re-check the others each review as
-      more pages are added).
+- [x] **Error identification (3.3.1) / suggestion (3.3.3) — closed (STATE.md "WCAG 'Error
+      identification (3.3.1) / suggestion (3.3.3)' checklist review").** Genuine item-by-item
+      review, not a hash-refresh — read every current page's markup and the C# code setting
+      `_errorMessage`/`_statusMessage` on it, not assumed compliant because it follows an established
+      pattern. **Every inline error `<p>` confirmed to genuinely carry `role="alert"`, on all twelve
+      current pages that have one** (`Curriculum/TeacherProposals.razor`,
+      `Curriculum/ApproverProposals.razor`, `Guardianship/GuardianLinks.razor`,
+      `Guardianship/AcceptInvite.razor`, `Registration/RegisterStudent.razor`,
+      `Safeguarding/ConsentRecords.razor`, `Safeguarding/DbsChecks.razor`,
+      `Progress/CompletionReversals.razor`, `Retention/MarkAsLeft.razor`,
+      `Reporting/RecordsDueForDeletion.razor`, `Reporting/ProgressReporting.razor`,
+      `Parent/ParentDashboard.razor`) — grepped every `_errorMessage =` assignment site across
+      `src/Vlms.Web/Components/Pages/` to build this list directly rather than trusting an older,
+      shorter list from a prior review; `Retention/MarkAsLeft.razor` (built since the last WCAG pass)
+      was genuinely new to this list, not assumed already covered. **Error message text checked for
+      descriptiveness, not just presence of `role="alert"`** — read every service-layer `throw new
+      InvalidOperationException(...)`/`UnauthorizedAccessException(...)`/`ArgumentException(...)`
+      call whose message ultimately surfaces via a page's `catch (Exception ex) { _errorMessage =
+      ex.Message; }` (`LessonProposalService`, `GuardianInviteService`, `GuardianLinkService`,
+      `CompletionService`, `StudentRegistrationService`, `DbsCheckService`, `ConsentRecordService`,
+      `LeavingService`, `RecordsDueForDeletionService`, `ProgressReportingService`,
+      `ParentDashboardService`): every message names the specific problem
+      (`"This invite link has expired."`, `"Completion {completionId} has already been reversed."`,
+      `"Caller does not hold the {role} role."`, `ApproverProposals.razor`'s own
+      `"Rejection comments are required."`) rather than a bare `"Error"`/raw exception type — none
+      found generic. 3.3.3 (suggestion) is a lighter-touch check by this item's own framing: most of
+      these messages describe a state the user cannot fix by re-entering different data (an expired
+      invite, a role they don't hold, a completion already reversed), so there is no bogus
+      "suggestion" to manufacture — a real fix-suggestion only makes sense where the fix is actually
+      the user's to make, which `ApproverProposals.razor`'s "Rejection comments are required."
+      already does correctly. **A genuine, confirmed defect found and fixed, not assumed away — the
+      `<ValidationSummary />` default this item's own prior framing had never actually verified.**
+      Read `Microsoft.AspNetCore.Components.Forms.ValidationSummary`'s real source
+      (`dotnet/aspnetcore`, `src/Components/Web/src/Forms/ValidationSummary.cs`) directly rather than
+      assumed: it renders a bare `<ul class="validation-errors">` with `AdditionalAttributes` passed
+      through verbatim and **no `role`/`aria-live` attribute of its own** — an unadorned
+      `<ValidationSummary />` in Razor markup is never announced to assistive tech. Cross-checking
+      every `<ValidationSummary />` usage in the codebase against this found a real, live
+      inconsistency: all six Account pages (`Login.razor`, `Register.razor`, `LoginWith2fa.razor`,
+      `LoginWithRecoveryCode.razor`, `Manage/EnableAuthenticator.razor`) and
+      `Guardianship/AcceptInvite.razor` already wrote `<ValidationSummary role="alert" />` explicitly
+      — but six pages under `src/Vlms.Web/Components/Pages/` did not:
+      `Curriculum/TeacherProposals.razor`, `Guardianship/GuardianLinks.razor`,
+      `Progress/CompletionReversals.razor`, `Registration/RegisterStudent.razor`,
+      `Safeguarding/DbsChecks.razor`, `Safeguarding/ConsentRecords.razor` all had a bare
+      `<ValidationSummary />` — client-side `DataAnnotationsValidator` errors on those six pages were
+      never announced to a screen-reader user, even though the equivalent inline error `<p>` on the
+      same page always was. **Fixed** by adding `role="alert"` to all six, bringing every
+      `<ValidationSummary />` in the codebase in line with the pattern the Account pages had already
+      established (`Curriculum/ApproverProposals.razor` has no `EditForm`/`ValidationSummary` at all
+      — a plain per-row `<input>`/`<button>` list — so it was never part of this gap). **Framework/
+      template-default surfaces, checked per the immediately-prior "Keyboard operability" checklist
+      item's checker-FAIL lesson (a broad review must cover framework chrome, not just the app's own
+      named pages) — not assumed out of scope because they aren't one of the pages named above:**
+      - `Layout/MainLayout.razor`'s `#blazor-error-ui` banner ("An unhandled error has occurred.")
+        had `aria-label="Dismiss"` on its dismiss button (from the earlier "Non-text content" fix)
+        but the banner `<div>` itself — the actual error text — carried no `role`/`aria-live` at all.
+        Confirmed this is a genuine gap in the Blazor Web App project template itself, not something
+        this project's own prior edits introduced or already covered: fetched the real
+        `dotnet/aspnetcore` template source
+        (`src/ProjectTemplates/Web.ProjectTemplates/content/BlazorWeb-CSharp/.../MainLayout.razor`)
+        and confirmed it ships this element with no `role` either. A sighted user sees the banner
+        slide into view; a screen-reader user gets no announcement that an unhandled error occurred
+        at all. **Fixed** by adding `role="alert"` directly to the `#blazor-error-ui` div.
+      - `Layout/ReconnectModal.razor`'s reconnection-failure state, checked specifically as this
+        item's own framing named. `ReconnectModal.razor.js`'s `handleReconnectStateChanged` calls
+        `showModal()` once, on the first `"show"` state — Blazor's own boot script then toggles CSS
+        state-classes on the same, already-open `<dialog>` to reveal different `<p>` messages inside
+        it (`components-reconnect-retrying`/`-failed`/`-paused`/`-resume-failed`) without closing and
+        reopening the dialog. A screen reader that already announced the dialog once on open has no
+        further reason to notice a later CSS-only content swap inside an element it already
+        considers "open" — confirmed this is a real gap, not assumed from the mechanism alone.
+        **Fixed** by adding `role="alert"` to the two genuine failure-state `<p>` elements only —
+        `"Failed to rejoin..."` (`components-reconnect-failed-visible`) and `"Failed to resume the
+        session..."` (`components-resume-failed-visible`) — deliberately **not** the
+        `"Rejoining..."`/repeated-attempt-countdown/`"paused"` states, which are advisory rather than
+        failures (the same "advisory status vs. must-interrupt failure" distinction the "Status
+        messages (4.1.3)" item below already established for this codebase), and in the countdown
+        message's case would re-announce on every second-by-second tick if given `role="alert"` — a
+        worse experience than the gap being fixed. `Routes.razor`'s `<NotAuthorized>` block
+        (`<p role="alert">You are not authorized to view this page.</p>`) was also checked as a
+        framework-adjacent surface outside any named page — already compliant, no change needed.
+      New test suite `tests/Vlms.Tests/Web/ErrorIdentificationAccessibilityTests.cs` (23 tests: 291
+      → 314) — same lightweight markup-content-assertion convention as `PwaAssetsTests.cs`/
+      `StatusMessageAccessibilityTests.cs`/`MainLayoutAccessibilityTests.cs`, no browser/axe-core:
+      asserts `role="alert"` on every `<ValidationSummary />` (the six fixed pages plus the one
+      already-correct page), on every inline error `<p>` across all twelve pages that have one, on
+      `MainLayout.razor`'s banner div, and on `ReconnectModal.razor`'s two failure-state `<p>`s, plus
+      a tripwire confirming the advisory-state `<p>`s were deliberately left without `role="alert"`.
 - [x] **Non-text content beyond `<img>` (1.1.1) — closed (STATE.md "`MainLayout.razor` dismiss-glyph
       missing `aria-label`").** `Layout/MainLayout.razor`'s `#blazor-error-ui` dismiss control was a
       bare emoji glyph (`🗙`, inside `<span class="dismiss">`) with no `aria-label` — Blazor-
@@ -323,4 +406,6 @@ The current pages (`src/Vlms.Web/Components/Pages/`): `Home.razor`,
 
 | Philip Luke Thomas | 2026-08-12 | **Checker-FAIL round-trip correction to the row immediately above.** An adversarial checker review of that closure (commit 21b4a9c) found it wrong: the review claimed "every current page" and "no defect found", but never considered `Layout/MainLayout.razor` (not a routable page, so silently outside that review's own page inventory) — and `MainLayout.razor` did have a real, live 2.1.1 defect: `#blazor-error-ui`'s dismiss control was a `<span class="dismiss" aria-label="Dismiss">🗙</span>`, non-interactive, no `tabindex`, never reachable by keyboard regardless of its `cursor: pointer` styling. This is not a new discovery — the "Non-text content" item's own 2026-08-11 closure (row above) had already named this exact element and explicitly deferred keyboard operability to this item, by name, and this item's review pass never followed that pointer back before closing itself. **Fix:** `MainLayout.razor`'s `<span>` changed to `<button type="button" class="dismiss" aria-label="Dismiss">🗙</button>`; `MainLayout.razor.css`'s `.dismiss` rule gained a button-chrome reset (`background: none; border: none; font: inherit; padding: 0;`) so it renders identically to the previous span. Verified, not assumed, that this doesn't need any JS change: read `BootErrors.ts` (`dotnet/aspnetcore`) directly — `showErrorNotification()` wires dismiss handling via `document.querySelectorAll('#blazor-error-ui .dismiss')`, a pure class selector, so the new `<button>` is found and wired exactly as the `<span>` was, and now also responds to native Enter/Space activation. New regression test `MainLayoutAccessibilityTests.DismissControl_IsARealButton_NotASpan` added alongside the pre-existing `DismissGlyph_HasAriaLabel` test. Full reasoning recorded in the new checker-FAIL correction sub-bullet directly under the "Keyboard operability" item above (not overwriting the original review's record of the eight `EditForm`/`ReconnectModal.razor` pages, which remains true as far as it went) — the item stays `[x]` since that reviewed scope is genuinely defect-free, but is only an honest closure of 2.1.1 in full when read together with this correction. `MainLayout.razor`/`MainLayout.razor.css` are the only source changes in this fix — confirmed via `git diff` — so the recorded hash below is regenerated to cover them, and every other bullet in this checklist was re-checked against current code while in these files: colour contrast, error identification, non-text content (its own text is unaffected — the `aria-label` it added is untouched by this fix), status messages, and consistent navigation all stay exactly as previously recorded. |
 
-Reviewed-hash: 813cc0e14b724dc80596bf65b787ab26d3d04b7251a8ff39ecc17389f925593f
+| Philip Luke Thomas | 2026-08-12 | **Closed the "Error identification (3.3.1) / suggestion (3.3.3)" item** (STATE.md "WCAG 'Error identification (3.3.1) / suggestion (3.3.3)' checklist review"), genuinely re-reviewed item-by-item against current code, not hash-refreshed — the item's own prior text was a still-open manual-review item, so this pass both did the review and fixed what it found, per this checklist's established discipline (see the "Error identification" bullet above for the full write-up). Explicitly re-scoped per the immediately-prior "Keyboard operability" checklist item's checker-FAIL lesson: reviewed framework/template-default surfaces (`MainLayout.razor`'s `#blazor-error-ui` banner text, `ReconnectModal.razor`'s reconnection-failure state, `Routes.razor`'s `<NotAuthorized>` block) alongside every named page, not narrower than that lesson requires. Found and fixed two genuine, confirmed defects rather than closing on a pure-review basis: (1) six pages (`TeacherProposals.razor`, `GuardianLinks.razor`, `CompletionReversals.razor`, `RegisterStudent.razor`, `DbsChecks.razor`, `ConsentRecords.razor`) used a bare `<ValidationSummary />` with no `role="alert"` — verified, not assumed, that Blazor's `ValidationSummary` component has no such default by reading its actual `dotnet/aspnetcore` source; (2) `MainLayout.razor`'s `#blazor-error-ui` banner text and `ReconnectModal.razor`'s two genuine failure-state messages had no `role`/`aria-live` of their own, confirmed against the real Blazor Web App project template source (not assumed to already be covered by this project's own earlier dismiss-button fixes). All twelve current inline error `<p>` elements confirmed to already carry `role="alert"`; every service-layer exception message that surfaces via `_errorMessage` read directly and confirmed descriptive (no generic "Error" strings). New test suite `tests/Vlms.Tests/Web/ErrorIdentificationAccessibilityTests.cs` (23 tests: 291 → 314). Reviewed every other bullet in this checklist against current code while in these files: colour contrast, keyboard operability (including its checker-FAIL correction), non-text content, status messages, and consistent navigation are all unaffected (the `role="alert"` additions are the only change to any of the eight touched files; no new pages, no new focusable elements, no CSS changes) and stay exactly as previously recorded. Checked `openwiki/web.md`/`openwiki/access-control.md` for existing error-identification/ValidationSummary prose to update — grepped for "ValidationSummary"/"role=\"alert\""/"error identification", zero matches in either; no openwiki page needed updating. |
+
+Reviewed-hash: f0df2d486aaf4ec4b31a9bdbf1df17679d40477d97f9294e6193b9caf024d72c
