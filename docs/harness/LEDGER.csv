@@ -181,3 +181,11 @@ date,work_item,change_class,session_tokens_est,model,outcome,notes
 2026-08-12,"_(none)_",n/a,136046,n/a,pass,auto-logged by run-verify.ps1
 2026-08-12,"_(none)_",n/a,143779,n/a,pass,auto-logged by run-verify.ps1
 2026-08-12,"_(none)_",n/a,143779,n/a,pass,auto-logged by run-verify.ps1
+2026-08-12,"_(none)_",n/a,143779,n/a,pass,auto-logged by run-verify.ps1
+2026-08-12,"_(none)_",n/a,149730,n/a,pass,auto-logged by run-verify.ps1
+2026-08-12,"_(none)_",n/a,149730,n/a,pass,auto-logged by run-verify.ps1
+2026-08-12,"_(none)_",n/a,149730,n/a,pass,auto-logged by run-verify.ps1
+2026-08-12,"_(none)_",n/a,151215,n/a,pass,auto-logged by run-verify.ps1
+2026-08-12,"_(none)_",n/a,151215,n/a,pass,auto-logged by run-verify.ps1
+2026-08-12,"_(none)_",n/a,151215,n/a,pass,auto-logged by run-verify.ps1
+2026-08-12,"- **WCAG ""Error identification (3.3.1) / suggestion (3.3.3)"" checklist review.** Re-confirm `role=""alert""` is present and announces correctly on every page's `<ValidationSummary />` and inline error `<p>` (the `RegisterStudent.razor` `_errorMessage` pattern, reused across Safeguarding/Guardianship/Registration/Curriculum/Progress pages) now that more pages exist than when this checklist item was last reviewed. Close with recorded evidence, same discipline as the ""Keyboard operability"" checklist item just closed above (and its own checker-FAIL round-trip: a broad review pass must genuinely cover every relevant control, not just the pages named in the item's own framing — check the same class of framework/template-default elements this codebase has been bitten by before, not only the page forms).",n/a,158543,n/a,pass,auto-logged by run-verify.ps1
