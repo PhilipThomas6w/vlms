@@ -6,7 +6,7 @@ Status: in progress
 
 - Platform: .NET (confirmed, fresh implementation — not reusing the prior Power Platform/SharePoint/Dataverse/Power Automate/Asana build).
 - Access: must work via phone, tablet, and browser.
-- **Confirmed stack — see `adr/0001-technology-stack.md`:** Blazor Web App (PWA) + Azure App Service (Linux) + Azure SQL Database + Microsoft Entra External ID + Azure Blob Storage + Azure Communication Services Email + QuestPDF.
+- **Confirmed stack — see `adr/0001-technology-stack.md` as amended by `adr/0005-hosting-pivot-self-hosted-vps-postgresql.md`:** Blazor Web App (PWA) + self-hosted Linux VPS (Kestrel behind Caddy) + self-hosted PostgreSQL + self-rolled ASP.NET Core Identity (TOTP MFA) + local disk file storage + SMTP email + QuestPDF. (Originally Azure App Service (Linux) + Azure SQL Database + Microsoft Entra External ID + Azure Blob Storage + Azure Communication Services Email — replaced for cost, per `adr/0005`.)
 
 ## Budget & timeline
 

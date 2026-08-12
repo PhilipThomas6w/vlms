@@ -5,7 +5,7 @@ Status: strategy (design gate) — per ISO/IEC/IEEE 29119-3:2021. Completed with
 ## Approach & levels
 
 - **Unit tests** (`Vlms.Tests`) — domain logic in `Vlms.Domain`: promotion rules, proposal state machine (propose/approve/reject/resubmit), consent-expiry blocking logic, at-risk threshold calculation.
-- **Integration tests** — EF Core against a real (local/test) Azure SQL instance or SQL container: entity relationships, whole-entity access-restriction enforcement (`DbsCheck`, `ConsentSensitiveDetails`) per role, `ConsentRecord` (status/expiry) remaining readable to Teacher/Approver despite the restriction on its split-out sensitive sibling, certificate generation round-trip (QuestPDF → Blob Storage).
+- **Integration tests** — EF Core against a real (local/test) PostgreSQL instance or container (originally Azure SQL, per `adr/0005-hosting-pivot-self-hosted-vps-postgresql.md` — as-built, the suite instead uses SQLite in-memory for this layer, since the query-filter/audit-interceptor mechanism it's most concerned with is provider-independent; see `openwiki/testing.md`'s "Test-provider strategy" section): entity relationships, whole-entity access-restriction enforcement (`DbsCheck`, `ConsentSensitiveDetails`) per role, `ConsentRecord` (status/expiry) remaining readable to Teacher/Approver despite the restriction on its split-out sensitive sibling, certificate generation round-trip (QuestPDF → local disk storage).
 - **End-to-end tests** — key Blazor user journeys per role (Teacher marks completion → promotion → certificate; Teacher proposes change → Approver approves/rejects → resubmission; Parent views own child only, not others; consent expiry blocks completion).
 - **Accessibility testing** — WCAG 2.2 AA conformance check against core screens (automated tooling + manual spot-check), per `requirements/non-functional.md`.
 - **Security testing** — OWASP ASVS 5.0-aligned checklist review at delivery gate, focused on access control (role/resource-based authorization) given the safeguarding data in scope.
@@ -13,7 +13,7 @@ Status: strategy (design gate) — per ISO/IEC/IEEE 29119-3:2021. Completed with
 ## Environments
 
 - Local development (solo developer machine).
-- **No Azure staging slot** — confirmed at design review: deployment slots require App Service Standard tier or above ([Deploy staging slots](https://learn.microsoft.com/azure/app-service/deploy-staging-slots)), and ADR-0001 selects Basic (B1), which has none. Testing goes local/dev → production directly; this is an accepted trade-off for cost at tens-of-users scale, not an oversight. Revisit if `adr/0001-technology-stack.md` is ever superseded by an upgrade to Standard tier.
+- **No staging environment** — confirmed at design review, originally reasoned as an Azure App Service tier limitation (deployment slots require Standard tier or above, and ADR-0001 selected Basic/B1, which has none); the self-hosted VPS pivot (`adr/0005-hosting-pivot-self-hosted-vps-postgresql.md`) removed that specific constraint but didn't change the conclusion — a single low-cost VPS for a solo-maintained, tens-of-users system still has no separate staging host. Testing goes local/dev → production directly; this is an accepted trade-off for cost/complexity at this scale, not an oversight.
 
 ## Entry/exit criteria (initial)
 
