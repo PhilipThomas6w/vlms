@@ -44,6 +44,7 @@ Full narrative for Done/Log items to 12/08/2026: `docs/harness/STATE-archive.md`
 _(none)_
 
 ## Next
+- [ ] **Waiting-for-approval list on the role-assignment page** — per Philip's decision (FR-004, 11/10/2026) an Admin approves each guardian by granting `Parent`, but nothing surfaces who is waiting. Add a section at the top of `/administration/user-roles` listing accounts with no roles (not leavers), showing whether each came from a guardian invite and which student(s) they are linked to, with a one-click "Approve as Parent" for invite-linked accounts. Admin-only via `RoleAssignmentService`. Acceptance: tests for the list query and the approve action; ASVS/WCAG checklists re-reviewed; full gate exits 0.
 - [ ] **Seed rank ladder + curriculum** — no `HasData`/`InsertData` seed exists. Idempotent seed via migration or first-run job; source rows need confirming with Philip. Acceptance: fresh DB has the rank ladder; test.
 - [ ] **Persist DataProtection keys** — `Program.cs:51` uses bare `AddDataProtection()` and the `vlms` service user has no home dir. `PersistKeysToFileSystem` to a config-driven `vlms`-writable path (e.g. `/var/lib/vlms/keys`, 0700), `SetApplicationName`; update `deploy/README.md` and unit. Acceptance: config test; restart keeps cookies/invite tokens valid (verify on host).
 - [ ] **EF migration bundle + deploy script** — migrations are currently applied by hand with the SDK (`deploy/README.md` §3). `dotnet ef migrations bundle` (or idempotent SQL) run as `vlms_owner` from a `deploy/` script. Acceptance: README §3 no longer needs the SDK on the server.
@@ -123,3 +124,4 @@ _(none)_
 - 2026-10-11: Deployment mapping (read-only) found go-live blockers: no role assignment/first Admin, no seed data, no retention purge, DataProtection keys not persisted; Next re-seeded in deploy order
 - 2026-10-11: Admin role assignment + first-Admin bootstrap done (16ba130); ASVS/WCAG checklists re-reviewed and signed by Claude pending Philip's countersign
 - 2026-10-11: Decision (Philip): guardian invite acceptance grants no role; an Admin approves by granting `Parent`. Recorded in functional.md FR-004; Blocked item retired
+- 2026-10-11: Queued waiting-for-approval list for the role-assignment page (top of Next)
