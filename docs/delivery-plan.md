@@ -5,7 +5,7 @@ Status: initial (design gate) — light-touch, proportionate to a solo-delivered
 ## Phases
 
 1. **Discovery & design (complete)** — requirements, ADR-0001–0004, data/low-level design; this design gate.
-2. **Build (MVP)** — implementation via `loop-harness` maker/checker cycles against `STATE.md`, not a fixed Gantt schedule (solo delivery, no hard deadline — `requirements/constraints.md`). Scope: curriculum management (propose/approve/resubmit), progress tracking (completion, auto-promotion, certificates, badges), safeguarding/consent/DBS management including the corrected access-control model (`adr/0004`), parent dashboard + notifications, core reporting + at-risk flagging.
+2. **Build (MVP)** — implementation via `loop-harness` `/work-next` cycles (one item at a time, in-session, gated by `build/verify.ps1`) against `STATE.md`, not a fixed Gantt schedule (solo delivery, no hard deadline — `requirements/constraints.md`). Scope: curriculum management (propose/approve/resubmit), progress tracking (completion, auto-promotion, certificates, badges), safeguarding/consent/DBS management including the corrected access-control model (`adr/0004`), parent dashboard + notifications, core reporting + at-risk flagging.
 3. **Delivery gate** — full test results, RTM completion, security/DPIA sign-off (`raid.md` D-003), operations readiness (runbook, monitoring — to be scoped at that gate, not over-specified now).
 4. **Deferred (post-MVP):** at-home learning encouragement (`requirements/business-requirements.md`).
 
