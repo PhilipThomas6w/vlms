@@ -66,7 +66,6 @@ _(none)_
 - SMTP target (Microsoft 365 mailbox vs transactional provider, `raid.md` D-002) and who controls DNS for SPF/DKIM/DMARC.
 - Retention-purge approach: manually run `BYPASSRLS` maintenance role vs scheduled job (adr/0004 pass 8).
 - Whether ICO registration applies and privacy-notice wording — Philip to verify; not asserted here.
-- Guardian invite acceptance grants no role: should accepting an invite grant `Parent` automatically, or stay a manual Admin grant on `/administration/user-roles`? (found during the role-assignment item, 11/10/2026)
 - (The former Entra-tenant blocker was retired, not resolved, by the ADR-0005 hosting pivot.)
 
 ## Log
@@ -123,3 +122,4 @@ _(none)_
 - 2026-10-11: STATE.md compacted; Done/Log narrative archived to `docs/harness/STATE-archive.md` (same commit as this entry)
 - 2026-10-11: Deployment mapping (read-only) found go-live blockers: no role assignment/first Admin, no seed data, no retention purge, DataProtection keys not persisted; Next re-seeded in deploy order
 - 2026-10-11: Admin role assignment + first-Admin bootstrap done (16ba130); ASVS/WCAG checklists re-reviewed and signed by Claude pending Philip's countersign
+- 2026-10-11: Decision (Philip): guardian invite acceptance grants no role; an Admin approves by granting `Parent`. Recorded in functional.md FR-004; Blocked item retired
