@@ -195,6 +195,29 @@ sudo cp deploy/Caddyfile /etc/caddy/Caddyfile
 sudo systemctl reload caddy
 ```
 
+## 6a. Bootstrap the first Admin (once per deployment)
+
+A fresh database has no roles at all, so nobody can use the app until an Admin exists. After the
+units and Caddyfile are running:
+
+1. Register the operator's own account through the real site's `/Account/Register` page (so the
+   password never goes through a shell or its history).
+2. Promote that account to Admin with the `Vlms.Jobs` host's one-off `bootstrap-admin` command, run
+   as `vlms` with the same environment file the timer uses:
+
+```bash
+sudo systemd-run --wait --pipe -p User=vlms -p WorkingDirectory=/opt/vlms/jobs   -p EnvironmentFile=/etc/vlms/jobs.env   /usr/bin/dotnet /opt/vlms/jobs/Vlms.Jobs.dll bootstrap-admin you@example.org
+# expected: "First Admin bootstrapped: AppUser <id> (<name>) ..." and exit code 0
+```
+
+   It refuses (exit code 1, "An Admin already exists") once any Admin exists, so re-running it later
+   is harmless. Every later role change happens in the app at `/administration/user-roles`.
+3. Sign in, enrol two-factor authentication (Account → Two-factor authentication). Admin pages stay
+   closed until you do.
+
+Not yet verified on a live host (same status as the rest of this file — see §8), including the
+`systemd-run -p EnvironmentFile=` form.
+
 ## 7. Verification checklist
 
 - [ ] `curl -I https://<real-domain>` returns a response with a valid Let's Encrypt certificate

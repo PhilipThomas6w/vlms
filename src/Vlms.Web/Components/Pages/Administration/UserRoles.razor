@@ -1,0 +1,146 @@
+@page "/administration/user-roles"
+@attribute [Authorize(Policy = "RequireAdmin")]
+@rendermode InteractiveServer
+@using Vlms.Domain
+@using Vlms.Infrastructure.Identity
+@inject RoleAssignmentService RoleAssignmentService
+
+<PageTitle>User roles</PageTitle>
+
+<h1>User roles</h1>
+
+<p>
+    Admin-only (STATE.md "Admin role assignment + first-Admin bootstrap"). A new account has no
+    roles and can do nothing until a role is granted here. Admin and Safeguarding Officer holders
+    must enrol two-factor authentication before those roles take effect. The last remaining Admin
+    cannot lose the Admin role, and a user marked as having left cannot be granted a role.
+</p>
+
+@if (_errorMessage is not null)
+{
+    <p class="error" role="alert">@_errorMessage</p>
+}
+<p role="status">@_statusMessage</p>
+
+@if (_users.Count == 0)
+{
+    <p>No user accounts.</p>
+}
+else
+{
+    <table>
+        <thead>
+            <tr>
+                <th>User</th>
+                <th>Email</th>
+                <th>Roles</th>
+                <th>Grant a role</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var user in _users)
+            {
+                <tr>
+                    <td>@user.DisplayName@(user.HasLeft ? " (left)" : "")</td>
+                    <td>@user.Email</td>
+                    <td>
+                        @if (user.Roles.Count == 0)
+                        {
+                            <span>None</span>
+                        }
+                        @foreach (var role in user.Roles)
+                        {
+                            <span>
+                                @role
+                                <button type="button" aria-label="@($"Revoke {role} from {user.DisplayName}")"
+                                        @onclick="() => RevokeAsync(user, role)">Revoke</button>
+                            </span>
+                        }
+                    </td>
+                    <td>
+                        @if (!user.HasLeft)
+                        {
+                            var available = Enum.GetValues<Role>().Except(user.Roles).ToList();
+                            if (available.Count > 0)
+                            {
+                                var selectId = $"grant-role-{user.UserId}";
+                                <label for="@selectId">Role for @user.DisplayName</label>
+                                <select id="@selectId" @bind="_selectedRoles[user.UserId]">
+                                    @foreach (var role in available)
+                                    {
+                                        <option value="@role">@role</option>
+                                    }
+                                </select>
+                                <button type="button" aria-label="@($"Grant selected role to {user.DisplayName}")"
+                                        @onclick="() => GrantAsync(user)">Grant</button>
+                            }
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private IReadOnlyList<RoleAssignmentService.UserWithRoles> _users = [];
+    private readonly Dictionary<int, Role> _selectedRoles = new();
+    private string? _errorMessage;
+    private string? _statusMessage;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _users = await RoleAssignmentService.ListUsersAsync();
+
+        _selectedRoles.Clear();
+        foreach (var user in _users)
+        {
+            var firstAvailable = Enum.GetValues<Role>().Except(user.Roles).Cast<Role?>().FirstOrDefault();
+            if (firstAvailable is Role role)
+            {
+                _selectedRoles[user.UserId] = role;
+            }
+        }
+    }
+
+    private async Task GrantAsync(RoleAssignmentService.UserWithRoles user)
+    {
+        _errorMessage = null;
+        _statusMessage = null;
+
+        if (!_selectedRoles.TryGetValue(user.UserId, out var role))
+        {
+            return;
+        }
+
+        try
+        {
+            await RoleAssignmentService.GrantAsync(user.UserId, role);
+            _statusMessage = $"{role} granted to {user.DisplayName}.";
+            await LoadAsync();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+
+    private async Task RevokeAsync(RoleAssignmentService.UserWithRoles user, Role role)
+    {
+        _errorMessage = null;
+        _statusMessage = null;
+
+        try
+        {
+            await RoleAssignmentService.RevokeAsync(user.UserId, role);
+            _statusMessage = $"{role} revoked from {user.DisplayName}.";
+            await LoadAsync();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+}

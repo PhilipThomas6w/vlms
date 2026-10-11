@@ -35,11 +35,18 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Vlms.Domain;
 using Vlms.Infrastructure;
+using Vlms.Infrastructure.Identity;
 using Vlms.Infrastructure.Notifications;
 using Vlms.Infrastructure.Safeguarding;
 using Vlms.Infrastructure.Security;
 
-var builder = Host.CreateApplicationBuilder(args);
+// `Vlms.Jobs bootstrap-admin <email>` — one-off first-Admin bootstrap (STATE.md "Admin role
+// assignment + first-Admin bootstrap"; see FirstAdminBootstrapService's doc comment for why it lives
+// here and never in Vlms.Web). Any other invocation runs the scheduled sweep as before. The bootstrap
+// arguments are kept out of the host builder so they are never read as configuration.
+var bootstrapEmail = args is ["bootstrap-admin", var emailArg] ? emailArg : null;
+
+var builder = Host.CreateApplicationBuilder(bootstrapEmail is null ? args : []);
 
 builder.Services.AddDbContext<VlmsDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("VlmsDatabase")));
@@ -81,10 +88,31 @@ builder.Services.AddSingleton<IEmailSender>(sp =>
 });
 builder.Services.AddSingleton<INotificationService, NotificationService>();
 builder.Services.AddScoped<ConsentExpiryNotifier>();
+builder.Services.AddScoped<FirstAdminBootstrapService>();
 
 using var host = builder.Build();
 
 using var scope = host.Services.CreateScope();
+
+if (bootstrapEmail is not null)
+{
+    var bootstrapLogger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    try
+    {
+        var admin = await scope.ServiceProvider.GetRequiredService<FirstAdminBootstrapService>().BootstrapAsync(bootstrapEmail);
+        bootstrapLogger.LogInformation(
+            "First Admin bootstrapped: AppUser {UserId} ({DisplayName}). They must enrol TOTP MFA before Admin pages open.",
+            admin.Id, admin.DisplayName);
+    }
+    catch (InvalidOperationException ex)
+    {
+        bootstrapLogger.LogError("First-Admin bootstrap refused: {Reason}", ex.Message);
+        Environment.ExitCode = 1;
+    }
+
+    return;
+}
+
 var job = scope.ServiceProvider.GetRequiredService<ConsentExpiryJob>();
 var notifier = scope.ServiceProvider.GetRequiredService<ConsentExpiryNotifier>();
 var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();

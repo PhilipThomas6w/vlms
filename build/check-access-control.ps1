@@ -88,6 +88,10 @@ $expectedMinimums = @{
     "ConsentRecordServiceTests.cs"       = 10
     "DbsCheckServiceTests.cs"            = 8
     "GuardianLinkServiceTests.cs"        = 13
+    # STATE.md "Admin role assignment + first-Admin bootstrap" (2026-10-11): role grant/revoke and
+    # the first-Admin bootstrap are access-control surfaces in their own right.
+    "RoleAssignmentServiceTests.cs"      = 12
+    "FirstAdminBootstrapServiceTests.cs" = 5
 }
 
 foreach ($testFileName in $expectedMinimums.Keys) {
@@ -110,6 +114,8 @@ $hashedFiles += Get-ChildItem (Join-Path $repoRoot "src/Vlms.Infrastructure/Auth
 $hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Infrastructure/VlmsDbContext.cs")
 $hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Infrastructure/Auditing/SensitiveDataAuditInterceptor.cs")
 $hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Web/Program.cs")
+$hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Infrastructure/Identity/RoleAssignmentService.cs")
+$hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Infrastructure/Identity/FirstAdminBootstrapService.cs")
 $hashedFiles += $pageFiles
 
 if ($PrintHash) {

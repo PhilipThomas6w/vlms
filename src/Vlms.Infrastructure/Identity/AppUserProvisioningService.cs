@@ -25,8 +25,9 @@ namespace Vlms.Infrastructure.Identity;
 /// **The property that must survive the swap, and does, per STATE.md's explicit instruction:** a
 /// freshly created <see cref="AppUser"/> gets zero <see cref="UserRole"/> rows — deny-by-default.
 /// This falls out trivially here (nothing below ever inserts a <see cref="UserRole"/>), the same as
-/// it did in the old service; role assignment remains a separate, not-yet-built, Admin-only action
-/// (unchanged gap, out of scope here — see STATE.md).
+/// it did in the old service; role assignment is a separate, Admin-only action —
+/// <see cref="RoleAssignmentService"/>, plus <see cref="FirstAdminBootstrapService"/> for the very
+/// first Admin.
 ///
 /// **Atomicity, including composition with a caller's own transaction:** <see cref="UserManager{TUser}.CreateAsync(TUser, string)"/>
 /// inserts <see cref="VlmsIdentityUser"/> and saves; inserting the paired <see cref="AppUser"/> is a

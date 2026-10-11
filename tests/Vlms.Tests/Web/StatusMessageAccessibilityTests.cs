@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using Xunit;
 
 namespace Vlms.Tests.Web;
@@ -41,6 +41,7 @@ public class StatusMessageAccessibilityTests
     [InlineData("Safeguarding", "ConsentRecords.razor")]
     [InlineData("Safeguarding", "DbsChecks.razor")]
     [InlineData("Progress", "CompletionReversals.razor")]
+    [InlineData("Administration", "UserRoles.razor")]
     public void Page_DeclaresStatusRoleElement_BoundToAStatusMessageField(string folder, string fileName)
     {
         var content = ReadPage(folder, fileName);
@@ -63,6 +64,7 @@ public class StatusMessageAccessibilityTests
     [InlineData("Safeguarding", "ConsentRecords.razor", "_statusMessage = \"Consent record created.\"")]
     [InlineData("Safeguarding", "DbsChecks.razor", "_statusMessage = \"DBS check recorded.\"")]
     [InlineData("Progress", "CompletionReversals.razor", "_statusMessage = \"Completion reversed.\"")]
+    [InlineData("Administration", "UserRoles.razor", "_statusMessage = $\"{role} granted to {user.DisplayName}.\"")]
     public void Page_SetsAConcreteStatusMessage_OnASuccessPath(string folder, string fileName, string expectedAssignment)
     {
         var content = ReadPage(folder, fileName);

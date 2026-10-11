@@ -79,6 +79,12 @@ builder.Services.AddScoped<ICurrentUserContext>(sp =>
 // AppUserProvisioningService's doc comment for why it isn't merely a rename).
 builder.Services.AddScoped<AppUserProvisioningService>();
 
+// --- Role assignment (STATE.md "Admin role assignment + first-Admin bootstrap") — Admin-only
+// grant/revoke of UserRole rows, role-checked inside the service. Its companion
+// FirstAdminBootstrapService is deliberately NOT registered here: it is wired only into the
+// Vlms.Jobs console host (see its doc comment and FirstAdminBootstrapWiringTests).
+builder.Services.AddScoped<RoleAssignmentService>();
+
 // --- Curriculum management workflow (docs/design/low-level-design.md "LessonProposalService")
 builder.Services.AddScoped<LessonProposalService>();
 
