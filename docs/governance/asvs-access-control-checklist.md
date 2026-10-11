@@ -108,12 +108,16 @@ accepts as satisfying "every routable page has `[Authorize]`".
 - [ ] `SensitiveDataAccessLog`'s database-level tamper protection — now `REVOKE UPDATE, DELETE ON
       sensitive_data_access_logs FROM PUBLIC` on PostgreSQL (adr/0004 §4 pass 6,
       adr/0005-hosting-pivot-self-hosted-vps-postgresql.md; was SQL Server `DENY ... TO public`).
-      **This is verified weaker than the SQL Server original, not equivalent** — see adr/0004 §4 and
-      openwiki/access-control.md for the checked-against-current-docs explanation. Confirm the
+      The `REVOKE` alone was verified weaker than the SQL Server original, not equivalent; the
+      Row-Level Security layer in adr/0004 §6 (pass 8) closes that gap, and is a true DENY-equivalent
+      only for the roles this deployment creates (a genuine superuser or `BYPASSRLS` session still
+      bypasses it — adr/0004 §6(e)). See adr/0004 §4 and §6 and openwiki/access-control.md. Confirm the
       residual, now-more-load-bearing requirement is still tracked (`governance/raid.md` D-004: the
       app's connecting role must never be this table's owner and must never be explicitly granted
-      `UPDATE`/`DELETE` on it) and that the Row-Level-Security hardening that would close the gap is
-      still an open, not silently-forgotten, `STATE.md` Next item.
+      `UPDATE`/`DELETE` on it) and that the RLS policy on `sensitive_data_access_logs` is still in
+      place: migration `20260722163442_EnforceRowLevelSecurityOnSensitiveDataAccessLog`
+      (`src/Vlms.Infrastructure/Migrations/`) still enables and forces row-level security with
+      `SELECT`/`INSERT` policies and no `UPDATE`/`DELETE` policy.
 
 ## V16 Security Logging — manual review items
 

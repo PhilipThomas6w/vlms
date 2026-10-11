@@ -1,1 +1,9 @@
 date_utc,session,actor,model,head,head_advanced,input,cache_write,cache_read,output,est_usd,gate
+2026-10-11T18:58:43Z,3dff0d9e-e9fe-452d-9c03-121a209e2777,main,claude-opus-5-5,b3cf311,false,20,41500,573398,5124,0.5492,skipped
+2026-10-11T19:41:39Z,3dff0d9e-e9fe-452d-9c03-121a209e2777,main,claude-opus-5-5,b3cf311,false,4,5465,144837,4918,0.1711,pass
+2026-10-11T19:42:57Z,3dff0d9e-e9fe-452d-9c03-121a209e2777,general-purpose,claude-haiku-5-5,b3cf311,false,14,72836,376822,36,,pass
+2026-10-11T19:43:09Z,3dff0d9e-e9fe-452d-9c03-121a209e2777,main,claude-opus-5-5,b3cf311,false,8,6871,241512,598,0.1153,pass
+2026-10-11T19:45:13Z,3dff0d9e-e9fe-452d-9c03-121a209e2777,general-purpose,claude-sonnet-5-5,b3cf311,false,30,117328,1155706,165,0.5262,pass
+2026-10-11T19:46:38Z,3dff0d9e-e9fe-452d-9c03-121a209e2777,main,claude-opus-5-5,b3cf311,false,12,8468,441556,3576,0.2276,pass
+2026-10-11T19:47:16Z,3dff0d9e-e9fe-452d-9c03-121a209e2777,Plan,claude-sonnet-5-5,b3cf311,false,12,58134,224795,50,0.1908,pass
+2026-10-11T19:47:42Z,3dff0d9e-e9fe-452d-9c03-121a209e2777,main,claude-opus-5-5,b3cf311,false,8,6901,291108,2277,0.1590,pass
