@@ -38,12 +38,12 @@ Full narrative for Done/Log items to 12/08/2026: `docs/harness/STATE-archive.md`
 - [x] WCAG 2.1.1/2.4.3 keyboard-operability checklist review, incl. checker-FAIL fix (`MainLayout` dismiss as real button) 020cc37 — 21b4a9c
 - [x] WCAG 3.3.1/3.3.3 error-identification review: `role="alert"` on `ValidationSummary` and framework error surfaces — f14b9a3
 - [x] Three remaining stale Azure/Entra references fixed outside `docs/design/` — 42d1575
+- [x] Admin role assignment (`/administration/user-roles`, last-Admin and leaver guards) + first-Admin bootstrap (`Vlms.Jobs bootstrap-admin`, inert once an Admin exists) — 16ba130; full gate exit 0, 340/340 tests
 
 ## In progress
 _(none)_
 
 ## Next
-- [ ] **Admin role assignment + first-Admin bootstrap** — no code writes a `UserRole` row (`AppUserProvisioningService.cs:24-30`), so a fresh deploy has no usable account. Admin-only page to grant/revoke roles, plus a secure one-off bootstrap (documented CLI/job or env-gated first run) for the initial Admin. Acceptance: fresh DB reaches a working Admin without manual SQL; tests; deny-by-default test still passes.
 - [ ] **Seed rank ladder + curriculum** — no `HasData`/`InsertData` seed exists. Idempotent seed via migration or first-run job; source rows need confirming with Philip. Acceptance: fresh DB has the rank ladder; test.
 - [ ] **Persist DataProtection keys** — `Program.cs:51` uses bare `AddDataProtection()` and the `vlms` service user has no home dir. `PersistKeysToFileSystem` to a config-driven `vlms`-writable path (e.g. `/var/lib/vlms/keys`, 0700), `SetApplicationName`; update `deploy/README.md` and unit. Acceptance: config test; restart keeps cookies/invite tokens valid (verify on host).
 - [ ] **EF migration bundle + deploy script** — migrations are currently applied by hand with the SDK (`deploy/README.md` §3). `dotnet ef migrations bundle` (or idempotent SQL) run as `vlms_owner` from a `deploy/` script. Acceptance: README §3 no longer needs the SDK on the server.
@@ -66,6 +66,7 @@ _(none)_
 - SMTP target (Microsoft 365 mailbox vs transactional provider, `raid.md` D-002) and who controls DNS for SPF/DKIM/DMARC.
 - Retention-purge approach: manually run `BYPASSRLS` maintenance role vs scheduled job (adr/0004 pass 8).
 - Whether ICO registration applies and privacy-notice wording — Philip to verify; not asserted here.
+- Guardian invite acceptance grants no role: should accepting an invite grant `Parent` automatically, or stay a manual Admin grant on `/administration/user-roles`? (found during the role-assignment item, 11/10/2026)
 - (The former Entra-tenant blocker was retired, not resolved, by the ADR-0005 hosting pivot.)
 
 ## Log
@@ -121,3 +122,4 @@ _(none)_
 - 2026-10-11: Moved old-format ledger rows written by the stale 0.6.0 hook into `docs/harness/LEDGER-v1.csv` (b3cf311)
 - 2026-10-11: STATE.md compacted; Done/Log narrative archived to `docs/harness/STATE-archive.md` (same commit as this entry)
 - 2026-10-11: Deployment mapping (read-only) found go-live blockers: no role assignment/first Admin, no seed data, no retention purge, DataProtection keys not persisted; Next re-seeded in deploy order
+- 2026-10-11: Admin role assignment + first-Admin bootstrap done (16ba130); ASVS/WCAG checklists re-reviewed and signed by Claude pending Philip's countersign
