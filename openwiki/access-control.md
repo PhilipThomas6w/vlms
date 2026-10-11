@@ -78,18 +78,20 @@ implied away (per the migration's own, more detailed doc comment).** Three verif
    `UPDATE`/`DELETE` on it directly (only `SELECT`/`INSERT`, which
    `SensitiveDataAuditInterceptor`'s own writes need) — tracked in `docs/governance/raid.md` D-004.
 
-**A true `DENY`-equivalent does exist in PostgreSQL — Row-Level Security — and was deliberately not
-built here.** `ALTER TABLE ... FORCE ROW LEVEL SECURITY` plus `CREATE POLICY ... FOR UPDATE
-USING (false)` / `FOR DELETE USING (false)` blocks `UPDATE`/`DELETE` for every role including the
-table owner, with only a superuser (or a role with `BYPASSRLS`) exempt — verified against
+**A true `DENY`-equivalent exists in PostgreSQL — Row-Level Security — and, at this pass (pass 6, the
+same-provider port), was deliberately not built yet; it has since been built — see "Row-Level
+Security (pass 8...)" below, the section that actually closes this gap.** `ALTER TABLE ... FORCE ROW
+LEVEL SECURITY` plus `CREATE POLICY ... FOR UPDATE USING (false)` / `FOR DELETE USING (false)` blocks
+`UPDATE`/`DELETE` for every role including the table owner, with only a superuser (or a role with
+`BYPASSRLS`) exempt — verified against
 [Row Security Policies](https://www.postgresql.org/docs/current/ddl-rowsecurity.html). Not built in
-this migration because enabling row security requires an explicit policy for *every* command that
+*this* migration because enabling row security requires an explicit policy for *every* command that
 must keep working, or that command is default-denied too ("if row-level security is enabled for a
 table, but no applicable policies exist, a 'default deny' policy is assumed" — same page) — getting
 that wrong would silently block the audit interceptor's own `INSERT` path, the single most
 safety-critical write in this codebase, inside what this item scoped as a same-provider *port*, not
-a mechanism redesign. Tracked as a new, separate, deliberately higher-scrutiny follow-up item
-(STATE.md Next) rather than attempted here.
+a mechanism redesign. Tracked, at the time, as a new, separate, deliberately higher-scrutiny
+follow-up item — since built (pass 8, below).
 
 **Residual requirement (tracked in `docs/governance/raid.md` D-004, generalised for PostgreSQL):**
 the app must connect as a least-privilege role — able to `SELECT`/`INSERT` on

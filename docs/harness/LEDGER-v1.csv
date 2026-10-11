@@ -1,0 +1,204 @@
+date,work_item,change_class,session_tokens_est,model,outcome,notes
+2026-07-18,"(none)",n/a,494239,n/a,pass,auto-logged by run-verify.ps1
+2026-07-18,"(none)",n/a,494239,n/a,pass,auto-logged by run-verify.ps1
+2026-07-18,"- Curriculum management: `LessonProposalService` (propose/approve/reject/resubmit) and the Teacher/Approver UI. **Note (checker finding, commit c318bc5 review):** `EntraCurrentUserContext` resolves the caller via `IHttpContextAccessor`, which is null outside the initial HTTP request in Blazor Server's interactive (SignalR circuit) render mode — fails closed (safe, not a security hole) but will functionally deny authorised users once this UI goes interactive. Fix by surfacing the authenticated user via `AuthenticationStateProvider`/persisted state instead, as part of this item.",n/a,507788,n/a,pass,auto-logged by run-verify.ps1
+2026-07-18,"1. Progress tracking: `CompletionService`, `PromotionService` (auto-promotion), `CertificateService` (QuestPDF PDF generation to Blob Storage).",n/a,5881,n/a,pass,auto-logged by run-verify.ps1
+2026-07-19,"(none)",n/a,11848,n/a,pass,auto-logged by run-verify.ps1
+2026-07-19,"(none)",n/a,21325,n/a,pass,auto-logged by run-verify.ps1
+2026-07-19,"(none)",n/a,22342,n/a,pass,auto-logged by run-verify.ps1
+2026-07-19,"(none)",n/a,22342,n/a,pass,auto-logged by run-verify.ps1
+2026-07-19,"(none)",n/a,22342,n/a,pass,auto-logged by run-verify.ps1
+2026-07-19,"(none)",n/a,191422,n/a,fail,auto-logged by run-verify.ps1
+2026-07-19,"(none)",n/a,191422,n/a,fail,auto-logged by run-verify.ps1
+2026-07-19,"(none)",n/a,192277,n/a,pass,auto-logged by run-verify.ps1
+2026-07-19,"(none)",n/a,192277,n/a,pass,auto-logged by run-verify.ps1
+2026-07-19,"(none)",n/a,192277,n/a,pass,auto-logged by run-verify.ps1
+2026-07-19,"(none)",n/a,193748,n/a,pass,auto-logged by run-verify.ps1
+2026-07-19,"(none)",n/a,193748,n/a,pass,auto-logged by run-verify.ps1
+2026-07-19,"(none)",n/a,193748,n/a,pass,auto-logged by run-verify.ps1
+2026-07-19,"- (none)",n/a,208598,n/a,pass,auto-logged by run-verify.ps1
+2026-07-19,"- (none)",n/a,213713,n/a,pass,auto-logged by run-verify.ps1
+2026-07-19,"- (none)",n/a,214136,n/a,pass,auto-logged by run-verify.ps1
+2026-07-19,"- (none)",n/a,214136,n/a,pass,auto-logged by run-verify.ps1
+2026-07-19,"- (none)",n/a,214465,n/a,pass,auto-logged by run-verify.ps1
+2026-07-19,"- (none)",n/a,214465,n/a,pass,auto-logged by run-verify.ps1
+2026-07-19,"- (none)",n/a,225489,n/a,pass,auto-logged by run-verify.ps1
+2026-07-19,"- (none)",n/a,232026,n/a,pass,auto-logged by run-verify.ps1
+2026-07-19,"- (none)",n/a,233206,n/a,pass,auto-logged by run-verify.ps1
+2026-07-19,"- (none)",n/a,233206,n/a,pass,auto-logged by run-verify.ps1
+2026-07-20,"_(nothing in progress)_",n/a,239528,n/a,pass,auto-logged by run-verify.ps1
+2026-07-20,"_(nothing in progress)_",n/a,243540,n/a,pass,auto-logged by run-verify.ps1
+2026-07-20,"_(nothing in progress)_",n/a,249138,n/a,pass,auto-logged by run-verify.ps1
+2026-07-20,"_(nothing in progress)_",n/a,253514,n/a,pass,auto-logged by run-verify.ps1
+2026-07-20,"_(nothing in progress)_",n/a,254307,n/a,pass,auto-logged by run-verify.ps1
+2026-07-20,"_(nothing in progress)_",n/a,254307,n/a,pass,auto-logged by run-verify.ps1
+2026-07-20,"_(empty)_",n/a,261963,n/a,pass,auto-logged by run-verify.ps1
+2026-07-20,"_(empty)_",n/a,266151,n/a,pass,auto-logged by run-verify.ps1
+2026-07-20,"_(empty)_",n/a,267066,n/a,pass,auto-logged by run-verify.ps1
+2026-07-20,"_(empty)_",n/a,267066,n/a,pass,auto-logged by run-verify.ps1
+2026-07-20,"_(empty)_",n/a,267478,n/a,pass,auto-logged by run-verify.ps1
+2026-07-20,"_(empty)_",n/a,267478,n/a,pass,auto-logged by run-verify.ps1
+2026-07-20,"_(empty)_",n/a,2058,n/a,pass,auto-logged by run-verify.ps1
+2026-07-20,"_(empty)_",n/a,9966,n/a,pass,auto-logged by run-verify.ps1
+2026-07-20,"_(empty)_",n/a,28941,n/a,pass,auto-logged by run-verify.ps1
+2026-07-20,"_(empty)_",n/a,36289,n/a,pass,auto-logged by run-verify.ps1
+2026-07-20,"_(empty)_",n/a,37805,n/a,pass,auto-logged by run-verify.ps1
+2026-07-20,"_(empty)_",n/a,37805,n/a,pass,auto-logged by run-verify.ps1
+2026-07-20,"_(empty)_",n/a,42815,n/a,pass,auto-logged by run-verify.ps1
+2026-07-20,"_(empty)_",n/a,43845,n/a,pass,auto-logged by run-verify.ps1
+2026-07-20,"_(empty)_",n/a,43845,n/a,pass,auto-logged by run-verify.ps1
+2026-07-20,"_(empty)_",n/a,48915,n/a,pass,auto-logged by run-verify.ps1
+2026-07-20,"_(empty)_",n/a,48915,n/a,pass,auto-logged by run-verify.ps1
+2026-07-20,"_(empty)_",n/a,55982,n/a,pass,auto-logged by run-verify.ps1
+2026-07-20,"_(empty)_",n/a,73159,n/a,pass,auto-logged by run-verify.ps1
+2026-07-20,"_(empty)_",n/a,91785,n/a,pass,auto-logged by run-verify.ps1
+2026-07-20,"_(empty)_",n/a,91785,n/a,pass,auto-logged by run-verify.ps1
+2026-07-20,"_(empty)_",n/a,91785,n/a,pass,auto-logged by run-verify.ps1
+2026-07-20,"_(empty)_",n/a,124351,n/a,pass,auto-logged by run-verify.ps1
+2026-07-20,"_(empty)_",n/a,127051,n/a,pass,auto-logged by run-verify.ps1
+2026-07-20,"_(empty)_",n/a,127051,n/a,pass,auto-logged by run-verify.ps1
+2026-07-20,"_(empty)_",n/a,127051,n/a,pass,auto-logged by run-verify.ps1
+2026-07-20,"_(empty)_",n/a,129687,n/a,pass,auto-logged by run-verify.ps1
+2026-07-20,"_(empty)_",n/a,129687,n/a,pass,auto-logged by run-verify.ps1
+2026-07-20,"_(empty)_",n/a,192865,n/a,pass,auto-logged by run-verify.ps1
+2026-07-20,"_(empty)_",n/a,192865,n/a,pass,auto-logged by run-verify.ps1
+2026-07-20,"- **EF Core provider migration: Azure SQL Database → self-hosted PostgreSQL (Npgsql).** Foundational — everything else in this pivot builds on it. Switch `VlmsDbContext`'s configured provider from `Microsoft.EntityFrameworkCore.SqlServer` to `Npgsql.EntityFrameworkCore.PostgreSQL`; regenerate migrations for PostgreSQL syntax. Port the ADR-0004 §4 tamper-protection DDL from `DENY UPDATE, DELETE ON dbo.SensitiveDataAccessLogs TO public` to `REVOKE UPDATE, DELETE ON sensitive_data_access_log FROM PUBLIC` (naming convention: confirm/apply this repo's chosen PostgreSQL identifier casing convention before writing it) — same structural guarantee, ported not redesigned (`docs/adr/0005-hosting-pivot-self-hosted-vps-postgresql.md`). Update `tests/Vlms.Tests/Infrastructure/MigrationsTests.cs`'s `IMigrator.GenerateScript()` assertions to match the new DDL. Decide and document the test-provider strategy: the existing SQLite-in-memory-via-DI pattern was always a test double (even pre-pivot) and EF Core's query-filter/interceptor behaviour is provider-independent, so it likely stays as the default for most tests — but confirm this explicitly rather than assuming, and keep the `GenerateScript()`-based (no live connection needed) pattern for the Postgres-specific DDL assertions. Update connection-string config keys/placeholders in `appsettings.json`/`appsettings.Development.json` away from SQL-Server-shaped values.",n/a,207340,n/a,pass,auto-logged by run-verify.ps1
+2026-07-20,"_(empty)_",n/a,207340,n/a,pass,auto-logged by run-verify.ps1
+2026-07-20,"_(empty)_",n/a,218670,n/a,pass,auto-logged by run-verify.ps1
+2026-07-20,"_(empty)_",n/a,226567,n/a,pass,auto-logged by run-verify.ps1
+2026-07-20,"- **Identity: replace Microsoft Entra External ID with self-rolled ASP.NET Core Identity (built-in TOTP MFA), and replace the Microsoft Graph guardian-invitation mechanism with a self-rolled emailed, signed, single-use invite link scoped to the correct `Student` record.** Read current Microsoft Learn ASP.NET Core Identity + Blazor Web App (Server interactivity) guidance before implementing — verify the current recommended integration shape rather than assuming (`CLAUDE.md` ""verify, don't invent""). Design how `AppUser`/`UserRole` (this project's existing application-level role model, ADR-0002, unaffected in principle) coexist with ASP.NET Core Identity's own user store — document that decision explicitly, it's a real judgement call. Remove `EntraCurrentUserContext`, `UserProvisioningService`'s Entra-specific pieces, `Microsoft.Identity.Web`/OIDC wiring in `Program.cs`, and the placeholder `AzureAd` config section; replace with an Identity-based `ICurrentUserContext` implementation. This retires (not just unblocks) the former `## Blocked / needs decision` Entra-tenant item below — see the Log entry recording that retirement.",n/a,238332,n/a,pass,auto-logged by run-verify.ps1
+2026-07-20,"- **Identity: replace Microsoft Entra External ID with self-rolled ASP.NET Core Identity (built-in TOTP MFA), and replace the Microsoft Graph guardian-invitation mechanism with a self-rolled emailed, signed, single-use invite link scoped to the correct `Student` record.** Read current Microsoft Learn ASP.NET Core Identity + Blazor Web App (Server interactivity) guidance before implementing — verify the current recommended integration shape rather than assuming (`CLAUDE.md` ""verify, don't invent""). Design how `AppUser`/`UserRole` (this project's existing application-level role model, ADR-0002, unaffected in principle) coexist with ASP.NET Core Identity's own user store — document that decision explicitly, it's a real judgement call. Remove `EntraCurrentUserContext`, `UserProvisioningService`'s Entra-specific pieces, `Microsoft.Identity.Web`/OIDC wiring in `Program.cs`, and the placeholder `AzureAd` config section; replace with an Identity-based `ICurrentUserContext` implementation. This retires (not just unblocks) the former `## Blocked / needs decision` Entra-tenant item below — see the Log entry recording that retirement.",n/a,238332,n/a,pass,auto-logged by run-verify.ps1
+2026-07-20,"- **Identity: replace Microsoft Entra External ID with self-rolled ASP.NET Core Identity (built-in TOTP MFA), and replace the Microsoft Graph guardian-invitation mechanism with a self-rolled emailed, signed, single-use invite link scoped to the correct `Student` record.** Read current Microsoft Learn ASP.NET Core Identity + Blazor Web App (Server interactivity) guidance before implementing — verify the current recommended integration shape rather than assuming (`CLAUDE.md` ""verify, don't invent""). Design how `AppUser`/`UserRole` (this project's existing application-level role model, ADR-0002, unaffected in principle) coexist with ASP.NET Core Identity's own user store — document that decision explicitly, it's a real judgement call. Remove `EntraCurrentUserContext`, `UserProvisioningService`'s Entra-specific pieces, `Microsoft.Identity.Web`/OIDC wiring in `Program.cs`, and the placeholder `AzureAd` config section; replace with an Identity-based `ICurrentUserContext` implementation. This retires (not just unblocks) the former `## Blocked / needs decision` Entra-tenant item below — see the Log entry recording that retirement.",n/a,246681,n/a,fail,auto-logged by run-verify.ps1
+2026-07-20,"- **Identity: replace Microsoft Entra External ID with self-rolled ASP.NET Core Identity (built-in TOTP MFA), and replace the Microsoft Graph guardian-invitation mechanism with a self-rolled emailed, signed, single-use invite link scoped to the correct `Student` record.** Read current Microsoft Learn ASP.NET Core Identity + Blazor Web App (Server interactivity) guidance before implementing — verify the current recommended integration shape rather than assuming (`CLAUDE.md` ""verify, don't invent""). Design how `AppUser`/`UserRole` (this project's existing application-level role model, ADR-0002, unaffected in principle) coexist with ASP.NET Core Identity's own user store — document that decision explicitly, it's a real judgement call. Remove `EntraCurrentUserContext`, `UserProvisioningService`'s Entra-specific pieces, `Microsoft.Identity.Web`/OIDC wiring in `Program.cs`, and the placeholder `AzureAd` config section; replace with an Identity-based `ICurrentUserContext` implementation. This retires (not just unblocks) the former `## Blocked / needs decision` Entra-tenant item below — see the Log entry recording that retirement.",n/a,258094,n/a,fail,auto-logged by run-verify.ps1
+2026-07-20,"- **Identity: replace Microsoft Entra External ID with self-rolled ASP.NET Core Identity (built-in TOTP MFA), and replace the Microsoft Graph guardian-invitation mechanism with a self-rolled emailed, signed, single-use invite link scoped to the correct `Student` record.** Read current Microsoft Learn ASP.NET Core Identity + Blazor Web App (Server interactivity) guidance before implementing — verify the current recommended integration shape rather than assuming (`CLAUDE.md` ""verify, don't invent""). Design how `AppUser`/`UserRole` (this project's existing application-level role model, ADR-0002, unaffected in principle) coexist with ASP.NET Core Identity's own user store — document that decision explicitly, it's a real judgement call. Remove `EntraCurrentUserContext`, `UserProvisioningService`'s Entra-specific pieces, `Microsoft.Identity.Web`/OIDC wiring in `Program.cs`, and the placeholder `AzureAd` config section; replace with an Identity-based `ICurrentUserContext` implementation. This retires (not just unblocks) the former `## Blocked / needs decision` Entra-tenant item below — see the Log entry recording that retirement.",n/a,259622,n/a,pass,auto-logged by run-verify.ps1
+2026-07-20,"_(none)_",n/a,259622,n/a,pass,auto-logged by run-verify.ps1
+2026-07-20,"_(none)_",n/a,271700,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"_(none)_",n/a,271700,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"_(none)_",n/a,279893,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"_(none)_",n/a,279893,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"_(none)_",n/a,287802,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"_(none)_",n/a,287802,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"_(none)_",n/a,289408,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"_(none)_",n/a,289408,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"- **File storage: replace `AzureBlobStorage` with a local-disk-backed `IBlobStorage` implementation.** Certificates/lesson assets live on the VPS's local disk under an app-data path; off-box backup mechanism (target object-store provider still TBD per ADR-0005 — Cloudflare R2 vs Backblaze B2) can follow the same ""structurally correct, not yet wired to a real target"" pattern this project already used for `AzureBlobStorage` before a live Azure resource existed, if the concrete provider isn't picked yet when this item is worked.",n/a,297554,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"- **File storage: replace `AzureBlobStorage` with a local-disk-backed `IBlobStorage` implementation.** Certificates/lesson assets live on the VPS's local disk under an app-data path; off-box backup mechanism (target object-store provider still TBD per ADR-0005 — Cloudflare R2 vs Backblaze B2) can follow the same ""structurally correct, not yet wired to a real target"" pattern this project already used for `AzureBlobStorage` before a live Azure resource existed, if the concrete provider isn't picked yet when this item is worked.",n/a,297554,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"_(none)_",n/a,297554,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"_(none)_",n/a,303472,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"_(none)_",n/a,303472,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"_(none)_",n/a,303472,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"_(none)_",n/a,303708,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"_(none)_",n/a,303708,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"_(none)_",n/a,309906,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"_(none)_",n/a,309906,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"- **Email: replace `AzureCommunicationEmailSender` with an SMTP-based `IEmailSender` implementation.** Verify the chosen library's current API against its own docs before implementing (raw `System.Net.Mail.SmtpClient` is obsolete per Microsoft's own guidance — check what Microsoft currently recommends instead). Sending path (existing M365 mailbox vs. a free-tier transactional provider) is still TBD per ADR-0005 — same ""structurally correct, not yet wired"" allowance as item 3 if not picked yet.",n/a,319569,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"- **Email: replace `AzureCommunicationEmailSender` with an SMTP-based `IEmailSender` implementation.** Verify the chosen library's current API against its own docs before implementing (raw `System.Net.Mail.SmtpClient` is obsolete per Microsoft's own guidance — check what Microsoft currently recommends instead). Sending path (existing M365 mailbox vs. a free-tier transactional provider) is still TBD per ADR-0005 — same ""structurally correct, not yet wired"" allowance as item 3 if not picked yet.",n/a,319569,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"_(none)_",n/a,319569,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"_(none)_",n/a,327602,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"_(none)_",n/a,327602,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"_(none)_",n/a,327847,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"_(none)_",n/a,327847,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"- **Scheduled jobs: retarget `Vlms.Jobs`'s deployment story from the Azure WebJobs folder convention to a systemd timer/cron on the self-hosted VPS.** `Vlms.Jobs` itself is already a plain console app (not the WebJobs SDK) — expect this to be mostly deployment scripting (a systemd unit + timer file), not a C# rewrite; confirm that expectation rather than assuming no code changes at all are needed.",n/a,334577,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"_(none)_",n/a,334577,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"_(none)_",n/a,340861,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"_(none)_",n/a,340861,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"_(none)_",n/a,340861,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"_(none)_",n/a,341133,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"_(none)_",n/a,341133,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"- **Deployment scripting: Caddyfile, systemd unit templates, PostgreSQL setup script, `pg_dump`-to-object-storage backup cron, and a VPS setup README.** Scripts/config only — this item does **not** create any real VPS, account, or paid resource; actual provisioning needs Philip's explicit go-ahead on provider/region/budget first (`docs/adr/0005` Consequences), separately from this being ready to run once he gives it.",n/a,349460,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"- **Deployment scripting: Caddyfile, systemd unit templates, PostgreSQL setup script, `pg_dump`-to-object-storage backup cron, and a VPS setup README.** Scripts/config only — this item does **not** create any real VPS, account, or paid resource; actual provisioning needs Philip's explicit go-ahead on provider/region/budget first (`docs/adr/0005` Consequences), separately from this being ready to run once he gives it.",n/a,349460,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"- **Deployment scripting: Caddyfile, systemd unit templates, PostgreSQL setup script, `pg_dump`-to-object-storage backup cron, and a VPS setup README.** Scripts/config only — this item does **not** create any real VPS, account, or paid resource; actual provisioning needs Philip's explicit go-ahead on provider/region/budget first (`docs/adr/0005` Consequences), separately from this being ready to run once he gives it.",n/a,360423,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"_(none)_",n/a,360423,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"_(none)_",n/a,370901,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"_(none)_",n/a,370901,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"_(none)_",n/a,370901,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"_(none)_",n/a,377703,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"_(none)_",n/a,377703,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"_(none)_",n/a,377703,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"_(none)_",n/a,384808,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"_(none)_",n/a,384808,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"_(none)_",n/a,384808,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"_(none)_",n/a,385309,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"_(none)_",n/a,385309,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"- **`build/verify.ps1`/`build/check-secrets.ps1` currency pass:** confirm the secrets-scan credential-shape patterns still make sense (the Azure Storage/ACS/Entra-specific shapes become dead weight, not wrong — decide whether to remove or leave them); confirm `dotnet ef migrations has-pending-model-changes` and the ASVS/WCAG checklist-currency hashes still work unchanged against the new provider (expected — EF Core migrations tooling and the checklist mechanism are both provider-independent, but confirm rather than assume — the EF Core tooling and hash mechanism were, but the ASVS checklist's *tamper-protection* checklist item itself needed substantive re-review, not just a hash refresh, per this item's own Done entry).",n/a,392603,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"_(none)_",n/a,392603,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"_(none)_",n/a,401230,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"_(none)_",n/a,401230,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"_(none)_",n/a,401650,n/a,pass,auto-logged by run-verify.ps1
+2026-07-21,"_(none)_",n/a,401650,n/a,pass,auto-logged by run-verify.ps1
+2026-07-22,"- **Security-relevant, found during the PostgreSQL provider migration: harden `SensitiveDataAccessLog`'s tamper protection with Row-Level Security.** `REVOKE UPDATE, DELETE ON sensitive_data_access_logs FROM PUBLIC` (the literal ADR-0005 instruction, now built) was verified — against current PostgreSQL documentation, not assumed from the SQL Server `DENY` mental model — to be structurally weaker than the SQL Server original it replaced: PostgreSQL's privilege model has no override concept, so a role explicitly `GRANT`ed `UPDATE`/`DELETE` directly (not via `PUBLIC`), or that owns the table, is completely unaffected by this `REVOKE` — see `docs/adr/0004-sensitive-data-access-control.md` §4 pass 6 and `openwiki/access-control.md`'s ""Tamper protection"" section for the full, cited explanation. The real DENY-equivalent — `ALTER TABLE ... FORCE ROW LEVEL SECURITY` plus `CREATE POLICY ... FOR UPDATE USING (false)` / `FOR DELETE USING (false)`, which blocks even the table owner, only a superuser/`BYPASSRLS` role exempt — was deliberately not built in the provider-migration item itself: it requires an explicit permissive policy for every command that must keep working (`SELECT`/`INSERT`) or that command is default-denied too the moment row security is enabled, and a mistake there risks silently breaking the audit interceptor's own `INSERT` path (the single most safety-critical write in this codebase) — too much new risk for what was scoped as a same-provider port, not a redesign. Higher scrutiny warranted than most items in this queue given what's at stake; read the migration's own doc comment (`RevokeUpdateDeleteOnSensitiveDataAccessLog.cs`) and the ADR/openwiki sections above before starting, and prove the `SELECT`/`INSERT` permissive policies actually work (not just that `UPDATE`/`DELETE` are blocked) with a real, not tautological, test.",n/a,417666,n/a,pass,auto-logged by run-verify.ps1
+2026-07-22,"_(none)_",n/a,417666,n/a,pass,auto-logged by run-verify.ps1
+2026-07-22,"_(none)_",n/a,428301,n/a,pass,auto-logged by run-verify.ps1
+2026-07-22,"_(none)_",n/a,428301,n/a,pass,auto-logged by run-verify.ps1
+2026-07-22,"_(none)_",n/a,428747,n/a,pass,auto-logged by run-verify.ps1
+2026-07-22,"_(none)_",n/a,428747,n/a,pass,auto-logged by run-verify.ps1
+2026-07-22,"- **Teacher-facing ""reverse a completion"" flow does not exist.** Found while investigating the certificate/reversal item earlier: `StudentLessonCompletion.IsReversed`/`ReversedAt` are read by `PromotionService`/`ProgressReportingService`/`AtRiskStudentFlagging`/`ParentDashboardService`, and `functional.md` documents Teacher self-correction/reversal as a feature (""can self-correct/reverse their own entry (e.g. within some reasonable window)""), but no service or UI anywhere in `src/` ever sets `IsReversed = true` — only test seed data does.",n/a,440323,n/a,pass,auto-logged by run-verify.ps1
+2026-07-22,"_(none)_",n/a,440323,n/a,pass,auto-logged by run-verify.ps1
+2026-07-22,"_(none)_",n/a,448245,n/a,pass,auto-logged by run-verify.ps1
+2026-07-23,"_(none)_",n/a,4610,n/a,pass,auto-logged by run-verify.ps1
+2026-08-05,"_(none)_",n/a,19028,n/a,pass,auto-logged by run-verify.ps1
+2026-08-05,"_(none)_",n/a,19028,n/a,pass,auto-logged by run-verify.ps1
+2026-08-05,"- **""Records due for deletion"" report.** `docs/design/data-design.md`/`docs/governance/security-compliance.md` name this as the interim retention-enforcement mechanism: an Admin-facing report flagging `Student` records past 3 years from leaving/graduating and `DbsCheck` records past 6 years from expiry/the teacher leaving, sourced from a `ConsentExpiryJob`-style sweep — manual, Admin-triggered deletion once flagged, not automated purge (confirmed deliberate interim choice, not an oversight). Confirmed nothing in `src/` implements this yet.",n/a,25036,n/a,pass,auto-logged by run-verify.ps1
+2026-08-05,"_(none)_",n/a,25036,n/a,pass,auto-logged by run-verify.ps1
+2026-08-05,"_(none)_",n/a,32592,n/a,pass,auto-logged by run-verify.ps1
+2026-08-05,"_(none)_",n/a,32592,n/a,pass,auto-logged by run-verify.ps1
+2026-08-05,"_(none)_",n/a,33853,n/a,pass,auto-logged by run-verify.ps1
+2026-08-05,"_(none)_",n/a,33853,n/a,pass,auto-logged by run-verify.ps1
+2026-08-11,"- **WCAG ""Status messages (4.1.3)"" gap.** `docs/quality/wcag-2.2-aa-checklist.md` itself flags this as still open across the seven older form pages — form-submission feedback has no `role=""status""`/`role=""alert""`, unlike the newer `/progress/completions` page which already uses `<p role=""status"">`. Close the gap on the older pages to match.",n/a,39428,n/a,pass,auto-logged by run-verify.ps1
+2026-08-11,"- **WCAG ""Status messages (4.1.3)"" gap.** `docs/quality/wcag-2.2-aa-checklist.md` itself flags this as still open across the seven older form pages — form-submission feedback has no `role=""status""`/`role=""alert""`, unlike the newer `/progress/completions` page which already uses `<p role=""status"">`. Close the gap on the older pages to match.",n/a,39428,n/a,pass,auto-logged by run-verify.ps1
+2026-08-11,"_(none)_",n/a,39428,n/a,pass,auto-logged by run-verify.ps1
+2026-08-11,"_(none)_",n/a,46979,n/a,pass,auto-logged by run-verify.ps1
+2026-08-11,"_(none)_",n/a,46979,n/a,pass,auto-logged by run-verify.ps1
+2026-08-11,"_(none)_",n/a,46979,n/a,pass,auto-logged by run-verify.ps1
+2026-08-11,"_(none)_",n/a,47994,n/a,pass,auto-logged by run-verify.ps1
+2026-08-11,"_(none)_",n/a,47994,n/a,pass,auto-logged by run-verify.ps1
+2026-08-11,"- **`MainLayout.razor` dismiss-glyph missing `aria-label`.** `docs/quality/wcag-2.2-aa-checklist.md` flagged this at authoring time as likely follow-up. Small, contained fix.",n/a,50861,n/a,pass,auto-logged by run-verify.ps1
+2026-08-11,"_(none)_",n/a,55381,n/a,pass,auto-logged by run-verify.ps1
+2026-08-11,"_(none)_",n/a,59846,n/a,pass,auto-logged by run-verify.ps1
+2026-08-11,"_(none)_",n/a,61142,n/a,pass,auto-logged by run-verify.ps1
+2026-08-11,"_(none)_",n/a,61142,n/a,pass,auto-logged by run-verify.ps1
+2026-08-12,"- **Manual ""leaving"" flag for students and teachers, feeding the retention report.** Philip's decision (2026-08-12), resolving the gap found while building the records-due-for-deletion report (STATE.md Done, below): leaving is recorded via a manual Admin-triggered action — a boolean the Admin explicitly enables — not inferred from disengagement/activity, and not a bigger withdrawal workflow. Scope for the build item this becomes:",n/a,74666,n/a,fail,auto-logged by run-verify.ps1
+2026-08-12,"- **Manual ""leaving"" flag for students and teachers, feeding the retention report.** Philip's decision (2026-08-12), resolving the gap found while building the records-due-for-deletion report (STATE.md Done, below): leaving is recorded via a manual Admin-triggered action — a boolean the Admin explicitly enables — not inferred from disengagement/activity, and not a bigger withdrawal workflow. Scope for the build item this becomes:",n/a,74666,n/a,fail,auto-logged by run-verify.ps1
+2026-08-12,"- **Manual ""leaving"" flag for students and teachers, feeding the retention report.** Philip's decision (2026-08-12), resolving the gap found while building the records-due-for-deletion report (STATE.md Done, below): leaving is recorded via a manual Admin-triggered action — a boolean the Admin explicitly enables — not inferred from disengagement/activity, and not a bigger withdrawal workflow. Scope for the build item this becomes:",n/a,78086,n/a,pass,auto-logged by run-verify.ps1
+2026-08-12,"- **Manual ""leaving"" flag for students and teachers, feeding the retention report.** Philip's decision (2026-08-12), resolving the gap found while building the records-due-for-deletion report (STATE.md Done, below): leaving is recorded via a manual Admin-triggered action — a boolean the Admin explicitly enables — not inferred from disengagement/activity, and not a bigger withdrawal workflow. Scope for the build item this becomes:",n/a,78086,n/a,pass,auto-logged by run-verify.ps1
+2026-08-12,"- **Manual ""leaving"" flag for students and teachers, feeding the retention report.** Philip's decision (2026-08-12), resolving the gap found while building the records-due-for-deletion report (STATE.md Done, below): leaving is recorded via a manual Admin-triggered action — a boolean the Admin explicitly enables — not inferred from disengagement/activity, and not a bigger withdrawal workflow. Scope for the build item this becomes:",n/a,78086,n/a,pass,auto-logged by run-verify.ps1
+2026-08-12,"_(none)_",n/a,78086,n/a,pass,auto-logged by run-verify.ps1
+2026-08-12,"_(none)_",n/a,89153,n/a,pass,auto-logged by run-verify.ps1
+2026-08-12,"_(none)_",n/a,89153,n/a,pass,auto-logged by run-verify.ps1
+2026-08-12,"_(none)_",n/a,89153,n/a,pass,auto-logged by run-verify.ps1
+2026-08-12,"_(none)_",n/a,90391,n/a,pass,auto-logged by run-verify.ps1
+2026-08-12,"_(none)_",n/a,105534,n/a,pass,auto-logged by run-verify.ps1
+2026-08-12,"_(none)_",n/a,105534,n/a,pass,auto-logged by run-verify.ps1
+2026-08-12,"- **`docs/design/` currency pass (Azure/Entra → self-hosted).** `docs/design/architecture.md`, `docs/design/low-level-design.md`, and `docs/design/data-design.md` — the original design-gate source markdown, per CLAUDE.md the actual source of truth `/render-gate-package` renders from — still describe the pre-ADR-0005 stack: Microsoft Entra External ID auth, `AppUser.EntraObjectId` (a field that no longer exists on the entity — replaced by self-rolled ASP.NET Core Identity), Azure Blob Storage, Azure Communication Services Email, Azure SQL Database, and `architecture.md`'s open ""WebJob vs Azure Functions Timer"" question (now moot — it's a systemd timer). `openwiki/` was kept current through every pivot item; these were not. Rewrite to describe the actual current stack (self-hosted PostgreSQL/Npgsql, self-rolled Identity + TOTP MFA + signed invite links, `LocalDiskBlobStorage`, SMTP/MailKit, systemd timer), cross-referencing `docs/adr/0005-hosting-pivot-self-hosted-vps-postgresql.md` as the amending decision, the same way `VISION.md`/`raid.md`/the other ADRs already do. Docs-only — no code change, no external decision needed.",n/a,113005,n/a,pass,auto-logged by run-verify.ps1
+2026-08-12,"_(none)_",n/a,113005,n/a,pass,auto-logged by run-verify.ps1
+2026-08-12,"_(none)_",n/a,117896,n/a,pass,auto-logged by run-verify.ps1
+2026-08-12,"_(none)_",n/a,117896,n/a,pass,auto-logged by run-verify.ps1
+2026-08-12,"_(none)_",n/a,123424,n/a,pass,auto-logged by run-verify.ps1
+2026-08-12,"- **WCAG ""Keyboard operability (2.1.1) / focus order (2.4.3)"" checklist review.** `docs/quality/wcag-2.2-aa-checklist.md` still has this as an open `[ ]` manual-review item: confirm every `EditForm` page can be fully completed and submitted via keyboard alone in a sensible tab order, including `RegisterStudent.razor`/`GuardianLinks.razor`'s conditional `InputRadioGroup`-driven sections (confirm hidden/shown fields don't trap or skip focus), and confirm `Layout/ReconnectModal.razor`'s `<dialog>` moves focus into it on SignalR disconnect and returns focus to the triggering context on reconnect/dismiss. If review finds a real defect, fix it; if the pages already pass, close the checklist item with the review evidence (this codebase's established checklist-currency discipline — a checked item needs genuine review recorded, not an assumption).",n/a,130816,n/a,pass,auto-logged by run-verify.ps1
+2026-08-12,"- **WCAG ""Keyboard operability (2.1.1) / focus order (2.4.3)"" checklist review.** `docs/quality/wcag-2.2-aa-checklist.md` still has this as an open `[ ]` manual-review item: confirm every `EditForm` page can be fully completed and submitted via keyboard alone in a sensible tab order, including `RegisterStudent.razor`/`GuardianLinks.razor`'s conditional `InputRadioGroup`-driven sections (confirm hidden/shown fields don't trap or skip focus), and confirm `Layout/ReconnectModal.razor`'s `<dialog>` moves focus into it on SignalR disconnect and returns focus to the triggering context on reconnect/dismiss. If review finds a real defect, fix it; if the pages already pass, close the checklist item with the review evidence (this codebase's established checklist-currency discipline — a checked item needs genuine review recorded, not an assumption).",n/a,130816,n/a,pass,auto-logged by run-verify.ps1
+2026-08-12,"_(none)_",n/a,130816,n/a,pass,auto-logged by run-verify.ps1
+2026-08-12,"_(none)_",n/a,136046,n/a,pass,auto-logged by run-verify.ps1
+2026-08-12,"_(none)_",n/a,136046,n/a,pass,auto-logged by run-verify.ps1
+2026-08-12,"_(none)_",n/a,136046,n/a,pass,auto-logged by run-verify.ps1
+2026-08-12,"_(none)_",n/a,143779,n/a,pass,auto-logged by run-verify.ps1
+2026-08-12,"_(none)_",n/a,143779,n/a,pass,auto-logged by run-verify.ps1
+2026-08-12,"_(none)_",n/a,143779,n/a,pass,auto-logged by run-verify.ps1
+2026-08-12,"_(none)_",n/a,149730,n/a,pass,auto-logged by run-verify.ps1
+2026-08-12,"_(none)_",n/a,149730,n/a,pass,auto-logged by run-verify.ps1
+2026-08-12,"_(none)_",n/a,149730,n/a,pass,auto-logged by run-verify.ps1
+2026-08-12,"_(none)_",n/a,151215,n/a,pass,auto-logged by run-verify.ps1
+2026-08-12,"_(none)_",n/a,151215,n/a,pass,auto-logged by run-verify.ps1
+2026-08-12,"_(none)_",n/a,151215,n/a,pass,auto-logged by run-verify.ps1
+2026-08-12,"- **WCAG ""Error identification (3.3.1) / suggestion (3.3.3)"" checklist review.** Re-confirm `role=""alert""` is present and announces correctly on every page's `<ValidationSummary />` and inline error `<p>` (the `RegisterStudent.razor` `_errorMessage` pattern, reused across Safeguarding/Guardianship/Registration/Curriculum/Progress pages) now that more pages exist than when this checklist item was last reviewed. Close with recorded evidence, same discipline as the ""Keyboard operability"" checklist item just closed above (and its own checker-FAIL round-trip: a broad review pass must genuinely cover every relevant control, not just the pages named in the item's own framing — check the same class of framework/template-default elements this codebase has been bitten by before, not only the page forms).",n/a,158543,n/a,pass,auto-logged by run-verify.ps1
+2026-08-12,"_(none)_",n/a,158543,n/a,pass,auto-logged by run-verify.ps1
+2026-08-12,"_(none)_",n/a,168827,n/a,pass,auto-logged by run-verify.ps1
+2026-08-12,"_(none)_",n/a,168827,n/a,pass,auto-logged by run-verify.ps1
+2026-08-12,"_(none)_",n/a,170485,n/a,pass,auto-logged by run-verify.ps1
+2026-08-12,"_(none)_",n/a,170485,n/a,pass,auto-logged by run-verify.ps1
+2026-08-12,"- **Three more stale Azure/Entra references, found by the checker's independent grep during the `docs/design/` currency-pass review (commit 218f545), outside that item's own named scope:** `docs/governance/asvs-access-control-checklist.md:103` still calls `Vlms.Jobs` a ""WebJob host"" (should be ""systemd-timer-invoked console host"", matching the terminology the currency pass used elsewhere); `docs/governance/security-compliance.md:26` still has the pre-pivot sentence about the guardian-link control closing ""a gap where Entra External ID's self-service sign-up would otherwise..."" (the identical sentence in `data-design.md` was already reworded provider-agnostically by 218f545 — this duplicate in `governance/` was missed); `docs/glossary.md:22`'s Azure Communication Services entry reads present-tense (""used here for transactional email""), now literally false and in tension with `low-level-design.md`'s corrected ""wraps SMTP (MailKit)"" line from the same commit. Small, contained — no code change, no external decision needed.",n/a,176111,n/a,pass,auto-logged by run-verify.ps1
+2026-08-12,"_(none)_",n/a,176111,n/a,pass,auto-logged by run-verify.ps1
+2026-08-12,"_(none)_",n/a,180147,n/a,pass,auto-logged by run-verify.ps1
+2026-08-12,"_(none)_",n/a,180147,n/a,pass,auto-logged by run-verify.ps1
+2026-08-12,"_(none)_",n/a,180619,n/a,pass,auto-logged by run-verify.ps1
+2026-08-12,"_(none)_",n/a,180619,n/a,pass,auto-logged by run-verify.ps1
+2026-08-13,"_(none)_",n/a,220763,n/a,pass,auto-logged by run-verify.ps1
+2026-08-13,"_(none)_",n/a,220763,n/a,pass,auto-logged by run-verify.ps1
