@@ -63,7 +63,7 @@ _(none)_
 ## Blocked / needs decision
 - Seed rank ladder + curriculum: Philip to confirm the source rows (rank names/order, lesson list per rank) before an idempotent seed can be written.
 - Palette/branding: Philip to choose the VLMS palette and icon direction before the branding item can start.
-- VPS: provider decided — DigitalOcean London (LON1), Philip 12/10/2026 (adr/0005 amendment). Still undecided: Droplet size (recommended Basic 2 GiB, $12/month), domain, off-box storage (Cloudflare R2 vs Backblaze B2). ADR-0005 requires Philip's explicit go-ahead before any account is created or anything provisioned.
+- VPS: decided — DigitalOcean London (LON1), Basic Droplet 2 GiB / 1 vCPU / 50 GiB, $12/month, Philip 12/10/2026 (adr/0005 amendment). Still undecided: domain, off-box storage (Cloudflare R2 vs Backblaze B2). ADR-0005 requires Philip's explicit go-ahead before any account is created or anything provisioned.
 - SMTP target (Microsoft 365 mailbox vs transactional provider, `raid.md` D-002) and who controls DNS for SPF/DKIM/DMARC.
 - Retention purge (hard delete at 3y students / 6y DBS + audit log; only flagging exists, `RecordsDueForDeletionService.cs:30`): Philip to choose manually run `BYPASSRLS` maintenance role vs scheduled job (adr/0004 pass 8). `vlms_app` must never get DELETE on `sensitive_data_access_logs`.
 - Whether ICO registration applies and privacy-notice wording — Philip to verify; not asserted here.

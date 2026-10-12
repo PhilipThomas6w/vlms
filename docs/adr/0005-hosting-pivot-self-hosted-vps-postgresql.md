@@ -50,9 +50,9 @@ Database backup: `pg_dump` on a cron schedule, shipped to the same off-box objec
 
 ## Amendment — VPS provider chosen (12/10/2026)
 
-Philip chose **DigitalOcean, London region (LON1)**, the UK-resident option in `hosting-cost-review-2026-07-20.md` §4.2. This removes the data-residency question for trustees. Still open: Droplet size (recommended 2 GiB, see below), domain, and the off-box storage provider (Cloudflare R2 vs Backblaze B2). No account or resource has been created; provisioning still needs Philip's explicit go-ahead.
+Philip chose **DigitalOcean, London region (LON1)**, the UK-resident option in `hosting-cost-review-2026-07-20.md` §4.2. This removes the data-residency question for trustees. Still open: domain, and the off-box storage provider (Cloudflare R2 vs Backblaze B2). No account or resource has been created; provisioning still needs Philip's explicit go-ahead.
 
-**Droplet size — recommendation, not yet decided:** Basic 2 GiB / 1 vCPU / 50 GiB SSD at $12/month rather than the review's 1 GiB at $6/month, because PostgreSQL, the Blazor Server app (which holds a live circuit in memory per connected user) and the nightly jobs share one machine; 1 GiB leaves little headroom. Prices from [DigitalOcean Droplet pricing](https://www.digitalocean.com/pricing/droplets), checked 12/10/2026.
+**Droplet size — decided by Philip 12/10/2026:** Basic 2 GiB / 1 vCPU / 50 GiB SSD at $12/month rather than the review's 1 GiB at $6/month, because PostgreSQL, the Blazor Server app (which holds a live circuit in memory per connected user) and the nightly jobs share one machine; 1 GiB leaves little headroom. Prices from [DigitalOcean Droplet pricing](https://www.digitalocean.com/pricing/droplets), checked 12/10/2026.
 
 ## Reference
 
