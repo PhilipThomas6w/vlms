@@ -43,12 +43,12 @@ Full narrative for Done/Log items to 12/08/2026: `docs/harness/STATE-archive.md`
 - [x] Persist DataProtection keys (`VlmsDataProtection`: fixed app name, `DataProtection:KeysPath` required in Production; `StateDirectory=vlms/keys` 0700 in `vlms-web.service`; README §1/§7) — 037d6d9; full gate exit 0, 355/355 tests. On-host restart check still pending (README §7).
 - [x] EF migration bundle + deploy script (`deploy/build-migrations-bundle.ps1` self-contained linux-x64; `deploy/migrate.sh` as `vlms_owner` from `/etc/vlms/migrate.env`; README §3 no longer needs the SDK) — 2b0b8a5; full gate exit 0, 360/360 tests. Bundle build verified locally; on-host run pending go-live.
 - [x] Off-box backup of file storage (`deploy/backup/files-backup.sh` sync to `files/`, no `--delete`, `--restore` mode; `vlms-files-backup.service/.timer` 02:30 UTC; README §9 restore steps; DataProtection keys deliberately excluded) — dac8d81; full gate exit 0, 366/366 tests. Live-bucket run pending provider decision/go-live.
+- [x] Password reset + Identity hardening (`AccountEmailService` reset/confirm by email, no enumeration; `VlmsIdentityPolicy`: confirmed email required, lockout 5 / 15 min, 2-hour links; 4 account pages; invite accounts pre-confirmed; bootstrap refuses unconfirmed) — 8326bd3; full gate exit 0, 384/384 tests. Pages not exercised against a live DB (none locally); first Admin now needs working SMTP.
 
 ## In progress
 _(none)_
 
 ## Next
-- [ ] **Password reset + Identity hardening** — no forgot/reset-password pages; `RequireConfirmedAccount = false` (`Program.cs:229`); no explicit lockout policy. Add reset via SMTP; set lockout/confirmed-email policy deliberately. Acceptance: tests; policy documented.
 - [ ] **Production web hardening** — `AllowedHosts` is `*`; HSTS default max-age; no rate limiting. Config-driven `AllowedHosts`, HSTS max-age, rate limiting on login/invite endpoints. Acceptance: tests; gate exits 0.
 - [ ] **Jobs appsettings stale comment** — `src/Vlms.Jobs/appsettings.json` `_comment` still says Azure App Service WebJob. Acceptance: no Azure wording in `src/Vlms.Jobs` (excluding bin/obj).
 - [ ] **Real secret scanning** — install gitleaks so `build/check-secrets.ps1` takes its `Get-Command gitleaks` path instead of the regex fallback. Acceptance: gate output reads "secret scan (gitleaks): clean", not "regex fallback".
