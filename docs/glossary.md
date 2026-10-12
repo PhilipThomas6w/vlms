@@ -19,7 +19,7 @@ Status: initial (design gate)
 | StudentGuardianLink | The link between a Student and a ParentGuardian, created only by Admin/Teacher, never by parent self-service. |
 | SensitiveDataAccessLog | The audit trail of reads (not just writes) of `DbsCheck`/`ConsentSensitiveDetails`. |
 | CIAM | Customer Identity and Access Management — the category of identity service Microsoft Entra External ID provides. |
-| ACS | Azure Communication Services — originally used for transactional email; replaced by SMTP/MailKit (`adr/0005-hosting-pivot-self-hosted-vps-postgresql.md`). |
+| ACS | Azure Communication Services — originally used for transactional email; replaced by SMTP/MailKit, then by Microsoft Graph `sendMail` (`adr/0005-hosting-pivot-self-hosted-vps-postgresql.md` and its amendment). |
 | PWA | Progressive Web App — an installable, browser-based app; how VLMS's Blazor Web App reaches phone/tablet/browser from one codebase. |
 | ADR | Architecture Decision Record (Nygard format) — see `adr/`. |
 | BR / FR / NFR | Business Requirement / Functional Requirement / Non-Functional Requirement — traceability ID prefixes used throughout `docs/`. |

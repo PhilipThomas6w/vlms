@@ -25,7 +25,7 @@ Per ISO/IEC/IEEE 42010:2022, this describes the system from the perspective of t
                                               └────────┬────────┘
                                                         │
                                               ┌─────────▼─────────┐
-                                              │ SMTP (MailKit)      │
+                                              │ Microsoft Graph     │
                                               └─────────────────────┘
 ```
 
@@ -37,7 +37,7 @@ Web app, database, and local disk storage are all co-located on one self-hosted 
 - **Database (self-hosted PostgreSQL, same VPS)** — system of record for all domain data (see `data-design.md`). Accessed only via EF Core (Npgsql) from the web app; no other component talks to it directly.
 - **File storage (local disk on the VPS, `LocalDiskBlobStorage`)** — lesson content assets (documents/images referenced by a Lesson) and generated certificate PDFs, under a configurable root directory; off-box backup to a free-tier S3-compatible store (provider still to be picked — `adr/0005`). Referenced by blob key from PostgreSQL rows; access brokered through the web app (no public anonymous access, given safeguarding data proximity).
 - **Background/scheduled work** — consent/DBS expiry monitoring and re-engagement checks run as `Vlms.Jobs`, a plain console app invoked daily by a systemd timer on the same VPS — decided, see `adr/0003-scheduled-jobs-webjobs.md` as amended by `adr/0005-hosting-pivot-self-hosted-vps-postgresql.md` (this was an open "WebJob vs Azure Functions Timer" question at design gate; that question is now moot).
-- **Email (SMTP via MailKit)** — outbound-only; the web app and `Vlms.Jobs` call it synchronously for notification delivery. No inbound email handling in scope.
+- **Email (Microsoft Graph `sendMail`, as `noreply@varangians.co.uk` in the church's Microsoft 365 tenant — `adr/0005` amendment)** — outbound-only; the web app and `Vlms.Jobs` call it synchronously for notification delivery. No inbound email handling in scope.
 - **Identity (self-rolled ASP.NET Core Identity)** — no external tenant; the web app owns its own credential store (`VlmsIdentityUser`, sharing `AppUser`'s primary key by convention — see `data-design.md`), including built-in TOTP MFA. User roles are modelled as application-level claims (`UserRole`), not an external identity provider's groups — see `adr/0002-roles-as-application-claims.md`. Guardian onboarding uses a self-rolled signed, single-use, expiring invite link (`GuardianInvite`), replacing what was originally planned as a Microsoft Entra External ID invitation.
 
 ## Decided

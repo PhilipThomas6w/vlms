@@ -21,12 +21,9 @@
 // (App_Data/jobs/triggered/...) to a systemd timer/service pair on the self-hosted VPS —
 // deploy/systemd/vlms-jobs.service + deploy/systemd/vlms-jobs.timer, invoking this same published
 // console app unchanged; adr/0003's "plain console app, not a scheduler SDK" reasoning is unaffected,
-// only *where* the schedule lives changes. Email sends via SMTP
-// (adr/0005-hosting-pivot-self-hosted-vps-postgresql.md, superseding Azure Communication Services
-// Email) — Smtp:Host/Port/Username/Password/FromAddress/UseStartTls in appsettings.json are
-// placeholders, same status AzureAd's/CommunicationServices' config had before a live target existed;
-// the org's existing Microsoft 365 mailbox vs. a free-tier transactional provider is still an open
-// pick per the ADR.
+// only *where* the schedule lives changes. Email sends via Microsoft Graph as
+// noreply@varangians.co.uk (adr/0005 amendment) — the "GraphMail" section in appsettings.json, with
+// the client secret supplied only by /etc/vlms/jobs.env.
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -68,24 +65,10 @@ builder.Services.AddScoped(sp => new ConsentExpiryJob(
     sp.GetRequiredService<ILogger<ConsentExpiryJob>>(),
     builder.Configuration.GetValue("Safeguarding:ExpiryWarningWindowDays", ConsentExpiryJob.DefaultExpiryWarningWindowDays)));
 
-// --- Notifications (STATE.md, low-level-design.md "NotificationService") — SMTP
-// (adr/0005-hosting-pivot-self-hosted-vps-postgresql.md, superseding Azure Communication Services
-// Email), wired the same placeholder-config way AzureAd/CommunicationServices were before a live
-// target existed. SmtpEmailSender's own doc comment has the verified MailKit API details;
-// Username/Password are optional (null skips SMTP AUTH) — see that constructor's guard clause.
+// --- Notifications (STATE.md, low-level-design.md "NotificationService") — Microsoft Graph as
+// noreply@varangians.co.uk (adr/0005 amendment, 12/10/2026); see GraphEmailSender.
 builder.Services.AddSingleton<IEmailSender>(sp =>
-{
-    var configuration = sp.GetRequiredService<IConfiguration>();
-    return new SmtpEmailSender(
-        configuration.GetValue<string>("Smtp:Host")
-            ?? throw new InvalidOperationException("Smtp:Host is not configured."),
-        configuration.GetValue("Smtp:Port", 587),
-        configuration.GetValue<string>("Smtp:Username"),
-        configuration.GetValue<string>("Smtp:Password"),
-        configuration.GetValue<string>("Smtp:FromAddress")
-            ?? throw new InvalidOperationException("Smtp:FromAddress is not configured."),
-        configuration.GetValue("Smtp:UseStartTls", true));
-});
+    new GraphEmailSender(GraphEmailOptions.FromConfiguration(sp.GetRequiredService<IConfiguration>())));
 builder.Services.AddSingleton<INotificationService, NotificationService>();
 builder.Services.AddScoped<ConsentExpiryNotifier>();
 builder.Services.AddScoped<FirstAdminBootstrapService>();

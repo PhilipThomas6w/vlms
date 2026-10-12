@@ -27,13 +27,11 @@
 #   ADR alone:
 #     - "Azure Storage / Communication Services key" (AccountKey=/accesskey= — Azure.Storage.Blobs
 #       and Azure.Communication.Email are both fully removed package references; LocalDiskBlobStorage
-#       and SmtpEmailSender replaced them. No code path in this repository can ever produce this
+#       and the email sender replaced them. No code path in this repository can ever produce this
 #       shape again.)
 #     - "Entra/Graph client secret value" and "explicit client secret assignment" (client_secret=...)
-#       — Microsoft.Identity.Web/Microsoft.Graph are both fully removed; self-rolled ASP.NET Core
-#       Identity has no OAuth client/client-secret concept anywhere in its design (cookie auth +
-#       TOTP MFA only). These shapes are not just unused today, they are structurally impossible
-#       under the current architecture.
+#       — removed when Microsoft.Identity.Web/Microsoft.Graph went. RE-ADDED 2026-10-12 in new form
+#       (see the pattern list): sending mail through Microsoft Graph brought back a client secret.
 #   KEPT, confirmed still relevant: "AWS access key id" (AKIA...) — MORE relevant now than before
 #   the pivot, since deploy/backup/pg-backup.sh genuinely uses the AWS CLI (`aws s3 cp`) against an
 #   S3-compatible off-box backup target; "PEM private key block" — generically still plausible
@@ -107,6 +105,12 @@ $patterns = @(
     @{ Label = "SQL / connection-string password";     Pattern = '(?i)\b(password|pwd)\s*=\s*[''"]?[^;''"\s]{3,}' }
     @{ Label = "JSON config-key password/pwd";         Pattern = '(?i)"(password|pwd)"\s*:\s*"[^"]{3,}"' }
     @{ Label = "PostgreSQL CREATE/ALTER ROLE password"; Pattern = "(?i)\bpassword\s+'[^']{3,}'" }
+    # Re-added 2026-10-12 (STATE.md "Send email via Microsoft Graph"): the app now has an Entra client
+    # secret (GraphMail:ClientSecret). Value shape from gitleaks' own azure-ad-client-secret rule
+    # (config/gitleaks.toml), boundaries dropped; plus the config-key form, so a secret pasted into
+    # appsettings or an env file is caught whatever its shape.
+    @{ Label = "Entra client secret value";            Pattern = '[a-zA-Z0-9_~.]{3}\dQ~[a-zA-Z0-9_~.-]{31,34}' }
+    @{ Label = "client secret config key";             Pattern = '(?i)"?client_?secret"?\s*[:=]\s*"?[^"\s;]{8,}' }
 )
 
 # *.sql/*.sh/*.service/*.timer/Caddyfile — added in the 2026-07-21 currency pass: deploy/ (the

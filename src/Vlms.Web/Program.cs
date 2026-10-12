@@ -138,7 +138,7 @@ builder.Services.AddScoped<LeavingService>();
 // UI consumer of CompletionService, which is exactly the moment progress-tracking.md's own doc
 // comment on LocalDiskBlobStorage named as the trigger to finally wire IBlobStorage/
 // CertificateService/PromotionService into DI (previously "structurally correct, not yet wired" —
-// no page referenced any of them). "Storage:LocalRootPath" mirrors the "Smtp"/"App" sections above:
+// no page referenced any of them). "Storage:LocalRootPath" mirrors the "App" section above:
 // a local-dev default (LocalDiskBlobStorage.DefaultRootPath, App_Data/blobs) when unset, overridden
 // for a real deployment path via appsettings.json/an environment variable.
 builder.Services.AddScoped<IBlobStorage>(sp =>
@@ -150,24 +150,11 @@ builder.Services.AddScoped<CompletionService>();
 // --- Notifications (adr/0001-technology-stack.md, low-level-design.md "NotificationService") —
 // wired into Vlms.Web itself, not just Vlms.Jobs (STATE.md "Identity" item 5: guardian invite
 // emails are sent from the web app, at the moment the Admin/Teacher creates the link — there is no
-// batch/job context to defer this to, unlike ConsentExpiryNotifier's daily-sweep digest). SMTP
-// (adr/0005-hosting-pivot-self-hosted-vps-postgresql.md — supersedes Azure Communication Services
-// Email), wired the same placeholder-config way CommunicationServices/AzureAd were before a live
-// target existed — appsettings.json's "Smtp" section. SmtpEmailSender's own doc comment has the
-// verified MailKit API details; Username/Password are optional (null skips SMTP AUTH).
+// batch/job context to defer this to, unlike ConsentExpiryNotifier's daily-sweep digest). Sent via
+// Microsoft Graph as noreply@varangians.co.uk (adr/0005 amendment, 12/10/2026) — see
+// GraphEmailSender; the "GraphMail" section, with the client secret supplied only by environment.
 builder.Services.AddSingleton<IEmailSender>(sp =>
-{
-    var configuration = sp.GetRequiredService<IConfiguration>();
-    return new SmtpEmailSender(
-        configuration.GetValue<string>("Smtp:Host")
-            ?? throw new InvalidOperationException("Smtp:Host is not configured."),
-        configuration.GetValue("Smtp:Port", 587),
-        configuration.GetValue<string>("Smtp:Username"),
-        configuration.GetValue<string>("Smtp:Password"),
-        configuration.GetValue<string>("Smtp:FromAddress")
-            ?? throw new InvalidOperationException("Smtp:FromAddress is not configured."),
-        configuration.GetValue("Smtp:UseStartTls", true));
-});
+    new GraphEmailSender(GraphEmailOptions.FromConfiguration(sp.GetRequiredService<IConfiguration>())));
 builder.Services.AddSingleton<INotificationService, NotificationService>();
 
 // --- Authorization: one policy per Role.Enum value (role-based), plus a resource-based

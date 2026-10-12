@@ -26,12 +26,7 @@ because this STATE.md item was scoped narrowly to the scheduled-jobs retarget.
   ```
   ConnectionStrings__VlmsDatabase=Host=localhost;Database=vlms;Username=vlms_app;Password=<real password>
   Safeguarding__ExpiryWarningWindowDays=28
-  Smtp__Host=<real smtp host>
-  Smtp__Port=587
-  Smtp__Username=<real username>
-  Smtp__Password=<real password>
-  Smtp__FromAddress=<real from address>
-  Smtp__UseStartTls=true
+  GraphMail__ClientSecret=<written by the command in deploy/README.md §4 "Email secret">
   ```
   Mode `0640`, owned by `root:vlms` (readable by the `vlms` group, not world-readable) — never commit
   real values anywhere in this repository; `src/Vlms.Jobs/appsettings.json`'s checked-in values are

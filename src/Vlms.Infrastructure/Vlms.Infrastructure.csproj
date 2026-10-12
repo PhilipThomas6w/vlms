@@ -33,12 +33,6 @@
     <!-- Certificate PDF generation (adr/0001-technology-stack.md), Community licence — see
          Progress/CertificateService.cs for where QuestPDF.Settings.License is set. -->
     <PackageReference Include="QuestPDF" Version="2026.7.1" />
-    <!-- SMTP (adr/0005-hosting-pivot-self-hosted-vps-postgresql.md — supersedes Azure Communication
-         Services Email / Azure.Communication.Email under the superseded adr/0001 row) — backs
-         INotificationService's real implementation, Notifications/SmtpEmailSender.cs. Not the
-         obsolete System.Net.Mail.SmtpClient — see that file's doc comment for the verified Microsoft
-         Learn guidance recommending MailKit instead. -->
-    <PackageReference Include="MailKit" Version="4.17.0" />
     <!-- ILogger<T> for ConsentExpiryJob's escalation logging (Safeguarding/ConsentExpiryJob.cs) —
          explicit reference (rather than relying on it arriving transitively via EF Core) so this
          class library's own dependencies are self-declared. -->

@@ -20,14 +20,6 @@
          ConsentExpiryJob actually reads a non-default value from configuration. -->
     <PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.10" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.10" />
-    <!-- Test-only, real in-process SMTP server on loopback (a real TcpListener, not a mock) —
-         MailKit itself ships no stub server and its own FAQ names none (checked before adding this
-         rather than assumed); netDumbster is the community-standard choice for exercising a real
-         SmtpClient network path without a live remote mail server. Lets SmtpEmailSenderTests prove
-         the actual Connect/Send/Disconnect conversation works, not just config binding/message
-         construction — see that file's doc comment for what this can and can't simulate (no AUTH/
-         STARTTLS support, so those failure paths are covered differently). -->
-    <PackageReference Include="netDumbster" Version="3.1.1" />
     <!-- In-memory TestServer for exercising Vlms.Web's real middleware registrations
          (WebHardening: rate limiting, HSTS) without Kestrel, a database or Program.cs's full host. -->
     <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="10.0.10" />

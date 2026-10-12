@@ -184,16 +184,39 @@ Configuration/secrets — one `EnvironmentFile` per unit, mode `0640`, owned by 
 by the `vlms` group, never world-readable), never committed anywhere in this repository:
 
 - `/etc/vlms/web.env` — `Vlms.Web`'s real config: `ConnectionStrings__VlmsDatabase` (as `vlms_app`,
-  **never** `vlms_owner`), `Smtp__*`, `App__PublicBaseUrl` (the real domain, once one exists — see
-  `deploy/Caddyfile`'s own placeholder note; used by `GuardianInviteService` to build the accept-
-  invite link), and anything else `src/Vlms.Web/appsettings.json`'s own `_comment` fields flag as
-  placeholder-only.
+  **never** `vlms_owner`), `GraphMail__ClientSecret` (see "Email secret" below), and anything else
+  `src/Vlms.Web/appsettings.json`'s own `_comment` fields flag as placeholder-only.
+  (`AllowedHosts` and `App__PublicBaseUrl` are set in `vlms-web.service` itself — not secrets.)
 - `/etc/vlms/jobs.env` — see `deploy/systemd/README.md` (already documents this file's shape;
-  not repeated here) — same `ConnectionStrings__VlmsDatabase` (as `vlms_app`), `Smtp__*`,
-  `Safeguarding__ExpiryWarningWindowDays`.
+  not repeated here) — same `ConnectionStrings__VlmsDatabase` (as `vlms_app`),
+  `GraphMail__ClientSecret`, `Safeguarding__ExpiryWarningWindowDays`.
 - `/etc/vlms/backup.env` — see `deploy/backup/pg-backup.sh`'s own comment for the full variable
   list (`PGHOST`/`PGUSER=vlms_app`/`PGPASSWORD`/`BACKUP_S3_*`/`AWS_*`), plus `FILES_ROOT` for
   `deploy/backup/files-backup.sh` — the same path as `Storage__LocalRootPath` in `web.env`.
+
+### Email secret (Microsoft Graph)
+
+The app sends email through Microsoft Graph as `noreply@varangians.co.uk`, signing in as the Entra
+app "Varangians LMS mailer" (`adr/0005` amendment; tenant setup already done and tested). It needs
+one secret, `GraphMail__ClientSecret`, in both `web.env` and `jobs.env`. The tenant ID, app ID and
+sender address are already in `appsettings.json`.
+
+Create the secret on your own machine (Azure CLI signed in as a tenant admin) and send it straight
+into the two files over SSH, so it never appears on screen, in shell history, or in this repo:
+
+```powershell
+$secret = az ad app credential reset --id e74439c2-2ada-4204-83b9-d0e686b8675f --append `
+  --display-name "vlms-server" --years 2 --query password -o tsv
+"GraphMail__ClientSecret=$secret" | ssh <admin-user>@<server> "sudo tee -a /etc/vlms/web.env /etc/vlms/jobs.env > /dev/null"
+Remove-Variable secret
+```
+
+`--append` adds a secret without deleting existing ones. **The secret expires after 2 years** and
+email then stops (sends fail and are logged/escalated by `NotificationService`). Before it expires,
+create a new one the same way, remove the old `GraphMail__ClientSecret=` line from both files,
+restart `vlms-web.service`, then delete the old secret:
+`az ad app credential list --id e74439c2-2ada-4204-83b9-d0e686b8675f` shows each secret's
+`keyId` and `endDateTime`; `az ad app credential delete --id e74439c2-2ada-4204-83b9-d0e686b8675f --key-id <old keyId>`.
 
 ## 5. Install the systemd units
 
@@ -236,7 +259,7 @@ units and Caddyfile are running:
 
 1. Register the operator's own account through the real site's `/Account/Register` page (so the
    password never goes through a shell or its history), then open the confirmation link it emails
-   you. SMTP (`Smtp__*` in `web.env`) must therefore be working first: the bootstrap refuses an
+   you. Email (`GraphMail__ClientSecret` in `web.env`, §4) must therefore be working first: the bootstrap refuses an
    account whose email isn't confirmed, so a stranger who registered your address first can't be
    the one promoted.
 2. Promote that account to Admin with the `Vlms.Jobs` host's one-off `bootstrap-admin` command, run
@@ -265,6 +288,10 @@ Not yet verified on a live host (same status as the rest of this file — see §
       WebSocket upgrades correctly to Kestrel, not just plain HTTP requests.
 - [ ] `sudo systemctl status vlms-web.service` shows `active (running)`; `journalctl -u
       vlms-web.service` shows no repeated crash-restart loop.
+- [ ] Email sends: register a test account (or use "Forgot your password?") and check the email
+      arrives from `noreply@varangians.co.uk`; in the received message's headers, `dkim=pass` and
+      `spf=pass` for `varangians.co.uk`. Exchange can take 30 minutes to 2 hours to apply app
+      permission changes, so a first send right after tenant changes may fail and retry.
 - [ ] Data Protection keys persist: sign in, `sudo systemctl restart vlms-web.service`, reload —
       still signed in; `sudo ls -ld /var/lib/vlms/keys` shows `drwx------ vlms vlms` with a
       `key-*.xml` inside.
