@@ -1,0 +1,36 @@
+@page "/Account/ConfirmEmail"
+
+@using Vlms.Infrastructure.Identity
+
+@inject AccountEmailService AccountEmails
+
+@* Static SSR. Anonymous by necessity: the account can't sign in until this succeeds. The code
+   from the emailed link is the authorisation (single-use, expires — VlmsIdentityPolicy). *@
+
+<PageTitle>Confirm email</PageTitle>
+
+<h1>Confirm email</h1>
+
+@if (_confirmed)
+{
+    <p role="status">Thank you — your email address is confirmed. You can now <a href="Account/Login">log in</a>.</p>
+}
+else
+{
+    <p role="alert">This confirmation link is invalid or has expired. <a href="Account/ResendEmailConfirmation">Send a new one.</a></p>
+}
+
+@code {
+    [SupplyParameterFromQuery]
+    private int? UserId { get; set; }
+
+    [SupplyParameterFromQuery]
+    private string? Code { get; set; }
+
+    private bool _confirmed;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _confirmed = UserId is not null && Code is not null && await AccountEmails.ConfirmEmailAsync(UserId.Value, Code);
+    }
+}

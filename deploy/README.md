@@ -234,7 +234,10 @@ A fresh database has no roles at all, so nobody can use the app until an Admin e
 units and Caddyfile are running:
 
 1. Register the operator's own account through the real site's `/Account/Register` page (so the
-   password never goes through a shell or its history).
+   password never goes through a shell or its history), then open the confirmation link it emails
+   you. SMTP (`Smtp__*` in `web.env`) must therefore be working first: the bootstrap refuses an
+   account whose email isn't confirmed, so a stranger who registered your address first can't be
+   the one promoted.
 2. Promote that account to Admin with the `Vlms.Jobs` host's one-off `bootstrap-admin` command, run
    as `vlms` with the same environment file the timer uses:
 

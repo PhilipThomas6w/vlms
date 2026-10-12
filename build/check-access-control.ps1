@@ -51,9 +51,14 @@ $componentsRoot = Join-Path $repoRoot "src/Vlms.Web/Components"
 # expiring token before doing anything — see GuardianInviteService's doc comment). Manage/*.razor
 # pages (EnableAuthenticator/TwoFactorAuthentication) are NOT on this list — they carry a plain
 # [Authorize] (any signed-in user), which the check below already accepts.
+# ForgotPassword.razor / ResetPassword.razor / ConfirmEmail.razor / ResendEmailConfirmation.razor
+# (STATE.md "Password reset + Identity hardening"): reached by someone who can't sign in yet. Each
+# answers identically for unknown emails, and the reset/confirm pages act only on a single-use,
+# expiring code that was emailed to the account's confirmed address (AccountEmailService).
 $allowListedPages = @(
     "Home.razor", "Error.razor", "NotFound.razor",
-    "Login.razor", "Register.razor", "LoginWith2fa.razor", "LoginWithRecoveryCode.razor", "AcceptInvite.razor"
+    "Login.razor", "Register.razor", "LoginWith2fa.razor", "LoginWithRecoveryCode.razor", "AcceptInvite.razor",
+    "ForgotPassword.razor", "ResetPassword.razor", "ConfirmEmail.razor", "ResendEmailConfirmation.razor"
 )
 $pageFiles = Get-ChildItem -Path $componentsRoot -Recurse -Filter "*.razor"
 
@@ -91,7 +96,10 @@ $expectedMinimums = @{
     # STATE.md "Admin role assignment + first-Admin bootstrap" (2026-10-11): role grant/revoke and
     # the first-Admin bootstrap are access-control surfaces in their own right.
     "RoleAssignmentServiceTests.cs"      = 17
-    "FirstAdminBootstrapServiceTests.cs" = 5
+    "FirstAdminBootstrapServiceTests.cs" = 6
+    # STATE.md "Password reset + Identity hardening" (2026-10-12): reset/confirmation are the
+    # unauthenticated route back into an account.
+    "AccountEmailServiceTests.cs"        = 9
 }
 
 foreach ($testFileName in $expectedMinimums.Keys) {
@@ -116,6 +124,8 @@ $hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Infrastructure/Auditing/
 $hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Web/Program.cs")
 $hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Infrastructure/Identity/RoleAssignmentService.cs")
 $hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Infrastructure/Identity/FirstAdminBootstrapService.cs")
+$hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Infrastructure/Identity/AccountEmailService.cs")
+$hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Infrastructure/Identity/VlmsIdentityPolicy.cs")
 $hashedFiles += $pageFiles
 
 if ($PrintHash) {

@@ -226,16 +226,14 @@ builder.Services.AddAuthentication(options =>
     })
     .AddIdentityCookies();
 
-builder.Services.AddIdentityCore<VlmsIdentityUser>(options =>
-    {
-        // No live email provider is wired for confirmation links yet (STATE.md Next item 2, the
-        // SMTP-based email item — ADR-0005) — requiring confirmation would permanently lock every
-        // new account out with no way to confirm. Revisit once that item lands.
-        options.SignIn.RequireConfirmedAccount = false;
-    })
+// Sign-in policy (confirmed email required, lockout) — see VlmsIdentityPolicy's doc comment.
+builder.Services.AddIdentityCore<VlmsIdentityUser>(VlmsIdentityPolicy.Apply)
     .AddEntityFrameworkStores<VlmsDbContext>()
     .AddSignInManager()
     .AddDefaultTokenProviders();
+builder.Services.Configure<DataProtectionTokenProviderOptions>(options =>
+    options.TokenLifespan = VlmsIdentityPolicy.EmailTokenLifespan);
+builder.Services.AddScoped<AccountEmailService>();
 
 var app = builder.Build();
 

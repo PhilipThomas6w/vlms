@@ -143,7 +143,7 @@ public sealed class GuardianInviteService
         await using var transaction = await _db.Database.BeginTransactionAsync(ct);
 
         var (result, _, appUser) = await _provisioning.CreateAsync(
-            guardian.ContactInfo, password, guardian.Name, ct);
+            guardian.ContactInfo, password, guardian.Name, ct, emailConfirmed: true);
 
         if (!result.Succeeded || appUser is null)
         {

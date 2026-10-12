@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -50,10 +51,15 @@ internal static class TestIdentityServices
             .Build());
         services.AddSingleton<FakeNotificationService>();
         services.AddSingleton<Vlms.Domain.INotificationService>(sp => sp.GetRequiredService<FakeNotificationService>());
-        services.AddIdentityCore<VlmsIdentityUser>().AddEntityFrameworkStores<VlmsDbContext>();
+        // Vlms.Web uses AddDefaultTokenProviders (web-only Identity assembly); EmailTokenProvider from
+        // Identity.Core stands in as the "Default" provider so reset/confirmation tokens work here.
+        services.AddIdentityCore<VlmsIdentityUser>()
+            .AddEntityFrameworkStores<VlmsDbContext>()
+            .AddTokenProvider<EmailTokenProvider<VlmsIdentityUser>>(TokenOptions.DefaultProvider);
         services.AddScoped<AppUserProvisioningService>();
         services.AddScoped<GuardianInviteService>();
         services.AddScoped<GuardianLinkService>();
+        services.AddScoped<AccountEmailService>();
 
         return services.BuildServiceProvider();
     }

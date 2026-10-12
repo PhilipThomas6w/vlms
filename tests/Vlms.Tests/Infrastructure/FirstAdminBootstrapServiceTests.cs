@@ -35,6 +35,15 @@ public sealed class FirstAdminBootstrapServiceTests : IDisposable
         {
             Id = 3, DisplayName = "Leaver", Email = "leaver@example.com", HasLeft = true, LeftAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
         });
+        db.AppUsers.Add(new AppUser { Id = 4, DisplayName = "Unconfirmed", Email = "unconfirmed@example.com" });
+        foreach (var (id, email, confirmed) in new[]
+                 {
+                     (1, "Operator@Example.com", true), (2, "someone@example.com", true),
+                     (3, "leaver@example.com", true), (4, "unconfirmed@example.com", false)
+                 })
+        {
+            db.Users.Add(new VlmsIdentityUser { Id = id, UserName = email, Email = email, EmailConfirmed = confirmed });
+        }
         db.SaveChanges();
     }
 
@@ -88,6 +97,18 @@ public sealed class FirstAdminBootstrapServiceTests : IDisposable
 
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => new FirstAdminBootstrapService(db).BootstrapAsync("nobody@example.com"));
+        Assert.Empty(await AdminRows());
+    }
+
+    [Fact]
+    public async Task BootstrapAsync_UnconfirmedEmail_Throws_AndGrantsNothing()
+    {
+        using var db = CreateContext();
+        var service = new FirstAdminBootstrapService(db);
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => service.BootstrapAsync("unconfirmed@example.com"));
+
+        Assert.Contains("confirmed", ex.Message);
         Assert.Empty(await AdminRows());
     }
 

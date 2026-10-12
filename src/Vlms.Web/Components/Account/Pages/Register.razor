@@ -4,9 +4,8 @@
 @using Microsoft.AspNetCore.Identity
 @using Vlms.Infrastructure.Identity
 
-@inject SignInManager<VlmsIdentityUser> SignInManager
 @inject AppUserProvisioningService Provisioning
-@inject IdentityRedirectManager RedirectManager
+@inject AccountEmailService AccountEmails
 
 @* Static SSR, not interactive — same reasoning as Login.razor: SignInManager writes the auth
    cookie, which needs a normal HTTP request/response, not a live SignalR circuit.
@@ -19,7 +18,10 @@
    staff (Admin/Teacher/Approver/SafeguardingOfficer/Student) accounts get their initial credential —
    Parent accounts instead come from the guardian invite-accept flow
    (Components/Pages/Guardianship/AcceptInvite.razor), which is scoped to a specific Student/
-   ParentGuardian pairing and does not use this page at all. *@
+   ParentGuardian pairing and does not use this page at all.
+
+   The new account can't sign in until its email is confirmed (VlmsIdentityPolicy), so this page
+   sends the confirmation link instead of signing the user in. *@
 
 <PageTitle>Register</PageTitle>
 
@@ -30,6 +32,13 @@
     <p class="error" role="alert">@_errorMessage</p>
 }
 
+@if (_registered)
+{
+    <p role="status">Account created. We've sent a confirmation link to your email address — open it to finish setting up your account, then log in.</p>
+    <p><a href="Account/Login">Log in</a> · <a href="Account/ResendEmailConfirmation">Didn't get the email?</a></p>
+}
+else
+{
 <EditForm Model="Input" method="post" OnValidSubmit="RegisterUser" FormName="register">
     <DataAnnotationsValidator />
     <ValidationSummary role="alert" />
@@ -53,6 +62,7 @@
 
     <button type="submit">Register</button>
 </EditForm>
+}
 
 <p><a href="Account/Login">Already have an account? Log in</a></p>
 
@@ -63,24 +73,22 @@
     private InputModel Input { get; set; } = default!;
 
     private string? _errorMessage;
+    private bool _registered;
 
     protected override void OnInitialized() => Input ??= new();
 
     public async Task RegisterUser()
     {
-        var (result, _, _) = await Provisioning.CreateAsync(Input.Email, Input.Password, Input.DisplayName);
+        var (result, identityUser, _) = await Provisioning.CreateAsync(Input.Email, Input.Password, Input.DisplayName);
 
-        if (!result.Succeeded)
+        if (!result.Succeeded || identityUser is null)
         {
             _errorMessage = string.Join(" ", result.Errors.Select(e => e.Description));
             return;
         }
 
-        var identityUser = await SignInManager.UserManager.FindByEmailAsync(Input.Email)
-            ?? throw new InvalidOperationException("Registration succeeded but the new user could not be found.");
-
-        await SignInManager.SignInAsync(identityUser, isPersistent: false);
-        RedirectManager.RedirectTo("/");
+        await AccountEmails.SendConfirmationAsync(identityUser);
+        _registered = true;
     }
 
     private sealed class InputModel

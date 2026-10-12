@@ -42,6 +42,11 @@ are deliberately NOT on the allow-list — they carry a plain `[Authorize]` (any
 catch-22, see `TwoFactorAuthentication.razor`'s own doc comment), which the automated check already
 accepts as satisfying "every routable page has `[Authorize]`".
 
+**Password reset + Identity hardening update (2026-10-12):** the allow-list also names
+`ForgotPassword.razor`, `ResetPassword.razor`, `ConfirmEmail.razor` and `ResendEmailConfirmation.razor`
+— reached by someone who can't sign in yet. `AccountEmailService.cs` and `VlmsIdentityPolicy.cs` are
+now in the hashed set, and `AccountEmailServiceTests.cs` has a floor of 9.
+
 ## V8 Authorization — manual review items
 
 - [ ] Every `Role` enum value used by a policy in `Program.cs`'s `AddAuthorization` block
@@ -97,7 +102,17 @@ accepts as satisfying "every routable page has `[Authorize]`".
       through `GrantAsync`'s own guards. `FirstAdminBootstrapService` is still wired only into `Vlms.Jobs`
       (`bootstrap-admin`), never `Vlms.Web` (`FirstAdminBootstrapWiringTests`), and still refuses
       to run once any Admin exists. `Administration/UserRoles.razor` is still gated by
-      `RequireAdmin` (which carries `MfaRequirement`).
+      `RequireAdmin` (which carries `MfaRequirement`). The bootstrap also still refuses an account
+      whose email isn't confirmed, so a squatter who registered first under the operator's address
+      can't be the one promoted.
+
+- [ ] **Account recovery and email confirmation (STATE.md "Password reset + Identity hardening",
+      2026-10-12):** `VlmsIdentityPolicy` still requires a confirmed email to sign in, and only the
+      guardian-invite path creates an account pre-confirmed (the invite was emailed to that
+      address). `AccountEmailService` still sends a reset link only to a confirmed account, gives
+      the same response for unknown emails, and relies on Identity's single-use codes (security
+      stamp rotation) with `VlmsIdentityPolicy.EmailTokenLifespan` expiry. A reset grants no role
+      and bypasses no MFA: a user with TOTP enabled still needs it at the next sign-in.
 
 ## V14 Data Protection — manual review items
 
@@ -164,5 +179,6 @@ accepts as satisfying "every routable page has `[Authorize]`".
 | Claude (Opus, `/work-next` session) — awaiting Philip's countersign | 2026-10-11 | Re-reviewed after the "Admin role assignment + first-Admin bootstrap" item (STATE.md), which invalidated the recorded hash on three counts: a new routable page (`Administration/UserRoles.razor`), a `Program.cs` change, and two newly hashed files added to this checklist's scope by the same item (`Identity/RoleAssignmentService.cs`, `Identity/FirstAdminBootstrapService.cs`). Read the actual diff: `Program.cs`'s only change is one DI registration (`RoleAssignmentService`) plus a comment — no policy, handler or authentication change. The new page carries `[Authorize(Policy = "RequireAdmin")]` (MFA-enforced like every policy) and the service re-checks Admin itself on every method. Privilege-escalation review: only an Admin can grant any role, so granting Admin/SafeguardingOfficer gives no one more than an Admin already has; the last-Admin guard prevents self-lockout; leavers cannot regain roles. The bootstrap has no caller role check by design — its authorization is "no Admin exists" plus shell access to the server, and it is excluded from `Vlms.Web` by a test. Neither service touches `DbsCheck`/`ConsentSensitiveDetails`/`SensitiveDataAccessLog`, and the Approver item above is unaffected. Added a new V8 item for these two services and two new test-suite floors (`RoleAssignmentServiceTests` 12, `FirstAdminBootstrapServiceTests` 5) in `check-access-control.ps1`. Break test: disabling the bootstrap's "Admin already exists" guard failed `BootstrapAsync_AdminAlreadyExists_Throws_AndGrantsNothing`; restored. |
 | Claude (Opus, `/work-next` session) — awaiting Philip's countersign | 2026-10-12 | Re-reviewed after the "Waiting-for-approval list on the role-assignment page" item (STATE.md), which invalidated the recorded hash: `Identity/RoleAssignmentService.cs` and `Administration/UserRoles.razor` changed; `Program.cs` did not. Read the diff: two new service methods, both Admin-checked inside the service. `ListAwaitingApprovalAsync` reads `AppUsers`/`UserRoles`/`GuardianInvites`/`StudentGuardianLinks`/student names only — no `DbsCheck`/`ConsentSensitiveDetails`/`SensitiveDataAccessLog` access, no `IgnoreQueryFilters`. `ApproveGuardianAsParentAsync` is a narrower `GrantAsync` (Parent only, invite-consumed accounts only), so it adds no new privilege path; it implements Philip's FR-004 decision that an Admin approves every guardian. Page gating unchanged (`RequireAdmin`). Updated the V8 role-assignment item; raised the `RoleAssignmentServiceTests` floor to 17. Break test: removing the invite-origin check failed `ApproveGuardianAsParentAsync_SelfRegisteredAccount_Throws_AndGrantsNothing`; restored. |
 | Claude (Opus, `/work-next` session) — awaiting Philip's countersign | 2026-10-12 | Re-reviewed after the "Persist DataProtection keys" item (STATE.md), which invalidated the recorded hash: `Program.cs` changed. Read the diff: the bare `AddDataProtection()` call became `AddVlmsDataProtection(...)` (new `Security/VlmsDataProtection.cs`: fixed application name, key ring persisted to `DataProtection:KeysPath`, required in Production) plus comment text — no `AddAuthorization` policy, handler, route, query-filter or role logic changed. Security effect is on session continuity, not authorization: auth cookies and invite tokens now survive restarts instead of being invalidated; the key directory is 0700 and owned by `vlms` (systemd `StateDirectory`), keys unencrypted at rest as on the framework's Linux default. Walked the items above: role/policy list, `MfaRequirement` coverage, Approver's lack of any sensitive-data path, resource-handler scoping, `StudentGuardianLink` creation sites and the `HasQueryFilter` predicates are unchanged. No new gaps. |
+| Claude (Opus, `/work-next` session) — awaiting Philip's countersign | 2026-10-12 | Re-reviewed after the "Password reset + Identity hardening" item (STATE.md), which invalidated the recorded hash: `Program.cs`, `FirstAdminBootstrapService.cs`, `Login.razor`/`Register.razor`, four new anonymous pages, and two newly hashed files (`AccountEmailService.cs`, `VlmsIdentityPolicy.cs`). Read the diff: `Program.cs` now applies `VlmsIdentityPolicy` (confirmed email required, lockout 5 attempts / 15 minutes) and a 2-hour email-link lifetime and registers `AccountEmailService` — no `AddAuthorization` policy, handler or query-filter change. The four new pages are anonymous by necessity and were checked individually: none reads or writes role, sensitive or student data; reset and confirm act only on Identity's single-use, expiring codes; request pages answer identically for unknown emails; a reset is sent only to a confirmed address. `Register.razor` no longer signs the user in. Privilege review: no path grants a role; MFA is still required at sign-in for users who enrolled it, and every `RequireX` policy still carries `MfaRequirement`. Strengthening: the bootstrap now refuses unconfirmed accounts. Added the account-recovery V8 item, a floor of 9 for `AccountEmailServiceTests` and raised `FirstAdminBootstrapServiceTests` to 6. Break test: dropping the confirmed-address check before sending a reset failed `RequestPasswordResetAsync_UnconfirmedAccount_SendsNothing`; restored. |
 
-Reviewed-hash: 8858aeb54552042885bb4c5ecd772f8c83fea6c2da1dc810687a30166e7f2d75
+Reviewed-hash: 9ba9162e701e5abd8e905fec6b73738827db51b9d3fdc116279c176c8a99b466

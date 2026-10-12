@@ -67,7 +67,7 @@ public sealed class AppUserProvisioningService
     /// <see cref="IdentityResult.Errors"/> back to the user.
     /// </summary>
     public async Task<(IdentityResult Result, VlmsIdentityUser? IdentityUser, AppUser? AppUser)> CreateAsync(
-        string email, string password, string displayName, CancellationToken ct = default)
+        string email, string password, string displayName, CancellationToken ct = default, bool emailConfirmed = false)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(email);
         ArgumentException.ThrowIfNullOrWhiteSpace(displayName);
@@ -75,7 +75,10 @@ public sealed class AppUserProvisioningService
         var identityUser = new VlmsIdentityUser
         {
             UserName = email,
-            Email = email
+            Email = email,
+            // True only when the caller already proved the address (the guardian invite link was
+            // emailed to it); self-registration must confirm by email — see VlmsIdentityPolicy.
+            EmailConfirmed = emailConfirmed
         };
 
         // Ambient-transaction composition — see the class doc comment.

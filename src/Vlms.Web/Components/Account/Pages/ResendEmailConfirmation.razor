@@ -1,0 +1,56 @@
+@page "/Account/ResendEmailConfirmation"
+
+@using System.ComponentModel.DataAnnotations
+@using Vlms.Infrastructure.Identity
+
+@inject AccountEmailService AccountEmails
+
+@* Static SSR. Anonymous by necessity. Same message whether or not the email matches an
+   unconfirmed account (AccountEmailService: no enumeration). *@
+
+<PageTitle>Resend email confirmation</PageTitle>
+
+<h1>Resend email confirmation</h1>
+
+@if (_submitted)
+{
+    <p role="status">If that email belongs to an account still waiting for confirmation, we've sent a new link. It's valid for 2 hours.</p>
+    <p><a href="Account/Login">Back to log in</a></p>
+}
+else
+{
+    <EditForm Model="Input" method="post" OnValidSubmit="Resend" FormName="resend-confirmation">
+        <DataAnnotationsValidator />
+        <ValidationSummary role="alert" />
+
+        <div>
+            <label for="email">Email</label>
+            <InputText id="email" @bind-Value="Input.Email" autocomplete="username" aria-required="true" />
+        </div>
+
+        <button type="submit">Resend</button>
+    </EditForm>
+}
+
+@code {
+    // No property initializer — BL0008: see Login.razor's identical comment.
+    [SupplyParameterFromForm]
+    private InputModel Input { get; set; } = default!;
+
+    private bool _submitted;
+
+    protected override void OnInitialized() => Input ??= new();
+
+    public async Task Resend()
+    {
+        await AccountEmails.ResendConfirmationAsync(Input.Email);
+        _submitted = true;
+    }
+
+    private sealed class InputModel
+    {
+        [Required]
+        [EmailAddress]
+        public string Email { get; set; } = "";
+    }
+}

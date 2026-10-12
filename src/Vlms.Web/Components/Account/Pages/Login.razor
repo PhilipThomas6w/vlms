@@ -45,6 +45,8 @@
     <button type="submit">Log in</button>
 </EditForm>
 
+<p><a href="Account/ForgotPassword">Forgot your password?</a></p>
+<p><a href="Account/ResendEmailConfirmation">Resend email confirmation</a></p>
 <p><a href="Account/Register">Register a new account</a></p>
 
 @code {
@@ -87,7 +89,12 @@
         }
         else if (result.IsLockedOut)
         {
-            _errorMessage = "This account is locked out. Try again later.";
+            _errorMessage = "This account is locked after too many failed attempts. Try again in 15 minutes, or reset your password.";
+        }
+        else if (result.IsNotAllowed)
+        {
+            // RequireConfirmedAccount (VlmsIdentityPolicy): the email hasn't been confirmed yet.
+            _errorMessage = "Confirm your email address before logging in — use the link we emailed you, or request a new one below.";
         }
         else
         {

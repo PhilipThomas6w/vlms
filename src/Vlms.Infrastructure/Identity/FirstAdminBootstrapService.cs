@@ -21,6 +21,8 @@ namespace Vlms.Infrastructure.Identity;
 /// <item><b>It promotes an existing account; it never creates one.</b> The operator registers
 /// through the normal <c>/Account/Register</c> page first (so the password never passes through a
 /// command line or shell history), then runs the bootstrap against that email address.</item>
+/// <item><b>The account's email must be confirmed.</b> Otherwise someone who registered first under
+/// the operator's address (without access to that inbox) would be the one promoted.</item>
 /// </list>
 ///
 /// The new Admin still has to enrol TOTP MFA before any Admin page or sensitive data opens up
@@ -42,7 +44,7 @@ public sealed class FirstAdminBootstrapService
     /// <summary>
     /// Grants <see cref="Role.Admin"/> to the existing <see cref="AppUser"/> whose email matches
     /// <paramref name="email"/> (case-insensitive). Throws if an Admin already exists, if no account
-    /// has that email, or if the account has been marked as having left.
+    /// has that email, if its email isn't confirmed, or if the account has been marked as having left.
     /// </summary>
     public async Task<AppUser> BootstrapAsync(string email, CancellationToken ct = default)
     {
@@ -58,6 +60,12 @@ public sealed class FirstAdminBootstrapService
         var user = await _db.AppUsers.SingleOrDefaultAsync(u => u.Email.ToLower() == normalised, ct)
             ?? throw new InvalidOperationException(
                 $"No account with email '{email}' exists — register it through /Account/Register first.");
+
+        if (!await _db.Users.AnyAsync(u => u.Id == user.Id && u.EmailConfirmed, ct))
+        {
+            throw new InvalidOperationException(
+                $"The account for '{email}' hasn't confirmed its email address yet — use the link in the confirmation email first.");
+        }
 
         if (user.HasLeft)
         {

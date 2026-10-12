@@ -153,6 +153,17 @@ public sealed class GuardianInviteServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task AcceptAsync_ConfirmsTheEmail_BecauseTheInviteWasSentToIt()
+    {
+        using var fixture = Build(1000, null, Role.Admin);
+        var (_, token) = await fixture.InviteService.IssueAsync(studentId: 100, parentGuardianId: 1);
+
+        var appUser = await fixture.InviteService.AcceptAsync(token, "Str0ng!Passw0rd");
+
+        Assert.True((await fixture.Db.Users.SingleAsync(u => u.Id == appUser.Id)).EmailConfirmed);
+    }
+
+    [Fact]
     public async Task AcceptAsync_SameTokenTwice_SecondAttemptThrows_AndDoesNotCreateASecondAccount()
     {
         using var fixture = Build(1000, null, Role.Admin);
