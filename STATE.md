@@ -40,13 +40,12 @@ Full narrative for Done/Log items to 12/08/2026: `docs/harness/STATE-archive.md`
 - [x] Three remaining stale Azure/Entra references fixed outside `docs/design/` — 42d1575
 - [x] Admin role assignment (`/administration/user-roles`, last-Admin and leaver guards) + first-Admin bootstrap (`Vlms.Jobs bootstrap-admin`, inert once an Admin exists) — 16ba130; full gate exit 0, 340/340 tests
 - [x] Waiting-for-approval list on `/administration/user-roles` (role-less non-leavers, invite origin, linked students; Approve as Parent for invite accounts only) — 59797a6; full gate exit 0, 350/350 tests
+- [x] Persist DataProtection keys (`VlmsDataProtection`: fixed app name, `DataProtection:KeysPath` required in Production; `StateDirectory=vlms/keys` 0700 in `vlms-web.service`; README §1/§7) — 037d6d9; full gate exit 0, 355/355 tests. On-host restart check still pending (README §7).
 
 ## In progress
 _(none)_
 
 ## Next
-- [ ] **Seed rank ladder + curriculum** — no `HasData`/`InsertData` seed exists. Idempotent seed via migration or first-run job; source rows need confirming with Philip. Acceptance: fresh DB has the rank ladder; test.
-- [ ] **Persist DataProtection keys** — `Program.cs:51` uses bare `AddDataProtection()` and the `vlms` service user has no home dir. `PersistKeysToFileSystem` to a config-driven `vlms`-writable path (e.g. `/var/lib/vlms/keys`, 0700), `SetApplicationName`; update `deploy/README.md` and unit. Acceptance: config test; restart keeps cookies/invite tokens valid (verify on host).
 - [ ] **EF migration bundle + deploy script** — migrations are currently applied by hand with the SDK (`deploy/README.md` §3). `dotnet ef migrations bundle` (or idempotent SQL) run as `vlms_owner` from a `deploy/` script. Acceptance: README §3 no longer needs the SDK on the server.
 - [ ] **Retention purge** — only flagging exists (`RecordsDueForDeletionService.cs:30`); project law requires hard delete at 3 years (students) / 6 years (DBS, audit log). Audit-log purge needs a separate `BYPASSRLS` maintenance role (adr/0004 pass 8); `vlms_app` must never get DELETE on `sensitive_data_access_logs`. Needs decision: purge approach (see Blocked). Acceptance: tests for retention boundaries; purge deletes only due records.
 - [ ] **Off-box backup of file storage** — `deploy/README.md` §9: no off-box backup of `LocalDiskBlobStorage` files; `pg-backup.sh` covers PostgreSQL only. Extend `deploy/backup/` with a sync of `Storage:LocalRootPath` to the S3-compatible bucket plus a systemd timer. Acceptance: script + unit exist, README §9 updated, restore steps documented.
@@ -62,6 +61,7 @@ _(none)_
 - [ ] **Render the delivery gate package** — `gates/delivery/` is empty (only `gates/design/` has 13 `.docx`). Run `/render-gate-package delivery` from `docs/` markdown, never hand-authored. Per the gate taxonomy, `docs/` has no source for the delivery-only UAT report (`VLMS-UAT`) or operations pack (runbook, monitoring, DR/BCP, release, config); `docs/delivery-plan.md`'s exit criteria also need the DPIA (`raid.md` D-003), TC results and a complete RTM. Author those markdown sources first, or render with `[TBC – owner]` gaps. Acceptance: package rendered from `docs/` markdown; `build/verify.ps1` exits 0.
 
 ## Blocked / needs decision
+- Seed rank ladder + curriculum: Philip to confirm the source rows (rank names/order, lesson list per rank) before an idempotent seed can be written.
 - Palette/branding: Philip to choose the VLMS palette and icon direction before the branding item can start.
 - VPS provider, region, budget, domain and off-box storage (Cloudflare R2 vs Backblaze B2) are undecided; ADR-0005 requires Philip's explicit go-ahead before any provisioning.
 - SMTP target (Microsoft 365 mailbox vs transactional provider, `raid.md` D-002) and who controls DNS for SPF/DKIM/DMARC.
