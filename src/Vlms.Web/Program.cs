@@ -45,10 +45,9 @@ builder.Services.AddScoped<AuthenticationStateProvider, IdentityRevalidatingAuth
 
 // Data Protection — explicit, not relied on as an implicit side effect of cookie authentication
 // below — backs GuardianInviteService's signed, time-limited invite tokens
-// (ITimeLimitedDataProtector) as well as Identity's own cookie encryption. Default key-ring
-// persistence (OS user profile) is sufficient for ADR-0005's single-VPS, single-instance deployment
-// target — see GuardianInviteService's doc comment.
-builder.Services.AddDataProtection();
+// (ITimeLimitedDataProtector) as well as Identity's own cookie encryption. The key ring is persisted
+// to DataProtection:KeysPath (required in Production) — see VlmsDataProtection's doc comment.
+builder.Services.AddVlmsDataProtection(builder.Configuration, requireKeysPath: builder.Environment.IsProduction());
 
 // --- Data access (adr/0005-hosting-pivot-self-hosted-vps-postgresql.md: self-hosted PostgreSQL,
 // supersedes adr/0001-technology-stack.md's original Azure SQL Database row) -------------------

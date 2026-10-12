@@ -31,8 +31,7 @@
 #   - `dotnet publish src/Vlms.Web -c Release -o /opt/vlms/web` (framework-dependent deployment —
 #     requires the .NET runtime installed on the VPS; see deploy/README.md).
 #   - real secrets (PostgreSQL connection string as the least-privilege vlms_app role — never the
-#     table owner/a superuser, governance/raid.md D-004 — plus SMTP credentials, the Data Protection
-#     key ring location, and App:PublicBaseUrl once a real domain exists) live in /etc/vlms/web.env
+#     table owner/a superuser, governance/raid.md D-004 — plus SMTP credentials and App:PublicBaseUrl once a real domain exists) live in /etc/vlms/web.env
 #     (systemd EnvironmentFile format: KEY=VALUE per line, double-underscore section separator, e.g.
 #     ConnectionStrings__VlmsDatabase=...) — never committed to this repository; appsettings.json's
 #     own `_comment` fields already flag its checked-in values as placeholders for exactly this
@@ -56,6 +55,12 @@ WorkingDirectory=/opt/vlms/web
 EnvironmentFile=-/etc/vlms/web.env
 Environment=ASPNETCORE_ENVIRONMENT=Production
 Environment=ASPNETCORE_URLS=http://127.0.0.1:5000
+# Data Protection key ring (auth cookies, guardian invite tokens) must survive restarts; the vlms
+# user has no home directory, so it lives here instead (Security/VlmsDataProtection.cs). systemd
+# creates /var/lib/vlms/keys owned by vlms, mode 0700, before ExecStart.
+StateDirectory=vlms/keys
+StateDirectoryMode=0700
+Environment=DataProtection__KeysPath=/var/lib/vlms/keys
 ExecStart=/usr/bin/dotnet /opt/vlms/web/Vlms.Web.dll
 # Restart/KillSignal/RestartSec verified against Microsoft's current linux-nginx guide's own example
 # unit rather than invented — its systemd example service block uses exactly these three lines for

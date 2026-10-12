@@ -36,7 +36,15 @@ sudo chown -R vlms:vlms /opt/vlms /var/backups/vlms
 ```
 
 `vlms` is the same dedicated, unprivileged system user/group every unit in `deploy/systemd/` and
-`deploy/backup/` runs as — nothing VLMS-owned ever runs as `root`. Caddy is installed as its own
+`deploy/backup/` runs as — nothing VLMS-owned ever runs as `root`.
+
+Because `vlms` has no home directory, the Data Protection key ring (auth cookies, guardian invite
+tokens) can't use the framework's default user-profile location. `vlms-web.service` sets
+`DataProtection__KeysPath=/var/lib/vlms/keys` and `StateDirectory=vlms/keys` (systemd creates it,
+owned by `vlms`, mode `0700`); `Vlms.Web` refuses to start in Production without that setting. Keys
+are stored unencrypted at rest, protected by the directory permissions — include
+`/var/lib/vlms/keys` in host backups, since losing it signs everyone out and invalidates every
+outstanding invite link. Caddy is installed as its own
 package-managed service (below) and runs under its own service account, not `vlms`.
 
 ## 2. Install PostgreSQL, Caddy, and the .NET runtime
@@ -228,6 +236,9 @@ Not yet verified on a live host (same status as the rest of this file — see §
       WebSocket upgrades correctly to Kestrel, not just plain HTTP requests.
 - [ ] `sudo systemctl status vlms-web.service` shows `active (running)`; `journalctl -u
       vlms-web.service` shows no repeated crash-restart loop.
+- [ ] Data Protection keys persist: sign in, `sudo systemctl restart vlms-web.service`, reload —
+      still signed in; `sudo ls -ld /var/lib/vlms/keys` shows `drwx------ vlms vlms` with a
+      `key-*.xml` inside.
 - [ ] Confirm the app is connecting to PostgreSQL as `vlms_app`, **not** `vlms_owner` or the
       `postgres` superuser: `sudo -u postgres psql -d vlms -c "SELECT usename, count(*) FROM
       pg_stat_activity WHERE datname = 'vlms' GROUP BY usename;"` should show only `vlms_app`

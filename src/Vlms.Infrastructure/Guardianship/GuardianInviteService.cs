@@ -33,13 +33,9 @@ namespace Vlms.Infrastructure.Guardianship;
 /// its own. The purpose string embeds a version marker (<see cref="Purpose"/>) so a future change to
 /// what the token protects can invalidate old, in-flight tokens deliberately rather than by accident.
 ///
-/// **Default key ring, deliberately — a scope decision recorded, not an oversight:** no
-/// <c>PersistKeysToFileSystem</c>/<c>PersistKeysToDbContext</c> call is made anywhere in this
-/// codebase. ASP.NET Core's Data Protection system auto-persists its key ring to the OS user
-/// profile (`~/.aspnet/DataProtection-Keys` on Linux) when not running in a container, which is
-/// sufficient for ADR-0005's single self-hosted-VPS, single-instance deployment target (no load
-/// balancer, no multiple app instances needing a shared key ring) — revisit only if that deployment
-/// shape ever changes.
+/// **Key ring:** persisted to a configured directory by <c>Security/VlmsDataProtection.cs</c>, so
+/// invite tokens stay valid across a Vlms.Web restart. The <c>vlms</c> service user has no home
+/// directory, so the framework's default user-profile location isn't available in production.
 /// </summary>
 public sealed class GuardianInviteService
 {
