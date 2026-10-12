@@ -90,7 +90,7 @@ $expectedMinimums = @{
     "GuardianLinkServiceTests.cs"        = 13
     # STATE.md "Admin role assignment + first-Admin bootstrap" (2026-10-11): role grant/revoke and
     # the first-Admin bootstrap are access-control surfaces in their own right.
-    "RoleAssignmentServiceTests.cs"      = 12
+    "RoleAssignmentServiceTests.cs"      = 17
     "FirstAdminBootstrapServiceTests.cs" = 5
 }
 

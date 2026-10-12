@@ -203,4 +203,103 @@ public sealed class RoleAssignmentServiceTests : IDisposable
         Assert.Equal([Role.Teacher], users.Single(u => u.UserId == 20).Roles);
         Assert.True(users.Single(u => u.UserId == 30).HasLeft);
     }
+
+    /// <summary>
+    /// Adds a guardian (AppUser 40) who accepted an invite for "Student A", and a self-registered
+    /// leaver with no roles (AppUser 50) who must never appear as waiting.
+    /// </summary>
+    private void SeedAcceptedGuardianInvite()
+    {
+        using var admin = CreateContext(1, Role.Admin);
+        var db = admin.Context;
+        db.Ranks.Add(new Rank { Id = 1, Order = 1, Code = "R1", Name = "Recruit" });
+        db.Students.Add(new Student
+        {
+            Id = 100, Name = "Student A", DateOfBirth = new DateOnly(2012, 1, 1), CurrentRankId = 1,
+            Status = StudentStatus.Active, EnrolmentDate = new DateOnly(2025, 9, 1)
+        });
+        db.AppUsers.Add(new AppUser { Id = 40, DisplayName = "Guardian Gail", Email = "gail@example.com" });
+        db.AppUsers.Add(new AppUser
+        {
+            Id = 50, DisplayName = "Roleless Leaver", Email = "gone@example.com", HasLeft = true, LeftAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
+        });
+        db.ParentGuardians.Add(new ParentGuardian { Id = 200, Name = "Guardian Gail", ContactInfo = "gail@example.com", IsPrimary = true, AppUserId = 40 });
+        db.StudentGuardianLinks.Add(new StudentGuardianLink { StudentId = 100, ParentGuardianId = 200, CreatedByUserId = 20 });
+        db.GuardianInvites.Add(new GuardianInvite
+        {
+            Id = 300, StudentId = 100, ParentGuardianId = 200, CreatedByUserId = 20,
+            CreatedAt = new DateTimeOffset(2026, 10, 1, 0, 0, 0, TimeSpan.Zero),
+            ExpiresAt = new DateTimeOffset(2026, 10, 8, 0, 0, 0, TimeSpan.Zero),
+            ConsumedAt = new DateTimeOffset(2026, 10, 2, 0, 0, 0, TimeSpan.Zero),
+            ConsumedByAppUserId = 40
+        });
+        db.SaveChanges();
+    }
+
+    [Fact]
+    public async Task ListAwaitingApprovalAsync_ReturnsOnlyRolelessNonLeavers_WithInviteOriginAndLinkedStudents()
+    {
+        SeedAcceptedGuardianInvite();
+        using var admin = CreateContext(1, Role.Admin);
+
+        var waiting = await admin.Service.ListAwaitingApprovalAsync();
+
+        Assert.Equal([40, 10], waiting.Select(w => w.UserId));
+        var gail = waiting[0];
+        Assert.True(gail.FromGuardianInvite);
+        Assert.Equal(["Student A"], gail.LinkedStudentNames);
+        var selfRegistered = waiting[1];
+        Assert.False(selfRegistered.FromGuardianInvite);
+        Assert.Empty(selfRegistered.LinkedStudentNames);
+    }
+
+    [Fact]
+    public async Task ApproveGuardianAsParentAsync_InviteAccount_GrantsParent_AndLeavesTheWaitingList()
+    {
+        SeedAcceptedGuardianInvite();
+        using var admin = CreateContext(1, Role.Admin);
+
+        await admin.Service.ApproveGuardianAsParentAsync(40);
+
+        Assert.Equal([Role.Parent], await RolesOf(40));
+        using var verify = CreateContext(1, Role.Admin);
+        Assert.DoesNotContain(40, (await verify.Service.ListAwaitingApprovalAsync()).Select(w => w.UserId));
+    }
+
+    [Fact]
+    public async Task ApproveGuardianAsParentAsync_SelfRegisteredAccount_Throws_AndGrantsNothing()
+    {
+        SeedAcceptedGuardianInvite();
+        using var admin = CreateContext(1, Role.Admin);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => admin.Service.ApproveGuardianAsParentAsync(10));
+        Assert.Empty(await RolesOf(10));
+    }
+
+    [Fact]
+    public async Task ApproveGuardianAsParentAsync_AlreadyParent_Throws()
+    {
+        SeedAcceptedGuardianInvite();
+        using var admin = CreateContext(1, Role.Admin);
+        await admin.Service.ApproveGuardianAsParentAsync(40);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => admin.Service.ApproveGuardianAsParentAsync(40));
+    }
+
+    [Theory]
+    [InlineData(Role.Teacher)]
+    [InlineData(Role.Approver)]
+    [InlineData(Role.Parent)]
+    [InlineData(Role.Student)]
+    [InlineData(Role.SafeguardingOfficer)]
+    public async Task ApprovalMethods_ByNonAdminRole_Throw_AndGrantNothing(Role role)
+    {
+        SeedAcceptedGuardianInvite();
+        using var caller = CreateContext(20, role);
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => caller.Service.ListAwaitingApprovalAsync());
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => caller.Service.ApproveGuardianAsParentAsync(40));
+
+        Assert.Empty(await RolesOf(40));
+    }
 }

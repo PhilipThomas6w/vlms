@@ -65,6 +65,7 @@ public class StatusMessageAccessibilityTests
     [InlineData("Safeguarding", "DbsChecks.razor", "_statusMessage = \"DBS check recorded.\"")]
     [InlineData("Progress", "CompletionReversals.razor", "_statusMessage = \"Completion reversed.\"")]
     [InlineData("Administration", "UserRoles.razor", "_statusMessage = $\"{role} granted to {user.DisplayName}.\"")]
+    [InlineData("Administration", "UserRoles.razor", "_statusMessage = $\"{waiting.DisplayName} approved as Parent.\"")]
     public void Page_SetsAConcreteStatusMessage_OnASuccessPath(string folder, string fileName, string expectedAssignment)
     {
         var content = ReadPage(folder, fileName);

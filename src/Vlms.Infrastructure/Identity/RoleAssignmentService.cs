@@ -64,6 +64,71 @@ public sealed class RoleAssignmentService
     }
 
     /// <summary>
+    /// An account waiting for an Admin to approve it: no roles yet, not a leaver.
+    /// <paramref name="FromGuardianInvite"/> is true when the account was created by accepting a
+    /// guardian invite; <paramref name="LinkedStudentNames"/> are the students its
+    /// <see cref="ParentGuardian"/> record is linked to (empty for a self-registered account).
+    /// </summary>
+    public sealed record AwaitingApproval(
+        int UserId, string DisplayName, string Email, bool FromGuardianInvite, IReadOnlyList<string> LinkedStudentNames);
+
+    /// <summary>
+    /// STATE.md "Waiting-for-approval list on the role-assignment page" — every account with no
+    /// roles that hasn't been marked as having left, ordered by display name. Admin-only. Per
+    /// Philip's decision (functional.md FR-004, 11/10/2026), accepting a guardian invite grants no
+    /// role; this is how the Admin sees who is waiting for that approval.
+    /// </summary>
+    public async Task<IReadOnlyList<AwaitingApproval>> ListAwaitingApprovalAsync(CancellationToken ct = default)
+    {
+        RequireAdmin();
+
+        var usersWithRoles = _db.UserRoles.Select(r => r.UserId);
+        var waiting = await _db.AppUsers
+            .Where(u => !u.HasLeft && !usersWithRoles.Contains(u.Id))
+            .OrderBy(u => u.DisplayName)
+            .ToListAsync(ct);
+
+        var waitingIds = waiting.Select(u => u.Id).ToList();
+
+        var inviteUserIds = (await _db.GuardianInvites
+            .Where(i => i.ConsumedByAppUserId != null && waitingIds.Contains(i.ConsumedByAppUserId.Value))
+            .Select(i => i.ConsumedByAppUserId!.Value)
+            .ToListAsync(ct)).ToHashSet();
+
+        var links = await _db.StudentGuardianLinks
+            .Where(l => l.ParentGuardian!.AppUserId != null && waitingIds.Contains(l.ParentGuardian.AppUserId.Value))
+            .Select(l => new { UserId = l.ParentGuardian!.AppUserId!.Value, StudentName = l.Student!.Name })
+            .ToListAsync(ct);
+        var studentsByUser = links.ToLookup(l => l.UserId, l => l.StudentName);
+
+        return waiting
+            .Select(u => new AwaitingApproval(
+                u.Id, u.DisplayName, u.Email, inviteUserIds.Contains(u.Id),
+                studentsByUser[u.Id].Distinct().OrderBy(n => n).ToList()))
+            .ToList();
+    }
+
+    /// <summary>
+    /// Approves a guardian who accepted an invite by granting <see cref="Role.Parent"/>. Admin-only.
+    /// Throws if the account was not created from a guardian invite — any other account gets its
+    /// role through <see cref="GrantAsync"/>, a deliberate choice rather than a one-click Parent
+    /// grant for an unverified self-registration — or on any of <see cref="GrantAsync"/>'s own
+    /// refusals (unknown user, leaver, role already held).
+    /// </summary>
+    public async Task ApproveGuardianAsParentAsync(int userId, CancellationToken ct = default)
+    {
+        RequireAdmin();
+
+        if (!await _db.GuardianInvites.AnyAsync(i => i.ConsumedByAppUserId == userId, ct))
+        {
+            throw new InvalidOperationException(
+                $"AppUser {userId} did not come from a guardian invite — grant a role explicitly instead.");
+        }
+
+        await GrantAsync(userId, Role.Parent, ct);
+    }
+
+    /// <summary>
     /// Grants <paramref name="role"/> to <paramref name="userId"/>. Admin-only. Throws if the user
     /// doesn't exist, has been marked as having left, or already holds the role.
     /// </summary>

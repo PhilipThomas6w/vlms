@@ -22,6 +22,50 @@
 }
 <p role="status">@_statusMessage</p>
 
+<h2>Waiting for approval</h2>
+@if (_awaiting.Count == 0)
+{
+    <p>No accounts are waiting for approval.</p>
+}
+else
+{
+    <p>
+        These accounts have no role yet, so they can do nothing. A guardian who accepted an invite is
+        approved by granting Parent (functional.md FR-004). Anyone else gets a role from the table below.
+    </p>
+    <table>
+        <thead>
+            <tr>
+                <th>User</th>
+                <th>Email</th>
+                <th>Came from</th>
+                <th>Linked students</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var waiting in _awaiting)
+            {
+                <tr>
+                    <td>@waiting.DisplayName</td>
+                    <td>@waiting.Email</td>
+                    <td>@(waiting.FromGuardianInvite ? "Guardian invite" : "Self-registration")</td>
+                    <td>@(waiting.LinkedStudentNames.Count == 0 ? "None" : string.Join(", ", waiting.LinkedStudentNames))</td>
+                    <td>
+                        @if (waiting.FromGuardianInvite)
+                        {
+                            <button type="button" aria-label="@($"Approve {waiting.DisplayName} as Parent")"
+                                    @onclick="() => ApproveAsParentAsync(waiting)">Approve as Parent</button>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+<h2>All users</h2>
+
 @if (_users.Count == 0)
 {
     <p>No user accounts.</p>
@@ -84,6 +128,7 @@ else
 
 @code {
     private IReadOnlyList<RoleAssignmentService.UserWithRoles> _users = [];
+    private IReadOnlyList<RoleAssignmentService.AwaitingApproval> _awaiting = [];
     private readonly Dictionary<int, Role> _selectedRoles = new();
     private string? _errorMessage;
     private string? _statusMessage;
@@ -92,6 +137,7 @@ else
 
     private async Task LoadAsync()
     {
+        _awaiting = await RoleAssignmentService.ListAwaitingApprovalAsync();
         _users = await RoleAssignmentService.ListUsersAsync();
 
         _selectedRoles.Clear();
@@ -119,6 +165,23 @@ else
         {
             await RoleAssignmentService.GrantAsync(user.UserId, role);
             _statusMessage = $"{role} granted to {user.DisplayName}.";
+            await LoadAsync();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+
+    private async Task ApproveAsParentAsync(RoleAssignmentService.AwaitingApproval waiting)
+    {
+        _errorMessage = null;
+        _statusMessage = null;
+
+        try
+        {
+            await RoleAssignmentService.ApproveGuardianAsParentAsync(waiting.UserId);
+            _statusMessage = $"{waiting.DisplayName} approved as Parent.";
             await LoadAsync();
         }
         catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException)
