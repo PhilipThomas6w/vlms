@@ -93,10 +93,10 @@ sudo -u postgres psql -f deploy/postgres/00-create-roles-and-database.sql
 # 2. Apply EF Core migrations AS vlms_owner — this is what actually creates every table, owned by
 #    vlms_owner (never vlms_app — that's the whole point), and (via
 #    EnforceRowLevelSecurityOnSensitiveDataAccessLog) enables + forces Row-Level Security on
-#    sensitive_data_access_logs. From a machine with the .NET SDK/dotnet-ef tool and this repository
-#    checked out:
-dotnet ef database update --project src/Vlms.Infrastructure --startup-project src/Vlms.Web \
-  --connection "Host=<vps-host>;Database=vlms;Username=vlms_owner;Password=<the real vlms_owner password>"
+#    sensitive_data_access_logs. Uses the self-contained migrations bundle (build and install it first — §4) — no .NET SDK,
+#    dotnet-ef or repository checkout on the server. Create /etc/vlms/migrate.env first (root:root,
+#    0600 — see deploy/migrate.sh's header for its one variable, VLMS_OWNER_CONNECTION), then:
+sudo /opt/vlms-migrations/migrate.sh
 
 # 3. Grant vlms_app exactly what it needs, now that the schema exists.
 sudo -u postgres psql -d vlms -f deploy/postgres/10-grant-app-privileges.sql
@@ -147,10 +147,31 @@ PGPASSWORD='<vlms_owner password>' psql -h <vps-host> -U vlms_owner -d vlms \
 
 If either check fails (fewer than two policies, `relforcerowsecurity` is `f`, or the `vlms_owner`
 `UPDATE` succeeds), the RLS layer has not been applied as designed — re-check that
-`EnforceRowLevelSecurityOnSensitiveDataAccessLog` actually ran (`dotnet ef migrations list` against
-the live connection) before assuming step 2 completed correctly.
+`EnforceRowLevelSecurityOnSensitiveDataAccessLog` actually ran (`sudo -u postgres psql -d vlms -c
+'SELECT migration_id FROM "__EFMigrationsHistory";'`) before assuming step 2 completed correctly.
 
 ## 4. Publish and place `Vlms.Web` / `Vlms.Jobs`
+
+On the build machine (SDK + `dotnet tool install --global dotnet-ef`), alongside the publishes
+below, build the migrations bundle — a self-contained linux-x64 executable that §3 step 2 runs on
+the server:
+
+```powershell
+pwsh -File deploy/build-migrations-bundle.ps1    # writes artifacts/efbundle (git-ignored)
+```
+
+On the server:
+
+```sh
+sudo mkdir -p /opt/vlms-migrations
+sudo install -o root -g root -m 0700 artifacts/efbundle deploy/migrate.sh /opt/vlms-migrations/
+```
+
+The bundle and `migrate.sh` are root-owned and root-only: they run with the `vlms_owner` password,
+which the `vlms` runtime user must never see. They live outside `/opt/vlms` because that tree is
+owned by `vlms`, which could otherwise replace a binary root later runs. Every release that adds a migration repeats this and
+`sudo /opt/vlms-migrations/migrate.sh` **before** restarting `vlms-web.service`; re-running against
+a current database is a no-op.
 
 ```sh
 dotnet publish src/Vlms.Web -c Release -o /opt/vlms/web
