@@ -1,0 +1,18 @@
+# vlms-files-backup.service — runs files-backup.sh (this directory): nightly off-box sync of
+# LocalDiskBlobStorage's files. Same Type=oneshot, timer-only, unprivileged-"vlms" shape as
+# vlms-backup.service (see that file for the reasoning); no [Install] section, never enabled
+# directly. Shares /etc/vlms/backup.env with it (plus FILES_ROOT).
+
+[Unit]
+Description=VLMS nightly file-storage backup (sync to off-box S3-compatible storage)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=vlms
+Group=vlms
+WorkingDirectory=/opt/vlms/backup
+EnvironmentFile=-/etc/vlms/backup.env
+ExecStart=/opt/vlms/backup/files-backup.sh
+TimeoutStartSec=1800

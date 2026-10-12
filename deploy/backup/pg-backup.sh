@@ -12,8 +12,8 @@ set -euo pipefail
 # providers implement, with placeholder endpoint/bucket/credential configuration, following this
 # project's own established "structurally correct, not yet wired to a live target" pattern (see
 # src/Vlms.Infrastructure/Storage/LocalDiskBlobStorage.cs's own doc comment for the identical gap on
-# the file-storage side of the same ADR decision — that class's own off-box backup is a separate,
-# still-not-built concern this script does NOT cover; this script is PostgreSQL only). Do not treat
+# the file-storage side of the same ADR decision — that side's off-box backup is files-backup.sh in
+# this directory; this script is PostgreSQL only). Do not treat
 # the config below as real values — every one is a PLACEHOLDER. ***
 #
 # Configuration — systemd EnvironmentFile, /etc/vlms/backup.env (never committed; mode 0640,

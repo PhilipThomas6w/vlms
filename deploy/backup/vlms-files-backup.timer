@@ -1,0 +1,14 @@
+# vlms-files-backup.timer — daily at 02:30 UTC: after vlms-backup.timer's 02:00 database dump, so
+# the two uploads don't compete for the uplink, and before vlms-jobs.timer's 03:00 sweep.
+# Persistent=true so a missed run catches up after downtime (same as vlms-backup.timer).
+
+[Unit]
+Description=Daily timer for vlms-files-backup.service (VLMS file-storage backup, 02:30 UTC)
+
+[Timer]
+OnCalendar=*-*-* 02:30:00 UTC
+Persistent=true
+Unit=vlms-files-backup.service
+
+[Install]
+WantedBy=timers.target

@@ -42,9 +42,10 @@ Because `vlms` has no home directory, the Data Protection key ring (auth cookies
 tokens) can't use the framework's default user-profile location. `vlms-web.service` sets
 `DataProtection__KeysPath=/var/lib/vlms/keys` and `StateDirectory=vlms/keys` (systemd creates it,
 owned by `vlms`, mode `0700`); `Vlms.Web` refuses to start in Production without that setting. Keys
-are stored unencrypted at rest, protected by the directory permissions — include
-`/var/lib/vlms/keys` in host backups, since losing it signs everyone out and invalidates every
-outstanding invite link. Caddy is installed as its own
+are stored unencrypted at rest, protected by the directory permissions. They are deliberately
+**not** shipped off-box with the other backups: anyone holding them could forge sign-in cookies
+(including an Admin's, bypassing MFA), whereas losing them only signs everyone out and invalidates
+outstanding invite links, which are re-sent. Caddy is installed as its own
 package-managed service (below) and runs under its own service account, not `vlms`.
 
 ## 2. Install PostgreSQL, Caddy, and the .NET runtime
@@ -191,7 +192,8 @@ by the `vlms` group, never world-readable), never committed anywhere in this rep
   not repeated here) — same `ConnectionStrings__VlmsDatabase` (as `vlms_app`), `Smtp__*`,
   `Safeguarding__ExpiryWarningWindowDays`.
 - `/etc/vlms/backup.env` — see `deploy/backup/pg-backup.sh`'s own comment for the full variable
-  list (`PGHOST`/`PGUSER=vlms_app`/`PGPASSWORD`/`BACKUP_S3_*`/`AWS_*`).
+  list (`PGHOST`/`PGUSER=vlms_app`/`PGPASSWORD`/`BACKUP_S3_*`/`AWS_*`), plus `FILES_ROOT` for
+  `deploy/backup/files-backup.sh` — the same path as `Storage__LocalRootPath` in `web.env`.
 
 ## 5. Install the systemd units
 
@@ -199,14 +201,16 @@ by the `vlms` group, never world-readable), never committed anywhere in this rep
 sudo cp deploy/systemd/vlms-web.service /etc/systemd/system/
 sudo cp deploy/systemd/vlms-jobs.service deploy/systemd/vlms-jobs.timer /etc/systemd/system/
 sudo cp deploy/backup/vlms-backup.service deploy/backup/vlms-backup.timer /etc/systemd/system/
-sudo cp deploy/backup/pg-backup.sh /opt/vlms/backup/pg-backup.sh
-sudo chown vlms:vlms /opt/vlms/backup/pg-backup.sh
-sudo chmod +x /opt/vlms/backup/pg-backup.sh
+sudo cp deploy/backup/vlms-files-backup.service deploy/backup/vlms-files-backup.timer /etc/systemd/system/
+sudo cp deploy/backup/pg-backup.sh deploy/backup/files-backup.sh /opt/vlms/backup/
+sudo chown vlms:vlms /opt/vlms/backup/pg-backup.sh /opt/vlms/backup/files-backup.sh
+sudo chmod +x /opt/vlms/backup/pg-backup.sh /opt/vlms/backup/files-backup.sh
 
 sudo systemctl daemon-reload
 sudo systemctl enable --now vlms-web.service
 sudo systemctl enable --now vlms-jobs.timer      # NOT vlms-jobs.service directly — see deploy/systemd/README.md
 sudo systemctl enable --now vlms-backup.timer    # NOT vlms-backup.service directly, same reason
+sudo systemctl enable --now vlms-files-backup.timer
 ```
 
 `vlms-jobs.service`/`.timer` are `deploy/systemd/vlms-jobs.*` — already built and documented in
@@ -280,6 +284,11 @@ Not yet verified on a live host (same status as the rest of this file — see §
 - [ ] **Test-restore the backup once, on a scratch database** — `adr/0005`'s own words: "a backup
       that has never been test-restored is not a backup." `pg_restore -d <scratch-db> --clean
       <downloaded-dump-file>` against a throwaway database, then spot-check a few rows.
+- [ ] `sudo systemctl start vlms-files-backup.service` completes and `aws s3 ls
+      s3://<bucket>/files/ --recursive --endpoint-url <endpoint>` lists the certificate PDFs —
+      confirms `FILES_ROOT` matches `Storage__LocalRootPath` and the sync reached the bucket.
+- [ ] Turn on object versioning (or the provider's equivalent) for the bucket, so an overwritten
+      object can be recovered — the sync never deletes, but it does overwrite a changed file.
 
 ## 8. What is and isn't verified by this item itself
 
@@ -297,13 +306,27 @@ Philip's explicit go-ahead" gate) — this item could not complete that verifica
 design, the same honestly-reported gap `deploy/systemd/README.md` already carries for its own two
 unit files.
 
-## 9. Related, deliberately out of scope here
+## 9. Restoring file storage
 
-- **The off-box backup target for local-disk file storage** (certificates, once a page consumes
-  `IBlobStorage`/`LocalDiskBlobStorage`) is a separate, not-yet-built concern — `adr/0005` groups it
-  with the database backup ("shipped to the same off-box object storage as file backups"), but
-  `LocalDiskBlobStorage.cs`'s own doc comment already flags this as open, and `pg-backup.sh` here is
-  PostgreSQL-only. Do not assume file backups are covered by anything in this directory.
+`deploy/backup/files-backup.sh` syncs `FILES_ROOT` (the certificate PDFs written by
+`LocalDiskBlobStorage`) to `s3://<bucket>/files/` nightly at 02:30 UTC, never deleting from the
+bucket. To restore onto a rebuilt server (after §1–§5, before starting `vlms-web.service`):
+
+```sh
+sudo systemctl stop vlms-web.service
+sudo systemd-run --wait --pipe -p User=vlms -p Group=vlms -p EnvironmentFile=/etc/vlms/backup.env /opt/vlms/backup/files-backup.sh --restore
+sudo systemctl start vlms-web.service
+```
+
+`systemd-run` reuses `backup.env` exactly as the timer's unit reads it and runs as `vlms`, so
+restored files come back owned by `vlms`.
+
+Then restore the database (`pg_restore`, §7) from the dump taken the same night, so certificate
+records and their PDFs match. The restore drill itself is the separate "Backup restore test" item
+in `STATE.md`.
+
+## 10. Related, deliberately out of scope here
+
 - **Row-Level Security hardening of `sensitive_data_access_logs`** (`STATE.md` Next item) is a
   separate, higher-scrutiny follow-up to the tamper-protection mechanism this item's PostgreSQL
   scripts rely on (`deploy/postgres/10-grant-app-privileges.sql`'s own header comment cross-

@@ -18,11 +18,8 @@ namespace Vlms.Infrastructure.Storage;
 /// pivot — wire a <c>"Storage:LocalRootPath"</c> config section + DI registration when the first
 /// consumer (a Teacher-facing "mark complete" page, or similar) lands.
 ///
-/// Off-box backup target (Cloudflare R2 vs Backblaze B2, adr/0005) is still an open provider
-/// decision and out of scope here — this class only ever writes to the local <see cref="_rootPath"/>
-/// directory; shipping a copy off-box is a separate, not-yet-built concern (the ADR's own
-/// "structurally correct, not yet wired to a real target" pattern applies to that gap, not to this
-/// class).
+/// This class only writes to the local <see cref="_rootPath"/> directory; the off-box copy is
+/// <c>deploy/backup/files-backup.sh</c> (nightly sync to the S3-compatible bucket, deploy/README.md §9).
 /// </summary>
 public sealed class LocalDiskBlobStorage : IBlobStorage
 {
