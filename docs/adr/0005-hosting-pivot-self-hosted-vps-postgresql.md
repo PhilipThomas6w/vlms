@@ -52,6 +52,8 @@ Database backup: `pg_dump` on a cron schedule, shipped to the same off-box objec
 
 Philip chose **DigitalOcean, London region (LON1)**, the UK-resident option in `hosting-cost-review-2026-07-20.md` §4.2. This removes the data-residency question for the church. Also decided by Philip 12/10/2026: the app is served at **www.varangians.co.uk**, a domain dedicated to the youth club and not used for anything else (the church has its own separate address; Philip controls the domain's DNS; registered with Hostinger, DNS only — no Hostinger web hosting, the Droplet is the host), and off-box backups go to **Cloudflare R2** (S3-compatible; `AWS_DEFAULT_REGION=auto`, per `deploy/backup/pg-backup.sh`). No account or resource has been created; provisioning still needs Philip's explicit go-ahead.
 
+**Email domain — Philip, 12/10/2026:** `varangians.co.uk` is added to the church's Microsoft 365 tenant (MX, SPF, DKIM live; DMARC pending). The app will send from the shared mailbox `noreply@varangians.co.uk`. Teachers will also have `@varangians.co.uk` mailboxes, so the app's send permission must be scoped to that one mailbox by identity, never to the whole domain. How the app sends (Microsoft Graph vs SMTP with OAuth) is not yet recorded as decided.
+
 **Droplet size — decided by Philip 12/10/2026:** Basic 2 GiB / 1 vCPU / 50 GiB SSD at $12/month rather than the review's 1 GiB at $6/month, because PostgreSQL, the Blazor Server app (which holds a live circuit in memory per connected user) and the nightly jobs share one machine; 1 GiB leaves little headroom. Prices from [DigitalOcean Droplet pricing](https://www.digitalocean.com/pricing/droplets), checked 12/10/2026.
 
 ## Reference
