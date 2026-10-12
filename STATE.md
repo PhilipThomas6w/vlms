@@ -63,8 +63,8 @@ _(none)_
 ## Blocked / needs decision
 - Seed rank ladder + curriculum: Philip to confirm the source rows (rank names/order, lesson list per rank) before an idempotent seed can be written.
 - Palette/branding: Philip to choose the VLMS palette and icon direction before the branding item can start.
-- VPS: decided — DigitalOcean London (LON1), Basic Droplet 2 GiB / 1 vCPU / 50 GiB, $12/month, Philip 12/10/2026 (adr/0005 amendment). Still undecided: domain, off-box storage (Cloudflare R2 vs Backblaze B2). ADR-0005 requires Philip's explicit go-ahead before any account is created or anything provisioned.
-- SMTP target (Microsoft 365 mailbox vs transactional provider, `raid.md` D-002) and who controls DNS for SPF/DKIM/DMARC.
+- VPS: decided — DigitalOcean London (LON1), Basic Droplet 2 GiB / 1 vCPU / 50 GiB, $12/month, Philip 12/10/2026; app at www.varangians.co.uk (Philip controls DNS); off-box backups to Cloudflare R2 (adr/0005 amendment). Nothing left to decide for hosting except the go-ahead: ADR-0005 requires Philip's explicit go-ahead before any account is created or anything provisioned.
+- SMTP target (Microsoft 365 mailbox vs transactional provider, `raid.md` D-002). DNS for SPF/DKIM/DMARC is Philip's (varangians.co.uk, 12/10/2026).
 - Retention purge (hard delete at 3y students / 6y DBS + audit log; only flagging exists, `RecordsDueForDeletionService.cs:30`): Philip to choose manually run `BYPASSRLS` maintenance role vs scheduled job (adr/0004 pass 8). `vlms_app` must never get DELETE on `sensitive_data_access_logs`.
 - Whether ICO registration applies and privacy-notice wording — Philip to verify; not asserted here.
 - (The former Entra-tenant blocker was retired, not resolved, by the ADR-0005 hosting pivot.)
