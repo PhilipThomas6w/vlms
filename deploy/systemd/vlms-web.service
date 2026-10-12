@@ -61,6 +61,11 @@ Environment=ASPNETCORE_URLS=http://127.0.0.1:5000
 StateDirectory=vlms/keys
 StateDirectoryMode=0700
 Environment=DataProtection__KeysPath=/var/lib/vlms/keys
+# Host filtering: Vlms.Web refuses to start in Production without an explicit list (WebHardening).
+# Only www reaches Kestrel — the Caddyfile redirects the bare domain. Not a secret, so set here.
+Environment=AllowedHosts=www.varangians.co.uk
+# Absolute links in emails (invites, confirmation, password reset). Must match the Caddyfile site.
+Environment=App__PublicBaseUrl=https://www.varangians.co.uk
 ExecStart=/usr/bin/dotnet /opt/vlms/web/Vlms.Web.dll
 # Restart/KillSignal/RestartSec verified against Microsoft's current linux-nginx guide's own example
 # unit rather than invented — its systemd example service block uses exactly these three lines for

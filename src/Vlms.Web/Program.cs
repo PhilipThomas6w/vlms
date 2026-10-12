@@ -18,6 +18,7 @@ using Vlms.Infrastructure.Retention;
 using Vlms.Infrastructure.Safeguarding;
 using Vlms.Infrastructure.Security;
 using Vlms.Infrastructure.Storage;
+using Vlms.Web;
 using Vlms.Web.Components;
 using Vlms.Web.Components.Account;
 
@@ -48,6 +49,10 @@ builder.Services.AddScoped<AuthenticationStateProvider, IdentityRevalidatingAuth
 // (ITimeLimitedDataProtector) as well as Identity's own cookie encryption. The key ring is persisted
 // to DataProtection:KeysPath (required in Production) — see VlmsDataProtection's doc comment.
 builder.Services.AddVlmsDataProtection(builder.Configuration, requireKeysPath: builder.Environment.IsProduction());
+
+// Allowed hosts (required in Production), HSTS lifetime, and rate limiting on the account forms —
+// see WebHardening's doc comment.
+builder.Services.AddVlmsWebHardening(builder.Configuration, builder.Environment);
 
 // --- Data access (adr/0005-hosting-pivot-self-hosted-vps-postgresql.md: self-hosted PostgreSQL,
 // supersedes adr/0001-technology-stack.md's original Azure SQL Database row) -------------------
@@ -264,11 +269,15 @@ app.UseForwardedHeaders(new ForwardedHeadersOptions
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
+    // Max-age comes from WebHardening (Hsts:MaxAgeDays, default 365 days).
     app.UseHsts();
 }
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 app.UseHttpsRedirection();
+
+// After UseForwardedHeaders, so limits partition on the real client IP. WebApplication's implicit
+// routing runs first, so the account pages' [EnableRateLimiting] metadata is visible here.
+app.UseRateLimiter();
 
 app.UseAuthentication();
 app.UseAuthorization();

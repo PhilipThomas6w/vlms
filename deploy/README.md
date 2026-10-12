@@ -224,7 +224,8 @@ backup and the consent/DBS sweep).
 
 ```sh
 sudo cp deploy/Caddyfile /etc/caddy/Caddyfile
-# Edit /etc/caddy/Caddyfile's PLACEHOLDER-DOMAIN.example to the real domain first.
+# Serves www.varangians.co.uk and redirects varangians.co.uk to it. DNS for both must point at
+# this server first (A records in Hostinger), or certificate issuance fails.
 sudo systemctl reload caddy
 ```
 

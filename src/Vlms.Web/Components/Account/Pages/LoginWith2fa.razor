@@ -1,4 +1,6 @@
 @page "/Account/LoginWith2fa"
+@using Microsoft.AspNetCore.RateLimiting
+@attribute [EnableRateLimiting(WebHardening.AccountFormsPolicy)]
 
 @using System.ComponentModel.DataAnnotations
 @using Microsoft.AspNetCore.Identity

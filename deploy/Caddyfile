@@ -2,12 +2,9 @@
 # Let's Encrypt. docs/adr/0005-hosting-pivot-self-hosted-vps-postgresql.md ("Kestrel behind Caddy,
 # automatic HTTPS via Let's Encrypt"). STATE.md hosting-pivot item 6.
 #
-# PLACEHOLDER-DOMAIN.example below is a placeholder the owner must fill in with the real domain
-# name once one is registered/pointed at the VPS — no domain has been decided (adr/0005
-# Consequences: provisioning itself, including domain/DNS, needs Philip's explicit go-ahead,
-# separately from this file being ready to use). appsettings.json's own "App:PublicBaseUrl" carries
-# the identical placeholder convention for the same reason (used to build the guardian invite
-# accept-link — see GuardianInviteService's doc comment) — update both together.
+# The site is www.varangians.co.uk (adr/0005 amendment, Philip 12/10/2026); the bare domain
+# redirects to it. vlms-web.service's AllowedHosts and App__PublicBaseUrl name the same host —
+# change all three together.
 #
 # Automatic HTTPS syntax verified against Caddy's own current documentation
 # (caddyserver.com/docs/quick-starts/reverse-proxy, caddyserver.com/docs/automatic-https) rather
@@ -30,7 +27,13 @@
 # be installed there (see deploy/README.md), not run standalone; it is a separate systemd unit from
 # vlms-web.service/vlms-jobs.service, not one this repo's own unit files manage.
 
-PLACEHOLDER-DOMAIN.example {
+# Bare domain: permanent redirect to www, keeping the path and query
+# (caddyserver.com/docs/caddyfile/directives/redir). Caddy gets a certificate for it too.
+varangians.co.uk {
+	redir https://www.varangians.co.uk{uri} permanent
+}
+
+www.varangians.co.uk {
 	# Proxies to Vlms.Web's Kestrel process — must match vlms-web.service's
 	# ASPNETCORE_URLS=http://127.0.0.1:5000 exactly; both are this deployment's own convention, not
 	# a framework default, so keep them in sync if either changes.
