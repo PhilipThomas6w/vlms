@@ -41,12 +41,12 @@ Full narrative for Done/Log items to 12/08/2026: `docs/harness/STATE-archive.md`
 - [x] Admin role assignment (`/administration/user-roles`, last-Admin and leaver guards) + first-Admin bootstrap (`Vlms.Jobs bootstrap-admin`, inert once an Admin exists) — 16ba130; full gate exit 0, 340/340 tests
 - [x] Waiting-for-approval list on `/administration/user-roles` (role-less non-leavers, invite origin, linked students; Approve as Parent for invite accounts only) — 59797a6; full gate exit 0, 350/350 tests
 - [x] Persist DataProtection keys (`VlmsDataProtection`: fixed app name, `DataProtection:KeysPath` required in Production; `StateDirectory=vlms/keys` 0700 in `vlms-web.service`; README §1/§7) — 037d6d9; full gate exit 0, 355/355 tests. On-host restart check still pending (README §7).
+- [x] EF migration bundle + deploy script (`deploy/build-migrations-bundle.ps1` self-contained linux-x64; `deploy/migrate.sh` as `vlms_owner` from `/etc/vlms/migrate.env`; README §3 no longer needs the SDK) — 2b0b8a5; full gate exit 0, 360/360 tests. Bundle build verified locally; on-host run pending go-live.
 
 ## In progress
 _(none)_
 
 ## Next
-- [ ] **EF migration bundle + deploy script** — migrations are currently applied by hand with the SDK (`deploy/README.md` §3). `dotnet ef migrations bundle` (or idempotent SQL) run as `vlms_owner` from a `deploy/` script. Acceptance: README §3 no longer needs the SDK on the server.
 - [ ] **Retention purge** — only flagging exists (`RecordsDueForDeletionService.cs:30`); project law requires hard delete at 3 years (students) / 6 years (DBS, audit log). Audit-log purge needs a separate `BYPASSRLS` maintenance role (adr/0004 pass 8); `vlms_app` must never get DELETE on `sensitive_data_access_logs`. Needs decision: purge approach (see Blocked). Acceptance: tests for retention boundaries; purge deletes only due records.
 - [ ] **Off-box backup of file storage** — `deploy/README.md` §9: no off-box backup of `LocalDiskBlobStorage` files; `pg-backup.sh` covers PostgreSQL only. Extend `deploy/backup/` with a sync of `Storage:LocalRootPath` to the S3-compatible bucket plus a systemd timer. Acceptance: script + unit exist, README §9 updated, restore steps documented.
 - [ ] **Password reset + Identity hardening** — no forgot/reset-password pages; `RequireConfirmedAccount = false` (`Program.cs:229`); no explicit lockout policy. Add reset via SMTP; set lockout/confirmed-email policy deliberately. Acceptance: tests; policy documented.
