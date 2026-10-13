@@ -47,11 +47,11 @@ Full narrative for Done/Log items to 12/08/2026: `docs/harness/STATE-archive.md`
 - [x] Production web hardening (`WebHardening`: Production requires explicit `AllowedHosts`; HSTS 365 days; account-form POSTs rate-limited per IP and page, default 20/min; unit/Caddyfile name `www.varangians.co.uk`, bare domain redirects) — 2b8a4bd; full gate exit 0, 404/404 tests.
 - [x] Send email via Microsoft Graph (`GraphEmailSender`, app-only token, scoped to `noreply@varangians.co.uk`; MailKit/SMTP removed; secret via env only, creation/rotation in `deploy/README.md` §4; secret scan regains Entra client-secret patterns) — c56e9dc; full gate exit 0, 409/409 tests. First real send pending go-live (secret not yet created).
 
+- [x] Jobs appsettings stale comment: Azure App Service/WebJob wording removed from `src/Vlms.Jobs` (appsettings `_comment`s, `Program.cs`, `.csproj`); production config source now named as `/etc/vlms/jobs.env` — abc366f; full gate exit 0, 409/409 tests; `grep -i azure src/Vlms.Jobs` (excl. bin/obj) empty.
 ## In progress
 _(none)_
 
 ## Next
-- [ ] **Jobs appsettings stale comment** — `src/Vlms.Jobs/appsettings.json` `_comment` still says Azure App Service WebJob. Acceptance: no Azure wording in `src/Vlms.Jobs` (excluding bin/obj).
 - [ ] **Real secret scanning** — install gitleaks so `build/check-secrets.ps1` takes its `Get-Command gitleaks` path instead of the regex fallback. Acceptance: gate output reads "secret scan (gitleaks): clean", not "regex fallback".
 - [ ] **Ops pack markdown sources** — runbook, monitoring/alerting/uptime + journald retention, DR/BCP, release and rollback (incl. migrations, no staging slot), config reference, SSH/firewall/unattended-upgrades hardening; jobs/backup timers run in UTC — state explicitly. Acceptance: sources under `docs/` with `[TBC – Philip]` where undecided.
 - [ ] **Delivery-gate evidence docs** — UAT report template, TC-001..TC-014 results table, DPIA draft (`raid.md` D-003) and privacy-notice draft for Philip's review, RTM completeness check (`docs/quality/traceability.md`). Acceptance: markdown sources exist so `/render-gate-package delivery` can run.
@@ -137,3 +137,4 @@ _(none)_
 - 2026-10-12: Decision (Philip): email via Microsoft Graph as noreply@varangians.co.uk; Entra app registered and scoped to that mailbox by Exchange RBAC, tested in/out of scope (eb46a66); teachers to get @varangians.co.uk mailboxes (9b19dc5)
 - 2026-10-12: Gate runs serialised per checkout with a named mutex after two overlapping runs collided (76ca916)
 - 2026-10-12: Production web hardening done (2b8a4bd); Graph email sender done, MailKit/SMTP removed (c56e9dc)
+- 2026-10-13: Jobs appsettings stale Azure comment removed (abc366f); noted `deploy/systemd/vlms-jobs.service` header still says "SMTP credentials"
