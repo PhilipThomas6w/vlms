@@ -46,8 +46,8 @@ Full narrative for Done/Log items to 12/08/2026: `docs/harness/STATE-archive.md`
 - [x] Password reset + Identity hardening (`AccountEmailService` reset/confirm by email, no enumeration; `VlmsIdentityPolicy`: confirmed email required, lockout 5 / 15 min, 2-hour links; 4 account pages; invite accounts pre-confirmed; bootstrap refuses unconfirmed) — 8326bd3; full gate exit 0, 384/384 tests. Pages not exercised against a live DB (none locally); first Admin now needs working email (Graph secret, `deploy/README.md` §4).
 - [x] Production web hardening (`WebHardening`: Production requires explicit `AllowedHosts`; HSTS 365 days; account-form POSTs rate-limited per IP and page, default 20/min; unit/Caddyfile name `www.varangians.co.uk`, bare domain redirects) — 2b8a4bd; full gate exit 0, 404/404 tests.
 - [x] Send email via Microsoft Graph (`GraphEmailSender`, app-only token, scoped to `noreply@varangians.co.uk`; MailKit/SMTP removed; secret via env only, creation/rotation in `deploy/README.md` §4; secret scan regains Entra client-secret patterns) — c56e9dc; full gate exit 0, 409/409 tests. First real send pending go-live (secret not yet created).
-
 - [x] Jobs appsettings stale comment: Azure App Service/WebJob wording removed from `src/Vlms.Jobs` (appsettings `_comment`s, `Program.cs`, `.csproj`); production config source now named as `/etc/vlms/jobs.env` — abc366f; full gate exit 0, 409/409 tests; `grep -i azure src/Vlms.Jobs` (excl. bin/obj) empty.
+
 ## In progress
 _(none)_
 
