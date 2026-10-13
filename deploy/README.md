@@ -365,3 +365,5 @@ in `STATE.md`.
 - **OS security patching, PostgreSQL version upgrades, and TLS renewal monitoring** are genuine
   ongoing operational burdens `adr/0005`'s own Consequences section names as owner-carried once a
   real VPS exists — this README covers first-time setup, not ongoing maintenance procedures.
+  Those live in the operations pack, `docs/operations/` (runbook, host hardening, monitoring,
+  DR/BCP, release and rollback, configuration reference).
