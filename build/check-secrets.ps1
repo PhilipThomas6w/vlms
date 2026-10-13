@@ -17,6 +17,15 @@
 #   stack ACTUALLY uses today. gitleaks stays the preferred path if ever installed; the
 #   fallback message names it so.
 #
+# --- 2026-10-13: gitleaks installed (STATE.md "Real secret scanning") -----------------------------
+# gitleaks 8.30.1 is now installed on the development machine (winget Gitleaks.Gitleaks) and is the
+# primary scanner. The regex patterns below are NOT retired: probed against planted values, gitleaks'
+# default rules caught the Entra client secret, AWS key id and connection-string password, but MISSED
+# the JSON config-key password ("Password": "...") and the PostgreSQL `PASSWORD '...'` role syntax.
+# So the regex set now runs in both cases — as a supplement after a clean gitleaks run, and as the
+# whole scan when gitleaks is absent (another checkout). gitleaks is looked up on PATH, then in the
+# winget links directory, because a shell started before the install has a stale PATH.
+#
 # --- 2026-07-21 currency pass (ADR-0005 hosting-pivot verify-gate audit, STATE.md) ------------
 # Re-examined every pattern against the post-pivot stack (PostgreSQL / self-rolled ASP.NET Core
 # Identity / local disk / SMTP — Azure SQL / Entra External ID / Azure Blob Storage / Azure
@@ -84,15 +93,21 @@ function RelativePath($fullName) {
     return $fullName.Substring($repoRoot.Length + 1)
 }
 
-# --- Preferred path: gitleaks, if installed --------------------------------------------------
-if (Get-Command gitleaks -ErrorAction SilentlyContinue) {
-    gitleaks detect --no-git --redact --exit-code 1
-    if ($LASTEXITCODE -ne 0) { exit 1 }
-    Write-Host "secret scan (gitleaks): clean"
-    exit 0
+# --- Primary path: gitleaks, if installed ----------------------------------------------------
+$gitleaks = (Get-Command gitleaks -ErrorAction SilentlyContinue).Source
+if (-not $gitleaks -and $env:LOCALAPPDATA) {
+    $wingetLink = Join-Path $env:LOCALAPPDATA "Microsoft\WinGet\Links\gitleaks.exe"
+    if (Test-Path $wingetLink) { $gitleaks = $wingetLink }
+}
+if ($gitleaks) {
+    & $gitleaks dir $repoRoot --redact --no-banner --log-level warn --exit-code 1
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "secret scan (gitleaks): FAILED - possible committed secret(s)" -ForegroundColor Red
+        exit 1
+    }
 }
 
-# --- Fallback path: tightened regex ---------------------------------------------------------
+# --- Project credential-shape regex (supplement to gitleaks, or the whole scan without it) ----
 # Each entry: a label (for evidence output) and the pattern. Patterns are matched per line;
 # a match whose credential value contains the literal PLACEHOLDER sentinel is treated as
 # intentional placeholder config and skipped. The SQL/connection-string password pattern matches
@@ -137,7 +152,7 @@ foreach ($entry in $patterns) {
 }
 
 if ($hits.Count -gt 0) {
-    Write-Host "secret scan (regex fallback): FAILED — possible committed secret(s)" -ForegroundColor Red
+    Write-Host "secret scan (project patterns): FAILED — possible committed secret(s)" -ForegroundColor Red
     foreach ($h in $hits) {
         # Report location and matched credential type only — never echo the value itself.
         Write-Host (" - {0}:{1}  [{2}]" -f $h.Path, $h.Line, $h.Label) -ForegroundColor Red
@@ -146,5 +161,10 @@ if ($hits.Count -gt 0) {
     exit 1
 }
 
-Write-Host "secret scan (regex fallback — install gitleaks for a real scan): clean ($($scanFiles.Count) files, $($patterns.Count) credential-shape patterns)"
+$patternSummary = "$($scanFiles.Count) files, $($patterns.Count) credential-shape patterns"
+if ($gitleaks) {
+    Write-Host "secret scan (gitleaks): clean; project patterns: clean ($patternSummary)"
+} else {
+    Write-Host "secret scan (regex fallback — install gitleaks for a real scan): clean ($patternSummary)"
+}
 exit 0
