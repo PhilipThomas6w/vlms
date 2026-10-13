@@ -48,12 +48,12 @@ Full narrative for Done/Log items to 12/08/2026: `docs/harness/STATE-archive.md`
 - [x] Send email via Microsoft Graph (`GraphEmailSender`, app-only token, scoped to `noreply@varangians.co.uk`; MailKit/SMTP removed; secret via env only, creation/rotation in `deploy/README.md` §4; secret scan regains Entra client-secret patterns) — c56e9dc; full gate exit 0, 409/409 tests. First real send pending go-live (secret not yet created).
 - [x] Jobs appsettings stale comment: Azure App Service/WebJob wording removed from `src/Vlms.Jobs` (appsettings `_comment`s, `Program.cs`, `.csproj`); production config source now named as `/etc/vlms/jobs.env` — abc366f; full gate exit 0, 409/409 tests; `grep -i azure src/Vlms.Jobs` (excl. bin/obj) empty.
 - [x] Real secret scanning: gitleaks 8.30.1 installed (winget `Gitleaks.Gitleaks`); `check-secrets.ps1` runs `gitleaks dir` first, then the project regex set as a supplement (gitleaks misses JSON `"Password"` and PostgreSQL `PASSWORD '...'`), regex alone when gitleaks absent — d02bb34; full gate exit 0, 409/409 tests, output "secret scan (gitleaks): clean; project patterns: clean"; planted Entra secret and JSON password both fail the stage.
+- [x] Ops pack markdown sources: `docs/operations/` (README, runbook, host-hardening, monitoring, dr-bcp, release, configuration), timers stated as UTC, undecided items `[TBC – Philip]`; linked from `deploy/README.md` §10 — 8c9d9e4; full gate exit 0. Found: `Storage__LocalRootPath` must be set outside `/opt/vlms/web` in production or a release `rsync --delete` wipes certificate PDFs; `deploy/README.md` §4 implies SDK on server (superseded by `release.md` §2).
 
 ## In progress
 _(none)_
 
 ## Next
-- [ ] **Ops pack markdown sources** — runbook, monitoring/alerting/uptime + journald retention, DR/BCP, release and rollback (incl. migrations, no staging slot), config reference, SSH/firewall/unattended-upgrades hardening; jobs/backup timers run in UTC — state explicitly. Acceptance: sources under `docs/` with `[TBC – Philip]` where undecided.
 - [ ] **Delivery-gate evidence docs** — UAT report template, TC-001..TC-014 results table, DPIA draft (`raid.md` D-003) and privacy-notice draft for Philip's review, RTM completeness check (`docs/quality/traceability.md`). Acceptance: markdown sources exist so `/render-gate-package delivery` can run.
 - [ ] **Branding + WCAG colour contrast** — VLMS palette and icon replacing the template `src/Vlms.Web/wwwroot/app.css` and placeholder `wwwroot/icons/icon.svg`, then close the open "Colour contrast (1.4.3/1.4.11)" item in `docs/quality/wcag-2.2-aa-checklist.md`. Needs decision: palette (see Blocked). Acceptance: branding landed, contrast verified at 4.5:1 text / 3:1 UI, checklist item closed, gate exits 0.
 - [ ] **VPS go-live** — operator (Philip) work with a human-in-the-loop component; depends on every code item above plus Philip's go-ahead to create the DigitalOcean and Cloudflare R2 accounts (all hosting choices are decided — see Blocked); harden SSH/firewall/unattended-upgrades per the ops pack. Also: point `varangians.co.uk` and `www` at the Droplet (A records in Hostinger), and create the Graph email secret (`deploy/README.md` §4 "Email secret"). Provision the VPS and deploy per `deploy/README.md` (§1 OS prep, §2 install PostgreSQL/Caddy/.NET, §3 roles and grants, §4 publish, §5 systemd units, §6 Caddyfile, §7 verification checklist); then smoke-test each role's core journey in production and confirm TLS via Caddy. Acceptance: app reachable on the production hostname; smoke test recorded.
@@ -68,6 +68,7 @@ _(none)_
 - Retention purge (hard delete at 3y students / 6y DBS + audit log; only flagging exists, `RecordsDueForDeletionService.cs:30`): Philip to choose manually run `BYPASSRLS` maintenance role vs scheduled job (adr/0004 pass 8). `vlms_app` must never get DELETE on `sensitive_data_access_logs`.
 - Whether ICO registration applies and privacy-notice wording — Philip to verify; not asserted here.
 - Countersign: Philip to countersign the ASVS and WCAG checklist review rows signed by Claude since 2026-10-11 (`docs/governance/asvs-access-control-checklist.md`, `docs/quality/wcag-2.2-aa-checklist.md`).
+- Ops pack decisions: Philip to resolve the `[TBC – Philip]` markers in `docs/operations/` (alert route, uptime monitor, journald retention, auto-reboot, SSH source restriction, R2 lifecycle period, RPO/RTO acceptance, break-glass, secrets store, log locations).
 - (The former Entra-tenant blocker was retired, not resolved, by the ADR-0005 hosting pivot.)
 
 ## Log
@@ -139,3 +140,4 @@ _(none)_
 - 2026-10-12: Production web hardening done (2b8a4bd); Graph email sender done, MailKit/SMTP removed (c56e9dc)
 - 2026-10-13: Jobs appsettings stale Azure comment removed (abc366f); noted `deploy/systemd/vlms-jobs.service` header still says "SMTP credentials"
 - 2026-10-13: gitleaks installed and wired as primary secret scanner, regex patterns kept as supplement (d02bb34)
+- 2026-10-13: Ops pack markdown sources written under `docs/operations/` (8c9d9e4); open choices listed in Blocked
