@@ -1,6 +1,6 @@
 # Test Plan
 
-Status: strategy (design gate) — per ISO/IEC/IEEE 29119-3:2021. Completed with results at the delivery gate.
+Status: strategy (design gate) plus automated results (13/10/2026) — per ISO/IEC/IEEE 29119-3:2021. Manual results (UAT, production checks) are recorded in `quality/uat-report.md`.
 
 ## Approach & levels
 
@@ -40,3 +40,30 @@ Status: strategy (design gate) — per ISO/IEC/IEEE 29119-3:2021. Completed with
 | TC-014 | Attempting `UPDATE`/`DELETE` against `SensitiveDataAccessLog` as the application's database principal is denied | `adr/0004-sensitive-data-access-control.md` (tamper protection) |
 
 Full RTM: `quality/traceability.md`.
+
+## Results (delivery gate)
+
+**Run:** `build/verify.ps1` (full gate) on 13/10/2026, 410/410 automated tests passing (`tests/Vlms.Tests`, xUnit). The gate also ran the secret scan, the OWASP ASVS 5.0 V8 access-control stage and the WCAG 2.2 AA stage, all passing. Re-run the gate on the release commit and update this line before the gate package is rendered.
+
+**What "automated" covers here.** The tests exercise the service layer and EF Core query filters/interceptors against SQLite in-memory (see Approach). They do **not** drive the Blazor UI, and nothing has run against PostgreSQL or the production host. So each TC below has two parts: the automated evidence (done), and a manual confirmation in the real app (UAT, `quality/uat-report.md`) or on the server (`deploy/README.md` §7). A TC is **Passed** only when both are done.
+
+| TC | Automated evidence (`tests/Vlms.Tests/…`) | Automated | Manual / production | Status |
+|---|---|---|---|---|
+| TC-001 | `CompletionServiceTests.MarkCompleteAsync_WithActiveConsent_RecordsCompletion_AndGeneratesCertificate`; `CertificateServiceTests.GenerateAsync_UploadsARealPdf_ToBlobStorage` | Pass | UAT-03 | Automated pass; UAT pending |
+| TC-002 | `CompletionServiceTests.MarkCompleteAsync_WithExpiredConsent_Throws_AndRecordsNoCompletion`, `…_WithNoConsentRecord_Throws` | Pass | UAT-04 | Automated pass; UAT pending |
+| TC-003 | `PromotionServiceTests.CheckAndPromoteAsync_AllActiveLessonsComplete_PromotesToNextRank`, `…_WithRankBadgeConfigured_AwardsStudentBadge`; `CompletionServiceTests.MarkCompleteAsync_CompletingFinalLessonInRank_TriggersAutoPromotion` | Pass | UAT-05 | Automated pass; UAT pending |
+| TC-004 | `LessonProposalServiceTests.ProposeAsync_ByTeacher_CreatesPendingProposal`, `ApproveAsync_CreateProposal_CreatesLesson_AndApprovesProposal`, `ApproveAsync_EditProposal_UpdatesExistingLesson`, `ApproveAsync_RetireProposal_SetsLessonInactive` | Pass | UAT-06 | Automated pass; UAT pending |
+| TC-005 | `LessonProposalServiceTests.RejectAsync_ByApprover_SetsRejectedStatus_AndStoresComments`, `ResubmitAsync_AfterRejection_CreatesNewProposal_ChainedToOriginal` | Pass | UAT-07 | Automated pass; UAT pending |
+| TC-006 | `ParentDashboardServiceTests.GetDashboardAsync_ParentB_SeesOnlySam_NeverAlex_CrossParentAccessIsDenied`; `Authorization/StudentAccessHandlerTests.ParentHandler_Denies_UnlinkedStudent` | Pass | UAT-08 | Automated pass; UAT pending |
+| TC-007 | `SensitiveDataAccessControlTests.Teacher_CannotRead_DbsCheck_Or_ConsentSensitiveDetails`, `Teacher_CanStillRead_ConsentRecord_StatusAndExpiry_ForSameStudent`; `DbsCheckServiceTests.RecordAsync_ByTeacher_Throws_AndCreatesNothing` | Pass | UAT-09 | Automated pass; UAT pending |
+| TC-008 | `SensitiveDataAccessControlTests.Approver_CannotRead_DbsCheck_Or_ConsentSensitiveDetails_ButCanRead_ConsentRecord` (added 13/10/2026; fails when the query filter admits Approver); `ConsentRecordServiceTests.DecideAsync_ByApprover_Throws`, `RecordAsync_ByApprover_Throws_AndCreatesNothing` | Pass | UAT-09 | Automated pass; UAT pending |
+| TC-009 | `ConsentExpiryJobTests.RunAsync_FlagsConsentExpiringSoon_Expired_AndMissing_ButNotBeyondWindowOrInactive`, `…_FlagsDbsExpiringSoon_Expired_Missing_AndFlaggedStatus_ButNotValid`, `RunAsync_ExpiryWindow_IsConfigurable`; `ConsentExpiryNotifierTests.NotifyAsync_ExpiredConsent_SendsOneDigestEmail_ToEachAdminAndSafeguardingOfficer_NotToTeacher` | Pass | `deploy/README.md` §7 (`vlms-jobs` run) | Automated pass; production run pending |
+| TC-010 | `ConsentExpiryJobTests.RunAsync_FlagsAtRiskStudents_ByCompletionGap_OrEnrolmentIfNever_ButGivesNewEnrolmentsAFairChance`; `ProgressReportingServiceTests.GetAtRiskStudentsAsync_ProducesTheSamePopulation_AsConsentExpiryJobsSweep` | Pass | UAT-11 | Automated pass; UAT pending |
+| TC-011 | `SensitiveDataAccessControlTests.MaterializingDbsCheck_AsAdmin_WritesAuditLogEntry_WithCorrectEntityId`, `MultiRowRead_OfTwoDbsChecks_WritesOneAuditLogEntryPerRow`; `ConsentExpiryJobTests.RunAsync_SweepingDbsChecks_WritesOneSensitiveDataAccessLogEntryPerDbsCheckRead` | Pass | UAT-10 | Automated pass; UAT pending |
+| TC-012 | `GuardianLinkServiceTests.CreateLinkAsync_ByParent_Throws_AndCreatesNoLink`, `RegisterGuardianAndLinkAsync_ByParent_Throws_AndCreatesNoGuardianOrLink`; `StudentRegistrationServiceTests.RegisterStudentWithNewGuardianAsync_ByParent_Throws_AndCreatesNoRows` | Pass | UAT-02 | Automated pass; UAT pending |
+| TC-013 | `NotificationServiceTests.SendAsync_SafeguardingCritical_AllAttemptsFail_ReturnsFailedAndEscalated_AndLogsError`, `…_SucceedsAfterRetries_ReturnsSentAfterRetry` | Pass | escalation visibility depends on the alert route (`operations/monitoring.md` §3, `[TBC – Philip]`) | Automated pass; alert route undecided |
+| TC-014 | `MigrationsTests.MigrationScript_RevokesUpdateAndDeleteFromPublic`, `MigrationScript_EnablesAndForcesRowLevelSecurity`, `MigrationScript_DoesNotDefinePermissiveUpdateOrDeletePolicy` (generated SQL only) | Pass | `deploy/README.md` §3 live `UPDATE` as `vlms_app` and `vlms_owner` must fail | Script verified; live check pending go-live |
+
+**Not covered by the TC list, recorded for completeness:** the end-to-end Blazor journeys named under Approach are covered by UAT, not by automated browser tests (none were built: a deliberate cost decision at this scale). WCAG 2.2 AA: automated gate stage plus `quality/wcag-2.2-aa-checklist.md`; colour contrast (1.4.3/1.4.11) is still open pending branding.
+
+**Exit-criteria position (13/10/2026):** not yet met. Open: UAT, the production-only checks for TC-009/TC-014, colour contrast, and the TC-013 alert route.

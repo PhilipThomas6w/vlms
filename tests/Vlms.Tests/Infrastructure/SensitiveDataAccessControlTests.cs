@@ -203,6 +203,36 @@ public sealed class SensitiveDataAccessControlTests : IDisposable
         Assert.Empty(teacher.Context.ConsentSensitiveDetails.ToList());
     }
 
+    // quality/test-plan.md TC-008: the Approver role is curriculum-only, so it gets no more
+    // safeguarding visibility than a Teacher, even with MFA enabled. ConsentRecord status/expiry
+    // stays readable (security-compliance.md); approving consent is ConsentRecordServiceTests'
+    // DecideAsync_ByApprover_Throws.
+    [Fact]
+    public void Approver_CannotRead_DbsCheck_Or_ConsentSensitiveDetails_ButCanRead_ConsentRecord()
+    {
+        using (var seed = CreateContext(Role.Admin))
+        {
+            SeedCoreReferenceData(seed.Context);
+            seed.Context.DbsChecks.Add(NewDbsCheck(id: 1, teacherUserId: 10));
+
+            var consent = NewConsentRecord(id: 1, studentId: 1);
+            seed.Context.ConsentRecords.Add(consent);
+            seed.Context.ConsentSensitiveDetails.Add(new ConsentSensitiveDetails
+            {
+                Id = 1,
+                ConsentRecordId = consent.Id,
+                EmergencyContact = "Someone, 07000 000000"
+            });
+            seed.Context.SaveChanges();
+        }
+
+        using var approver = CreateContext(hasMfaEnabled: true, Role.Approver);
+
+        Assert.Empty(approver.Context.DbsChecks.ToList());
+        Assert.Empty(approver.Context.ConsentSensitiveDetails.ToList());
+        Assert.Single(approver.Context.ConsentRecords.Where(c => c.StudentId == 1).ToList());
+    }
+
     [Fact]
     public void MaterializingDbsCheck_AsAdmin_WritesAuditLogEntry_WithCorrectEntityId()
     {
