@@ -47,12 +47,12 @@ Full narrative for Done/Log items to 12/08/2026: `docs/harness/STATE-archive.md`
 - [x] Production web hardening (`WebHardening`: Production requires explicit `AllowedHosts`; HSTS 365 days; account-form POSTs rate-limited per IP and page, default 20/min; unit/Caddyfile name `www.varangians.co.uk`, bare domain redirects) — 2b8a4bd; full gate exit 0, 404/404 tests.
 - [x] Send email via Microsoft Graph (`GraphEmailSender`, app-only token, scoped to `noreply@varangians.co.uk`; MailKit/SMTP removed; secret via env only, creation/rotation in `deploy/README.md` §4; secret scan regains Entra client-secret patterns) — c56e9dc; full gate exit 0, 409/409 tests. First real send pending go-live (secret not yet created).
 - [x] Jobs appsettings stale comment: Azure App Service/WebJob wording removed from `src/Vlms.Jobs` (appsettings `_comment`s, `Program.cs`, `.csproj`); production config source now named as `/etc/vlms/jobs.env` — abc366f; full gate exit 0, 409/409 tests; `grep -i azure src/Vlms.Jobs` (excl. bin/obj) empty.
+- [x] Real secret scanning: gitleaks 8.30.1 installed (winget `Gitleaks.Gitleaks`); `check-secrets.ps1` runs `gitleaks dir` first, then the project regex set as a supplement (gitleaks misses JSON `"Password"` and PostgreSQL `PASSWORD '...'`), regex alone when gitleaks absent — d02bb34; full gate exit 0, 409/409 tests, output "secret scan (gitleaks): clean; project patterns: clean"; planted Entra secret and JSON password both fail the stage.
 
 ## In progress
 _(none)_
 
 ## Next
-- [ ] **Real secret scanning** — install gitleaks so `build/check-secrets.ps1` takes its `Get-Command gitleaks` path instead of the regex fallback. Acceptance: gate output reads "secret scan (gitleaks): clean", not "regex fallback".
 - [ ] **Ops pack markdown sources** — runbook, monitoring/alerting/uptime + journald retention, DR/BCP, release and rollback (incl. migrations, no staging slot), config reference, SSH/firewall/unattended-upgrades hardening; jobs/backup timers run in UTC — state explicitly. Acceptance: sources under `docs/` with `[TBC – Philip]` where undecided.
 - [ ] **Delivery-gate evidence docs** — UAT report template, TC-001..TC-014 results table, DPIA draft (`raid.md` D-003) and privacy-notice draft for Philip's review, RTM completeness check (`docs/quality/traceability.md`). Acceptance: markdown sources exist so `/render-gate-package delivery` can run.
 - [ ] **Branding + WCAG colour contrast** — VLMS palette and icon replacing the template `src/Vlms.Web/wwwroot/app.css` and placeholder `wwwroot/icons/icon.svg`, then close the open "Colour contrast (1.4.3/1.4.11)" item in `docs/quality/wcag-2.2-aa-checklist.md`. Needs decision: palette (see Blocked). Acceptance: branding landed, contrast verified at 4.5:1 text / 3:1 UI, checklist item closed, gate exits 0.
@@ -138,3 +138,4 @@ _(none)_
 - 2026-10-12: Gate runs serialised per checkout with a named mutex after two overlapping runs collided (76ca916)
 - 2026-10-12: Production web hardening done (2b8a4bd); Graph email sender done, MailKit/SMTP removed (c56e9dc)
 - 2026-10-13: Jobs appsettings stale Azure comment removed (abc366f); noted `deploy/systemd/vlms-jobs.service` header still says "SMTP credentials"
+- 2026-10-13: gitleaks installed and wired as primary secret scanner, regex patterns kept as supplement (d02bb34)
