@@ -15,10 +15,10 @@
   <ItemGroup>
     <!-- Generic host: configuration binding + console logging for the scheduled-job process
          (adr/0003-scheduled-jobs-webjobs.md, amended by adr/0005-hosting-pivot-self-hosted-vps-postgresql.md
-         for the execution host). Not the WebJobs SDK (Microsoft.Azure.WebJobs) — that SDK's Azure
-         Storage-backed dashboard/queue-trigger machinery was never needed even when this ran as an
-         Azure WebJob; a plain console app, now triggered by a systemd timer
-         (deploy/systemd/vlms-jobs.timer) rather than the Azure WebJobs folder convention, is the
+         for the execution host). Not the WebJobs SDK — its storage-backed dashboard/queue-trigger
+         machinery was never needed even under the original hosting model; a plain console app, now
+         triggered by a systemd timer
+         (deploy/systemd/vlms-jobs.timer) rather than the original WebJobs folder convention, is the
          "fewest moving parts" realisation of the ADR. -->
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.3" />
   </ItemGroup>

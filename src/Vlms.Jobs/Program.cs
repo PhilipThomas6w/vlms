@@ -8,7 +8,7 @@
 // — this file's only job is wiring: configuration, a VlmsDbContext, the SystemCurrentUserContext (no
 // signed-in human caller exists for a scheduled job), and console logging (captured by
 // systemd/journald — see deploy/systemd/README.md's monitoring note, journalctl -u vlms-jobs.service
-// replaces the Application Insights alerting the original ADR named for the Azure WebJobs host).
+// replaces the Application Insights alerting the original ADR named for its previous hosting model).
 // Since STATE.md's NotificationService item, it also wires ConsentExpiryNotifier and calls it
 // straight after RunAsync — closing the loop ConsentExpiryJob's own doc comment named ("once
 // NotificationService exists it can call RunAsync and translate the returned ConsentExpiryJobResult
@@ -17,7 +17,7 @@
 // Deployment (not performed by this codebase/build/verify.ps1 — no live VPS environment exists yet,
 // same "structurally correct, not yet wired" status as LocalDiskBlobStorage/IdentityCurrentUserContext
 // before their dependencies existed): docs/adr/0005-hosting-pivot-self-hosted-vps-postgresql.md
-// retargets this project's deployment from the Azure App Service WebJobs folder convention
+// retargets this project's deployment from the original WebJobs folder convention
 // (App_Data/jobs/triggered/...) to a systemd timer/service pair on the self-hosted VPS —
 // deploy/systemd/vlms-jobs.service + deploy/systemd/vlms-jobs.timer, invoking this same published
 // console app unchanged; adr/0003's "plain console app, not a scheduler SDK" reasoning is unaffected,
@@ -54,8 +54,8 @@ builder.Services.AddSingleton<ICurrentUserContext>(SystemCurrentUserContext.Inst
 
 // ConsentExpiryJob's own doc comment: low-level-design.md calls the consent/DBS expiry warning
 // window "configurable" but names no number, so 28 days is a documented build-time default — bound
-// here from Safeguarding:ExpiryWarningWindowDays (appsettings.json/Azure App Service Application
-// Settings) so the project owner can actually override it without a recompile, per the ADR's own
+// here from Safeguarding:ExpiryWarningWindowDays (appsettings.json, or the
+// Safeguarding__ExpiryWarningWindowDays environment variable from /etc/vlms/jobs.env) so the project owner can actually override it without a recompile, per the ADR's own
 // wording. AddScoped<ConsentExpiryJob>() alone would resolve the constructor's int parameter to 0,
 // not the intended default, since DI has no registration for a bare int — so the value is read
 // explicitly and passed through this factory instead.
