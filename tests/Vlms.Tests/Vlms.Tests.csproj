@@ -12,17 +12,17 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.13" />
     <!-- Pinned up from the vulnerable 2.1.11 pulled in transitively (GHSA-2m69-gcr7-jv3q) -->
     <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.3" />
     <!-- ConfigurationBuilder/AddInMemoryCollection + GetValue<T> — proves the exact
          Safeguarding:ExpiryWarningWindowDays binding Vlms.Jobs/Program.cs uses to configure
          ConsentExpiryJob actually reads a non-default value from configuration. -->
-    <PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.10" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.10" />
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.13" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.13" />
     <!-- In-memory TestServer for exercising Vlms.Web's real middleware registrations
          (WebHardening: rate limiting, HSTS) without Kestrel, a database or Program.cs's full host. -->
-    <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="10.0.10" />
+    <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="10.0.13" />
   </ItemGroup>
 
   <ItemGroup>

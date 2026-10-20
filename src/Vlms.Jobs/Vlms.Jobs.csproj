@@ -20,7 +20,7 @@
          triggered by a systemd timer
          (deploy/systemd/vlms-jobs.timer) rather than the original WebJobs folder convention, is the
          "fewest moving parts" realisation of the ADR. -->
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.3" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.13" />
   </ItemGroup>
 
   <ItemGroup>

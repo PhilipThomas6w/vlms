@@ -13,7 +13,7 @@
   <ItemGroup>
     <!-- Self-hosted PostgreSQL per adr/0005-hosting-pivot-self-hosted-vps-postgresql.md (was Azure
          SQL Database / Microsoft.EntityFrameworkCore.SqlServer under the superseded adr/0001 row). -->
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.0">
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.13">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
@@ -24,20 +24,20 @@
     <!-- Authorization requirements/handlers (Vlms.Infrastructure.Authorization) — the standalone
          package (not a FrameworkReference to the whole ASP.NET Core shared framework) so this
          stays a plain class library. -->
-    <PackageReference Include="Microsoft.AspNetCore.Authorization" Version="10.0.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Authorization" Version="10.0.13" />
     <!-- AuthenticationStateProvider — resolves the caller's ClaimsPrincipal for Vlms.Web's
          interactive Blazor Server render mode, replacing IHttpContextAccessor (which returns a
          null HttpContext outside the initial request once a circuit is interactive — see
          Security/AuthenticationStatePrincipalResolver.cs). Also a standalone package, not a
          FrameworkReference. -->
-    <PackageReference Include="Microsoft.AspNetCore.Components.Authorization" Version="10.0.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.Authorization" Version="10.0.13" />
     <!-- Certificate PDF generation (adr/0001-technology-stack.md), Community licence — see
          Progress/CertificateService.cs for where QuestPDF.Settings.License is set. -->
     <PackageReference Include="QuestPDF" Version="2026.7.1" />
     <!-- ILogger<T> for ConsentExpiryJob's escalation logging (Safeguarding/ConsentExpiryJob.cs) —
          explicit reference (rather than relying on it arriving transitively via EF Core) so this
          class library's own dependencies are self-declared. -->
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.10" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.13" />
     <!-- ASP.NET Core Identity (STATE.md "Identity" item, replacing Microsoft Entra External ID) —
          VlmsIdentityUser/UserManager<VlmsIdentityUser>/IdentityUserContext<TUser,TKey>. A standalone
          package (not a FrameworkReference to the whole ASP.NET Core shared framework), same reason
@@ -45,18 +45,18 @@
          class library. SignInManager (which needs HttpContext to write the auth cookie) deliberately
          stays out of this project — see Identity/AppUserProvisioningService.cs's doc comment — so no
          reference to the web-hosting-only Identity UI pieces is needed here. -->
-    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.10" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.13" />
     <!-- ASP.NET Core Data Protection — backs the guardian invite token's "signed, expiring"
          properties via ITimeLimitedDataProtector (Guardianship/GuardianInviteService.cs). The
          .Extensions package (not just Microsoft.AspNetCore.DataProtection.Abstractions) is where
-         ToTimeLimitedDataProtector() lives. Pinned to 10.0.10, not the initial 10.0.0 release: the
+         ToTimeLimitedDataProtector() lives. Must stay at 10.0.7 or later (now 10.0.13), never the initial release: the
          10.0.0 to 10.0.6 range has a Critical-severity (CVSS 9.1) auth-cookie-forgery/payload-decrypt
          vulnerability, CVE-2026-40372 / GHSA-9mv3-2cwr-p262, fixed in 10.0.7 and later — found via
          the dotnet NuGet vulnerability audit (dotnet list package, vulnerable mode) after adding
          this package, not assumed clean. Directly relevant here: this package's own
          ITimeLimitedDataProtector is what signs the guardian invite tokens, and Identity's own
          cookie encryption depends on the same Data Protection stack. -->
-    <PackageReference Include="Microsoft.AspNetCore.DataProtection.Extensions" Version="10.0.10" />
+    <PackageReference Include="Microsoft.AspNetCore.DataProtection.Extensions" Version="10.0.13" />
   </ItemGroup>
 
 </Project>
