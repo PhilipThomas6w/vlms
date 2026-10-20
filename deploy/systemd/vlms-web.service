@@ -31,7 +31,7 @@
 #   - `dotnet publish src/Vlms.Web -c Release -o /opt/vlms/web` (framework-dependent deployment —
 #     requires the .NET runtime installed on the VPS; see deploy/README.md).
 #   - real secrets (PostgreSQL connection string as the least-privilege vlms_app role — never the
-#     table owner/a superuser, governance/raid.md D-004 — plus SMTP credentials and App:PublicBaseUrl once a real domain exists) live in /etc/vlms/web.env
+#     table owner/a superuser, governance/raid.md D-004 — plus the Microsoft Graph client secret) live in /etc/vlms/web.env
 #     (systemd EnvironmentFile format: KEY=VALUE per line, double-underscore section separator, e.g.
 #     ConnectionStrings__VlmsDatabase=...) — never committed to this repository; appsettings.json's
 #     own `_comment` fields already flag its checked-in values as placeholders for exactly this

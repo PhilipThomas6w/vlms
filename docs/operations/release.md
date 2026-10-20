@@ -21,8 +21,6 @@ pwsh -File deploy/build-migrations-bundle.ps1        # only if the release adds 
 
 Copy to the server's home directory: `scp -r artifacts/web artifacts/jobs [artifacts/efbundle] <admin-user>@<server>:~/release/`.
 
-Note: `deploy/README.md` §4 shows `dotnet publish ... -o /opt/vlms/web` under "On the server", which would need the SDK there. The procedure in this section supersedes it: `[TBC – align deploy/README.md §4]`.
-
 ## 3. Deploy (on the server)
 
 ```sh

@@ -153,19 +153,24 @@ If either check fails (fewer than two policies, `relforcerowsecurity` is `f`, or
 
 ## 4. Publish and place `Vlms.Web` / `Vlms.Jobs`
 
-On the build machine (SDK + `dotnet tool install --global dotnet-ef`), alongside the publishes
-below, build the migrations bundle — a self-contained linux-x64 executable that §3 step 2 runs on
-the server:
+Everything is built on the build machine (SDK + `dotnet tool install --global dotnet-ef`); the
+server needs only the ASP.NET Core runtime from §2, never the SDK. Publish framework-dependent for
+Linux and build the migrations bundle — a self-contained linux-x64 executable that §3 step 2 runs on
+the server (same commands as `docs/operations/release.md` §2, which every later release follows):
 
 ```powershell
+dotnet publish src/Vlms.Web  -c Release -r linux-x64 --self-contained false -o artifacts/web
+dotnet publish src/Vlms.Jobs -c Release -r linux-x64 --self-contained false -o artifacts/jobs
 pwsh -File deploy/build-migrations-bundle.ps1    # writes artifacts/efbundle (git-ignored)
 ```
 
-On the server:
+Copy them to the server: `scp -r artifacts/web artifacts/jobs artifacts/efbundle <admin-user>@<server>:~/release/`.
+Then, on the server, install the bundle:
 
 ```sh
 sudo mkdir -p /opt/vlms-migrations
-sudo install -o root -g root -m 0700 artifacts/efbundle deploy/migrate.sh /opt/vlms-migrations/
+sudo install -o root -g root -m 0700 ~/release/efbundle /opt/vlms-migrations/
+sudo install -o root -g root -m 0700 deploy/migrate.sh /opt/vlms-migrations/   # from a checkout or copied alongside
 ```
 
 The bundle and `migrate.sh` are root-owned and root-only: they run with the `vlms_owner` password,
@@ -175,8 +180,9 @@ owned by `vlms`, which could otherwise replace a binary root later runs. Every r
 a current database is a no-op.
 
 ```sh
-dotnet publish src/Vlms.Web -c Release -o /opt/vlms/web
-dotnet publish src/Vlms.Jobs -c Release -o /opt/vlms/jobs
+sudo mkdir -p /opt/vlms/web /opt/vlms/jobs
+sudo rsync -a --delete ~/release/web/  /opt/vlms/web/
+sudo rsync -a --delete ~/release/jobs/ /opt/vlms/jobs/
 sudo chown -R vlms:vlms /opt/vlms/web /opt/vlms/jobs
 ```
 

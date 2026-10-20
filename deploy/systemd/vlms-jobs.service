@@ -18,7 +18,7 @@
 #   - `dotnet publish src/Vlms.Jobs -c Release -o /opt/vlms/jobs` (framework-dependent deployment —
 #     the same .NET runtime install Vlms.Web's own Kestrel process already requires on this VPS, so
 #     no extra runtime dependency is introduced by this job).
-#   - real secrets (PostgreSQL connection string, SMTP credentials) live in /etc/vlms/jobs.env
+#   - real secrets (PostgreSQL connection string, Microsoft Graph client secret) live in /etc/vlms/jobs.env
 #     (systemd EnvironmentFile format: KEY=VALUE per line, double-underscore section separator, e.g.
 #     ConnectionStrings__VlmsDatabase=..., ASPNETCORE_ENVIRONMENT is not applicable here since this is
 #     not an ASP.NET Core host) — never committed to this repository; appsettings.json's own
