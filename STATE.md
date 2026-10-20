@@ -55,11 +55,12 @@ Full narrative for Done/Log items to 12/08/2026: `docs/harness/STATE-archive.md`
 - [x] Production storage-root guard (`BlobStorageRoot`: Production refuses blank, relative, or content-root/base-directory `Storage:LocalRootPath`; resolved once at startup; README §4, `vlms-web.service`, `configuration.md` updated; ASVS re-review row awaiting countersign) — 3e426f1; full gate exit 0, 421/421 tests. Path itself still Philip's (Decisions 5).
 - [x] Proactive parent notifications, BR-005 (`GuardianNotificationService`: completion/promotion emails from `CompletionService` after all saves, never throwing; consent reminders from `Vlms.Jobs` at 28/7/1 days before expiry plus a safeguarding-critical notice the day after lapse, no stored reminder state; recipients only linked, `Parent`-role, not-left guardians; no restricted data read; TC-015, RTM BR-005 covered, LLD updated; ASVS re-review row awaiting countersign) — 180ff05; full gate exit 0, 438/438 tests. First live send pending go-live.
 - [x] Stale deploy wording: `deploy/README.md` §4 publishes on the build machine and rsyncs to the server (no SDK on the server, matches `release.md` §2; its `[TBC – align]` note removed); `vlms-jobs.service`/`vlms-web.service` comments name the Graph secret, not SMTP — ee0cb13; full gate exit 0, 438/438 tests; `grep -ri smtp deploy/` empty.
+- [x] Microsoft 10.0.x packages aligned on 10.0.13 (11 references across Infrastructure, Jobs, Tests; Npgsql stays 10.0.3, its latest) — 3c97dfb; full gate exit 0, 438/438 tests; `dotnet list package --vulnerable --include-transitive` clean for all five projects. Migrations bundle not rebuilt (outside the gate).
 ## In progress
 _(none)_
 
 ## Next
-1. **Align Microsoft 10.0.x packages to 10.0.13** — only `System.Security.Cryptography.Xml`/`Pkcs` moved (f81df92); Identity, DataProtection, Logging and EF Core packages remain 10.0.10, and `Authorization`, `Components.Authorization`, `EntityFrameworkCore.Design` 10.0.0. Acceptance: all `Microsoft.*` 10.0.x references on one servicing version, `dotnet list package --vulnerable` clean, gate exits 0.
+_(empty: remaining items need Philip; see Decisions needed)_
 
 ## Decisions needed (Philip)
 Ordered by go-live critical path.
@@ -169,3 +170,4 @@ Ordered by go-live critical path.
 - 2026-10-20: Proactive parent notifications (BR-005) done (180ff05); reminder schedule 28/7/1 days + day after lapse chosen at build time (LLD), reviewable by Philip
 - 2026-10-20: Philip countersigned the ASVS re-review row for BR-005 (proactive parent notifications)
 - 2026-10-20: Stale deploy wording fixed (ee0cb13)
+- 2026-10-20: Microsoft packages aligned on 10.0.13 (3c97dfb); Next now empty, remaining work needs Philip
