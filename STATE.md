@@ -71,14 +71,13 @@ Ordered by go-live critical path.
 5. **Ops pack `[TBC – Philip]` markers** in `docs/operations/` — storage path (`Storage:LocalRootPath`, outside `/opt/vlms/web`), uptime monitor, journald retention, auto-reboot, SSH source restriction, R2 lifecycle period, RPO/RTO acceptance, break-glass, secrets store, log locations.
 6. **Palette and icon direction** — unblocks branding; WCAG 1.4.3/1.4.11 contrast is still open, so this is not cosmetic only.
 7. **Countersign** the ASVS and WCAG checklist rows signed by Claude since 2026-10-11 (ASVS BR-005 row countersigned 20/10/2026; the other ASVS rows from 2026-10-11 onwards and the WCAG rows still pending) (`docs/governance/asvs-access-control-checklist.md`, `docs/quality/wcag-2.2-aa-checklist.md`).
-8. **Stack wording in project law** — `docs/VISION.md:7` and `CLAUDE.md:15` still say "SMTP email"; Graph `sendMail` was decided 12/10/2026 (adr/0005 amendment). Confirm the edit to "Microsoft Graph email".
-9. **Go-ahead for hosting accounts** — all choices decided (DigitalOcean LON1 Basic 2 GiB/1 vCPU/50 GiB, $12/month; www.varangians.co.uk; backups to Cloudflare R2; Philip 12/10/2026). ADR-0005 requires explicit go-ahead before any account is created or anything provisioned.
+8. **Go-ahead for hosting accounts** — all choices decided (DigitalOcean LON1 Basic 2 GiB/1 vCPU/50 GiB, $12/month; www.varangians.co.uk; backups to Cloudflare R2; Philip 12/10/2026). ADR-0005 requires explicit go-ahead before any account is created or anything provisioned.
 
 ## Waiting on a decision or go-live
 - **Seed rank ladder + curriculum** (needs decision 1) — idempotent seed of the confirmed rows. Acceptance: re-runnable seed, tests, gate exits 0.
 - **Retention purge** (needs decision 2) — hard delete at 3y students / 6y DBS + audit log, by the chosen mechanism. Acceptance: purge implemented and tested, DPIA risk 7 updated, gate exits 0.
 - **Branding + WCAG colour contrast** (needs decision 6) — VLMS palette and icon replacing the template `src/Vlms.Web/wwwroot/app.css` and placeholder `wwwroot/icons/icon.svg`, then close "Colour contrast (1.4.3/1.4.11)" in `docs/quality/wcag-2.2-aa-checklist.md`. Acceptance: branding landed, contrast verified at 4.5:1 text / 3:1 UI, checklist item closed, gate exits 0.
-- **VPS go-live** (needs decision 9, the Next items, and seed/purge) — operator (Philip) work with a human-in-the-loop component. Create DigitalOcean and Cloudflare R2 accounts; A records for `varangians.co.uk` and `www` in Hostinger; create the Graph email secret (`deploy/README.md` §4 "Email secret"); harden SSH/firewall/unattended-upgrades per the ops pack; provision and deploy per `deploy/README.md` (§1 OS prep, §2 PostgreSQL/Caddy/.NET, §3 roles and grants, §4 publish, §5 systemd units, §6 Caddyfile, §7 verification). Go-live verification checklist (carried from Done items):
+- **VPS go-live** (needs decision 8, the Next items, and seed/purge) — operator (Philip) work with a human-in-the-loop component. Create DigitalOcean and Cloudflare R2 accounts; A records for `varangians.co.uk` and `www` in Hostinger; create the Graph email secret (`deploy/README.md` §4 "Email secret"); harden SSH/firewall/unattended-upgrades per the ops pack; provision and deploy per `deploy/README.md` (§1 OS prep, §2 PostgreSQL/Caddy/.NET, §3 roles and grants, §4 publish, §5 systemd units, §6 Caddyfile, §7 verification). Go-live verification checklist (carried from Done items):
   - DataProtection keys survive a service restart (README §7; 037d6d9)
   - migration bundle runs on the host via `deploy/migrate.sh` (2b0b8a5)
   - first live R2 run of `pg-backup.sh` and `files-backup.sh` (dac8d81)
@@ -171,3 +170,4 @@ Ordered by go-live critical path.
 - 2026-10-20: Philip countersigned the ASVS re-review row for BR-005 (proactive parent notifications)
 - 2026-10-20: Stale deploy wording fixed (ee0cb13)
 - 2026-10-20: Microsoft packages aligned on 10.0.13 (3c97dfb); Next now empty, remaining work needs Philip
+- 2026-10-20: Decision (Philip): project law names Microsoft Graph email, not SMTP; `docs/VISION.md` and `CLAUDE.md` hard constraints updated
