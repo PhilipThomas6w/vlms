@@ -38,6 +38,7 @@ Status: strategy (design gate) plus automated results (13/10/2026) — per ISO/I
 | TC-012 | A `StudentGuardianLink` cannot be created by parent self-service — only by Admin/Teacher at registration | `data-design.md` (Guardian link verification) |
 | TC-013 | A failed safeguarding-critical notification (expired consent/DBS) is retried, then escalated as a visible failure to Admin rather than silently dropped | `low-level-design.md` (NotificationService failure handling) |
 | TC-014 | Attempting `UPDATE`/`DELETE` against `SensitiveDataAccessLog` as the application's database principal is denied | `adr/0004-sensitive-data-access-control.md` (tamper protection) |
+| TC-015 | Parents get completion, promotion and consent-expiry emails: only linked, Admin-approved, not-left guardians; a failed send never fails the completion; reminders only on the scheduled days; no restricted data read | `functional.md` (Parent engagement), `low-level-design.md` (GuardianNotificationService) |
 
 Full RTM: `quality/traceability.md`.
 
@@ -63,6 +64,7 @@ Full RTM: `quality/traceability.md`.
 | TC-012 | `GuardianLinkServiceTests.CreateLinkAsync_ByParent_Throws_AndCreatesNoLink`, `RegisterGuardianAndLinkAsync_ByParent_Throws_AndCreatesNoGuardianOrLink`; `StudentRegistrationServiceTests.RegisterStudentWithNewGuardianAsync_ByParent_Throws_AndCreatesNoRows` | Pass | UAT-02 | Automated pass; UAT pending |
 | TC-013 | `NotificationServiceTests.SendAsync_SafeguardingCritical_AllAttemptsFail_ReturnsFailedAndEscalated_AndLogsError`, `…_SucceedsAfterRetries_ReturnsSentAfterRetry` | Pass | escalation visibility depends on the alert route (`operations/monitoring.md` §3, `[TBC – Philip]`) | Automated pass; alert route undecided |
 | TC-014 | `MigrationsTests.MigrationScript_RevokesUpdateAndDeleteFromPublic`, `MigrationScript_EnablesAndForcesRowLevelSecurity`, `MigrationScript_DoesNotDefinePermissiveUpdateOrDeletePolicy` (generated SQL only) | Pass | `deploy/README.md` §3 live `UPDATE` as `vlms_app` and `vlms_owner` must fail | Script verified; live check pending go-live |
+| TC-015 | `GuardianNotificationServiceTests` (17 cases, added 20/10/2026): `Completion_EmailsOnlyLinkedApprovedNotLeftGuardians`, `CompletingTheRank_AlsoEmailsThePromotion`, `FailingSend_DoesNotFailOrUndoTheCompletion`, `Reminder_SentOnScheduledDays`, `Reminder_NotSentOnOtherDays`, `LapsedConsent_DayAfterExpiry_SendsSafeguardingCriticalNotice`, `Notifications_ReadNoRestrictedData`, role gates | Pass | first real send pending go-live (Graph secret) | Automated pass; live send pending go-live |
 
 **Not covered by the TC list, recorded for completeness:** the end-to-end Blazor journeys named under Approach are covered by UAT, not by automated browser tests (none were built: a deliberate cost decision at this scale). WCAG 2.2 AA: automated gate stage plus `quality/wcag-2.2-aa-checklist.md`; colour contrast (1.4.3/1.4.11) is still open pending branding.
 

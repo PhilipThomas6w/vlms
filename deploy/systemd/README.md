@@ -27,7 +27,9 @@ because this STATE.md item was scoped narrowly to the scheduled-jobs retarget.
   ConnectionStrings__VlmsDatabase=Host=localhost;Database=vlms;Username=vlms_app;Password=<real password>
   Safeguarding__ExpiryWarningWindowDays=28
   GraphMail__ClientSecret=<written by the command in deploy/README.md §4 "Email secret">
+  App__PublicBaseUrl=https://www.varangians.co.uk
   ```
+  `App__PublicBaseUrl` is optional: it adds the parent-dashboard link to consent reminders.
   Mode `0640`, owned by `root:vlms` (readable by the `vlms` group, not world-readable) — never commit
   real values anywhere in this repository; `src/Vlms.Jobs/appsettings.json`'s checked-in values are
   placeholders by design (see its own `_comment` fields).

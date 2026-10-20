@@ -32,6 +32,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Vlms.Domain;
 using Vlms.Infrastructure;
+using Vlms.Infrastructure.Engagement;
 using Vlms.Infrastructure.Identity;
 using Vlms.Infrastructure.Notifications;
 using Vlms.Infrastructure.Safeguarding;
@@ -71,6 +72,11 @@ builder.Services.AddSingleton<IEmailSender>(sp =>
     new GraphEmailSender(GraphEmailOptions.FromConfiguration(sp.GetRequiredService<IConfiguration>())));
 builder.Services.AddSingleton<INotificationService, NotificationService>();
 builder.Services.AddScoped<ConsentExpiryNotifier>();
+// Parent consent-expiry reminders (BR-005; GuardianNotificationService's doc comment for the schedule).
+builder.Services.AddScoped(sp => new GuardianNotificationService(
+    sp.GetRequiredService<VlmsDbContext>(), sp.GetRequiredService<ICurrentUserContext>(),
+    sp.GetRequiredService<INotificationService>(), sp.GetRequiredService<ILogger<GuardianNotificationService>>(),
+    builder.Configuration["App:PublicBaseUrl"]));
 builder.Services.AddScoped<FirstAdminBootstrapService>();
 
 using var host = builder.Build();
@@ -98,6 +104,7 @@ if (bootstrapEmail is not null)
 
 var job = scope.ServiceProvider.GetRequiredService<ConsentExpiryJob>();
 var notifier = scope.ServiceProvider.GetRequiredService<ConsentExpiryNotifier>();
+var guardianNotifications = scope.ServiceProvider.GetRequiredService<GuardianNotificationService>();
 var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
 
 try
@@ -112,6 +119,9 @@ try
     logger.LogInformation(
         "ConsentExpiryNotifier sent {NotificationCount} safeguarding-critical notification(s).",
         notificationOutcomes.Count);
+
+    var reminderOutcomes = await guardianNotifications.SendConsentRemindersAsync(result, DateOnly.FromDateTime(DateTime.UtcNow));
+    logger.LogInformation("GuardianNotificationService sent {ReminderCount} parent consent reminder(s).", reminderOutcomes.Count);
 }
 catch (Exception ex)
 {

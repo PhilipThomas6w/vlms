@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Vlms.Domain;
+using Vlms.Infrastructure.Engagement;
 
 namespace Vlms.Infrastructure.Progress;
 
@@ -21,6 +22,9 @@ namespace Vlms.Infrastructure.Progress;
 /// <see cref="CertificateService.GenerateAsync"/> (data-design.md: a <see cref="Certificate"/> is
 /// generated per completion, not just per promotion) — matching the order named in
 /// low-level-design.md ("triggers PromotionService check and CertificateService.Generate(...)").
+/// Then, when registered, <see cref="GuardianNotificationService.NotifyCompletionAsync"/> emails the
+/// student's guardians (BR-005); it runs after every save and never throws, so a mail failure can't
+/// undo or fail the completion.
 ///
 /// Not wrapped in a single explicit database transaction across all three steps: each service
 /// call SaveChanges()s its own work. Kept simple per VISION.md's "fewest moving parts" principle
@@ -62,13 +66,15 @@ public sealed class CompletionService
     private readonly PromotionService _promotionService;
     private readonly CertificateService _certificateService;
     private readonly int _reversalWindowDays;
+    private readonly GuardianNotificationService? _guardianNotifications;
 
     public CompletionService(
         VlmsDbContext db,
         ICurrentUserContext currentUser,
         PromotionService promotionService,
         CertificateService certificateService,
-        int reversalWindowDays = DefaultReversalWindowDays)
+        int reversalWindowDays = DefaultReversalWindowDays,
+        GuardianNotificationService? guardianNotifications = null)
     {
         if (reversalWindowDays < 1)
         {
@@ -80,6 +86,7 @@ public sealed class CompletionService
         _promotionService = promotionService;
         _certificateService = certificateService;
         _reversalWindowDays = reversalWindowDays;
+        _guardianNotifications = guardianNotifications;
     }
 
     /// <summary>
@@ -113,8 +120,13 @@ public sealed class CompletionService
         _db.StudentLessonCompletions.Add(completion);
         await _db.SaveChangesAsync(ct);
 
-        await _promotionService.CheckAndPromoteAsync(studentId, ct);
+        var promoted = await _promotionService.CheckAndPromoteAsync(studentId, ct);
         await _certificateService.GenerateAsync(completion.Id, ct);
+
+        if (_guardianNotifications is not null)
+        {
+            await _guardianNotifications.NotifyCompletionAsync(completion.Id, promoted, ct);
+        }
 
         return completion;
     }

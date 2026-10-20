@@ -149,6 +149,12 @@ var blobRootPath = BlobStorageRoot.Resolve(
 builder.Services.AddScoped<IBlobStorage>(_ => new LocalDiskBlobStorage(blobRootPath));
 builder.Services.AddScoped<PromotionService>();
 builder.Services.AddScoped<CertificateService>();
+// Proactive parent emails on completion/promotion (BR-005, GuardianNotificationService's doc comment);
+// CompletionService takes it as an optional dependency. The dashboard link uses App:PublicBaseUrl.
+builder.Services.AddScoped(sp => new GuardianNotificationService(
+    sp.GetRequiredService<VlmsDbContext>(), sp.GetRequiredService<ICurrentUserContext>(),
+    sp.GetRequiredService<INotificationService>(), sp.GetRequiredService<ILogger<GuardianNotificationService>>(),
+    builder.Configuration["App:PublicBaseUrl"]));
 builder.Services.AddScoped<CompletionService>();
 
 // --- Notifications (adr/0001-technology-stack.md, low-level-design.md "NotificationService") —
