@@ -69,7 +69,7 @@ Ordered by go-live critical path.
 4. **DPIA and privacy notice** — controller, lawful bases/Art 9, DBS (Schedule 1) conditions, processor locations, sign-off (`governance/dpia.md`, `governance/privacy-notice.md`); and whether ICO registration applies (to verify, not asserted here).
 5. **Ops pack `[TBC – Philip]` markers** in `docs/operations/` — storage path (`Storage:LocalRootPath`, outside `/opt/vlms/web`), uptime monitor, journald retention, auto-reboot, SSH source restriction, R2 lifecycle period, RPO/RTO acceptance, break-glass, secrets store, log locations.
 6. **Palette and icon direction** — unblocks branding; WCAG 1.4.3/1.4.11 contrast is still open, so this is not cosmetic only.
-7. **Countersign** the ASVS and WCAG checklist rows signed by Claude since 2026-10-11 (`docs/governance/asvs-access-control-checklist.md`, `docs/quality/wcag-2.2-aa-checklist.md`).
+7. **Countersign** the ASVS and WCAG checklist rows signed by Claude since 2026-10-11 (ASVS BR-005 row countersigned 20/10/2026; the other ASVS rows from 2026-10-11 onwards and the WCAG rows still pending) (`docs/governance/asvs-access-control-checklist.md`, `docs/quality/wcag-2.2-aa-checklist.md`).
 8. **Stack wording in project law** — `docs/VISION.md:7` and `CLAUDE.md:15` still say "SMTP email"; Graph `sendMail` was decided 12/10/2026 (adr/0005 amendment). Confirm the edit to "Microsoft Graph email".
 9. **Go-ahead for hosting accounts** — all choices decided (DigitalOcean LON1 Basic 2 GiB/1 vCPU/50 GiB, $12/month; www.varangians.co.uk; backups to Cloudflare R2; Philip 12/10/2026). ADR-0005 requires explicit go-ahead before any account is created or anything provisioned.
 
@@ -167,3 +167,4 @@ Ordered by go-live critical path.
 - 2026-10-20: STATE.md review: Blocked split into Decisions needed (critical-path order) and Waiting; go-live verification checklist collected from Done footnotes; Next queued with storage-root guard, BR-005 parent notifications, stale deploy wording
 - 2026-10-20: Production storage-root guard done (3e426f1); queued 10.0.13 package alignment (Philip asked)
 - 2026-10-20: Proactive parent notifications (BR-005) done (180ff05); reminder schedule 28/7/1 days + day after lapse chosen at build time (LLD), reviewable by Philip
+- 2026-10-20: Philip countersigned the ASVS re-review row for BR-005 (proactive parent notifications)
