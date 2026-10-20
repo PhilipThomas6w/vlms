@@ -64,6 +64,9 @@ Environment=DataProtection__KeysPath=/var/lib/vlms/keys
 # Host filtering: Vlms.Web refuses to start in Production without an explicit list (WebHardening).
 # Only www reaches Kestrel — the Caddyfile redirects the bare domain. Not a secret, so set here.
 Environment=AllowedHosts=www.varangians.co.uk
+# Certificate storage: Storage__LocalRootPath goes in /etc/vlms/web.env and must be an absolute path
+# outside /opt/vlms/web, or Vlms.Web refuses to start (Storage/BlobStorageRoot.cs) — a release's
+# rsync --delete would otherwise wipe it. Must equal FILES_ROOT in /etc/vlms/backup.env.
 # Absolute links in emails (invites, confirmation, password reset). Must match the Caddyfile site.
 Environment=App__PublicBaseUrl=https://www.varangians.co.uk
 ExecStart=/usr/bin/dotnet /opt/vlms/web/Vlms.Web.dll

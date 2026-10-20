@@ -19,7 +19,7 @@ Configuration loads in the standard ASP.NET Core order: `appsettings.json` → `
 | `ASPNETCORE_URLS` | unit: `http://127.0.0.1:5000` | n/a | Must match `reverse_proxy` in the Caddyfile |
 | `Logging:LogLevel:*` | default | `Information`; `Microsoft.AspNetCore` `Warning` | |
 
-If `Storage:LocalRootPath` is left at its default, files land under `/opt/vlms/web/App_Data/blobs`, which the release `rsync --delete` (`release.md` §3) would wipe. A production value outside `/opt/vlms/web` is therefore required, not optional.
+If `Storage:LocalRootPath` is left at its default, files land under `/opt/vlms/web/App_Data/blobs`, which the release `rsync --delete` (`release.md` §3) would wipe. A production value outside `/opt/vlms/web` is therefore required, not optional: in Production, Vlms.Web refuses to start when it is blank, relative, or inside the content root or app base directory (`src/Vlms.Infrastructure/Storage/BlobStorageRoot.cs`).
 
 ## 2. `Vlms.Jobs`
 

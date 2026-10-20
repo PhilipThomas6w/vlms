@@ -193,6 +193,8 @@ by the `vlms` group, never world-readable), never committed anywhere in this rep
 - `/etc/vlms/backup.env` — see `deploy/backup/pg-backup.sh`'s own comment for the full variable
   list (`PGHOST`/`PGUSER=vlms_app`/`PGPASSWORD`/`BACKUP_S3_*`/`AWS_*`), plus `FILES_ROOT` for
   `deploy/backup/files-backup.sh` — the same path as `Storage__LocalRootPath` in `web.env`.
+  `Storage__LocalRootPath` is required in Production: Vlms.Web refuses to start if it is blank,
+  relative, or inside `/opt/vlms/web` (`BlobStorageRoot.cs`; `docs/operations/configuration.md`).
 
 ### Email secret (Microsoft Graph)
 

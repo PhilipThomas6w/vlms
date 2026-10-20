@@ -140,9 +140,13 @@ builder.Services.AddScoped<LeavingService>();
 // CertificateService/PromotionService into DI (previously "structurally correct, not yet wired" —
 // no page referenced any of them). "Storage:LocalRootPath" mirrors the "App" section above:
 // a local-dev default (LocalDiskBlobStorage.DefaultRootPath, App_Data/blobs) when unset, overridden
-// for a real deployment path via appsettings.json/an environment variable.
-builder.Services.AddScoped<IBlobStorage>(sp =>
-    new LocalDiskBlobStorage(sp.GetRequiredService<IConfiguration>().GetValue<string>("Storage:LocalRootPath")));
+// for a real deployment path via appsettings.json/an environment variable. Resolved here, at startup,
+// so Production refuses a blank, relative or in-app-directory root (BlobStorageRoot's doc comment).
+var blobRootPath = BlobStorageRoot.Resolve(
+    builder.Configuration[BlobStorageRoot.RootPathKey],
+    requireExternalRoot: builder.Environment.IsProduction(),
+    builder.Environment.ContentRootPath, AppContext.BaseDirectory);
+builder.Services.AddScoped<IBlobStorage>(_ => new LocalDiskBlobStorage(blobRootPath));
 builder.Services.AddScoped<PromotionService>();
 builder.Services.AddScoped<CertificateService>();
 builder.Services.AddScoped<CompletionService>();
