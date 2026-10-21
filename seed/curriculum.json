@@ -1,0 +1,151 @@
+{
+  "$comment": "Cleansed curriculum manifest (confirmed by Philip 21/10/2026). Titles from the lesson folder names, tidied; tags from the strand headings in the VG syllabus scheme (seed/Admin, not versioned). 'source' is the lesson folder relative to the seed content root, which is supplied at seed time and not committed. Ranks 8-10 (Cross-bearer, Christ-bearer, Akolouthos) are seeded empty, to be filled later. 'placeholder' marks a lesson with no real document yet.",
+  "tags": [
+    "Church Life",
+    "Worship",
+    "Church Interior",
+    "Mysteries",
+    "Prayers",
+    "Saints",
+    "Church History",
+    "Old Testament",
+    "New Testament",
+    "Church Year",
+    "Christian Life"
+  ],
+  "ranks": [
+    {
+      "order": 1,
+      "code": "RECRUIT",
+      "name": "Recruit",
+      "source": "Recruits (1)",
+      "lessons": [
+        { "order": 1, "code": "R1-01", "title": "The Varangian Guard", "tags": ["Church History"], "source": "1. Varangian Guard" },
+        { "order": 2, "code": "R1-02", "title": "The Iconostasis", "tags": ["Church Interior"], "source": "2. Iconostasis" },
+        { "order": 3, "code": "R1-03", "title": "Common Icons", "tags": ["Church Year"], "source": "3. Common Icons" },
+        { "order": 4, "code": "R1-04", "title": "Genesis and the Flood", "tags": ["Old Testament"], "source": "4. Genesis and The Flood" },
+        { "order": 5, "code": "R1-05", "title": "The Nativity of the Lord", "tags": ["New Testament"], "source": "5. Nativity of The Lord" },
+        { "order": 6, "code": "R1-06", "title": "The Gospel", "tags": ["Christian Life"], "source": "6. The Gospel" },
+        { "order": 7, "code": "R1-07", "title": "How to Behave in Church", "tags": ["Church Life"], "source": "7. How to Behave in Church" },
+        { "order": 8, "code": "R1-08", "title": "The Lord's Prayer", "tags": ["Prayers"], "source": "8. The Lord's Prayer" }
+      ]
+    },
+    {
+      "order": 2,
+      "code": "GUARDSMAN",
+      "name": "Guardsman",
+      "source": "Guardsman (2)",
+      "lessons": [
+        { "order": 1, "code": "R2-01", "title": "Pentecost", "tags": ["Church History"], "source": "1 - Pentecost" },
+        { "order": 2, "code": "R2-02", "title": "St Stephen and the Martyrs", "tags": ["Church History"], "source": "2 - St Stephen and the Martyrs" },
+        { "order": 3, "code": "R2-03", "title": "The Ten Commandments", "tags": ["Christian Life"], "source": "3 - Ten Commandments - Christian Life" },
+        { "order": 4, "code": "R2-04", "title": "Theophany", "tags": ["New Testament"], "source": "4 - Theophany      New Testament" },
+        { "order": 5, "code": "R2-05", "title": "Holy Communion", "tags": ["Mysteries"], "source": "5 - Communion      The Mysteries" },
+        { "order": 6, "code": "R2-06", "title": "Feasts and Fasts", "tags": ["Church Year"], "source": "6 - Feasts& Fasts The Church Year" },
+        { "order": 7, "code": "R2-07", "title": "Moses in Egypt", "tags": ["Old Testament"], "source": "7 - Moses in Egypt - Old Testament" },
+        { "order": 8, "code": "R2-08", "title": "Know Your Saint", "tags": ["Saints"], "source": "8 - Know Your Saint   Saints" }
+      ]
+    },
+    {
+      "order": 3,
+      "code": "SHIELD-BEARER",
+      "name": "Shield-bearer",
+      "source": "Shieldbearer (3)",
+      "lessons": [
+        { "order": 1, "code": "R3-01", "title": "The Trisagion Prayers", "tags": ["Prayers"], "source": "1 - Trisagion prayers" },
+        { "order": 2, "code": "R3-02", "title": "Love Your Neighbour", "tags": ["Christian Life"], "source": "2 - Christian Life" },
+        { "order": 3, "code": "R3-03", "title": "Moses and the Ten Plagues", "tags": ["Old Testament"], "source": "3 - OT Moses in Egypt The Plagues" },
+        { "order": 4, "code": "R3-04", "title": "The Early Church", "tags": ["Church History"], "source": "4 - Early Church" },
+        { "order": 5, "code": "R3-05", "title": "The Patronal Icon", "tags": ["Church Interior"], "source": "5 - Patronal icon  Church Interior" },
+        { "order": 6, "code": "R3-06", "title": "St Paul", "tags": ["Saints"], "source": "6 - St Paul" },
+        { "order": 7, "code": "R3-07", "title": "Baptism and Chrismation", "tags": ["Mysteries"], "source": "7 - Baptism & Chrismation" },
+        { "order": 8, "code": "R3-08", "title": "The Crucifixion", "tags": ["New Testament"], "source": "8 - Crucifixion" }
+      ]
+    },
+    {
+      "order": 4,
+      "code": "SWORD-BEARER",
+      "name": "Sword-bearer",
+      "source": "Sword Bearer (4)",
+      "lessons": [
+        { "order": 1, "code": "R4-01", "title": "The Holy Table", "tags": ["Church Interior"], "source": "1 - Church Interior - Holy Table" },
+        { "order": 2, "code": "R4-02", "title": "Pascha", "tags": ["Worship"], "source": "2 - Worship - Pascha" },
+        { "order": 3, "code": "R4-03", "title": "Prayers to the Mother of God", "tags": ["Prayers"], "source": "3 - Prayers - Mother of God" },
+        { "order": 4, "code": "R4-04", "title": "Saints Nicholas, Demetrios and Spyridon", "tags": ["Saints"], "source": "4 - Saints - Nicholas, Demetrios, Spyridon" },
+        { "order": 5, "code": "R4-05", "title": "Constantine the Great", "tags": ["Church History"], "source": "5 - History - Constantine the Great" },
+        { "order": 6, "code": "R4-06", "title": "Moses and the Tabernacle", "tags": ["Old Testament"], "source": "6 - OT Moses & Tabernacle" },
+        { "order": 7, "code": "R4-07", "title": "The Resurrection", "tags": ["New Testament"], "source": "7 - NT - Resurrection" },
+        { "order": 8, "code": "R4-08", "title": "Feasts of the Mother of God", "tags": ["Church Year"], "source": "8 - Church Year - Feasts of the Mother of God" }
+      ]
+    },
+    {
+      "order": 5,
+      "code": "HERALD",
+      "name": "Herald",
+      "source": "Herald (5)",
+      "lessons": [
+        { "order": 1, "code": "R5-01", "title": "Prosphora", "tags": ["Church Life"], "source": "1. Prosphora" },
+        { "order": 2, "code": "R5-02", "title": "The Divine Liturgy", "tags": ["Mysteries"], "source": "2. The Divine Liturgy" },
+        { "order": 3, "code": "R5-03", "title": "The Three Holy Hierarchs", "tags": ["Saints"], "source": "3. Three Holy Heirarchs" },
+        { "order": 4, "code": "R5-04", "title": "Saint Justinian", "tags": ["Church History"], "source": "4. Saint Justinian" },
+        { "order": 5, "code": "R5-05", "title": "The Prophet Elijah", "tags": ["Old Testament"], "source": "5. Prophet Elijah" },
+        { "order": 6, "code": "R5-06", "title": "Miracles", "tags": ["New Testament"], "source": "6. Miracles" },
+        { "order": 7, "code": "R5-07", "title": "Feasts of the Lord", "tags": ["Church Year"], "source": "7. Feasts of The Lord" },
+        { "order": 8, "code": "R5-08", "title": "Communion Prayers", "tags": ["Christian Life"], "source": "8. Communion Prayers" }
+      ]
+    },
+    {
+      "order": 6,
+      "code": "TORCH-BEARER",
+      "name": "Torch-bearer",
+      "source": "Torch-bearer (6)",
+      "lessons": [
+        { "order": 1, "code": "R6-01", "title": "Artoklasia and Mnimosina", "tags": ["Church Life"], "source": "1. Artoklasia and Mnimosina" },
+        { "order": 2, "code": "R6-02", "title": "The Epitaphios", "tags": ["Church Interior"], "source": "2. Epitaphios" },
+        { "order": 3, "code": "R6-03", "title": "Holy Confession", "tags": ["Mysteries"], "source": "3. Holy Confession" },
+        { "order": 4, "code": "R6-04", "title": "Saint John of Damascus", "tags": ["Saints"], "source": "4. Saint John of Damascus" },
+        { "order": 5, "code": "R6-05", "title": "Iconoclasm and the 7th Ecumenical Council", "tags": ["Church History"], "source": "5. Iconoclasm and the 7th Ecumenical Council" },
+        { "order": 6, "code": "R6-06", "title": "The Prophet Isaiah", "tags": ["Old Testament"], "source": "6. Prophet Isaiah" },
+        { "order": 7, "code": "R6-07", "title": "Parables", "tags": ["New Testament"], "source": "7. Parables" },
+        { "order": 8, "code": "R6-08", "title": "The Parable of the Sheep and the Goats", "tags": ["Christian Life"], "source": "8 . Parable of the Sheep and the Goats" }
+      ]
+    },
+    {
+      "order": 7,
+      "code": "STANDARD-BEARER",
+      "name": "Standard-bearer",
+      "source": "Standard-bearer (7)",
+      "lessons": [
+        { "order": 1, "code": "R7-01", "title": "The Cathedra", "tags": ["Church Interior"], "source": "1. The Cathedra" },
+        { "order": 2, "code": "R7-02", "title": "Vespers", "tags": ["Worship"], "source": "2. Vespers" },
+        { "order": 3, "code": "R7-03", "title": "Holy Unction", "tags": ["Mysteries"], "source": "3. Holy Unction" },
+        { "order": 4, "code": "R7-04", "title": "The Crusades", "tags": ["Church History"], "source": "4. The Crusades" },
+        { "order": 5, "code": "R7-05", "title": "Saints Cyril and Methodius", "tags": ["Saints"], "source": "5. Saint Cyril and Saint Methodius" },
+        { "order": 6, "code": "R7-06", "title": "The Prophet Ezekiel", "tags": ["Old Testament"], "source": "6. Prophet Ezekiel" },
+        { "order": 7, "code": "R7-07", "title": "The Beatitudes", "tags": ["New Testament"], "source": "7. The Beatitudes", "placeholder": true },
+        { "order": 8, "code": "R7-08", "title": "The Icon Corner", "tags": ["Christian Life"], "source": "8. Icon Corner" }
+      ]
+    },
+    {
+      "order": 8,
+      "code": "CROSS-BEARER",
+      "name": "Cross-bearer",
+      "source": null,
+      "lessons": []
+    },
+    {
+      "order": 9,
+      "code": "CHRIST-BEARER",
+      "name": "Christ-bearer",
+      "source": null,
+      "lessons": []
+    },
+    {
+      "order": 10,
+      "code": "AKOLOUTHOS",
+      "name": "Akolouthos",
+      "source": null,
+      "lessons": []
+    }
+  ]
+}

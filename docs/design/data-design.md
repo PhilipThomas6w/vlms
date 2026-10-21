@@ -9,7 +9,7 @@ Relational model in self-hosted PostgreSQL, accessed via EF Core/Npgsql (see `ad
 | Entity | Key fields | Notes |
 |---|---|---|
 | `Rank` | Id, Order, Code, Name | The 10-level progression ladder. |
-| `Lesson` | Id, RankId, Code, Title, ContentBlobKey, IsActive | Current live version of a lesson's content. |
+| `Lesson` | Id, RankId, Code, Title, ContentBlobKey, IsActive | Current live version of a lesson's content. **Planned (Philip, 21/10/2026):** add `Order` (delivery order within the rank) and tags (fixed list, `requirements/functional.md`), and replace the single `ContentBlobKey` with several content files per lesson. |
 | `LessonChangeProposal` | Id, LessonId (nullable — null for a brand-new lesson), ProposedByUserId, ChangeType (Create/Edit/Retire), ProposedContent, Status (Pending/Approved/Rejected), ApproverUserId, ApprovalComments, SubmittedAt, DecidedAt, ResubmissionOfProposalId (self-referencing) | Any Teacher proposes; only Approver decides. Rejection supports comments + resubmission via `ResubmissionOfProposalId` chaining back to the original. Approving applies `ProposedContent` onto `Lesson`. |
 | `Student` | Id, Name, DOB, CurrentRankId, Status (Active/Inactive/Graduated), EnrolmentDate, AssignedTeacherUserId, AppUserId (nullable) | Duplicate-matching on Name+DOB at registration (carried over as a hypothesis — confirm at build time). `AppUserId` added during implementation to support self/parent login — see STATE.md. |
 | `ParentGuardian` | Id, Name, ContactInfo, IsPrimary, AppUserId (nullable) | `AppUserId` added during implementation to support self/parent login — see STATE.md. |

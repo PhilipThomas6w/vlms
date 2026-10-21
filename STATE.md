@@ -60,11 +60,12 @@ Full narrative for Done/Log items to 12/08/2026: `docs/harness/STATE-archive.md`
 _(none)_
 
 ## Next
-_(empty: remaining items need Philip; see Decisions needed)_
+- **Lesson model: order, tags, several files** — add `Lesson.Order` and tags (fixed list, `requirements/functional.md`), and replace the single `ContentBlobKey` with several content files per lesson. Update `CompletionService`/proposal flows and the lesson pages to match, and add an EF migration. Acceptance: migration, tests, data-design.md updated, gate exits 0.
+- **Seed rank ladder + curriculum** (after the lesson model item) — idempotent seeder that reads `seed/curriculum.json` plus a content root passed at run time (the files are not in git) and copies lesson files into blob storage. 10 ranks; ranks 8–10 (Cross-bearer, Christ-bearer, Akolouthos) have no lessons. The Beatitudes is a placeholder. Acceptance: re-runnable, tests (including a manifest-against-folder check), gate exits 0.
 
 ## Decisions needed (Philip)
 Ordered by go-live critical path.
-1. **Seed rank ladder + curriculum** — confirm the source rows (rank names/order, lesson list per rank). Unblocks: seed item.
+1. ~~Seed rank ladder + curriculum~~: resolved 21/10/2026. See `seed/curriculum.json` and `requirements/functional.md`.
 2. **Retention purge approach** — manually run `BYPASSRLS` maintenance role vs scheduled job (adr/0004 pass 8); only flagging exists (`RecordsDueForDeletionService.cs:30`). `vlms_app` must never get DELETE on `sensitive_data_access_logs`. DPIA residual risk 7. Unblocks: purge item.
 3. **Alert route** (ops pack) — DPIA residual risk 8; needed before go-live.
 4. **DPIA and privacy notice** — controller, lawful bases/Art 9, DBS (Schedule 1) conditions, processor locations, sign-off (`governance/dpia.md`, `governance/privacy-notice.md`); and whether ICO registration applies (to verify, not asserted here).
@@ -74,7 +75,7 @@ Ordered by go-live critical path.
 8. **Go-ahead for hosting accounts** — all choices decided (DigitalOcean LON1 Basic 2 GiB/1 vCPU/50 GiB, $12/month; www.varangians.co.uk; backups to Cloudflare R2; Philip 12/10/2026). ADR-0005 requires explicit go-ahead before any account is created or anything provisioned.
 
 ## Waiting on a decision or go-live
-- **Seed rank ladder + curriculum** (needs decision 1) — idempotent seed of the confirmed rows. Acceptance: re-runnable seed, tests, gate exits 0.
+- **Lesson content as in-app HTML** (post-MVP; Philip, 21/10/2026) — replace the `.docx` lesson documents with one printable HTML page per lesson, with handouts attached, viewed in the app without downloading. Needs a content-authoring/conversion approach and a sanitisation decision (ASVS) before build.
 - **Retention purge** (needs decision 2) — hard delete at 3y students / 6y DBS + audit log, by the chosen mechanism. Acceptance: purge implemented and tested, DPIA risk 7 updated, gate exits 0.
 - **Branding + WCAG colour contrast** (needs decision 6) — VLMS palette and icon replacing the template `src/Vlms.Web/wwwroot/app.css` and placeholder `wwwroot/icons/icon.svg`, then close "Colour contrast (1.4.3/1.4.11)" in `docs/quality/wcag-2.2-aa-checklist.md`. Acceptance: branding landed, contrast verified at 4.5:1 text / 3:1 UI, checklist item closed, gate exits 0.
 - **VPS go-live** (needs decision 8, the Next items, and seed/purge) — operator (Philip) work with a human-in-the-loop component. Create DigitalOcean and Cloudflare R2 accounts; A records for `varangians.co.uk` and `www` in Hostinger; create the Graph email secret (`deploy/README.md` §4 "Email secret"); harden SSH/firewall/unattended-upgrades per the ops pack; provision and deploy per `deploy/README.md` (§1 OS prep, §2 PostgreSQL/Caddy/.NET, §3 roles and grants, §4 publish, §5 systemd units, §6 Caddyfile, §7 verification). Go-live verification checklist (carried from Done items):
@@ -171,3 +172,4 @@ Ordered by go-live critical path.
 - 2026-10-20: Stale deploy wording fixed (ee0cb13)
 - 2026-10-20: Microsoft packages aligned on 10.0.13 (3c97dfb); Next now empty, remaining work needs Philip
 - 2026-10-20: Decision (Philip): project law names Microsoft Graph email, not SMTP; `docs/VISION.md` and `CLAUDE.md` hard constraints updated
+- 2026-10-21: Decision 1 resolved (Philip): curriculum cleansed into `seed/curriculum.json` (7 ranks × 8 lessons, tags from the syllabus strands; ranks 8–10 empty, Akolouthos as the tenth per Philip 22/10/2026). Seed content kept out of git (`.gitignore`; `Admin/` holds personal data); group list deleted; 57 `.doc` files converted to `.docx`; Beatitudes placeholder added. Lesson-model and seed items queued in Next.

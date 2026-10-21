@@ -8,6 +8,10 @@ Status: in progress
 - Only the Approver role can sign off / approve a proposed change before it goes live.
 - Review is ad hoc only — no scheduled/termly review prompt; teachers propose changes whenever they spot something worth changing.
 - Rejection supports comments and resubmission: the Approver can leave feedback on a rejected proposal, and the Teacher can revise and resubmit the same proposal (not just raise a fresh one).
+- Each lesson has a delivery order within its rank and one or more topic tags from a fixed list taken from the programme syllabus: Church Life, Worship, Church Interior, Mysteries, Prayers, Saints, Church History, Old Testament, New Testament, Church Year, Christian Life (Philip's decision, 21/10/2026).
+- A lesson can have several content files (a main document plus images and handouts), not a single file (Philip's decision, 21/10/2026).
+- The initial curriculum is seeded from `seed/curriculum.json`. Ranks 1–7 have 8 lessons each; Cross-bearer (8), Christ-bearer (9) and Akolouthos (10) are seeded with no lessons, to be filled later. The lesson files are supplied at seed time and are not committed to the repository (Philip's decision, 21/10/2026).
+- **Longer-term aim (post-MVP):** each lesson's content becomes a single printable HTML page, with handouts attached, that users read in the app without downloading anything. This replaces the current Word documents (Philip, 21/10/2026).
 
 ## Progress tracking (MVP)
 
