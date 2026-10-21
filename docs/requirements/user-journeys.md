@@ -58,7 +58,7 @@ Each step is marked:
 | 3 | Download a child's certificates | **Missing** | Certificates are listed as text only. Same read gap as J4 step 4. |
 | 4 | Browse and open all lessons to support learning at home | **Missing** | Same as J1 step 4. Scope: all ranks (Philip, 22/10/2026). |
 | 5 | Receive emails on completion, promotion and consent expiry | Built (untested live) | `GuardianNotificationService`. The first real send waits for go-live. |
-| 6 | Submit or renew the annual consent form | **Missing, to confirm** | Consent is entered by an Admin or Safeguarding Officer "on behalf of" the parent (`/safeguarding/consent`). FR-001 says only who approves, not who submits. |
+| 6 | Submit or renew the annual consent form | **Missing** | Consent is entered by an Admin or Safeguarding Officer "on behalf of" the parent (`/safeguarding/consent`). Decided 22/10/2026: parents complete and submit it in the app, and the Safeguarding Officer or Admin approves (FR-015). |
 
 ## J6. Admin: run the programme
 
@@ -95,5 +95,7 @@ Needed but smaller:
 8. Approver view that shows the proposal readably, compared with the current lesson (J3 step 2).
 9. Rank badge images (J6 step 5).
 
-To confirm with Philip:
-10. Should parents submit or renew consent themselves in the app, with the Safeguarding Officer approving (J5 step 6)?
+Decided (Philip, 22/10/2026):
+10. Parents submit the consent form in the app, and the Safeguarding Officer or Admin approves (FR-015).
+
+All ten gaps are requirements FR-006 to FR-015 in `functional.md` and are queued in `STATE.md`. Update each step's status here as its item lands.

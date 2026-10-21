@@ -39,6 +39,16 @@ Status: strategy (design gate) plus automated results (13/10/2026) — per ISO/I
 | TC-013 | A failed safeguarding-critical notification (expired consent/DBS) is retried, then escalated as a visible failure to Admin rather than silently dropped | `low-level-design.md` (NotificationService failure handling) |
 | TC-014 | Attempting `UPDATE`/`DELETE` against `SensitiveDataAccessLog` as the application's database principal is denied | `adr/0004-sensitive-data-access-control.md` (tamper protection) |
 | TC-015 | Parents get completion, promotion and consent-expiry emails: only linked, Admin-approved, not-left guardians; a failed send never fails the completion; reminders only on the scheduled days; no restricted data read | `functional.md` (Parent engagement), `low-level-design.md` (GuardianNotificationService) |
+| TC-016 | Every role (Teacher, Approver, Admin, Student, Parent) can browse the lesson library and open or download a lesson file; an anonymous request for a file is refused | `functional.md` FR-006 |
+| TC-017 | A teacher's uploaded file stays pending (visible to the proposer and Approvers only) until the Approver approves, then goes live; oversized or disallowed file types are rejected | `functional.md` FR-007 |
+| TC-018 | A teacher marks several students complete for a lesson in one action; a student with lapsed consent is reported as blocked, not skipped | `functional.md` FR-008 |
+| TC-019 | A teacher sees active students with current rank and progress, and can open a student's record | `functional.md` FR-009 |
+| TC-020 | A student, their linked parent, a teacher and an Admin can download a certificate; an unlinked parent cannot | `functional.md` FR-010 |
+| TC-021 | A student sees their own rank, completions, badges and certificates and no other student's | `functional.md` FR-011 |
+| TC-022 | Each role's home page and navigation show only that role's actions | `functional.md` FR-012 |
+| TC-023 | Admin and teacher edits to student details are saved; a teacher cannot change status | `functional.md` FR-013 |
+| TC-024 | An Admin sets a rank badge image and it shows on dashboards | `functional.md` FR-014 |
+| TC-025 | A parent submits the consent form for a linked child only; Safeguarding Officer or Admin approves or rejects with comments; the Approver role cannot; sensitive-detail reads are audit-logged | `functional.md` FR-015 |
 
 Full RTM: `quality/traceability.md`.
 

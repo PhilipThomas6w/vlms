@@ -6,6 +6,7 @@ Status: in progress (per ISO 31000:2018 — proportionate to a solo-delivered pr
 
 - **R-001:** Special-category/children's data (safeguarding, medical, consent, DBS) is managed in-system; a data-protection failure has real safeguarding consequences, not just reputational cost. Mitigation: `governance/security-compliance.md`, OWASP ASVS-aligned NFRs, and — added across three design-review passes — the `ConsentRecord`/`ConsentSensitiveDetails` entity split with structural whole-entity access control (`adr/0004-sensitive-data-access-control.md`: EF Core global query filters + `IMaterializationInterceptor`-based read audit log) and verified guardian-linking (`design/data-design.md`), closing gaps the initial design left open (no read-audit trail; no verification that a self-registering parent was genuinely a child's guardian; a masking mechanism that couldn't actually mask individual columns; an audit-write mechanism that couldn't reliably identify which entity was read).
 - **R-002:** Solo developer/maintainer — no delivery redundancy. Bus-factor risk for ongoing operation and support.
+- **R-003 (22/10/2026):** Further gaps between what is built and what users need, of the kind I-001 found. Mitigation: `requirements/user-journeys.md` is the acceptance reference; each item is done only when its journey steps work in the running app; and every journey is walked end to end before the delivery gate.
 
 ## Assumptions
 
@@ -15,7 +16,7 @@ Status: in progress (per ISO 31000:2018 — proportionate to a solo-delivered pr
 
 ## Issues
 
-- None currently open.
+- **I-001 (22/10/2026, open):** The MVP was reported as near-complete, but the app could not be used for its purpose. Lesson content could not be opened or uploaded, completions could not be recorded in the app, certificates could not be downloaded, and students had no page. Causes: discovery recorded lesson access as deferred; the user journeys were never written; acceptance was tested at service level only; and design review did not catch any of this. Resolution: FR-006 to FR-015 (`requirements/functional.md`), queued in `STATE.md`; delivery gate package superseded (`delivery-plan.md`).
 
 ## Dependencies
 

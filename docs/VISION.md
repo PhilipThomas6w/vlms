@@ -19,7 +19,9 @@ VLMS is a fresh .NET rebuild of the Varangians youth programme's rank-progressio
 - DPIA screening against ICO guidance is owed before go-live (`docs/governance/raid.md` D-003).
 
 ## Current increment: acceptance criteria
-MVP build, per `docs/delivery-plan.md` and `docs/requirements/functional.md`:
+MVP build, per `docs/delivery-plan.md` and `docs/requirements/functional.md`. A criterion is met only when a user in the named role can complete the matching journey in `docs/requirements/user-journeys.md` in the running app. Service-level tests alone are not enough (Philip, 22/10/2026, after the build was found unusable).
+- Lesson content: library browsing and file view/download for all roles; uploads through Approver-approved proposals (FR-006, FR-007).
+- Usable by every role: role-aware home page and navigation; teacher's student list; recording completions in the app; certificate download; student page; parent-submitted consent form (FR-008 to FR-015).
 - Curriculum management: propose / approve / reject-with-comments / resubmit workflow live and tested (TC-004, TC-005).
 - Progress tracking: lesson completion marking with Teacher self-correction, auto-promotion on rank completion, auto-generated PDF certificates, tracked badges (TC-001, TC-003).
 - Safeguarding & consent: `ConsentRecord`/`ConsentSensitiveDetails` split correctly enforced, DBS tracking, expiry blocks completion, guardian-link verification, read-audit logging with tamper protection (TC-002, TC-007, TC-008, TC-009, TC-011, TC-012, TC-014).
