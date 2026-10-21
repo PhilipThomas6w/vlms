@@ -99,3 +99,5 @@ Decided (Philip, 22/10/2026):
 10. Parents submit the consent form in the app, and the Safeguarding Officer or Admin approves (FR-015).
 
 All ten gaps are requirements FR-006 to FR-015 in `functional.md` and are queued in `STATE.md`. Update each step's status here as its item lands.
+
+Further decisions (Philip, 22/10/2026): students sign in with a username and password created by their parent (FR-011); student details come from the consent form, and only Admins assign teachers and change status (FR-013); parents view and update, and teachers view, consent details (FR-015); certificates are viewable and downloadable, with designs to come later (FR-010).

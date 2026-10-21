@@ -64,15 +64,26 @@ _(none)_
 ## Next
 Fit-for-purpose build plan (Philip, 22/10/2026; `docs/delivery-plan.md` phase 2, `docs/governance/raid.md` I-001). Acceptance for every item below: tests, gate exits 0, **and** the matching steps in `docs/requirements/user-journeys.md` work in the running app for each named role (checked by running it, not inferred from service tests), with their status updated there.
 
-- **Lesson library: view and download** (FR-006; go-live blocker) — add a read method to `IBlobStorage`/`LocalDiskBlobStorage` and an authorised file endpoint (signed-in Teacher/Approver/Admin/Student/Parent only, no public links; PDF and images shown inline, other types downloaded). Library page: every rank, lessons in delivery order, tags, files. Journeys J1.3–4, J2.1, J4.2, J5.4. TC-016. ASVS re-review.
-- **Seed rank ladder + curriculum** (after the lesson library) — idempotent seeder that reads `seed/curriculum.json` plus a content root passed at run time (the files are not in git) and copies lesson files into blob storage. 10 ranks; ranks 8–10 (Cross-bearer, Christ-bearer, Akolouthos) have no lessons. The Beatitudes is a placeholder. Acceptance: re-runnable, tests (including a manifest-against-folder check), gate exits 0.
-- **Home page and navigation per role** (FR-012) — replace the template `Home.razor` with role-aware next actions and add persistent navigation in `MainLayout`. Journey J1.2. TC-022.
-- **Teacher's student list** (FR-009) — active students with current rank and progress in rank, filter to "assigned to me", and a student record view (completions, badges, certificates). Assumption: all teachers see all active students (decision 11). Journey J1.6. TC-019.
-- **Record lesson completion** (FR-008) — a page on which a teacher picks a lesson and marks the attending students complete in one action through `CompletionService.MarkCompleteAsync`. Consent-blocked students are shown with the reason. Journey J1.7–8. TC-018.
-- **Certificate download** (FR-010) — certificate PDFs downloadable by the student, their linked parents, teachers and Admins through the authorised file endpoint; links on the parent dashboard and student record. Journeys J4.4, J5.3. TC-020.
-- **Lesson uploads and Approver review** (FR-007) — file upload on the proposal form, replacing the typed storage keys, with size and type limits. Pending files are visible to the proposer and Approvers only and go live on approval. The Approver page shows the proposal readably next to the current lesson, with both sets of files openable. Journeys J2.2, J3.2. TC-017. ASVS re-review (file upload).
-- **Edit student details** (FR-013) — Admin and teacher edit of name, date of birth and assigned teacher; status is Admin only (decision 11). Journey J6.3. TC-023.
-- **Rank badge images** (FR-014) — Admin uploads one image per rank; shown on dashboards. Journey J6.5. TC-024.
+Delegation (Philip, 22/10/2026): each item runs as a subagent in its own worktree, model in brackets. Items in a wave run in parallel; a wave starts when the items it depends on are merged into `master`.
+
+**Wave 1 (no dependencies)**
+- **Lesson library: view and download** (FR-006; go-live blocker) — add a read method to `IBlobStorage`/`LocalDiskBlobStorage` and an authorised file endpoint (signed-in Teacher/Approver/Admin/Student/Parent only, no public links; PDF and images shown inline, other types downloaded). Library page: every rank, lessons in delivery order, tags, files. Journeys J1.3–4, J2.1, J4.2, J5.4. TC-016. ASVS re-review. [Sonnet]
+- **Seed rank ladder + curriculum** (after the lesson library) — idempotent seeder that reads `seed/curriculum.json` plus a content root passed at run time (the files are not in git) and copies lesson files into blob storage. 10 ranks; ranks 8–10 (Cross-bearer, Christ-bearer, Akolouthos) have no lessons. The Beatitudes is a placeholder. Acceptance: re-runnable, tests (including a manifest-against-folder check), gate exits 0. [Sonnet]
+- **Teacher's student list** (FR-009) — active students with current rank and progress in rank, filter to "assigned to me", and a student record view (completions, badges, certificates). Journey J1.6. TC-019. [Sonnet]
+- **Record lesson completion** (FR-008) — a page on which a teacher picks a lesson and marks the attending students complete in one action through `CompletionService.MarkCompleteAsync`. Consent-blocked students are shown with the reason. Journey J1.7–8. TC-018. [Sonnet]
+- **Admin: assign teacher and change status** (FR-013) — Admin-only page and service to assign a student's teacher and change status, consistent with the existing "mark as left" flow. Journey J6.3. TC-023. [Sonnet]
+- **Parent consent form, and the consent access change** (FR-015, FR-013) — new ADR amending ADR-0004 (Teachers read, linked Parents read and update `ConsentSensitiveDetails`; every read audit-logged; `DbsCheck` unchanged). Parents complete and submit the annual form for each linked child, including the student's personal details. Safeguarding Officer or Admin approves, or rejects with comments; approval updates the student record. Teachers view consent details. Journey J5.6. TC-025. ASVS re-review; DPIA note. The only wave 1 item allowed an EF migration. [Opus]
+
+**Wave 2 (after the lesson library is merged)**
+- **Certificate download** (FR-010) — certificate PDFs viewable in the app and downloadable by the student, their linked parents, teachers and Admins through the authorised file endpoint; links on the parent dashboard and student record. Journeys J4.4, J5.3. TC-020. [Sonnet]
+- **Lesson uploads and Approver review** (FR-007) — file upload on the proposal form, replacing the typed storage keys, with size and type limits. Pending files are visible to the proposer and Approvers only and go live on approval. The Approver page shows the proposal readably next to the current lesson, with both sets of files openable. Journeys J2.2, J3.2. TC-017. ASVS re-review (file upload). [Sonnet; waits for the consent form item too if it needs a migration]
+- **Rank badge images** (FR-014) — Admin uploads one image per rank; shown on dashboards. Journey J6.5. TC-024. [Haiku]
+
+**Wave 3 (after the library, certificate download and consent form items)**
+- **Student accounts and student page** (FR-011) — parent creates and resets a username/password sign-in for each linked child (no email); student page with rank, completions, badges, certificates and a library link. Journeys J4.1, J4.3. TC-021. ASVS re-review (identity). [Opus]
+
+**Wave 4 (after all pages exist)**
+- **Home page and navigation per role** (FR-012) — replace the template `Home.razor` with role-aware next actions and add persistent navigation in `MainLayout`. Journey J1.2. TC-022. [Sonnet]
 
 ## Decisions needed (Philip)
 Ordered by go-live critical path.
@@ -84,14 +95,12 @@ Ordered by go-live critical path.
 6. **Palette and icon direction** — unblocks branding; WCAG 1.4.3/1.4.11 contrast is still open, so this is not cosmetic only.
 7. **Countersign** the ASVS and WCAG checklist rows signed by Claude since 2026-10-11 (ASVS BR-005 row countersigned 20/10/2026; the other ASVS rows from 2026-10-11 onwards and the WCAG rows still pending) (`docs/governance/asvs-access-control-checklist.md`, `docs/quality/wcag-2.2-aa-checklist.md`).
 8. **Go-ahead for hosting accounts** — all choices decided (DigitalOcean LON1 Basic 2 GiB/1 vCPU/50 GiB, $12/month; www.varangians.co.uk; backups to Cloudflare R2; Philip 12/10/2026). ADR-0005 requires explicit go-ahead before any account is created or anything provisioned.
-9. **Student accounts** (FR-011) — how students sign in, given many are young children without an email address. Options include parent-created student logins, a username without an email address, or students seeing everything through the parent account until old enough. Unblocks: student page.
-10. **Parent read-back of consent details** (FR-015) — ADR-0004 restricts reading `ConsentSensitiveDetails` to Admin and Safeguarding Officer. Decide whether a parent may view the medical/dietary/emergency details they submitted for their own linked child (ADR-0004 amendment, with an audit-log entry for each read) or only submit them. DPIA update follows either way. Unblocks: consent form.
-11. **Confirm assumptions** — any teacher sees all active students (FR-009); Admins and teachers edit name, date of birth and assigned teacher, Admin only for status (FR-013). Work proceeds on these unless changed.
-12. **Certificate template** (`governance/raid.md` D-001) — what the certificate PDF should look like. Download is decided as the delivery mechanism (FR-010).
+9. ~~Student accounts~~: resolved 22/10/2026. The parent creates a username and password for each linked child (FR-011).
+10. ~~Consent details access~~: resolved 22/10/2026. Linked parents view and update, and teachers view, `ConsentSensitiveDetails`; ADR-0004 amended by a new ADR (FR-015).
+11. ~~Student list and details~~: resolved 22/10/2026. Any teacher sees all active students; student details come from the consent form; only Admins assign teachers and change status (FR-009, FR-013).
+12. **Certificate designs** — to come later from Philip. Viewing and downloading in the app is decided (FR-010) and is built with the existing PDF in the meantime.
 
 ## Waiting on a decision or go-live
-- **Parent consent form** (FR-015; needs decision 10) — parents complete and submit the annual consent form for each linked child; Safeguarding Officer or Admin approves or rejects with comments; parent sees status and resubmits. ADR-0004 amendment if read-back is allowed; DPIA update. Journey J5.6. TC-025. ASVS re-review.
-- **Student accounts and student page** (FR-011; needs decision 9) — student sign-in by the chosen mechanism, and a student page showing rank, completions, badges, certificates and a link to the lesson library. Journeys J4.1, J4.3. TC-021.
 - **Lesson content as in-app HTML** (post-MVP; Philip, 21/10/2026) — replace the `.docx` lesson documents with one printable HTML page per lesson, with handouts attached, viewed in the app without downloading. Needs a content-authoring/conversion approach and a sanitisation decision (ASVS) before build.
 - **Retention purge** (needs decision 2) — hard delete at 3y students / 6y DBS + audit log, by the chosen mechanism. Acceptance: purge implemented and tested, DPIA risk 7 updated, gate exits 0.
 - **Branding + WCAG colour contrast** (needs decision 6) — VLMS palette and icon replacing the template `src/Vlms.Web/wwwroot/app.css` and placeholder `wwwroot/icons/icon.svg`, then close "Colour contrast (1.4.3/1.4.11)" in `docs/quality/wcag-2.2-aa-checklist.md`. Acceptance: branding landed, contrast verified at 4.5:1 text / 3:1 UI, checklist item closed, gate exits 0.
@@ -193,3 +202,4 @@ Ordered by go-live critical path.
 - 2026-10-22: Decision (Philip): Akolouthos seeded as a tenth, empty rank. Lesson model item done (c8c13f4)
 - 2026-10-22: Decision (Philip): lesson content access is the app's core requirement and a go-live blocker. Teachers, students and parents see all lessons in every rank; uploads go live only on Approver approval. Discovery had recorded it as deferred; the record is corrected in the requirements docs
 - 2026-10-22: User journeys written and walked against the app (4b5fcd0): app not fit for purpose. Lesson content, completion recording, certificate download, student page and home/navigation were missing. Plan rebuilt: FR-006 to FR-015, Next reordered, decisions 9–12 added, delivery gate package superseded. Decision (Philip): parents complete and submit the consent form in the app, with SO/Admin approval
+- 2026-10-22: Decisions 9–11 resolved and 12 partly (Philip); consent details access widened (ADR-0004 amendment to follow). Working model changed to subagents per item in worktrees, in dependency waves (CLAUDE.md)
