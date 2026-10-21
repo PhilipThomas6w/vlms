@@ -208,7 +208,7 @@ public sealed class ConsentExpiryJobTests : IDisposable
 
         using (var seed = CreateContext(SystemCurrentUserContext.Instance))
         {
-            seed.Context.Lessons.Add(new Lesson { Id = 1, RankId = 1, Code = "L1", Title = "Knots", ContentBlobKey = "b1", IsActive = true });
+            seed.Context.Lessons.Add(new Lesson { Id = 1, RankId = 1, Code = "L1", Title = "Knots", Order = 1, IsActive = true });
             seed.Context.AppUsers.Add(new AppUser { Id = 10, DisplayName = "Teacher One", Email = "t10@example.com" });
 
             // Disengaged: last completion 70 days ago (> 56-day threshold).

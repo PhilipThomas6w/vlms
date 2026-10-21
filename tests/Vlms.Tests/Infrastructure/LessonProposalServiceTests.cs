@@ -80,9 +80,11 @@ public sealed class LessonProposalServiceTests : IDisposable
             RankId = 1,
             Code = "L1",
             Title = "Knots 101",
-            ContentBlobKey = "blob/knots-101-v1",
+            Order = 1,
             IsActive = true
         });
+        context.LessonTagAssignments.Add(new LessonTagAssignment { LessonId = 1, Tag = LessonTag.ChristianLife });
+        context.LessonFiles.Add(new LessonFile { Id = 1, LessonId = 1, Order = 1, FileName = "Knots.docx", BlobKey = "blob/knots-101-v1" });
         context.SaveChanges();
     }
 
@@ -91,7 +93,9 @@ public sealed class LessonProposalServiceTests : IDisposable
         RankId = 1,
         Code = code,
         Title = title,
-        ContentBlobKey = $"blob/{code}-v1",
+        Order = 2,
+        Tags = [LessonTag.ChurchLife],
+        Files = [new ProposedLessonFile { FileName = $"{code}.docx", BlobKey = $"blob/{code}-v1" }],
         IsActive = isActive
     };
 
@@ -99,7 +103,13 @@ public sealed class LessonProposalServiceTests : IDisposable
     {
         Code = "L1",
         Title = "Knots 101 (revised)",
-        ContentBlobKey = "blob/knots-101-v2",
+        Order = 3,
+        Tags = [LessonTag.Prayers, LessonTag.Saints],
+        Files =
+        [
+            new ProposedLessonFile { FileName = "Knots v2.docx", BlobKey = "blob/knots-101-v2" },
+            new ProposedLessonFile { FileName = "Handout.pdf", BlobKey = "blob/knots-101-handout" }
+        ],
         IsActive = isActive
     };
 
@@ -157,7 +167,11 @@ public sealed class LessonProposalServiceTests : IDisposable
         using var verify = CreateContext(1, Role.Admin);
         var lesson = Assert.Single(verify.Context.Lessons.Where(l => l.Code == "L9"));
         Assert.Equal("Map Reading", lesson.Title);
+        Assert.Equal(2, lesson.Order);
         Assert.True(lesson.IsActive);
+        Assert.Equal([LessonTag.ChurchLife], verify.Context.LessonTagAssignments.Where(t => t.LessonId == lesson.Id).Select(t => t.Tag).ToList());
+        var file = Assert.Single(verify.Context.LessonFiles.Where(f => f.LessonId == lesson.Id));
+        Assert.Equal(("L9.docx", "blob/L9-v1", 1), (file.FileName, file.BlobKey, file.Order));
 
         var proposal = await verify.Context.LessonChangeProposals.SingleAsync(p => p.Id == proposalId);
         Assert.Equal(lesson.Id, proposal.LessonId);
@@ -183,8 +197,58 @@ public sealed class LessonProposalServiceTests : IDisposable
         using var verify = CreateContext(1, Role.Admin);
         var lesson = await verify.Context.Lessons.SingleAsync(l => l.Id == 1);
         Assert.Equal("Knots 101 (revised)", lesson.Title);
-        Assert.Equal("blob/knots-101-v2", lesson.ContentBlobKey);
+        Assert.Equal(3, lesson.Order);
         Assert.True(lesson.IsActive);
+
+        var tags = verify.Context.LessonTagAssignments.Where(t => t.LessonId == 1).Select(t => t.Tag).OrderBy(t => t).ToList();
+        Assert.Equal([LessonTag.Prayers, LessonTag.Saints], tags);
+
+        var files = verify.Context.LessonFiles.Where(f => f.LessonId == 1).OrderBy(f => f.Order)
+            .Select(f => new { f.Order, f.FileName, f.BlobKey }).ToList();
+        Assert.Equal(2, files.Count);
+        Assert.Equal((1, "Knots v2.docx", "blob/knots-101-v2"), (files[0].Order, files[0].FileName, files[0].BlobKey));
+        Assert.Equal((2, "Handout.pdf", "blob/knots-101-handout"), (files[1].Order, files[1].FileName, files[1].BlobKey));
+    }
+
+    [Fact]
+    public async Task ProposeAsync_WithNoTags_Throws()
+    {
+        using var teacher = CreateContext(10, Role.Teacher);
+        var content = new ProposedLessonContent
+        {
+            RankId = 1, Code = "L5", Title = "Untagged", Order = 1, Tags = [], Files = [], IsActive = true
+        };
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => teacher.Service.ProposeAsync(lessonId: null, LessonChangeType.Create, content, CancellationToken.None));
+        Assert.Contains("tag", ex.Message);
+    }
+
+    [Fact]
+    public async Task ProposeAsync_WithOrderBelowOne_Throws()
+    {
+        using var teacher = CreateContext(10, Role.Teacher);
+        var content = new ProposedLessonContent
+        {
+            RankId = 1, Code = "L5", Title = "Bad order", Order = 0, Tags = [LessonTag.Saints], Files = [], IsActive = true
+        };
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => teacher.Service.ProposeAsync(lessonId: null, LessonChangeType.Create, content, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task ProposeAsync_WithBlankFileLocation_Throws()
+    {
+        using var teacher = CreateContext(10, Role.Teacher);
+        var content = new ProposedLessonContent
+        {
+            RankId = 1, Code = "L5", Title = "Blank file", Order = 1, Tags = [LessonTag.Saints],
+            Files = [new ProposedLessonFile { FileName = "x.docx", BlobKey = " " }], IsActive = true
+        };
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => teacher.Service.ProposeAsync(lessonId: null, LessonChangeType.Create, content, CancellationToken.None));
     }
 
     [Fact]
@@ -319,6 +383,30 @@ public sealed class LessonProposalServiceTests : IDisposable
         var resubmission = await verify.Context.LessonChangeProposals.SingleAsync(p => p.Id == resubmissionId);
         Assert.Equal(originalId, resubmission.ResubmissionOfProposalId);
         Assert.NotEqual(originalId, resubmission.Id);
+    }
+
+    [Fact]
+    public async Task ResubmitAsync_WithNoTags_Throws()
+    {
+        int originalId;
+        using (var teacher = CreateContext(10, Role.Teacher))
+        {
+            originalId = (await teacher.Service.ProposeAsync(lessonId: 1, LessonChangeType.Edit, EditedLesson(), CancellationToken.None)).Id;
+        }
+
+        using (var approver = CreateContext(20, Role.Approver))
+        {
+            await approver.Service.RejectAsync(originalId, "Retag it.", CancellationToken.None);
+        }
+
+        using var resubmitter = CreateContext(10, Role.Teacher);
+        var untagged = new ProposedLessonContent
+        {
+            Code = "L1", Title = "Knots 101", Order = 1, Tags = [], Files = [], IsActive = true
+        };
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => resubmitter.Service.ResubmitAsync(originalId, untagged, CancellationToken.None));
     }
 
     [Fact]

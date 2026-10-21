@@ -17,7 +17,7 @@ namespace Vlms.Infrastructure.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.10")
+                .HasAnnotation("ProductVersion", "10.0.13")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -334,14 +334,13 @@ namespace Vlms.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("code");
 
-                    b.Property<string>("ContentBlobKey")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("content_blob_key");
-
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean")
                         .HasColumnName("is_active");
+
+                    b.Property<int>("Order")
+                        .HasColumnType("integer")
+                        .HasColumnName("order");
 
                     b.Property<int>("RankId")
                         .HasColumnType("integer")
@@ -354,7 +353,7 @@ namespace Vlms.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("RankId");
+                    b.HasIndex("RankId", "Order");
 
                     b.ToTable("lessons");
                 });
@@ -417,6 +416,52 @@ namespace Vlms.Infrastructure.Migrations
                     b.HasIndex("ResubmissionOfProposalId");
 
                     b.ToTable("lesson_change_proposals");
+                });
+
+            modelBuilder.Entity("Vlms.Domain.LessonFile", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    b.Property<string>("BlobKey")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("blob_key");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("file_name");
+
+                    b.Property<int>("LessonId")
+                        .HasColumnType("integer")
+                        .HasColumnName("lesson_id");
+
+                    b.Property<int>("Order")
+                        .HasColumnType("integer")
+                        .HasColumnName("order");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LessonId");
+
+                    b.ToTable("lesson_files");
+                });
+
+            modelBuilder.Entity("Vlms.Domain.LessonTagAssignment", b =>
+                {
+                    b.Property<int>("LessonId")
+                        .HasColumnType("integer")
+                        .HasColumnName("lesson_id");
+
+                    b.Property<int>("Tag")
+                        .HasColumnType("integer")
+                        .HasColumnName("tag");
+
+                    b.HasKey("LessonId", "Tag");
+
+                    b.ToTable("lesson_tag_assignments");
                 });
 
             modelBuilder.Entity("Vlms.Domain.ParentGuardian", b =>
@@ -968,6 +1013,28 @@ namespace Vlms.Infrastructure.Migrations
                     b.Navigation("ResubmissionOfProposal");
                 });
 
+            modelBuilder.Entity("Vlms.Domain.LessonFile", b =>
+                {
+                    b.HasOne("Vlms.Domain.Lesson", "Lesson")
+                        .WithMany("Files")
+                        .HasForeignKey("LessonId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Lesson");
+                });
+
+            modelBuilder.Entity("Vlms.Domain.LessonTagAssignment", b =>
+                {
+                    b.HasOne("Vlms.Domain.Lesson", "Lesson")
+                        .WithMany("Tags")
+                        .HasForeignKey("LessonId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Lesson");
+                });
+
             modelBuilder.Entity("Vlms.Domain.ParentGuardian", b =>
                 {
                     b.HasOne("Vlms.Domain.AppUser", "AppUser")
@@ -1132,6 +1199,10 @@ namespace Vlms.Infrastructure.Migrations
                     b.Navigation("ChangeProposals");
 
                     b.Navigation("Completions");
+
+                    b.Navigation("Files");
+
+                    b.Navigation("Tags");
                 });
 
             modelBuilder.Entity("Vlms.Domain.ParentGuardian", b =>

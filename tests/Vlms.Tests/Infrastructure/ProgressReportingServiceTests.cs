@@ -95,7 +95,7 @@ public sealed class ProgressReportingServiceTests : IDisposable
         db.Ranks.Add(new Rank { Id = 2, Order = 2, Code = "R2", Name = "Explorer" });
         db.Ranks.Add(new Rank { Id = 3, Order = 3, Code = "R3", Name = "Pioneer" });
 
-        db.Lessons.Add(new Lesson { Id = 1, RankId = 1, Code = "L1", Title = "Knots", ContentBlobKey = "b1", IsActive = true });
+        db.Lessons.Add(new Lesson { Id = 1, RankId = 1, Code = "L1", Title = "Knots", Order = 1, IsActive = true });
         db.AppUsers.Add(new AppUser { Id = 10, DisplayName = "Teacher One", Email = "t1@example.com" });
 
         // Active students: Alex + Bailey in Recruit (Rank 1), Casey in Explorer (Rank 2). Rank 3
@@ -171,7 +171,7 @@ public sealed class ProgressReportingServiceTests : IDisposable
             var db = seed.Context;
             db.Database.EnsureCreated();
             db.Ranks.Add(new Rank { Id = 1, Order = 1, Code = "R1", Name = "Recruit" });
-            db.Lessons.Add(new Lesson { Id = 1, RankId = 1, Code = "L1", Title = "Knots", ContentBlobKey = "b1", IsActive = true });
+            db.Lessons.Add(new Lesson { Id = 1, RankId = 1, Code = "L1", Title = "Knots", Order = 1, IsActive = true });
             db.AppUsers.Add(new AppUser { Id = 10, DisplayName = "Teacher One", Email = "t1@example.com" });
             db.ParentGuardians.Add(new ParentGuardian { Id = 900, Name = "Frankie's Parent", ContactInfo = "parent900@example.com", IsPrimary = true });
             db.Students.Add(NewStudent(900, "Frankie", StudentStatus.Active, 1, new DateOnly(2024, 1, 1)));
@@ -273,7 +273,7 @@ public sealed class ProgressReportingServiceTests : IDisposable
             db.Database.EnsureCreated();
 
             db.Ranks.Add(new Rank { Id = 1, Order = 1, Code = "R1", Name = "Recruit" });
-            db.Lessons.Add(new Lesson { Id = 1, RankId = 1, Code = "L1", Title = "Knots", ContentBlobKey = "b1", IsActive = true });
+            db.Lessons.Add(new Lesson { Id = 1, RankId = 1, Code = "L1", Title = "Knots", Order = 1, IsActive = true });
             db.AppUsers.Add(new AppUser { Id = 10, DisplayName = "Teacher One", Email = "t10@example.com" });
 
             // Disengaged: last completion 70 days ago (> 56-day threshold).

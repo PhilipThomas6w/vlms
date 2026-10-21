@@ -38,6 +38,8 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
 
     public DbSet<Rank> Ranks => Set<Rank>();
     public DbSet<Lesson> Lessons => Set<Lesson>();
+    public DbSet<LessonTagAssignment> LessonTagAssignments => Set<LessonTagAssignment>();
+    public DbSet<LessonFile> LessonFiles => Set<LessonFile>();
     public DbSet<LessonChangeProposal> LessonChangeProposals => Set<LessonChangeProposal>();
     public DbSet<Student> Students => Set<Student>();
     public DbSet<ParentGuardian> ParentGuardians => Set<ParentGuardian>();
@@ -85,6 +87,20 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
             e.Property(x => x.Id).ValueGeneratedNever();
             e.HasMany(x => x.ChangeProposals).WithOne(x => x.Lesson).HasForeignKey(x => x.LessonId).OnDelete(DeleteBehavior.Restrict);
             e.HasMany(x => x.Completions).WithOne(x => x.Lesson).HasForeignKey(x => x.LessonId).OnDelete(DeleteBehavior.Restrict);
+            e.HasMany(x => x.Tags).WithOne(x => x.Lesson).HasForeignKey(x => x.LessonId).OnDelete(DeleteBehavior.Cascade);
+            e.HasMany(x => x.Files).WithOne(x => x.Lesson).HasForeignKey(x => x.LessonId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => new { x.RankId, x.Order });
+        });
+
+        modelBuilder.Entity<LessonTagAssignment>(e =>
+        {
+            e.HasKey(x => new { x.LessonId, x.Tag });
+        });
+
+        modelBuilder.Entity<LessonFile>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
         });
 
         modelBuilder.Entity<LessonChangeProposal>(e =>

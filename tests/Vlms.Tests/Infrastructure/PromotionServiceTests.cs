@@ -111,7 +111,7 @@ public sealed class PromotionServiceTests : IDisposable
     {
         using (var setup = CreateContext())
         {
-            setup.Context.Lessons.Add(new Lesson { Id = 1, RankId = 1, Code = "L1", Title = "Knots", ContentBlobKey = "blob/l1", IsActive = true });
+            setup.Context.Lessons.Add(new Lesson { Id = 1, RankId = 1, Code = "L1", Title = "Knots", Order = 1, IsActive = true });
             setup.Context.SaveChanges();
             SeedStudentAtRank1(setup.Context);
             Complete(setup.Context, id: 1, studentId: 100, lessonId: 1);
@@ -138,8 +138,8 @@ public sealed class PromotionServiceTests : IDisposable
     {
         using (var setup = CreateContext())
         {
-            setup.Context.Lessons.Add(new Lesson { Id = 1, RankId = 1, Code = "L1", Title = "Knots", ContentBlobKey = "blob/l1", IsActive = true });
-            setup.Context.Lessons.Add(new Lesson { Id = 2, RankId = 1, Code = "L2", Title = "First Aid", ContentBlobKey = "blob/l2", IsActive = true });
+            setup.Context.Lessons.Add(new Lesson { Id = 1, RankId = 1, Code = "L1", Title = "Knots", Order = 1, IsActive = true });
+            setup.Context.Lessons.Add(new Lesson { Id = 2, RankId = 1, Code = "L2", Title = "First Aid", Order = 1, IsActive = true });
             setup.Context.SaveChanges();
             SeedStudentAtRank1(setup.Context);
             Complete(setup.Context, id: 1, studentId: 100, lessonId: 1); // only one of two lessons done
@@ -162,7 +162,7 @@ public sealed class PromotionServiceTests : IDisposable
     {
         using (var setup = CreateContext())
         {
-            setup.Context.Lessons.Add(new Lesson { Id = 1, RankId = 1, Code = "L1", Title = "Knots", ContentBlobKey = "blob/l1", IsActive = true });
+            setup.Context.Lessons.Add(new Lesson { Id = 1, RankId = 1, Code = "L1", Title = "Knots", Order = 1, IsActive = true });
             setup.Context.SaveChanges();
             SeedStudentAtRank1(setup.Context);
             Complete(setup.Context, id: 1, studentId: 100, lessonId: 1, isReversed: true);
@@ -178,7 +178,7 @@ public sealed class PromotionServiceTests : IDisposable
     {
         using (var setup = CreateContext())
         {
-            setup.Context.Lessons.Add(new Lesson { Id = 1, RankId = 1, Code = "L1", Title = "Knots", ContentBlobKey = "blob/l1", IsActive = true });
+            setup.Context.Lessons.Add(new Lesson { Id = 1, RankId = 1, Code = "L1", Title = "Knots", Order = 1, IsActive = true });
             setup.Context.RankBadges.Add(new RankBadge { Id = 1, RankId = 1, ImageBlobKey = "blob/badge-recruit" });
             setup.Context.SaveChanges();
             SeedStudentAtRank1(setup.Context);
@@ -198,7 +198,7 @@ public sealed class PromotionServiceTests : IDisposable
     {
         using (var setup = CreateContext())
         {
-            setup.Context.Lessons.Add(new Lesson { Id = 1, RankId = 1, Code = "L1", Title = "Knots", ContentBlobKey = "blob/l1", IsActive = true });
+            setup.Context.Lessons.Add(new Lesson { Id = 1, RankId = 1, Code = "L1", Title = "Knots", Order = 1, IsActive = true });
             setup.Context.SaveChanges();
             SeedStudentAtRank1(setup.Context);
             Complete(setup.Context, id: 1, studentId: 100, lessonId: 1);
@@ -217,7 +217,7 @@ public sealed class PromotionServiceTests : IDisposable
     {
         using (var setup = CreateContext())
         {
-            setup.Context.Lessons.Add(new Lesson { Id = 2, RankId = 2, Code = "L2", Title = "Leadership", ContentBlobKey = "blob/l2", IsActive = true });
+            setup.Context.Lessons.Add(new Lesson { Id = 2, RankId = 2, Code = "L2", Title = "Leadership", Order = 1, IsActive = true });
             setup.Context.Students.Add(new Student
             {
                 Id = 100,

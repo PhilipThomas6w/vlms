@@ -156,6 +156,8 @@ public sealed class LessonProposalService
                 $"Only a rejected proposal can be resubmitted (proposal {originalProposalId} has Status={original.Status}).");
         }
 
+        await ValidateLessonReferenceAsync(original.LessonId, original.ChangeType, content, ct);
+
         var resubmission = new LessonChangeProposal
         {
             Id = await NextId(_db.LessonChangeProposals, ct),
@@ -184,10 +186,11 @@ public sealed class LessonProposalService
                     ?? throw new InvalidOperationException("RankId is required to create a new Lesson."),
                 Code = content.Code,
                 Title = content.Title,
-                ContentBlobKey = content.ContentBlobKey,
+                Order = content.Order,
                 IsActive = content.IsActive
             };
             _db.Lessons.Add(newLesson);
+            await ReplaceTagsAndFilesAsync(newLesson.Id, content, ct);
             return newLesson.Id;
         }
 
@@ -198,10 +201,39 @@ public sealed class LessonProposalService
             RankId = content.RankId ?? lesson.RankId,
             Code = content.Code,
             Title = content.Title,
-            ContentBlobKey = content.ContentBlobKey,
+            Order = content.Order,
             IsActive = content.IsActive
         });
+        await ReplaceTagsAndFilesAsync(lesson.Id, content, ct);
         return lesson.Id;
+    }
+
+    // Tags and files are replaced wholesale (see ProposedLessonContent). Only the database
+    // rows change: the blobs themselves are left in storage, as certificate PDFs are.
+    private async Task ReplaceTagsAndFilesAsync(int lessonId, ProposedLessonContent content, CancellationToken ct)
+    {
+        _db.LessonTagAssignments.RemoveRange(
+            await _db.LessonTagAssignments.Where(t => t.LessonId == lessonId).ToListAsync(ct));
+        _db.LessonFiles.RemoveRange(
+            await _db.LessonFiles.Where(f => f.LessonId == lessonId).ToListAsync(ct));
+
+        foreach (var tag in content.Tags.Distinct())
+        {
+            _db.LessonTagAssignments.Add(new LessonTagAssignment { LessonId = lessonId, Tag = tag });
+        }
+
+        var nextFileId = (await _db.LessonFiles.Select(x => (int?)x.Id).MaxAsync(ct) ?? 0) + 1;
+        for (var i = 0; i < content.Files.Count; i++)
+        {
+            _db.LessonFiles.Add(new LessonFile
+            {
+                Id = nextFileId + i,
+                LessonId = lessonId,
+                Order = i + 1,
+                FileName = content.Files[i].FileName,
+                BlobKey = content.Files[i].BlobKey
+            });
+        }
     }
 
     private static async Task ValidateLessonReferenceAsync(
@@ -220,6 +252,21 @@ public sealed class LessonProposalService
         if (changeType == LessonChangeType.Retire && content.IsActive)
         {
             throw new InvalidOperationException("A Retire proposal's content must set IsActive to false.");
+        }
+
+        if (content.Order < 1)
+        {
+            throw new InvalidOperationException("A lesson's Order must be 1 or more.");
+        }
+
+        if (content.Tags.Count == 0)
+        {
+            throw new InvalidOperationException("A lesson must have at least one tag.");
+        }
+
+        if (content.Files.Any(f => string.IsNullOrWhiteSpace(f.FileName) || string.IsNullOrWhiteSpace(f.BlobKey)))
+        {
+            throw new InvalidOperationException("Every lesson file needs a file name and a content location.");
         }
 
         await Task.CompletedTask;

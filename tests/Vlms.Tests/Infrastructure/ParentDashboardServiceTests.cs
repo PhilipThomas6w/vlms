@@ -35,8 +35,8 @@ public sealed class ParentDashboardServiceTests : IDisposable
         schema.Context.Database.EnsureCreated();
 
         schema.Context.Ranks.Add(new Rank { Id = 1, Order = 1, Code = "R1", Name = "Recruit" });
-        schema.Context.Lessons.Add(new Lesson { Id = 1, RankId = 1, Code = "L1", Title = "Knots 101", ContentBlobKey = "blob/l1", IsActive = true });
-        schema.Context.Lessons.Add(new Lesson { Id = 2, RankId = 1, Code = "L2", Title = "Fire Safety", ContentBlobKey = "blob/l2", IsActive = true });
+        schema.Context.Lessons.Add(new Lesson { Id = 1, RankId = 1, Code = "L1", Title = "Knots 101", Order = 1, IsActive = true });
+        schema.Context.Lessons.Add(new Lesson { Id = 2, RankId = 1, Code = "L2", Title = "Fire Safety", Order = 1, IsActive = true });
         schema.Context.RankBadges.Add(new RankBadge { Id = 1, RankId = 1, ImageBlobKey = "badges/recruit.png" });
         schema.Context.AppUsers.Add(new AppUser { Id = 10, DisplayName = "Teacher One", Email = "teacher1@example.com" });
 

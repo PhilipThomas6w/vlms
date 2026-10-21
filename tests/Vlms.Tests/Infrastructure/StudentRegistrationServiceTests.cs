@@ -295,7 +295,7 @@ public sealed class StudentRegistrationServiceTests : IDisposable
         int studentId;
         using (var admin = CreateContext(1, Role.Admin))
         {
-            admin.Context.Lessons.Add(new Lesson { Id = 1, RankId = 1, Code = "L1", Title = "Knots", ContentBlobKey = "blob/l1", IsActive = true });
+            admin.Context.Lessons.Add(new Lesson { Id = 1, RankId = 1, Code = "L1", Title = "Knots", Order = 1, IsActive = true });
             admin.Context.SaveChanges();
 
             var (registeredStudent, _, _, _) = await admin.Service.RegisterStudentWithNewGuardianAsync(
