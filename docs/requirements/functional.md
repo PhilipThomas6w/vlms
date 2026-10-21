@@ -11,6 +11,12 @@ Status: in progress
 - Each lesson has a delivery order within its rank and one or more topic tags from a fixed list taken from the programme syllabus: Church Life, Worship, Church Interior, Mysteries, Prayers, Saints, Church History, Old Testament, New Testament, Church Year, Christian Life (Philip's decision, 21/10/2026).
 - A lesson can have several content files (a main document plus images and handouts), not a single file (Philip's decision, 21/10/2026).
 - The initial curriculum is seeded from `seed/curriculum.json`. Ranks 1–7 have 8 lessons each; Cross-bearer (8), Christ-bearer (9) and Akolouthos (10) are seeded with no lessons, to be filled later. The lesson files are supplied at seed time and are not committed to the repository (Philip's decision, 21/10/2026).
+- **Lesson content access (MVP, go-live blocker; Philip, 22/10/2026):** the core purpose of the app. Lesson files are opened in the app or downloaded by:
+  - **Teachers:** all lessons in every rank.
+  - **Students:** all lessons in every rank, not only their own.
+  - **Parents:** all lessons in every rank.
+  - **Uploads:** a teacher uploads new or replacement files as part of a lesson change proposal, and they go live only when the Approver approves it, never directly.
+  Discovery (a300c93, 17/07/2026) recorded student access to lesson material as deferred "at-home learning", and the user journeys were never written, so content access was never built. Philip confirms it was the key requirement, and this entry corrects the record.
 - **Longer-term aim (post-MVP):** each lesson's content becomes a single printable HTML page, with handouts attached, that users read in the app without downloading anything. This replaces the current Word documents (Philip, 21/10/2026).
 
 ## Progress tracking (MVP)

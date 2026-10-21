@@ -62,6 +62,7 @@ Full narrative for Done/Log items to 12/08/2026: `docs/harness/STATE-archive.md`
 _(none)_
 
 ## Next
+- **Lesson content access: upload, view, download** (go-live blocker, the app's core purpose; Philip, 22/10/2026) — teachers, students and parents open or download all lessons in every rank in the app. Teachers upload new or replacement files through a lesson proposal, and the files go live only on Approver approval. Includes a lesson view page, upload with size and type limits, file serving checked against role (Teacher/Approver/Admin/Student/Parent; any rank), with pending proposal files visible only to the proposer and Approvers, and an ASVS review. Acceptance: tests for each role's access, gate exits 0.
 - **Seed rank ladder + curriculum** (after the lesson model item) — idempotent seeder that reads `seed/curriculum.json` plus a content root passed at run time (the files are not in git) and copies lesson files into blob storage. 10 ranks; ranks 8–10 (Cross-bearer, Christ-bearer, Akolouthos) have no lessons. The Beatitudes is a placeholder. Acceptance: re-runnable, tests (including a manifest-against-folder check), gate exits 0.
 
 ## Decisions needed (Philip)
@@ -175,3 +176,4 @@ Ordered by go-live critical path.
 - 2026-10-20: Decision (Philip): project law names Microsoft Graph email, not SMTP; `docs/VISION.md` and `CLAUDE.md` hard constraints updated
 - 2026-10-21: Decision 1 resolved (Philip): curriculum cleansed into `seed/curriculum.json` (7 ranks × 8 lessons, tags from the syllabus strands; ranks 8–10 empty, Akolouthos as the tenth per Philip 22/10/2026). Seed content kept out of git (`.gitignore`; `Admin/` holds personal data); group list deleted; 57 `.doc` files converted to `.docx`; Beatitudes placeholder added. Lesson-model and seed items queued in Next.
 - 2026-10-22: Decision (Philip): Akolouthos seeded as a tenth, empty rank. Lesson model item done (c8c13f4)
+- 2026-10-22: Decision (Philip): lesson content access is the app's core requirement and a go-live blocker. Teachers, students and parents see all lessons in every rank; uploads go live only on Approver approval. Discovery had recorded it as deferred; the record is corrected in the requirements docs
