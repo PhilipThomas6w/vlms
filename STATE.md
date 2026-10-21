@@ -56,11 +56,12 @@ Full narrative for Done/Log items to 12/08/2026: `docs/harness/STATE-archive.md`
 - [x] Proactive parent notifications, BR-005 (`GuardianNotificationService`: completion/promotion emails from `CompletionService` after all saves, never throwing; consent reminders from `Vlms.Jobs` at 28/7/1 days before expiry plus a safeguarding-critical notice the day after lapse, no stored reminder state; recipients only linked, `Parent`-role, not-left guardians; no restricted data read; TC-015, RTM BR-005 covered, LLD updated; ASVS re-review row awaiting countersign) — 180ff05; full gate exit 0, 438/438 tests. First live send pending go-live.
 - [x] Stale deploy wording: `deploy/README.md` §4 publishes on the build machine and rsyncs to the server (no SDK on the server, matches `release.md` §2; its `[TBC – align]` note removed); `vlms-jobs.service`/`vlms-web.service` comments name the Graph secret, not SMTP — ee0cb13; full gate exit 0, 438/438 tests; `grep -ri smtp deploy/` empty.
 - [x] Microsoft 10.0.x packages aligned on 10.0.13 (11 references across Infrastructure, Jobs, Tests; Npgsql stays 10.0.3, its latest) — 3c97dfb; full gate exit 0, 438/438 tests; `dotnet list package --vulnerable --include-transitive` clean for all five projects. Migrations bundle not rebuilt (outside the gate).
+- [x] Lesson model: order, tags, several files (`Lesson.Order`; `LessonTagAssignment` with fixed `LessonTag` enum; `LessonFile` replaces `ContentBlobKey`; migration `LessonOrderTagsAndFiles` keeps existing keys as first files; proposals validate order/tags/files on propose and resubmit, applied wholesale on approval; Teacher page edits them; ASVS and WCAG re-review rows awaiting countersign) — c8c13f4; full gate exit 0, 442/442 tests. Break test: removing the tag check failed `ProposeAsync_WithNoTags_Throws` and `ResubmitAsync_WithNoTags_Throws`; restored. Migration not run against PostgreSQL locally (none available).
+
 ## In progress
 _(none)_
 
 ## Next
-- **Lesson model: order, tags, several files** — add `Lesson.Order` and tags (fixed list, `requirements/functional.md`), and replace the single `ContentBlobKey` with several content files per lesson. Update `CompletionService`/proposal flows and the lesson pages to match, and add an EF migration. Acceptance: migration, tests, data-design.md updated, gate exits 0.
 - **Seed rank ladder + curriculum** (after the lesson model item) — idempotent seeder that reads `seed/curriculum.json` plus a content root passed at run time (the files are not in git) and copies lesson files into blob storage. 10 ranks; ranks 8–10 (Cross-bearer, Christ-bearer, Akolouthos) have no lessons. The Beatitudes is a placeholder. Acceptance: re-runnable, tests (including a manifest-against-folder check), gate exits 0.
 
 ## Decisions needed (Philip)
@@ -173,3 +174,4 @@ Ordered by go-live critical path.
 - 2026-10-20: Microsoft packages aligned on 10.0.13 (3c97dfb); Next now empty, remaining work needs Philip
 - 2026-10-20: Decision (Philip): project law names Microsoft Graph email, not SMTP; `docs/VISION.md` and `CLAUDE.md` hard constraints updated
 - 2026-10-21: Decision 1 resolved (Philip): curriculum cleansed into `seed/curriculum.json` (7 ranks × 8 lessons, tags from the syllabus strands; ranks 8–10 empty, Akolouthos as the tenth per Philip 22/10/2026). Seed content kept out of git (`.gitignore`; `Admin/` holds personal data); group list deleted; 57 `.doc` files converted to `.docx`; Beatitudes placeholder added. Lesson-model and seed items queued in Next.
+- 2026-10-22: Decision (Philip): Akolouthos seeded as a tenth, empty rank. Lesson model item done (c8c13f4)
