@@ -357,6 +357,50 @@ public sealed class GuardianNotificationServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task Lapse_DayAfterExpiry_SendsSafeguardingCriticalNotice_NotOnTheDayItself_NorTwoDaysAfter()
+    {
+        SetConsents(Record(1, ConsentStatus.Approved, YearEnd));
+
+        Assert.Empty(await RemindersForAsync(YearEnd)); // last valid day
+
+        var sent = Assert.Single(await RemindersForAsync(YearEnd.AddDays(1))); // Wednesday 1 September 2027
+        Assert.NotEqual(DayOfWeek.Monday, YearEnd.AddDays(1).DayOfWeek);
+        Assert.Equal(NotificationPriority.SafeguardingCritical, sent.Priority);
+        Assert.Contains("has expired", sent.Subject);
+        Assert.Contains("31/08/2027", sent.Body);
+        Assert.Contains($"{BaseUrl}/parent/consent", sent.Body);
+
+        Assert.Empty(await RemindersForAsync(YearEnd.AddDays(2))); // Thursday: not a weekly day
+    }
+
+    [Fact]
+    public async Task Lapse_DayAfterExpiryOnAMonday_SendsOnlyTheLapseNotice_ThenWeeklyFollows()
+    {
+        var sunday = new DateOnly(2027, 9, 5);
+        SetConsents(Record(1, ConsentStatus.Approved, sunday));
+        var monday = sunday.AddDays(1);
+        Assert.Equal(GuardianNotificationService.WeeklyReminderDay, monday.DayOfWeek);
+
+        var sent = Assert.Single(await RemindersForAsync(monday));
+        Assert.Equal(NotificationPriority.SafeguardingCritical, sent.Priority);
+        Assert.Contains("has expired", sent.Subject);
+
+        var nextWeek = Assert.Single(await RemindersForAsync(monday.AddDays(7)));
+        Assert.Equal(NotificationPriority.Standard, nextWeek.Priority);
+        Assert.Contains("needs a consent form", nextWeek.Subject);
+    }
+
+    [Fact]
+    public async Task Lapse_NoticeNotSentWhileFormAwaitsReview_OrWhenNewerConsentInForce()
+    {
+        SetConsents(Record(1, ConsentStatus.Approved, YearEnd), Record(2, ConsentStatus.Pending, YearEnd.AddYears(1)));
+        Assert.Empty(await RemindersForAsync(YearEnd.AddDays(1)));
+
+        SetConsents(Record(1, ConsentStatus.Approved, YearEnd), Record(2, ConsentStatus.Approved, YearEnd.AddYears(1)));
+        Assert.Empty(await RemindersForAsync(YearEnd.AddDays(1)));
+    }
+
+    [Fact]
     public async Task Weekly_SentEveryMondayAndOnlyMondays()
     {
         SetConsents(); // never had consent

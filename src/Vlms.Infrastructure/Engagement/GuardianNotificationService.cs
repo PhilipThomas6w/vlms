@@ -29,7 +29,9 @@ namespace Vlms.Infrastructure.Engagement;
 /// consent in force expires in exactly 30, 14, 7 or 1 days (31 August for consent issued under the
 /// church-year rule, see <see cref="ConsentYear"/>) and no later-expiring approved consent exists;
 /// (2) a weekly email, every <see cref="WeeklyReminderDay"/>, while the child has no consent in
-/// force or the latest form was rejected and awaits resubmission. Nothing is sent while a submitted
+/// force or the latest form was rejected and awaits resubmission; plus one
+/// <see cref="NotificationPriority.SafeguardingCritical"/> notice the day after the last approved
+/// consent ends, which replaces (never doubles) the weekly email if that day is a Monday. Nothing is sent while a submitted
 /// form is Pending review. The weekday is fixed so no sent-reminder state is stored (no migration):
 /// a missed daily run skips that day's reminder. If the latest form was rejected, the weekly email
 /// replaces any renewal email for that day. Links go to <c>/parent/consent</c>. Each student is
@@ -154,7 +156,21 @@ public sealed class GuardianNotificationService
                 }
 
                 (string Subject, string Body)? message = null;
-                if (inForce is null || latestRejected)
+                var priority = NotificationPriority.Standard;
+                var lapsedYesterday = inForce is null
+                    && mine.Any(c => c.Status == ConsentStatus.Approved && c.ExpiryDate == today.AddDays(-1));
+                if (lapsedYesterday)
+                {
+                    // Sent the day after the last approved consent ends (consent is valid through its
+                    // ExpiryDate), so a lapse never waits for the weekly email. On a Monday this is the
+                    // only email: the weekly one is not sent as well.
+                    priority = NotificationPriority.SafeguardingCritical;
+                    var lapsed = today.AddDays(-1);
+                    message = ($"VLMS: {student.Name}'s consent has expired",
+                        $"The annual consent for {student.Name} expired on {lapsed:dd/MM/yyyy}. " +
+                        "Lessons cannot be recorded until it is renewed. Please renew it as soon as possible.");
+                }
+                else if (inForce is null || latestRejected)
                 {
                     if (isWeeklyDay)
                     {
@@ -178,7 +194,7 @@ public sealed class GuardianNotificationService
 
                 if (message is { } m)
                 {
-                    outcomes.AddRange(await SendToGuardiansAsync(student.Id, [m], NotificationPriority.Standard, ct, ConsentPath));
+                    outcomes.AddRange(await SendToGuardiansAsync(student.Id, [m], priority, ct, ConsentPath));
                 }
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
