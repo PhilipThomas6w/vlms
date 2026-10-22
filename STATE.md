@@ -79,7 +79,7 @@ Full narrative for Done/Log items to 12/08/2026: `docs/harness/STATE-archive.md`
 - [x] One badge per rank: unique index `IX_rank_badges_rank_id`, migration `UniqueRankBadgePerRank` — 456b3fa (Haiku subagent), merged c8d568b; index confirmed unique on local PostgreSQL; full gate exit 0, 818/818
 
 ## In progress
-Subagents launched 22/10/2026 from `master` (pushed):
+Subagents launched 22/10/2026 from `master` (pushed): development email to a folder (Haiku), change password while signed in (Sonnet).
 - **Browser walk of the interactive journeys** — main session, Claude in Chrome on localhost (Philip's permission 22/10/2026).
 
 ## Next
@@ -88,12 +88,13 @@ Fit-for-purpose build plan (Philip, 22/10/2026; `docs/delivery-plan.md` phase 2,
 
 Delegation (Philip, 22/10/2026): each item runs as a subagent in its own worktree, model in brackets. Items in a wave run in parallel; a wave starts when the items it depends on are merged into `master`.
 
+- **Development email to a folder** (Haiku) — in `Development` only, `IEmailSender` writes each email to a file under `Mail:PickupDirectory` (default `%USERPROFILE%\.vlms-local\mail`) instead of calling Graph, in both `Vlms.Web` and `Vlms.Jobs`. Every other environment keeps `GraphEmailSender` and still fails at start-up without a secret. Decided by Philip 22/10/2026 so the dev machine holds no real credential; real delivery is tested once on the server.
 - **Change password while signed in** (Sonnet) — `/Account/Manage/ChangePassword` for any adult (current password + new password, Identity `ChangePasswordAsync`), linked from the account menu. Completes ADR-0007 decision 1 as confirmed by Philip 22/10/2026: a parent resets their own password as well as each child's. Today a parent's own reset is only the emailed link (`/Account/ForgotPassword`), which needs the Graph secret.
 
 
 ## Decisions needed (Philip)
 Ordered by go-live critical path.
-- **Graph client secret on the dev machine** — none is configured (the app sent the `appsettings.json` placeholder). Philip to store it as a user environment variable `GraphMail__ClientSecret` (steps given 22/10/2026), or generate a new one if the value is no longer to hand.
+- **Graph client secret: server only** (Philip, 22/10/2026) — no secret on the dev machine. Create one at go-live straight into the server's `web.env`/`jobs.env` (`deploy/README.md` "Email secret") and send one real test email from the server.
 - **Tell Teachers before go-live** that they must set up two-factor sign-in (agreed 22/10/2026).
 1. ~~Seed rank ladder + curriculum~~: resolved 21/10/2026. See `seed/curriculum.json` and `requirements/functional.md`.
 2. **Retention purge approach** — manually run `BYPASSRLS` maintenance role vs scheduled job (adr/0004 pass 8); only flagging exists (`RecordsDueForDeletionService.cs:30`). `vlms_app` must never get DELETE on `sensitive_data_access_logs`. DPIA residual risk 7. Unblocks: purge item.
