@@ -88,7 +88,7 @@ Fit-for-purpose build plan (Philip, 22/10/2026; `docs/delivery-plan.md` phase 2,
 
 Delegation (Philip, 22/10/2026): each item runs as a subagent in its own worktree, model in brackets. Items in a wave run in parallel; a wave starts when the items it depends on are merged into `master`.
 
-- **Development email to a folder** (Haiku) — in `Development` only, `IEmailSender` writes each email to a file under `Mail:PickupDirectory` (default `%USERPROFILE%\.vlms-local\mail`) instead of calling Graph, in both `Vlms.Web` and `Vlms.Jobs`. Every other environment keeps `GraphEmailSender` and still fails at start-up without a secret. Decided by Philip 22/10/2026 so the dev machine holds no real credential; real delivery is tested once on the server.
+- **Development email to a folder** (Haiku) — in `Development` only, `IEmailSender` writes each email to a file under `Mail:PickupDirectory` (default `%USERPROFILE%\.vlms-local\mail`) instead of calling Graph, in both `Vlms.Web` and `Vlms.Jobs`. Every other environment keeps `GraphEmailSender`, unchanged. Decided by Philip 22/10/2026 so the dev machine holds no real credential; real delivery is tested once on the server.
 - **Change password while signed in** (Sonnet) — `/Account/Manage/ChangePassword` for any adult (current password + new password, Identity `ChangePasswordAsync`), linked from the account menu. Completes ADR-0007 decision 1 as confirmed by Philip 22/10/2026: a parent resets their own password as well as each child's. Today a parent's own reset is only the emailed link (`/Account/ForgotPassword`), which needs the Graph secret.
 
 
