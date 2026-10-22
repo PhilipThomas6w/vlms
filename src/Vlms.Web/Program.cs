@@ -120,6 +120,10 @@ builder.Services.AddScoped<StudentRegistrationService>();
 // --- Consent/DBS management UI (STATE.md, functional.md FR-001/FR-002, data-design.md
 // ConsentRecord/ConsentSensitiveDetails/DbsCheck) — Admin/SafeguardingOfficer only, never the
 // Approver role (curriculum-only, CLAUDE.md Project Law).
+// Emails on submission and decision (FR-003, adr/0008 decision 3); the services take it optionally.
+builder.Services.AddScoped(sp => new ConsentNotificationService(
+    sp.GetRequiredService<VlmsDbContext>(), sp.GetRequiredService<INotificationService>(),
+    sp.GetRequiredService<ILogger<ConsentNotificationService>>(), builder.Configuration["App:PublicBaseUrl"]));
 builder.Services.AddScoped<ConsentRecordService>();
 builder.Services.AddScoped<DbsCheckService>();
 

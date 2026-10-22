@@ -44,11 +44,21 @@ public sealed class ConsentRecordService
 {
     private readonly VlmsDbContext _db;
     private readonly ICurrentUserContext _currentUser;
+    private readonly ConsentNotificationService? _notifications;
 
-    public ConsentRecordService(VlmsDbContext db, ICurrentUserContext currentUser)
+    public ConsentRecordService(
+        VlmsDbContext db, ICurrentUserContext currentUser, ConsentNotificationService? notifications = null)
     {
         _db = db;
         _currentUser = currentUser;
+        _notifications = notifications;
+    }
+
+    /// <summary>Number of submissions awaiting review, for the home page. Admin/SafeguardingOfficer only.</summary>
+    public async Task<int> CountPendingAsync(CancellationToken ct = default)
+    {
+        RequireAdminOrSafeguardingOfficer();
+        return await _db.ConsentRecords.CountAsync(c => c.Status == ConsentStatus.Pending, ct);
     }
 
     /// <summary>
@@ -157,6 +167,13 @@ public sealed class ConsentRecordService
         }
 
         await _db.SaveChangesAsync(ct);
+
+        // After the save; never throws (ConsentNotificationService's doc comment).
+        if (_notifications is not null)
+        {
+            await _notifications.NotifyDecidedAsync(record.Id, ct);
+        }
+
         return record;
     }
 
