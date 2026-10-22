@@ -17,5 +17,8 @@ public sealed class InMemoryBlobStorage : IBlobStorage
         return Task.CompletedTask;
     }
 
+    public Task<byte[]?> ReadAsync(string blobKey, CancellationToken ct = default) =>
+        Task.FromResult(_blobs.TryGetValue(blobKey, out var content) ? content : null);
+
     public bool TryGetBlob(string blobKey, out byte[] content) => _blobs.TryGetValue(blobKey, out content!);
 }

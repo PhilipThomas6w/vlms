@@ -7,6 +7,9 @@
 
 Welcome to your new app.
 
+<AuthorizeView Policy="RequireLessonLibrary">
+    <p><a href="/lessons">Lesson library</a></p>
+</AuthorizeView>
 <AuthorizeView Policy="RequireTeacher">
     <p><a href="/curriculum/teacher">Propose a lesson change</a></p>
     <p><a href="/progress/completions">My recorded completions</a></p>

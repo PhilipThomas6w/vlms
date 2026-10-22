@@ -1,8 +1,8 @@
 namespace Vlms.Domain;
 
 /// <summary>
-/// Storage abstraction for generated documents — currently just certificate PDFs
-/// (<see cref="Certificate"/>). Originally backed by Azure Blob Storage
+/// Storage abstraction for generated documents and uploaded files — certificate PDFs
+/// (<see cref="Certificate"/>) and lesson files (<see cref="LessonFile"/>). Originally backed by Azure Blob Storage
 /// (adr/0001-technology-stack.md); superseded by adr/0005-hosting-pivot-self-hosted-vps-postgresql.md
 /// — Vlms.Infrastructure now provides a local-disk-backed implementation
 /// (<c>Storage/LocalDiskBlobStorage.cs</c>) writing under the self-hosted VPS's own filesystem;
@@ -14,4 +14,11 @@ public interface IBlobStorage
 {
     /// <summary>Uploads (creating or overwriting) the blob at <paramref name="blobKey"/>.</summary>
     Task UploadAsync(string blobKey, byte[] content, CancellationToken ct = default);
+
+    /// <summary>
+    /// Reads the blob at <paramref name="blobKey"/>, or returns null if no such blob exists.
+    /// Implementations must reject a malformed key (rooted, "." / ".." segments) with an
+    /// <see cref="ArgumentException"/> rather than returning null.
+    /// </summary>
+    Task<byte[]?> ReadAsync(string blobKey, CancellationToken ct = default);
 }
