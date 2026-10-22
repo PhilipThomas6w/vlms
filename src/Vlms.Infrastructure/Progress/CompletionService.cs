@@ -220,6 +220,79 @@ public sealed class CompletionService
     }
 
     /// <summary>
+    /// Records one lesson completion for each of the given students (functional.md FR-008): the
+    /// Teacher ticks the students who completed a lesson and submits once. Each student is
+    /// processed independently via <see cref="MarkCompleteAsync"/> — one student's failure (lapsed
+    /// consent, an unexpected error) never stops the others, and every student gets a result.
+    /// A student who already has a non-reversed completion of the lesson is reported as
+    /// <see cref="CompletionOutcome.AlreadyCompleted"/> and no second row is written.
+    /// The whole call is refused (<see cref="UnauthorizedAccessException"/>) for a non-Teacher,
+    /// and (<see cref="InvalidOperationException"/>) if the lesson does not exist or is retired.
+    /// </summary>
+    public async Task<IReadOnlyList<StudentCompletionResult>> MarkCompleteBatchAsync(
+        IEnumerable<int> studentIds, int lessonId, string? note = null, CancellationToken ct = default)
+    {
+        RequireRole(Role.Teacher);
+        _ = RequireResolvedUserId();
+
+        var lesson = await _db.Lessons.AsNoTracking().SingleOrDefaultAsync(l => l.Id == lessonId, ct)
+            ?? throw new InvalidOperationException($"Lesson {lessonId} does not exist.");
+        if (!lesson.IsActive)
+        {
+            throw new InvalidOperationException($"Lesson {lessonId} is retired — completions can only be recorded for active lessons.");
+        }
+
+        var results = new List<StudentCompletionResult>();
+        foreach (var studentId in studentIds.Distinct())
+        {
+            ct.ThrowIfCancellationRequested();
+            results.Add(await MarkOneAsync(studentId, lessonId, note, ct));
+        }
+
+        return results;
+    }
+
+    private async Task<StudentCompletionResult> MarkOneAsync(int studentId, int lessonId, string? note, CancellationToken ct)
+    {
+        try
+        {
+            var alreadyDone = await _db.StudentLessonCompletions.AnyAsync(
+                c => c.StudentId == studentId && c.LessonId == lessonId && !c.IsReversed, ct);
+            if (alreadyDone)
+            {
+                return new StudentCompletionResult(studentId, CompletionOutcome.AlreadyCompleted, false,
+                    "Already completed this lesson.");
+            }
+
+            var before = await _db.Students.AsNoTracking()
+                .Where(s => s.Id == studentId)
+                .Select(s => new { s.CurrentRankId, s.Status })
+                .SingleAsync(ct);
+
+            await MarkCompleteAsync(studentId, lessonId, note, ct);
+
+            var after = await _db.Students.AsNoTracking()
+                .Where(s => s.Id == studentId)
+                .Select(s => new { s.CurrentRankId, s.Status })
+                .SingleAsync(ct);
+            var promoted = after.CurrentRankId != before.CurrentRankId || after.Status != before.Status;
+
+            return new StudentCompletionResult(studentId, CompletionOutcome.Completed, promoted, null);
+        }
+        catch (ConsentBlockedException ex)
+        {
+            _db.ChangeTracker.Clear();
+            return new StudentCompletionResult(studentId, CompletionOutcome.ConsentBlocked, false, ex.Message);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // Isolate the failure: discard anything half-tracked so the next student starts clean.
+            _db.ChangeTracker.Clear();
+            return new StudentCompletionResult(studentId, CompletionOutcome.Failed, false, ex.Message);
+        }
+    }
+
+    /// <summary>
     /// data-design.md: "Expiry blocks StudentLessonCompletion creation for that student." A student
     /// with no ConsentRecord at all, or only expired/non-Approved ones, is blocked.
     /// </summary>
@@ -231,7 +304,7 @@ public sealed class CompletionService
 
         if (!hasActiveConsent)
         {
-            throw new InvalidOperationException(
+            throw new ConsentBlockedException(
                 $"Student {studentId} has no active (approved, unexpired) consent record — lesson completion is blocked (functional.md FR-003).");
         }
     }
@@ -251,3 +324,26 @@ public sealed class CompletionService
     private static async Task<int> NextId(DbSet<StudentLessonCompletion> set, CancellationToken ct) =>
         (await set.Select(x => (int?)x.Id).MaxAsync(ct) ?? 0) + 1;
 }
+
+/// <summary>Per-student outcome of <see cref="CompletionService.MarkCompleteBatchAsync"/>.</summary>
+public enum CompletionOutcome
+{
+    Completed,
+    AlreadyCompleted,
+    ConsentBlocked,
+    Failed
+}
+
+/// <summary>
+/// Result for one student in a batch. <see cref="Promoted"/> is true when recording the completion
+/// moved the student up a rank or graduated them. <see cref="Message"/> carries the reason for any
+/// outcome other than <see cref="CompletionOutcome.Completed"/>.
+/// </summary>
+public sealed record StudentCompletionResult(int StudentId, CompletionOutcome Outcome, bool Promoted, string? Message);
+
+/// <summary>
+/// Thrown when lesson completion is blocked by missing/expired consent (FR-003). A subclass of
+/// <see cref="InvalidOperationException"/> so existing callers that catch that keep working, while
+/// the batch path can report the block distinctly from other errors.
+/// </summary>
+public sealed class ConsentBlockedException(string message) : InvalidOperationException(message);

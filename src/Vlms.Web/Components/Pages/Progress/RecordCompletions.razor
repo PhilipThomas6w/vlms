@@ -1,0 +1,207 @@
+@page "/progress/record"
+@attribute [Authorize(Policy = "RequireTeacher")]
+@rendermode InteractiveServer
+@using Microsoft.EntityFrameworkCore
+@using Vlms.Domain
+@using Vlms.Infrastructure
+@using Vlms.Infrastructure.Progress
+@inject VlmsDbContext Db
+@inject ICurrentUserContext CurrentUser
+@inject CompletionService CompletionService
+
+<PageTitle>Record lesson completion</PageTitle>
+
+<h1>Record lesson completion</h1>
+
+<p>
+    Choose a lesson, tick the students who attended and completed it, then record once. A student
+    whose consent has lapsed cannot be recorded and is shown with the reason. Certificates,
+    promotion and the parent email follow automatically.
+</p>
+
+@if (_errorMessage is not null)
+{
+    <p class="error" role="alert">@_errorMessage</p>
+}
+
+<div>
+    <label for="lessonId">Lesson</label>
+    <select id="lessonId" @bind="_lessonId" @bind:after="OnLessonChangedAsync">
+        <option value="0">Select a lesson</option>
+        @foreach (var group in _lessons.GroupBy(l => l.Rank!).OrderBy(g => g.Key.Order))
+        {
+            <optgroup label="@group.Key.Name">
+                @foreach (var lesson in group.OrderBy(l => l.Order).ThenBy(l => l.Code))
+                {
+                    <option value="@lesson.Id">@lesson.Order. @lesson.Title (@lesson.Code)</option>
+                }
+            </optgroup>
+        }
+    </select>
+</div>
+
+<div>
+    <input type="checkbox" id="assignedToMe" @bind="_assignedToMeOnly" />
+    <label for="assignedToMe">Only students assigned to me</label>
+</div>
+
+@if (_lessonId != 0)
+{
+    <fieldset>
+        <legend>Students who completed this lesson</legend>
+        @if (VisibleStudents.Count == 0)
+        {
+            <p>No active students to show.</p>
+        }
+        @foreach (var student in VisibleStudents)
+        {
+            var blocked = _consentBlocked.Contains(student.Id);
+            var already = _alreadyCompleted.Contains(student.Id);
+            <div>
+                <input type="checkbox" id="student@(student.Id)"
+                       checked="@_selected.Contains(student.Id)"
+                       disabled="@(blocked || already)"
+                       @onchange="e => Toggle(student.Id, (bool)(e.Value ?? false))" />
+                <label for="student@(student.Id)">@student.Name (@student.CurrentRank?.Name)</label>
+                @if (blocked)
+                {
+                    <span> — consent has lapsed or is missing, so completion cannot be recorded (FR-003).</span>
+                }
+                else if (already)
+                {
+                    <span> — already completed.</span>
+                }
+            </div>
+        }
+    </fieldset>
+
+    <div>
+        <label for="completionNote">Note (optional)</label>
+        <input type="text" id="completionNote" @bind="_note" />
+    </div>
+
+    <button type="button" @onclick="SubmitAsync" disabled="@(_busy || _selected.Count == 0)">
+        Record completion for @_selected.Count student(s)
+    </button>
+}
+
+@if (_results is not null)
+{
+    <h2>Result</h2>
+    <ul role="status">
+        @foreach (var result in _results)
+        {
+            <li>
+                @NameOf(result.StudentId):
+                @switch (result.Outcome)
+                {
+                    case CompletionOutcome.Completed:
+                        <text>recorded@(result.Promoted ? " (promoted)" : "").</text>
+                        break;
+                    case CompletionOutcome.AlreadyCompleted:
+                        <text>already completed.</text>
+                        break;
+                    case CompletionOutcome.ConsentBlocked:
+                        <text>blocked — @result.Message</text>
+                        break;
+                    default:
+                        <text>failed — @result.Message</text>
+                        break;
+                }
+            </li>
+        }
+    </ul>
+}
+
+@code {
+    private List<Lesson> _lessons = new();
+    private List<Student> _students = new();
+    private HashSet<int> _consentBlocked = new();
+    private HashSet<int> _alreadyCompleted = new();
+    private HashSet<int> _selected = new();
+    private IReadOnlyList<StudentCompletionResult>? _results;
+    private int _lessonId;
+    private bool _assignedToMeOnly;
+    private bool _busy;
+    private string? _note;
+    private string? _errorMessage;
+
+    private List<Student> VisibleStudents => _students
+        .Where(s => !_assignedToMeOnly || (CurrentUser.UserId is not null && s.AssignedTeacherUserId == CurrentUser.UserId))
+        .ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _lessons = await Db.Lessons.AsNoTracking()
+            .Include(l => l.Rank)
+            .Where(l => l.IsActive)
+            .ToListAsync();
+        _students = await Db.Students.AsNoTracking()
+            .Include(s => s.CurrentRank)
+            .Where(s => s.Status == StudentStatus.Active)
+            .OrderBy(s => s.Name)
+            .ToListAsync();
+        await LoadConsentAsync();
+    }
+
+    private async Task LoadConsentAsync()
+    {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var withConsent = await Db.ConsentRecords.AsNoTracking()
+            .Where(c => c.Status == ConsentStatus.Approved && c.ExpiryDate >= today)
+            .Select(c => c.StudentId)
+            .Distinct()
+            .ToListAsync();
+        _consentBlocked = _students.Select(s => s.Id).Except(withConsent).ToHashSet();
+    }
+
+    private async Task OnLessonChangedAsync()
+    {
+        _results = null;
+        _errorMessage = null;
+        _selected.Clear();
+        await LoadAlreadyCompletedAsync();
+    }
+
+    private async Task LoadAlreadyCompletedAsync()
+    {
+        _alreadyCompleted = _lessonId == 0
+            ? new HashSet<int>()
+            : (await Db.StudentLessonCompletions.AsNoTracking()
+                .Where(c => c.LessonId == _lessonId && !c.IsReversed)
+                .Select(c => c.StudentId)
+                .ToListAsync()).ToHashSet();
+    }
+
+    private void Toggle(int studentId, bool on)
+    {
+        if (on) { _selected.Add(studentId); } else { _selected.Remove(studentId); }
+    }
+
+    private string NameOf(int studentId) => _students.FirstOrDefault(s => s.Id == studentId)?.Name ?? $"Student {studentId}";
+
+    private async Task SubmitAsync()
+    {
+        if (_lessonId == 0 || _selected.Count == 0)
+        {
+            return;
+        }
+
+        _busy = true;
+        _errorMessage = null;
+        try
+        {
+            _results = await CompletionService.MarkCompleteBatchAsync(_selected.ToList(), _lessonId, _note);
+            _selected.Clear();
+            await LoadAlreadyCompletedAsync();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException)
+        {
+            _errorMessage = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

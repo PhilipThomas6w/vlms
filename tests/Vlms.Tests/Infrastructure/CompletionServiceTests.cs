@@ -154,7 +154,7 @@ public sealed class CompletionServiceTests : IDisposable
         using var teacher = CreateContext(10, Role.Teacher);
         var sut = teacher.Service;
 
-        await Assert.ThrowsAsync<InvalidOperationException>(
+        await Assert.ThrowsAsync<ConsentBlockedException>(
             () => sut.MarkCompleteAsync(studentId: 100, lessonId: 1, note: null, CancellationToken.None));
 
         using var verify = CreateContext(1, Role.Admin);
@@ -167,7 +167,7 @@ public sealed class CompletionServiceTests : IDisposable
         using var teacher = CreateContext(10, Role.Teacher);
         var sut = teacher.Service;
 
-        await Assert.ThrowsAsync<InvalidOperationException>(
+        await Assert.ThrowsAsync<ConsentBlockedException>(
             () => sut.MarkCompleteAsync(studentId: 100, lessonId: 1, note: null, CancellationToken.None));
     }
 
@@ -527,5 +527,93 @@ public sealed class CompletionServiceTests : IDisposable
         using var finalVerify = CreateContext(1, Role.Admin);
         var promotedStudent = await finalVerify.Context.Students.SingleAsync(s => s.Id == 100);
         Assert.Equal(2, promotedStudent.CurrentRankId); // now promoted — both active lessons genuinely complete
+    }
+
+    private static void AddStudent(VlmsDbContext context, int id)
+    {
+        context.Students.Add(new Student
+        {
+            Id = id,
+            Name = $"Student {id}",
+            DateOfBirth = new DateOnly(2012, 1, 1),
+            CurrentRankId = 1,
+            Status = StudentStatus.Active,
+            EnrolmentDate = new DateOnly(2024, 1, 1)
+        });
+        context.StudentRankProgresses.Add(new StudentRankProgress
+        {
+            Id = id,
+            StudentId = id,
+            RankId = 1,
+            StartedAt = DateTime.UtcNow.AddDays(-30),
+            CompletedAt = null
+        });
+        context.SaveChanges();
+    }
+
+    [Fact]
+    public async Task MarkCompleteBatchAsync_MixedStudents_ReportsEachOutcome_AndOneBlockDoesNotStopOthers()
+    {
+        var future = DateOnly.FromDateTime(DateTime.UtcNow.AddMonths(6));
+        using (var setup = CreateContext(1, Role.Admin))
+        {
+            AddStudent(setup.Context, 101); // lapsed consent
+            AddStudent(setup.Context, 102); // already completed
+            AddStudent(setup.Context, 103); // ok
+            AddConsent(setup.Context, 10, 100, ConsentStatus.Approved, future);
+            AddConsent(setup.Context, 11, 101, ConsentStatus.Approved, DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-1)));
+            AddConsent(setup.Context, 12, 102, ConsentStatus.Approved, future);
+            AddConsent(setup.Context, 13, 103, ConsentStatus.Approved, future);
+        }
+
+        using var teacher = CreateContext(10, Role.Teacher);
+        await teacher.Service.MarkCompleteAsync(102, 1, null, CancellationToken.None);
+
+        var results = await teacher.Service.MarkCompleteBatchAsync(new[] { 100, 101, 102, 103, 100 }, 1, "Batch");
+
+        Assert.Equal(4, results.Count); // duplicate id collapsed
+        Assert.Equal(CompletionOutcome.Completed, results.Single(r => r.StudentId == 100).Outcome);
+        var blocked = results.Single(r => r.StudentId == 101);
+        Assert.Equal(CompletionOutcome.ConsentBlocked, blocked.Outcome);
+        Assert.False(string.IsNullOrWhiteSpace(blocked.Message));
+        Assert.Equal(CompletionOutcome.AlreadyCompleted, results.Single(r => r.StudentId == 102).Outcome);
+        Assert.Equal(CompletionOutcome.Completed, results.Single(r => r.StudentId == 103).Outcome);
+
+        using var verify = CreateContext(1, Role.Admin);
+        Assert.Single(verify.Context.StudentLessonCompletions.Where(c => c.StudentId == 102 && c.LessonId == 1));
+        Assert.Empty(verify.Context.StudentLessonCompletions.Where(c => c.StudentId == 101));
+        Assert.Single(verify.Context.StudentLessonCompletions.Where(c => c.StudentId == 100 && c.LessonId == 1));
+        Assert.Single(verify.Context.StudentLessonCompletions.Where(c => c.StudentId == 103 && c.LessonId == 1));
+    }
+
+    [Fact]
+    public async Task MarkCompleteBatchAsync_UnknownStudent_IsReportedFailed_AndOthersStillRecorded()
+    {
+        using (var setup = CreateContext(1, Role.Admin))
+        {
+            AddConsent(setup.Context, 20, 100, ConsentStatus.Approved, DateOnly.FromDateTime(DateTime.UtcNow.AddMonths(6)));
+        }
+
+        using var teacher = CreateContext(10, Role.Teacher);
+        var results = await teacher.Service.MarkCompleteBatchAsync(new[] { 999, 100 }, 1);
+
+        Assert.Equal(CompletionOutcome.Failed, results.Single(r => r.StudentId == 999).Outcome);
+        Assert.Equal(CompletionOutcome.Completed, results.Single(r => r.StudentId == 100).Outcome);
+    }
+
+    [Fact]
+    public async Task MarkCompleteBatchAsync_ByNonTeacher_Throws()
+    {
+        using var parent = CreateContext(99, Role.Parent);
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(
+            () => parent.Service.MarkCompleteBatchAsync(new[] { 100 }, 1));
+    }
+
+    [Fact]
+    public async Task MarkCompleteBatchAsync_UnknownLesson_Throws()
+    {
+        using var teacher = CreateContext(10, Role.Teacher);
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => teacher.Service.MarkCompleteBatchAsync(new[] { 100 }, 999));
     }
 }

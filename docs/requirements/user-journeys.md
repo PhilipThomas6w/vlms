@@ -15,19 +15,19 @@ Each step is marked:
 |---|---|---|---|
 | 1 | Sign in | Built | `Account/Login` |
 | 2 | Land on a home page that shows what to do next | **Missing** | `Home.razor` is still the template ("Hello, world!") plus a list of links. There is no navigation menu. |
-| 3 | Browse the curriculum by rank, in delivery order, with tags | **Missing** | The only lesson list is on `/curriculum/teacher`, which is for proposing changes. |
-| 4 | Open a lesson's documents and the Teacher's Information to prepare | **Missing** | No page serves lesson files, and `IBlobStorage` has no read method (`UploadAsync` only). |
-| 5 | Print or download handouts | **Missing** | Same as step 4. |
+| 3 | Browse the curriculum by rank, in delivery order, with tags | Built | `/lessons` (`LessonLibraryService`), 05dc741. |
+| 4 | Open a lesson's documents and the Teacher's Information to prepare | Built | `GET /lessons/files/{id}`: PDF and images inline, other types downloaded. |
+| 5 | Print or download handouts | Built | Same as step 4. |
 | 6 | See the students in their group, with each student's current rank | Built | `/students` (`StudentRosterService`): all active students, an "assigned to me" filter, rank and progress in rank. Each opens `/students/{id}` (completions, badges, certificates, consent status). Certificate links go to `/certificates/{id}`. |
-| 7 | Record that each student who attended completed the lesson | **Missing (service only)** | `CompletionService.MarkCompleteAsync` exists, with certificate, promotion and parent email, but no page calls it. |
-| 8 | Check that a student with lapsed consent is blocked from completion | Built (service) | FR-003, enforced in `CompletionService`. It becomes visible once step 7 has a page. |
+| 7 | Record that each student who attended completed the lesson | Built (not yet linked) | `/progress/record` calls `CompletionService.MarkCompleteBatchAsync` (certificate, promotion and parent email as before). Not reachable from navigation or the home page until FR-012. |
+| 8 | Check that a student with lapsed consent is blocked from completion | Built | FR-003, enforced in `CompletionService`; `/progress/record` shows blocked students with the reason, and reports blocked results after submitting. |
 | 9 | Correct a mistaken completion | Built | `/progress/completions` (`CompletionReversals.razor`) |
 
 ## J2. Teacher: improve a lesson
 
 | # | Step | Status | Evidence / gap |
 |---|---|---|---|
-| 1 | Find the lesson and open its current content | **Missing** | Same as J1 step 4. |
+| 1 | Find the lesson and open its current content | Built | `/lessons` and `GET /lessons/files/{id}`. |
 | 2 | Propose an edit: change title, order and tags, and upload new or replacement files | **Partial** | `/curriculum/teacher` handles title, order and tags (c8c13f4). Files are typed in as storage keys, and there is no upload. |
 | 3 | Propose a new lesson or the retirement of one | Built (except files) | `/curriculum/teacher` |
 | 4 | See the Approver's decision and comments, then revise and resubmit | Built | `/curriculum/teacher`, "My proposals" |
@@ -45,7 +45,7 @@ Each step is marked:
 | # | Step | Status | Evidence / gap |
 |---|---|---|---|
 | 1 | Get an account and sign in | **Partial** | `Student` role and `Student.AppUserId` exist, but there is no student invite or account-linking flow. |
-| 2 | Browse all lessons in every rank and open or download them | **Missing** | Same as J1 step 4. Scope: all ranks (Philip, 22/10/2026). |
+| 2 | Browse all lessons in every rank and open or download them | Partial | `/lessons` admits the Student role, but students can't sign in until FR-011 (student accounts). |
 | 3 | See own rank, completed lessons, badges and certificates | **Missing** | No student page exists. `StudentSelfAccessHandler` authorises it, but nothing uses it. |
 | 4 | Download own certificates | **Missing** | Certificate PDFs are written but can't be read back (no read in `IBlobStorage`, no endpoint). |
 
@@ -56,9 +56,9 @@ Each step is marked:
 | 1 | Accept an invite, register, and be approved by an Admin as Parent | Built | `/guardianship/accept-invite`, `/administration/user-roles` |
 | 2 | See each linked child's rank, completions, badges and consent status | Built | `/parent/dashboard` |
 | 3 | Download a child's certificates | **Missing** | Certificates are listed as text only. Same read gap as J4 step 4. |
-| 4 | Browse and open all lessons to support learning at home | **Missing** | Same as J1 step 4. Scope: all ranks (Philip, 22/10/2026). |
+| 4 | Browse and open all lessons to support learning at home | Built | `/lessons` (Parent role). |
 | 5 | Receive emails on completion, promotion and consent expiry | Built (untested live) | `GuardianNotificationService`. The first real send waits for go-live. |
-| 6 | Submit or renew the annual consent form | **Missing** | Consent is entered by an Admin or Safeguarding Officer "on behalf of" the parent (`/safeguarding/consent`). Decided 22/10/2026: parents complete and submit it in the app, and the Safeguarding Officer or Admin approves (FR-015). |
+| 6 | Submit or renew the annual consent form | Built | `/parent/consent`; Safeguarding Officer or Admin decides on `/safeguarding/consent` (FR-015, ADR-0006), 6f5b5d7. |
 
 ## J6. Admin: run the programme
 
@@ -66,8 +66,8 @@ Each step is marked:
 |---|---|---|---|
 | 1 | Bootstrap the first Admin, assign roles, approve parents | Built | `Vlms.Jobs bootstrap-admin`, `/administration/user-roles` |
 | 2 | Register a student and link guardians | Built | `/registration/students`, `/guardianship/links` |
-| 3 | Edit a student (name, assigned teacher, status) | **Missing** | No student edit page or service. Fields are set only at registration, by promotion or by "mark as left". |
-| 4 | Load the curriculum (ranks, lessons, files) | **Missing** | The seed item is queued in STATE.md. |
+| 3 | Edit a student (name, assigned teacher, status) | Built | `/administration/students` (Admin: assigned teacher and status). Name and date of birth come from the approved consent form (FR-013), a28a6ac. |
+| 4 | Load the curriculum (ranks, lessons, files) | Built | `Vlms.Jobs seed-curriculum` (`deploy/README.md` §6b); run against local PostgreSQL 22/10/2026: 10 ranks, 56 lessons, 314 files. |
 | 5 | Set rank badge images | **Missing** | `RankBadge.ImageBlobKey` exists, but nothing creates badges. |
 | 6 | View progress reports and at-risk students | Built | `/reporting` |
 | 7 | Handle leavers and retention | Partial | `/retention/mark-as-left` and `/reporting/records-due-for-deletion` exist. Purge waits on decision 2. |
