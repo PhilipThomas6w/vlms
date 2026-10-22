@@ -58,6 +58,11 @@ Full narrative for Done/Log items to 12/08/2026: `docs/harness/STATE-archive.md`
 - [x] Microsoft 10.0.x packages aligned on 10.0.13 (11 references across Infrastructure, Jobs, Tests; Npgsql stays 10.0.3, its latest) — 3c97dfb; full gate exit 0, 438/438 tests; `dotnet list package --vulnerable --include-transitive` clean for all five projects. Migrations bundle not rebuilt (outside the gate).
 - [x] Lesson model: order, tags, several files (`Lesson.Order`; `LessonTagAssignment` with fixed `LessonTag` enum; `LessonFile` replaces `ContentBlobKey`; migration `LessonOrderTagsAndFiles` keeps existing keys as first files; proposals validate order/tags/files on propose and resubmit, applied wholesale on approval; Teacher page edits them; ASVS and WCAG re-review rows awaiting countersign) — c8c13f4; full gate exit 0, 442/442 tests. Break test: removing the tag check failed `ProposeAsync_WithNoTags_Throws` and `ResubmitAsync_WithNoTags_Throws`; restored. Migration not run against PostgreSQL locally (none available).
 
+- [x] Lesson library (FR-006): `/lessons`, `GET /lessons/files/{id}` by `LessonFile.Id` only, role policy + MFA, inline PDF/images, `IBlobStorage.ReadAsync` — 05dc741 (Sonnet subagent), merged bde62a8
+- [x] Seed command `Vlms.Jobs seed-curriculum` (`CurriculumSeeder`, validate-then-write, idempotent) — 78d93ed (Sonnet subagent), merged c690a83. Run against local PostgreSQL 16 with the real seed folder: 10 ranks, 56 lessons, 314 files; second run no changes
+- [x] Admin assign teacher and change status (FR-013): `StudentAdministrationService`, `/administration/students`; Inactive via `LeavingService`; Graduated only by promotion — a28a5c6 (Sonnet subagent), merged 401109e
+- [x] Parent consent form and consent access change (FR-015, ADR-0006): `/parent/consent`, SO/Admin decide with mandatory rejection comments, approval updates student name/DOB, teacher read view, widened `ConsentSensitiveDetails` filter, migration `AddParentConsentSubmissionFields` — 6f5b5d7 (Opus subagent), merged 51b1ec5; full gate exit 0, 564/564 tests; migration applied to local PostgreSQL 16. Open: teachers read medical details without MFA (ADR-0006 risk)
+
 ## In progress
 _(none)_
 
@@ -66,13 +71,9 @@ Fit-for-purpose build plan (Philip, 22/10/2026; `docs/delivery-plan.md` phase 2,
 
 Delegation (Philip, 22/10/2026): each item runs as a subagent in its own worktree, model in brackets. Items in a wave run in parallel; a wave starts when the items it depends on are merged into `master`.
 
-**Wave 1 (no dependencies)**
-- **Lesson library: view and download** (FR-006; go-live blocker) — add a read method to `IBlobStorage`/`LocalDiskBlobStorage` and an authorised file endpoint (signed-in Teacher/Approver/Admin/Student/Parent only, no public links; PDF and images shown inline, other types downloaded). Library page: every rank, lessons in delivery order, tags, files. Journeys J1.3–4, J2.1, J4.2, J5.4. TC-016. ASVS re-review. [Sonnet]
-- **Seed rank ladder + curriculum** (after the lesson library) — idempotent seeder that reads `seed/curriculum.json` plus a content root passed at run time (the files are not in git) and copies lesson files into blob storage. 10 ranks; ranks 8–10 (Cross-bearer, Christ-bearer, Akolouthos) have no lessons. The Beatitudes is a placeholder. Acceptance: re-runnable, tests (including a manifest-against-folder check), gate exits 0. [Sonnet]
+**Wave 1 (no dependencies)** — redo: the first attempts were built on a stale base (worktrees start from `origin/master`)
 - **Teacher's student list** (FR-009) — active students with current rank and progress in rank, filter to "assigned to me", and a student record view (completions, badges, certificates). Journey J1.6. TC-019. [Sonnet]
 - **Record lesson completion** (FR-008) — a page on which a teacher picks a lesson and marks the attending students complete in one action through `CompletionService.MarkCompleteAsync`. Consent-blocked students are shown with the reason. Journey J1.7–8. TC-018. [Sonnet]
-- **Admin: assign teacher and change status** (FR-013) — Admin-only page and service to assign a student's teacher and change status, consistent with the existing "mark as left" flow. Journey J6.3. TC-023. [Sonnet]
-- **Parent consent form, and the consent access change** (FR-015, FR-013) — new ADR amending ADR-0004 (Teachers read, linked Parents read and update `ConsentSensitiveDetails`; every read audit-logged; `DbsCheck` unchanged). Parents complete and submit the annual form for each linked child, including the student's personal details. Safeguarding Officer or Admin approves, or rejects with comments; approval updates the student record. Teachers view consent details. Journey J5.6. TC-025. ASVS re-review; DPIA note. The only wave 1 item allowed an EF migration. [Opus]
 
 **Wave 2 (after the lesson library is merged)**
 - **Certificate download** (FR-010) — certificate PDFs viewable in the app and downloadable by the student, their linked parents, teachers and Admins through the authorised file endpoint; links on the parent dashboard and student record. Journeys J4.4, J5.3. TC-020. [Sonnet]
@@ -203,3 +204,4 @@ Ordered by go-live critical path.
 - 2026-10-22: Decision (Philip): lesson content access is the app's core requirement and a go-live blocker. Teachers, students and parents see all lessons in every rank; uploads go live only on Approver approval. Discovery had recorded it as deferred; the record is corrected in the requirements docs
 - 2026-10-22: User journeys written and walked against the app (4b5fcd0): app not fit for purpose. Lesson content, completion recording, certificate download, student page and home/navigation were missing. Plan rebuilt: FR-006 to FR-015, Next reordered, decisions 9–12 added, delivery gate package superseded. Decision (Philip): parents complete and submit the consent form in the app, with SO/Admin approval
 - 2026-10-22: Decisions 9–11 resolved and 12 partly (Philip); consent details access widened (ADR-0004 amendment to follow). Working model changed to subagents per item in worktrees, in dependency waves (CLAUDE.md)
+- 2026-10-22: Wave 1 merged: library, seed, admin, consent (51b1ec5). Student list and record completion to redo (stale worktree base). Local PostgreSQL 16 installed; all migrations and the seed verified against it
