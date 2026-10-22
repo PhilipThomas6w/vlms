@@ -78,9 +78,10 @@ Full narrative for Done/Log items to 12/08/2026: `docs/harness/STATE-archive.md`
 - [x] Student sign-in rules (ADR-0007 decisions): student passwords 8+ with no complexity (adult rules are Identity's own validator, unchanged); students always get a 90-day sliding persistent cookie; reset clears lockout; Admin disable/restore via `asp_net_users.sign_in_disabled` (migration `AddStudentSignInDisabled`), which a reset never clears; three-child parent tested — 5f0d21a (Opus subagent), merged ec22373; recheck interval reconciled to FR-016's 1 minute; full gate exit 0, 817/817
 - [x] One badge per rank: unique index `IX_rank_badges_rank_id`, migration `UniqueRankBadgePerRank` — 456b3fa (Haiku subagent), merged c8d568b; index confirmed unique on local PostgreSQL; full gate exit 0, 818/818
 - [x] Development email to a folder (`PickupDirectoryEmailSender`; Development only, both hosts; other environments keep Graph) — 315f050, merged 21eea34; full gate exit 0, 823/823 tests. Live check: Development start-up logs the folder; a Forgot password request wrote the reset email to `%USERPROFILE%\.vlms-local\mail`. No real secret on the dev machine (Philip, 22/10/2026).
+- [x] Change password while signed in (`/Account/Manage/ChangePassword`, `PasswordChangeService`; adults only, students refused in page and service; plain `[Authorize]`, no MFA needed to reach it; link in header) — c9d31e2, merged 3533248 (TC renumbered to TC-030; ASVS rows kept from both items); full gate exit 0, 836/836 tests. Live check: parent changed password, wrong current password refused, changed back, signed in again. Completes ADR-0007 decision 1 ("reset both passwords").
 
 ## In progress
-Subagents launched 22/10/2026 from `master` (pushed): change password while signed in (Sonnet).
+Subagents launched 22/10/2026 from `master` (pushed): none running.
 - **Browser walk of the interactive journeys** — main session, Claude in Chrome on localhost (Philip's permission 22/10/2026).
 
 ## Next
@@ -89,7 +90,6 @@ Fit-for-purpose build plan (Philip, 22/10/2026; `docs/delivery-plan.md` phase 2,
 
 Delegation (Philip, 22/10/2026): each item runs as a subagent in its own worktree, model in brackets. Items in a wave run in parallel; a wave starts when the items it depends on are merged into `master`.
 
-- **Change password while signed in** (Sonnet) — `/Account/Manage/ChangePassword` for any adult (current password + new password, Identity `ChangePasswordAsync`), linked from the account menu. Completes ADR-0007 decision 1 as confirmed by Philip 22/10/2026: a parent resets their own password as well as each child's. Today a parent's own reset is only the emailed link (`/Account/ForgotPassword`), which needs the Graph secret.
 
 
 ## Decisions needed (Philip)
