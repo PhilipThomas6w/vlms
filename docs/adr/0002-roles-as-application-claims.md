@@ -4,6 +4,8 @@
 
 Accepted
 
+**Note 22/10/2026 (FR-016, `requirements/functional.md`):** two things in this record no longer read as true. (1) Despite the title, roles are not issued as claims in the sign-in cookie or any token: the `UserRole` table is read on every role check by `Security/IdentityCurrentUserContext`, so a grant or removal takes effect on the user's next action, including in pages already open (until FR-016 the roles were cached for the life of an interactive Blazor circuit). Every role change also rotates the user's Identity security stamp. (2) Authentication is now self-hosted ASP.NET Core Identity, not Microsoft Entra External ID (`adr/0005-hosting-pivot-self-hosted-vps-postgresql.md`); the Entra-group alternative below is historical. The decision itself stands: roles are app-owned `UserRole` rows, a user may hold any combination of them, and permissions are fixed per role with no separate permission layer (Philip, 22/10/2026).
+
 ## Context
 
 VLMS uses Microsoft Entra External ID for authentication (`adr/0001-technology-stack.md`). Six roles exist: Admin, Teacher, Approver, Parent, Student, Safeguarding Officer (`requirements/stakeholders.md`). Some authorization decisions are pure role checks (e.g. only Safeguarding Officer/Admin may view `DbsCheck`), but others are resource-scoped and role alone cannot express them: a Parent's access is scoped to specific `Student` records via `StudentGuardianLink`, not just "is a Parent" (`data-design.md`).

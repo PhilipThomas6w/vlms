@@ -21,6 +21,20 @@ public sealed class AccountPagesWiringTests
         Assert.DoesNotContain("RequireConfirmedAccount = false", program);
     }
 
+    // FR-016: the stamp check runs on an explicit, short interval for both static SSR (cookie) and
+    // interactive circuits, rather than the framework's 30-minute default.
+    [Fact]
+    public void SecurityStamp_IsValidatedOnTheSameExplicitInterval_ForCookiesAndCircuits()
+    {
+        var program = Read("src", "Vlms.Web", "Program.cs");
+        var provider = Read("src", "Vlms.Web", "Components", "Account", "IdentityRevalidatingAuthenticationStateProvider.cs");
+
+        Assert.Contains("options.ValidationInterval = VlmsIdentityPolicy.SecurityStampValidationInterval", program);
+        Assert.Contains("RevalidationInterval => VlmsIdentityPolicy.SecurityStampValidationInterval", provider);
+        Assert.InRange(Vlms.Infrastructure.Identity.VlmsIdentityPolicy.SecurityStampValidationInterval,
+            TimeSpan.FromSeconds(30), TimeSpan.FromMinutes(5));
+    }
+
     [Fact]
     public void Register_SendsConfirmation_AndDoesNotSignIn()
     {

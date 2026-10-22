@@ -112,6 +112,9 @@ $expectedMinimums = @{
     # and the student page's own-record scoping. Raised RoleAssignmentServiceTests for its two new guards.
     "StudentAccountServiceTests.cs"     = 23
     "StudentPageServiceTests.cs"        = 4
+    # FR-016 role changes take effect immediately: multi-role unions, mid-scope grant/revoke/MFA
+    # change, security-stamp rotation.
+    "RoleChangeTests.cs"                = 13
 }
 
 foreach ($testFileName in $expectedMinimums.Keys) {
@@ -164,6 +167,11 @@ $hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Infrastructure/Identity/
 $hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Infrastructure/Identity/StudentUsername.cs")
 $hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Infrastructure/Identity/AppUserProvisioningService.cs")
 $hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Infrastructure/Engagement/StudentPageService.cs")
+# FR-016: the current-user context every role check and query filter reads, stamp rotation, and the
+# circuit's security-stamp revalidation.
+$hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Infrastructure/Security/IdentityCurrentUserContext.cs")
+$hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Infrastructure/Identity/SecurityStamps.cs")
+$hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Web/Components/Account/IdentityRevalidatingAuthenticationStateProvider.cs")
 $hashedFiles += $pageFiles
 
 if ($PrintHash) {

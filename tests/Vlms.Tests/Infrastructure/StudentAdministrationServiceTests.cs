@@ -1,9 +1,11 @@
+using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Vlms.Domain;
 using Vlms.Infrastructure;
 using Vlms.Infrastructure.Administration;
+using Vlms.Infrastructure.Identity;
 using Vlms.Infrastructure.Reporting;
 using Vlms.Infrastructure.Retention;
 using Xunit;
@@ -40,7 +42,7 @@ public sealed class StudentAdministrationServiceTests : IDisposable
     {
         public VlmsDbContext Context { get; } = context;
 
-        public StudentAdministrationService Service => new(Context, currentUser, new LeavingService(Context, currentUser));
+        public StudentAdministrationService Service => new(Context, currentUser, new LeavingService(Context, currentUser, scope.ServiceProvider.GetRequiredService<UserManager<VlmsIdentityUser>>()));
 
         public void Dispose()
         {
@@ -57,6 +59,8 @@ public sealed class StudentAdministrationServiceTests : IDisposable
         var services = new ServiceCollection();
         services.AddSingleton<ICurrentUserContext>(currentUser);
         services.AddDbContext<VlmsDbContext>(options => options.UseSqlite(_connectionString));
+        services.AddLogging();
+        services.AddIdentityCore<VlmsIdentityUser>().AddEntityFrameworkStores<VlmsDbContext>();
 
         var provider = services.BuildServiceProvider();
         var scope = provider.CreateScope();

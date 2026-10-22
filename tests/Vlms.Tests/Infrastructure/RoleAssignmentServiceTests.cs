@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -48,7 +49,7 @@ public sealed class RoleAssignmentServiceTests : IDisposable
     {
         public VlmsDbContext Context { get; } = context;
 
-        public RoleAssignmentService Service => new(Context, currentUser);
+        public RoleAssignmentService Service => new(Context, currentUser, scope.ServiceProvider.GetRequiredService<UserManager<VlmsIdentityUser>>());
 
         public void Dispose()
         {
@@ -65,6 +66,8 @@ public sealed class RoleAssignmentServiceTests : IDisposable
         var services = new ServiceCollection();
         services.AddSingleton<ICurrentUserContext>(currentUser);
         services.AddDbContext<VlmsDbContext>(options => options.UseSqlite(_connectionString));
+        services.AddLogging();
+        services.AddIdentityCore<VlmsIdentityUser>().AddEntityFrameworkStores<VlmsDbContext>();
 
         var provider = services.BuildServiceProvider();
         var scope = provider.CreateScope();
