@@ -12,9 +12,10 @@ Status: in progress
 ## Access control by role (confirmed)
 
 - `DbsCheck` records — whole-record access restricted to **Admin and Safeguarding Officer only**. Teacher and Approver have no access, not even a masked view.
-- `ConsentSensitiveDetails` (medical, dietary/SEN, emergency contact — split out from `ConsentRecord` at design review, since these can't be column-masked on a row Teacher otherwise needs) — visible only to Admin and Safeguarding Officer. `ConsentRecord` itself (status/expiry) remains readable by Teacher/Approver.
+- `ConsentSensitiveDetails` (medical, dietary/SEN, emergency contact — split out from `ConsentRecord` at design review, since these can't be column-masked on a row Teacher otherwise needs) — **amended 22/10/2026 (Philip; `adr/0006-parent-consent-and-teacher-read-access.md`, FR-015):** readable by Admin and Safeguarding Officer (with MFA, unchanged), by every Teacher (read only), and by a Parent for their own linked children only (`StudentGuardianLink`, Parent role, not left). Parents also submit it, checked in the service; each submission is a new Pending record approved or rejected (with comments) by a Safeguarding Officer or Admin. The Approver role still has no access. Every read is still audit-logged, attributed to the reader. Previously: visible only to Admin and Safeguarding Officer. `ConsentRecord` itself (status/expiry) remains readable by Teacher/Approver, and by Parents for their own children.
+- Open risks from that change, for Philip (adr/0006 "Risks"): Teachers read special-category data without MFA; every teacher sees every student's details; the DPIA needs reviewing (`governance/dpia.md`).
 - The **Approver** role is scoped to curriculum/lesson-change approval only — it carries no safeguarding, consent, or DBS privileges. This was a discovery correction: the Approver role must not be conflated with consent/safeguarding sign-off.
-- Consent record approval (`ConsentRecord.ApprovedByUserId`) is performed by Safeguarding Officer or Admin, not by the Approver role.
+- Consent record approval (`ConsentRecord.ApprovedByUserId`) is performed by Safeguarding Officer or Admin, not by the Approver role. Rejection requires comments. Approval of a parent-submitted form applies the student's name and date of birth to the student record (FR-013).
 
 ## Retention (confirmed)
 

@@ -115,6 +115,12 @@ builder.Services.AddScoped<StudentRegistrationService>();
 builder.Services.AddScoped<ConsentRecordService>();
 builder.Services.AddScoped<DbsCheckService>();
 
+// --- Parent consent form and teacher read-only consent view (functional.md FR-015,
+// adr/0006-parent-consent-and-teacher-read-access.md). Each checks its own role, and the Parent one
+// also the caller's StudentGuardianLink, inside the service.
+builder.Services.AddScoped<ParentConsentService>();
+builder.Services.AddScoped<StudentConsentViewService>();
+
 // --- Parent dashboard (STATE.md, functional.md "Parent engagement") — scoped to only the caller's
 // own StudentGuardianLink-linked students, via ParentGuardianLinkage (shared with
 // ParentStudentAccessHandler below).
@@ -216,8 +222,10 @@ builder.Services.AddAuthorization(options =>
     });
 
     // Consent/DBS management pages (STATE.md, adr/0004-sensitive-data-access-control.md): matches
-    // the VlmsDbContext query filter on DbsCheck/ConsentSensitiveDetails exactly — Admin or
-    // SafeguardingOfficer, never Approver (curriculum-only) or Teacher.
+    // the VlmsDbContext query filter on DbsCheck exactly — Admin or SafeguardingOfficer, never
+    // Approver (curriculum-only) or Teacher. ConsentSensitiveDetails is also readable by Teachers
+    // and linked Parents since adr/0006, but only through their own pages (/students/consent,
+    // /parent/consent); managing and deciding consent stays with these two roles.
     options.AddPolicy("RequireAdminOrSafeguardingOfficer", policy =>
     {
         policy.Requirements.Add(new AnyRoleRequirement(Role.Admin, Role.SafeguardingOfficer));

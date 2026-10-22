@@ -1,0 +1,128 @@
+@page "/students/consent"
+@page "/students/{StudentId:int}/consent"
+@attribute [Authorize(Policy = "RequireTeacher")]
+@rendermode InteractiveServer
+@using Vlms.Domain
+@using Vlms.Infrastructure.Safeguarding
+@inject StudentConsentViewService ViewService
+
+<PageTitle>Student consent</PageTitle>
+
+@if (_errorMessage is not null)
+{
+    <h1>Student consent</h1>
+    <p class="error" role="alert">@_errorMessage</p>
+}
+else if (StudentId is null)
+{
+    <h1>Student consent</h1>
+    <p>
+        Consent status for every active student. Open a student to see the medical, dietary/SEN and
+        emergency contact details from their approved consent form (read only; every view is
+        recorded in the safeguarding audit log).
+    </p>
+    <table>
+        <thead>
+            <tr>
+                <th>Student</th>
+                <th>Consent</th>
+                <th>Expires</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var student in _students)
+            {
+                <tr>
+                    <td>@student.StudentName</td>
+                    <td>@(student.CurrentConsent is null ? "None in place — completions blocked" : "Approved")@(student.LatestSubmissionStatus == ConsentStatus.Pending ? " (new form awaiting review)" : "")</td>
+                    <td>@student.CurrentConsent?.ExpiryDate.ToString("d MMMM yyyy")</td>
+                    <td><a href="/students/@student.StudentId/consent">Details for @student.StudentName</a></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+else if (_detail is null)
+{
+    <h1>Student consent</h1>
+    <p>Student not found.</p>
+    <p><a href="/students/consent">Back to student consent</a></p>
+}
+else
+{
+    <h1>Consent for @_detail.StudentName</h1>
+    <p><a href="/students/consent">Back to student consent</a></p>
+    <dl>
+        <dt>Date of birth</dt>
+        <dd>@_detail.DateOfBirth.ToString("d MMMM yyyy")</dd>
+        <dt>Consent</dt>
+        <dd>
+            @if (_detail.CurrentConsent is { } current)
+            {
+                <span>Approved, @current.PeriodStart.ToString("d MMMM yyyy") to @current.PeriodEnd.ToString("d MMMM yyyy")</span>
+            }
+            else
+            {
+                <span>None in place — lesson completions are blocked</span>
+            }
+            @if (_detail.LatestSubmissionStatus == ConsentStatus.Pending)
+            {
+                <span> (a new form is awaiting review)</span>
+            }
+        </dd>
+    </dl>
+
+    @if (_detail.CurrentConsent is { } consent)
+    {
+        <h2>Consents given</h2>
+        <ul>
+            <li>Photos and media: @(consent.PhotoMediaConsent ? "Yes" : "No")</li>
+            <li>Transport and off-site trips: @(consent.TransportOffsiteConsent ? "Yes" : "No")</li>
+            <li>Data sharing: @(consent.DataSharingConsent ? "Yes" : "No")</li>
+        </ul>
+    }
+
+    @if (_detail.CurrentDetails is { } details)
+    {
+        <h2>Medical, dietary and emergency details</h2>
+        <dl>
+            <dt>Emergency contact</dt>
+            <dd>@details.EmergencyContact</dd>
+            <dt>Emergency medical information</dt>
+            <dd>@(details.EmergencyMedicalInfo ?? "None given")</dd>
+            <dt>Dietary or special educational needs</dt>
+            <dd>@(details.DietarySEN ?? "None given")</dd>
+        </dl>
+    }
+}
+
+@code {
+    [Parameter]
+    public int? StudentId { get; set; }
+
+    private List<StudentConsentStatus> _students = new();
+    private StudentConsentDetail? _detail;
+    private string? _errorMessage;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _errorMessage = null;
+        try
+        {
+            if (StudentId is int studentId)
+            {
+                _detail = await ViewService.GetStudentAsync(studentId);
+            }
+            else
+            {
+                _detail = null;
+                _students = (await ViewService.ListActiveStudentsAsync()).ToList();
+            }
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+}

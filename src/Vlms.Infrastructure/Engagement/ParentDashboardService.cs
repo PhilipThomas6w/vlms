@@ -31,8 +31,9 @@ public sealed record ParentDashboardStudent(
 /// deliberately the whole of what's asked here — progress (current rank + when they started it),
 /// badges, certificates, and non-sensitive consent status/expiry (the same <see cref="ConsentRecord"/>
 /// fields Teacher/Approver can already see; <see cref="ConsentSensitiveDetails"/>/<see cref="DbsCheck"/>
-/// are not surfaced at all, since those stay whole-entity-restricted to Admin/SafeguardingOfficer
-/// via the existing query filter regardless of role — adr/0004). No reporting/analytics, no
+/// are not surfaced here at all — a parent views and updates their own children's consent details on
+/// the consent page instead (<c>Safeguarding.ParentConsentService</c>, adr/0006), and
+/// <see cref="DbsCheck"/> stays Admin/SafeguardingOfficer only — adr/0004). No reporting/analytics, no
 /// notification-preferences UI: not asked for, and a minimal, correct dashboard beats a speculative
 /// one (per this increment's own instructions).
 ///

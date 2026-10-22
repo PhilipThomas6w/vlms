@@ -31,7 +31,8 @@ The current pages (`src/Vlms.Web/Components/Pages/`): `Home.razor`,
 `Curriculum/TeacherProposals.razor`, `Curriculum/ApproverProposals.razor`,
 `Guardianship/GuardianLinks.razor`, `Guardianship/AcceptInvite.razor`,
 `Registration/RegisterStudent.razor`, `Safeguarding/ConsentRecords.razor`,
-`Safeguarding/DbsChecks.razor`, `Parent/ParentDashboard.razor`,
+`Safeguarding/DbsChecks.razor`, `Safeguarding/StudentConsent.razor`, `Parent/ParentDashboard.razor`,
+`Parent/ParentConsent.razor`,
 `Reporting/ProgressReporting.razor`, `Reporting/RecordsDueForDeletion.razor`,
 `Progress/CompletionReversals.razor`, `Retention/MarkAsLeft.razor`, plus the shared
 `Layout/MainLayout.razor`/`Layout/ReconnectModal.razor` — and (STATE.md "Identity" item —
@@ -119,6 +120,29 @@ The current pages (`src/Vlms.Web/Components/Pages/`): `Home.razor`,
       that gap is now closed everywhere (see the "Status messages" item below), and this bullet is
       kept as the historical origin of the pattern the fix replicated, not a re-flag.
 
+- [ ] **Consent pages, reviewed 22/10/2026 (functional.md FR-015, adr/0006):**
+      `Parent/ParentConsent.razor` lists each linked child in a `<section>` with an `<h2>`, states
+      the consent status in words ("Approved", "None in place", "Awaiting review", "Rejected"), not
+      colour (1.4.1), and shows a rejected form's comments as plain text next to the status. One
+      form is open at a time, in its own `<section aria-labelledby>` with an `<h2>` and `<h3>`
+      groups; every text/date input has a literal `id` matched by a `<label for>` (1.3.1, 4.1.2,
+      3.3.2), the three consents are `InputCheckbox`es wrapped in their own `<label>` (the
+      established pattern), optional fields say "(optional)" in the label, and `[Required]` fields
+      have specific messages ("Enter your child's full name.") shown in `ValidationSummary
+      role="alert"` (3.3.1, 3.3.3). Service errors use the `role="alert"` paragraph and success the
+      `role="status"` paragraph (4.1.3). `Safeguarding/ConsentRecords.razor` gains a "Pending
+      submissions" table (real `<th>` cells) with a "Review" `<button>` per row; the review panel is
+      a `<section aria-labelledby>` with an `<h2>`, a `<dl>` of the submitted values (name/date of
+      birth shown beside what is on record), and one `InputTextArea id="decisionComments"` with a
+      `<label for>` that says comments are required to reject (3.3.2). Rejecting without comments
+      surfaces the service's message through the existing `role="alert"` paragraph. The paper-form
+      heading became "Record a paper consent form" with a one-line explanation.
+      `Safeguarding/StudentConsent.razor` (teacher, read-only) is a table with `<th>` headers and a
+      per-row link whose text names the student ("Details for Alex Student", 2.4.4); the detail
+      view uses an `<h1>` naming the student, `<h2>` sections and `<dl>` lists, and a "Back to
+      student consent" link. All controls are native buttons, links and inputs (2.1.1). Not
+      handled: focus is not moved to the review panel or form when it opens below the list — it
+      follows in DOM order, the same accepted trade-off as the lesson-files rows.
 - [ ] **Colour contrast (1.4.3/1.4.11):** `wwwroot/app.css` (the Blazor project template's default
       stylesheet, not yet restyled for VLMS) gives text and UI-component colours a 4.5:1 (text) /
       3:1 (UI component) contrast ratio against their background. No VLMS-specific branding/colour
@@ -434,5 +458,6 @@ The current pages (`src/Vlms.Web/Components/Pages/`): `Home.razor`,
 | Claude (Opus, `/work-next` session) — awaiting Philip's countersign | 22/10/2026 | Re-reviewed after the "Lesson model: order, tags, several files" item (STATE.md): `Curriculum/TeacherProposals.razor` changed, invalidating the recorded hash. Reviewed the new markup directly. The lessons table gains Order and Tags columns, each with a `<th>`. The proposal form adds: a labelled `InputNumber` for delivery order (1.3.1, 4.1.2); tag checkboxes grouped in a `<fieldset>` with a `<legend>`, each `<input>` wrapped in its own `<label>` (1.3.1, 3.3.2); and file rows in a `<fieldset>`, where every input (a native `<input @bind>`) has an explicit `label for` with a numbered id ("File 2 name", "File 2 content location") and every remove button has a unique accessible name ("Remove file 2", 2.4.6). All controls are native buttons and inputs, so they are keyboard-operable (2.1.1). Errors from the service still go through the existing `role="alert"` paragraph (3.3.1). Not handled: focus stays on "Add file" after a row is added, which is acceptable as the new row follows it in DOM order. Colour contrast remains open, as before. |
 | Claude (Sonnet subagent) — awaiting Philip's countersign | 22/10/2026 | Re-reviewed after the "Lesson library: view and download (FR-006)" item: new page `Lessons/LessonLibrary.razor` and one link in `Home.razor`, invalidating the recorded hash. Reviewed the new markup directly. One `<h1>` and a `<PageTitle>`; each rank is a `<section>` with an `<h2>` (1.3.1); each lesson table has a `<caption>` and `<th scope="col">` headers; files are a `<ul>` of links whose text is the file name, so each link names its destination (2.4.4); an empty rank shows the text "No lessons yet" and a lesson with no files "No files". No inputs, so no label pairing arises, and there are no images. The page is static server-rendered with no status or error messages of its own. File links carry `data-enhance-nav="false"` so the browser makes a normal request for PDFs, images and downloads. Not done: no browser or screen-reader pass was possible (no local PostgreSQL to run the app). Colour contrast remains open, as before. |
 | Claude (Sonnet subagent) — awaiting Philip's countersign | 22/10/2026 | Re-reviewed after the "Admin — assign teacher and change status (FR-013)" item (STATE.md): new page `Administration/Students.razor` plus a one-link edit to `Home.razor`, invalidating the recorded hash. Reviewed the new page directly against the patterns `Administration/UserRoles.razor` already passes. One `<h1>` and a `<PageTitle>`; real table with a `<th>` for every column (1.3.1). Each row has two native `<select>` controls, each with an explicit `label for` matching its `id` literally (`assign-teacher-{id}`, `change-status-{id}`) and naming the student in the label text (1.3.1, 3.3.2, 4.1.2). Native `<button type="button">` controls with `aria-label`s that begin with the visible text ("Save teacher for ..." contains "Save teacher"; "Save status for ..." contains "Save status"), so Label in Name holds (2.5.3), and unique per student (2.4.6). Success and failure messages use `role="status"` and `role="alert"` (3.3.1, 4.1.3). A graduated student's status cell is plain text, not a disabled control. All controls are native, so keyboard-operable (2.1.1). No change to `app.css`, so the open colour-contrast item is unaffected. |
+| Claude (Opus subagent) — awaiting Philip's countersign | 22/10/2026 | Re-reviewed after the "Parent consent form" item (FR-013, FR-015; adr/0006): new `Parent/ParentConsent.razor` and `Safeguarding/StudentConsent.razor`, changes to `Safeguarding/ConsentRecords.razor` (pending-submissions table, review panel with comments) and `Home.razor` (one link each in the Parent and Teacher `AuthorizeView`s), invalidating the recorded hash. Reviewed the markup directly against the existing patterns; details in the new "Consent pages" item above. Every input id is a literal matched by a `label for` (the static check passes), statuses are words not colour, errors use `role="alert"` and outcomes `role="status"`, link text names its target. No CSS change. Open, as before: colour contrast; plus focus not moved to the review panel/form when it opens. |
 
-Reviewed-hash: 612158094952a4b9f068d051e5a305927bed793c53ae8cb475295f5f0a2acfe3
+Reviewed-hash: 508cbb055564c73747e267ae29e99034bf5755714dbd20fbc1a6da4cff07aeff

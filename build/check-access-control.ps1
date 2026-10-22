@@ -89,8 +89,12 @@ foreach ($file in $csFiles) {
 # was written (2026-07-19) — a floor, not a ceiling; adding more tests never fails this check.
 $testRoot = Join-Path $repoRoot "tests/Vlms.Tests/Infrastructure"
 $expectedMinimums = @{
-    "SensitiveDataAccessControlTests.cs" = 5
-    "ConsentRecordServiceTests.cs"       = 10
+    # Raised 22/10/2026 for adr/0006 (FR-015): the Teacher/linked-Parent access matrix on
+    # ConsentSensitiveDetails, rejection-needs-comments and approval-updates-Student. The parent
+    # consent form's own suite is new, at its count when written.
+    "SensitiveDataAccessControlTests.cs" = 19
+    "ConsentRecordServiceTests.cs"       = 16
+    "ParentConsentServiceTests.cs"       = 17
     "DbsCheckServiceTests.cs"            = 8
     "GuardianLinkServiceTests.cs"        = 13
     # STATE.md "Admin role assignment + first-Admin bootstrap" (2026-10-11): role grant/revoke and

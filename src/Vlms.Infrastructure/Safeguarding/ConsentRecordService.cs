@@ -13,11 +13,16 @@ namespace Vlms.Infrastructure.Safeguarding;
 /// SafeguardingOfficer. This mirrors data-design.md's own wording for who may act on a
 /// <see cref="ConsentRecord"/> ("Approved by Safeguarding Officer or Admin only") and is a hard
 /// constraint (CLAUDE.md Project Law): the Approver role is curriculum-only and never conflated
-/// with safeguarding/consent sign-off, so it has no access here, and there is no Parent
-/// self-service path in this codebase yet (the Parent dashboard/self-submission flow is STATE.md
-/// Next item 1, not built) — this service is the Admin/SafeguardingOfficer-operated equivalent of
-/// entering what a parent has already told/given the programme in writing (e.g. from a paper
-/// consent form), not a simulation of parent self-service.
+/// with safeguarding/consent sign-off, so it has no access here. Parents now submit the form
+/// themselves (functional.md FR-015, <see cref="ParentConsentService"/>); <see cref="RecordAsync"/>
+/// stays as the Admin/SafeguardingOfficer-operated equivalent for a paper form a parent has handed
+/// in, and <see cref="DecideAsync"/> reviews both kinds of submission.
+///
+/// <b>Decision (FR-015, adr/0006-parent-consent-and-teacher-read-access.md):</b> only a Pending
+/// submission can be decided; rejection requires comments; approval applies the form's personal
+/// details (<see cref="ConsentRecord.StudentName"/>/<see cref="ConsentRecord.StudentDateOfBirth"/>)
+/// to the <see cref="Student"/> (functional.md FR-013) in the same <c>SaveChangesAsync</c>.
+/// Approval does not touch any earlier submission — an earlier Approved row stays as history.
 ///
 /// <see cref="RecordAsync"/> creates the <see cref="ConsentRecord"/> and its 1:1
 /// <see cref="ConsentSensitiveDetails"/> row together in a single <c>SaveChangesAsync</c> call
@@ -65,6 +70,7 @@ public sealed class ConsentRecordService
         CancellationToken ct = default)
     {
         RequireAdminOrSafeguardingOfficer();
+        var callerUserId = RequireResolvedUserId();
         ArgumentException.ThrowIfNullOrWhiteSpace(emergencyContact);
 
         _ = await _db.Students.SingleAsync(s => s.Id == studentId, ct);
@@ -82,14 +88,15 @@ public sealed class ConsentRecordService
             DataSharingConsent = dataSharingConsent,
             Status = ConsentStatus.Pending,
             SubmittedByParentId = submittedByParentId,
-            ExpiryDate = expiryDate
+            ExpiryDate = expiryDate,
+            SubmittedAt = DateTime.UtcNow,
+            SubmittedByUserId = callerUserId
         };
         _db.ConsentRecords.Add(record);
 
-        var detailsId = await NextId(_db.ConsentSensitiveDetails, ct);
         _db.ConsentSensitiveDetails.Add(new ConsentSensitiveDetails
         {
-            Id = detailsId,
+            Id = DetailsIdFor(recordId),
             ConsentRecordId = recordId,
             EmergencyContact = emergencyContact,
             EmergencyMedicalInfo = emergencyMedicalInfo,
@@ -101,30 +108,53 @@ public sealed class ConsentRecordService
     }
 
     /// <summary>
-    /// Approves or rejects an existing (Pending, or previously decided) <see cref="ConsentRecord"/>.
-    /// Admin/SafeguardingOfficer only — never the Approver role (curriculum-only).
+    /// Approves or rejects a Pending <see cref="ConsentRecord"/>. Admin/SafeguardingOfficer only —
+    /// never the Approver role (curriculum-only). <paramref name="comments"/> is mandatory when
+    /// rejecting (functional.md FR-015). Approving applies the submission's personal details to the
+    /// <see cref="Student"/> (functional.md FR-013); an Approved, unexpired record is what
+    /// <c>CompletionService</c>'s FR-003 consent check looks for.
+    ///
+    /// Updates go through <c>Entry(...).CurrentValues[...]</c> property by property (the entities
+    /// are init-only), so a column added to either entity later is left alone rather than reset.
     /// </summary>
-    public async Task<ConsentRecord> DecideAsync(int consentRecordId, bool approve, CancellationToken ct = default)
+    public async Task<ConsentRecord> DecideAsync(
+        int consentRecordId, bool approve, string? comments = null, CancellationToken ct = default)
     {
         RequireAdminOrSafeguardingOfficer();
-        var approverUserId = RequireResolvedUserId();
+        var deciderUserId = RequireResolvedUserId();
+
+        if (!approve && string.IsNullOrWhiteSpace(comments))
+        {
+            throw new ArgumentException("Comments are required when rejecting a consent submission.", nameof(comments));
+        }
 
         var record = await _db.ConsentRecords.SingleAsync(c => c.Id == consentRecordId, ct);
-
-        _db.Entry(record).CurrentValues.SetValues(new ConsentRecord
+        if (record.Status != ConsentStatus.Pending)
         {
-            Id = record.Id,
-            StudentId = record.StudentId,
-            PeriodStart = record.PeriodStart,
-            PeriodEnd = record.PeriodEnd,
-            PhotoMediaConsent = record.PhotoMediaConsent,
-            TransportOffsiteConsent = record.TransportOffsiteConsent,
-            DataSharingConsent = record.DataSharingConsent,
-            Status = approve ? ConsentStatus.Approved : ConsentStatus.Rejected,
-            SubmittedByParentId = record.SubmittedByParentId,
-            ApprovedByUserId = approverUserId,
-            ExpiryDate = record.ExpiryDate
-        });
+            throw new InvalidOperationException(
+                $"Consent record {consentRecordId} has already been {record.Status.ToString().ToLowerInvariant()} — only a pending submission can be decided.");
+        }
+
+        var recordValues = _db.Entry(record).CurrentValues;
+        recordValues[nameof(ConsentRecord.Status)] = approve ? ConsentStatus.Approved : ConsentStatus.Rejected;
+        recordValues[nameof(ConsentRecord.ApprovedByUserId)] = deciderUserId;
+        recordValues[nameof(ConsentRecord.DecidedAt)] = DateTime.UtcNow;
+        recordValues[nameof(ConsentRecord.DecisionComments)] = string.IsNullOrWhiteSpace(comments) ? null : comments.Trim();
+
+        if (approve && (record.StudentName is not null || record.StudentDateOfBirth is not null))
+        {
+            var student = await _db.Students.SingleAsync(s => s.Id == record.StudentId, ct);
+            var studentValues = _db.Entry(student).CurrentValues;
+            if (record.StudentName is not null)
+            {
+                studentValues[nameof(Student.Name)] = record.StudentName;
+            }
+
+            if (record.StudentDateOfBirth is { } dateOfBirth)
+            {
+                studentValues[nameof(Student.DateOfBirth)] = dateOfBirth;
+            }
+        }
 
         await _db.SaveChangesAsync(ct);
         return record;
@@ -146,6 +176,13 @@ public sealed class ConsentRecordService
     private static async Task<int> NextId(DbSet<ConsentRecord> set, CancellationToken ct) =>
         (await set.Select(x => (int?)x.Id).MaxAsync(ct) ?? 0) + 1;
 
-    private static async Task<int> NextId(DbSet<ConsentSensitiveDetails> set, CancellationToken ct) =>
-        (await set.Select(x => (int?)x.Id).MaxAsync(ct) ?? 0) + 1;
+    /// <summary>
+    /// A <see cref="ConsentSensitiveDetails"/> row takes its <see cref="ConsentRecord"/>'s own id
+    /// (the two are strictly 1:1 and always created together). Since FR-015 a Parent creates these
+    /// rows too, and a Parent's view of <see cref="ConsentSensitiveDetails"/> is confined by the
+    /// query filter to their own children, so <c>MAX(id)+1</c> over that table would read too low
+    /// and collide. <see cref="ConsentRecord"/> has no query filter, so its id is safe to derive
+    /// from, and the unique <c>ConsentRecordId</c> index makes the derived id unique too.
+    /// </summary>
+    internal static int DetailsIdFor(int consentRecordId) => consentRecordId;
 }
