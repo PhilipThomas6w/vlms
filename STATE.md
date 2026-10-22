@@ -100,6 +100,7 @@ Found in the browser walk (22/10/2026):
 
 ## Decisions needed (Philip)
 Ordered by go-live critical path.
+- **US-001 gap analysis (old SharePoint registration story; 22/10/2026)** — real gaps found: no email to Safeguarding Officers/Admins when a consent form is submitted (and no pending-consent link on the home page); no confirmation or outcome email to the parent on submission/approval; the invite is an account-setup email, not a welcome with student details; no duplicate-student check at registration. Differences: staff register and parents then consent (FR-004, deliberate); consent is a rolling 12 months, not an ecclesiastical year; transport and off-site trips share one consent flag, dietary and SEN share one field; guardian has one contact field (no separate phone, relationship or address). Questions for Philip: staff-led registration acceptable?; rolling 12 months or a fixed year-end (which date)?; alert recipients (all Safeguarding Officers and Admins?); duplicate check warn or block?; separate the merged flags/fields?
 - **Graph client secret: server only** (Philip, 22/10/2026) — no secret on the dev machine. Create one at go-live straight into the server's `web.env`/`jobs.env` (`deploy/README.md` "Email secret") and send one real test email from the server.
 - **Tell Teachers before go-live** that they must set up two-factor sign-in (agreed 22/10/2026).
 1. ~~Seed rank ladder + curriculum~~: resolved 21/10/2026. See `seed/curriculum.json` and `requirements/functional.md`.
