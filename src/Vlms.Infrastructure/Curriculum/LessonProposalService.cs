@@ -38,11 +38,14 @@ public sealed class LessonProposalService
 {
     private readonly VlmsDbContext _db;
     private readonly ICurrentUserContext _currentUser;
+    private readonly IBlobStorage? _blobs;
 
-    public LessonProposalService(VlmsDbContext db, ICurrentUserContext currentUser)
+    /// <param name="blobs">Needed only by <see cref="OpenProposalFileAsync"/>.</param>
+    public LessonProposalService(VlmsDbContext db, ICurrentUserContext currentUser, IBlobStorage? blobs = null)
     {
         _db = db;
         _currentUser = currentUser;
+        _blobs = blobs;
     }
 
     /// <summary>Any Teacher may propose a create/edit/retire. Creates a Pending proposal.</summary>
@@ -52,7 +55,7 @@ public sealed class LessonProposalService
         RequireRole(Role.Teacher);
         var proposerId = RequireResolvedUserId();
 
-        await ValidateLessonReferenceAsync(lessonId, changeType, content, ct);
+        await ValidateLessonReferenceAsync(lessonId, changeType, content, [proposerId], ct);
 
         var proposal = new LessonChangeProposal
         {
@@ -156,7 +159,8 @@ public sealed class LessonProposalService
                 $"Only a rejected proposal can be resubmitted (proposal {originalProposalId} has Status={original.Status}).");
         }
 
-        await ValidateLessonReferenceAsync(original.LessonId, original.ChangeType, content, ct);
+        await ValidateLessonReferenceAsync(
+            original.LessonId, original.ChangeType, content, [proposerId, original.ProposedByUserId], ct);
 
         var resubmission = new LessonChangeProposal
         {
@@ -236,8 +240,8 @@ public sealed class LessonProposalService
         }
     }
 
-    private static async Task ValidateLessonReferenceAsync(
-        int? lessonId, LessonChangeType changeType, ProposedLessonContent content, CancellationToken ct)
+    private async Task ValidateLessonReferenceAsync(
+        int? lessonId, LessonChangeType changeType, ProposedLessonContent content, int[] pendingOwners, CancellationToken ct)
     {
         if (changeType == LessonChangeType.Create && lessonId is not null)
         {
@@ -269,7 +273,86 @@ public sealed class LessonProposalService
             throw new InvalidOperationException("Every lesson file needs a file name and a content location.");
         }
 
-        await Task.CompletedTask;
+        // A file may only point at a blob the proposer is entitled to attach: one of the lesson's
+        // current files, or a pending upload under the proposer's own prefix (or, on a resubmission,
+        // the original proposer's). Anything else (another lesson's file, a certificate, another
+        // teacher's pending upload) is refused, so a proposal cannot be used to expose arbitrary blobs.
+        var currentKeys = lessonId is null
+            ? new HashSet<string>()
+            : (await _db.LessonFiles.Where(f => f.LessonId == lessonId).Select(f => f.BlobKey).ToListAsync(ct)).ToHashSet();
+        foreach (var file in content.Files)
+        {
+            var key = file.BlobKey;
+            var isPending = pendingOwners.Any(owner => PendingKeys.BelongsTo(key, owner));
+            if (!isPending && !currentKeys.Contains(key))
+            {
+                throw new InvalidOperationException(
+                    $"File '{file.FileName}' must be uploaded, or be one of the lesson's current files.");
+            }
+        }
+    }
+
+    /// <summary>
+    /// Opens the index-th (zero-based) file of a proposal, whatever the proposal's status. Only the
+    /// proposer (a Teacher) and Approvers may open it; everyone else is refused. Pending blobs are
+    /// reachable only through here, never through the lesson library.
+    /// </summary>
+    public async Task<LessonFileContent?> OpenProposalFileAsync(int proposalId, int index, CancellationToken ct = default)
+    {
+        var isApprover = _currentUser.HasRole(Role.Approver);
+        if (!isApprover && !_currentUser.HasRole(Role.Teacher))
+        {
+            throw new UnauthorizedAccessException("Caller may not open proposal files.");
+        }
+
+        var userId = RequireResolvedUserId();
+        var proposal = await _db.LessonChangeProposals.AsNoTracking().SingleOrDefaultAsync(p => p.Id == proposalId, ct);
+        if (proposal is null)
+        {
+            return null;
+        }
+
+        if (!isApprover && proposal.ProposedByUserId != userId)
+        {
+            throw new UnauthorizedAccessException("Only the proposer or an Approver may open this proposal's files.");
+        }
+
+        var content = JsonSerializer.Deserialize<ProposedLessonContent>(proposal.ProposedContent);
+        if (content is null || index < 0 || index >= content.Files.Count)
+        {
+            return null;
+        }
+
+        var file = content.Files[index];
+        var bytes = await (_blobs ?? throw new InvalidOperationException("No blob storage is configured."))
+            .ReadAsync(file.BlobKey, ct);
+        return bytes is null ? null : new LessonFileContent(file.FileName, bytes);
+    }
+
+    /// <summary>
+    /// Approver only. The proposal laid out against the current lesson (for an edit or retirement),
+    /// with each difference flagged.
+    /// </summary>
+    public async Task<ProposalReview> GetReviewAsync(int proposalId, CancellationToken ct = default)
+    {
+        RequireRole(Role.Approver);
+
+        var proposal = await _db.LessonChangeProposals.AsNoTracking()
+            .Include(p => p.ProposedByUser)
+            .SingleAsync(p => p.Id == proposalId, ct);
+        var proposed = JsonSerializer.Deserialize<ProposedLessonContent>(proposal.ProposedContent)
+            ?? throw new InvalidOperationException($"Proposal {proposalId}'s ProposedContent could not be parsed.");
+
+        Lesson? current = proposal.LessonId is null
+            ? null
+            : await _db.Lessons.AsNoTracking().Include(l => l.Rank).Include(l => l.Tags).Include(l => l.Files)
+                .SingleAsync(l => l.Id == proposal.LessonId, ct);
+
+        var rankName = current?.Rank?.Name
+            ?? (proposed.RankId is int rid ? (await _db.Ranks.AsNoTracking().SingleOrDefaultAsync(r => r.Id == rid, ct))?.Name : null)
+            ?? "";
+
+        return ProposalReview.Build(proposal, proposed, current, rankName);
     }
 
     private static void RequirePending(LessonChangeProposal proposal)
