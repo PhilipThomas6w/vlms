@@ -19,8 +19,8 @@ Each step is marked:
 | 4 | Open a lesson's documents and the Teacher's Information to prepare | **Missing** | No page serves lesson files, and `IBlobStorage` has no read method (`UploadAsync` only). |
 | 5 | Print or download handouts | **Missing** | Same as step 4. |
 | 6 | See the students in their group, with each student's current rank | **Missing** | No student list page exists for teachers. Students appear only in admin, reporting and guardian-link pages. |
-| 7 | Record that each student who attended completed the lesson | **Missing (service only)** | `CompletionService.MarkCompleteAsync` exists, with certificate, promotion and parent email, but no page calls it. |
-| 8 | Check that a student with lapsed consent is blocked from completion | Built (service) | FR-003, enforced in `CompletionService`. It becomes visible once step 7 has a page. |
+| 7 | Record that each student who attended completed the lesson | Built (not yet linked) | `/progress/record` calls `CompletionService.MarkCompleteBatchAsync` (certificate, promotion and parent email as before). Not reachable from navigation or the home page until FR-012. |
+| 8 | Check that a student with lapsed consent is blocked from completion | Built | FR-003, enforced in `CompletionService`; `/progress/record` shows blocked students with the reason, and reports blocked results after submitting. |
 | 9 | Correct a mistaken completion | Built | `/progress/completions` (`CompletionReversals.razor`) |
 
 ## J2. Teacher: improve a lesson

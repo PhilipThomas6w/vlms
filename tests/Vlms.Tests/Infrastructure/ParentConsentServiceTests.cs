@@ -320,7 +320,7 @@ public sealed class ParentConsentServiceTests : IDisposable
     {
         using (var teacher = CreateContext(TeacherUserId, Role.Teacher))
         {
-            await Assert.ThrowsAsync<InvalidOperationException>(() => teacher.Completion.MarkCompleteAsync(StudentOneId, 1));
+            await Assert.ThrowsAsync<ConsentBlockedException>(() => teacher.Completion.MarkCompleteAsync(StudentOneId, 1));
         }
 
         var recordId = await SubmitAsParentOneAsync();
@@ -328,7 +328,7 @@ public sealed class ParentConsentServiceTests : IDisposable
         // Still blocked while the submission is only Pending.
         using (var teacher = CreateContext(TeacherUserId, Role.Teacher))
         {
-            await Assert.ThrowsAsync<InvalidOperationException>(() => teacher.Completion.MarkCompleteAsync(StudentOneId, 1));
+            await Assert.ThrowsAsync<ConsentBlockedException>(() => teacher.Completion.MarkCompleteAsync(StudentOneId, 1));
         }
 
         await DecideAsync(recordId, approve: true);
