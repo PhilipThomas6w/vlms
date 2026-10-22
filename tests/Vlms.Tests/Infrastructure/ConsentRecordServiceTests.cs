@@ -207,7 +207,7 @@ public sealed class ConsentRecordServiceTests : IDisposable
         }
 
         using var sg = CreateContext(2, Role.SafeguardingOfficer);
-        var decided = await sg.Service.DecideAsync(recordId, approve: true, CancellationToken.None);
+        var decided = await sg.Service.DecideAsync(recordId, approve: true, ct: CancellationToken.None);
 
         Assert.Equal(ConsentStatus.Approved, decided.Status);
         Assert.Equal(2, decided.ApprovedByUserId);
@@ -226,7 +226,7 @@ public sealed class ConsentRecordServiceTests : IDisposable
         }
 
         using var admin2 = CreateContext(1, Role.Admin);
-        var decided = await admin2.Service.DecideAsync(recordId, approve: false, CancellationToken.None);
+        var decided = await admin2.Service.DecideAsync(recordId, approve: false, comments: "Emergency contact number is incomplete.", ct: CancellationToken.None);
 
         Assert.Equal(ConsentStatus.Rejected, decided.Status);
     }
@@ -245,10 +245,109 @@ public sealed class ConsentRecordServiceTests : IDisposable
 
         using var approver = CreateContext(20, Role.Approver);
         await Assert.ThrowsAsync<UnauthorizedAccessException>(
-            () => approver.Service.DecideAsync(recordId, approve: true, CancellationToken.None));
+            () => approver.Service.DecideAsync(recordId, approve: true, ct: CancellationToken.None));
 
         using var verify = CreateContext(1, Role.Admin);
         var stillPending = await verify.Context.ConsentRecords.SingleAsync(c => c.Id == recordId);
         Assert.Equal(ConsentStatus.Pending, stillPending.Status);
+    }
+
+    // --- FR-015 (adr/0006): rejection needs comments, only Pending can be decided, approval applies
+    // the form's personal details to the Student.
+
+    private async Task<int> RecordPendingAsync()
+    {
+        using var admin = CreateContext(1, Role.Admin);
+        var record = await admin.Service.RecordAsync(
+            100, new DateOnly(2026, 1, 1), new DateOnly(2026, 12, 31), new DateOnly(2026, 12, 31),
+            true, true, true, 1, "Emergency contact", null, null, CancellationToken.None);
+        return record.Id;
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task DecideAsync_RejectWithoutComments_Throws_AndStaysPending(string? comments)
+    {
+        var recordId = await RecordPendingAsync();
+
+        using var sg = CreateContext(2, Role.SafeguardingOfficer);
+        await Assert.ThrowsAsync<ArgumentException>(
+            () => sg.Service.DecideAsync(recordId, approve: false, comments: comments));
+
+        using var verify = CreateContext(1, Role.Admin);
+        var stored = await verify.Context.ConsentRecords.SingleAsync(c => c.Id == recordId);
+        Assert.Equal(ConsentStatus.Pending, stored.Status);
+        Assert.Null(stored.DecidedAt);
+    }
+
+    [Fact]
+    public async Task DecideAsync_RejectWithComments_StoresTrimmedCommentsAndDecisionTime()
+    {
+        var recordId = await RecordPendingAsync();
+
+        using (var sg = CreateContext(2, Role.SafeguardingOfficer))
+        {
+            await sg.Service.DecideAsync(recordId, approve: false, comments: "  Please add a phone number.  ");
+        }
+
+        using var verify = CreateContext(1, Role.Admin);
+        var stored = await verify.Context.ConsentRecords.SingleAsync(c => c.Id == recordId);
+        Assert.Equal(ConsentStatus.Rejected, stored.Status);
+        Assert.Equal("Please add a phone number.", stored.DecisionComments);
+        Assert.Equal(2, stored.ApprovedByUserId);
+        Assert.NotNull(stored.DecidedAt);
+    }
+
+    [Fact]
+    public async Task DecideAsync_AlreadyDecided_Throws()
+    {
+        var recordId = await RecordPendingAsync();
+        using var admin = CreateContext(1, Role.Admin);
+        await admin.Service.DecideAsync(recordId, approve: true);
+
+        using var admin2 = CreateContext(1, Role.Admin);
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => admin2.Service.DecideAsync(recordId, approve: false, comments: "Changed my mind"));
+    }
+
+    [Fact]
+    public async Task DecideAsync_ByTeacher_Throws()
+    {
+        var recordId = await RecordPendingAsync();
+
+        using var teacher = CreateContext(10, Role.Teacher);
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(
+            () => teacher.Service.DecideAsync(recordId, approve: true));
+    }
+
+    [Fact]
+    public async Task DecideAsync_ApproveRecordWithoutPersonalDetails_LeavesStudentUnchanged()
+    {
+        var recordId = await RecordPendingAsync();
+
+        using (var admin = CreateContext(1, Role.Admin))
+        {
+            await admin.Service.DecideAsync(recordId, approve: true);
+        }
+
+        using var verify = CreateContext(1, Role.Admin);
+        var student = await verify.Context.Students.SingleAsync(s => s.Id == 100);
+        Assert.Equal("Alex Student", student.Name);
+        Assert.Equal(new DateOnly(2012, 1, 1), student.DateOfBirth);
+    }
+
+    [Fact]
+    public async Task RecordAsync_StampsSubmissionTimeAndEnteringUser()
+    {
+        var recordId = await RecordPendingAsync();
+
+        using var verify = CreateContext(1, Role.Admin);
+        var stored = await verify.Context.ConsentRecords.SingleAsync(c => c.Id == recordId);
+        Assert.Equal(1, stored.SubmittedByUserId);
+        Assert.NotNull(stored.SubmittedAt);
+        var details = await verify.Context.ConsentSensitiveDetails.SingleAsync(d => d.ConsentRecordId == recordId);
+        Assert.Equal(recordId, details.Id);
     }
 }

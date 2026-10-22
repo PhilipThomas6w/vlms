@@ -187,13 +187,30 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
             e.HasOne(x => x.SubmittedByParent).WithMany(x => x.SubmittedConsentRecords)
                 .HasForeignKey(x => x.SubmittedByParentId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(x => x.ApprovedByUser).WithMany().HasForeignKey(x => x.ApprovedByUserId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.SubmittedByUser).WithMany().HasForeignKey(x => x.SubmittedByUserId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(x => x.SensitiveDetails).WithOne(x => x.ConsentRecord)
                 .HasForeignKey<ConsentSensitiveDetails>(x => x.ConsentRecordId).OnDelete(DeleteBehavior.Cascade);
         });
 
+        // ConsentSensitiveDetails (amended by adr/0006-parent-consent-and-teacher-read-access.md,
+        // functional.md FR-015, Philip 22/10/2026): a row is visible to
+        //   1. Admin/SafeguardingOfficer with MFA enabled (unchanged from adr/0004 pass 7, below);
+        //   2. any Teacher (read; Teachers see all students, Student.AssignedTeacherUserId is
+        //      informational only); and
+        //   3. a Parent whose own AppUser is the ParentGuardian.AppUserId on a StudentGuardianLink to
+        //      the row's student, and who has not left — their own linked children only.
+        // The UserId != null conjunct guards a Parent-role caller with no resolved UserId: EF Core's
+        // C# null semantics would otherwise turn AppUserId == UserId into "AppUserId IS NULL" and
+        // match every guardian not yet linked to an account. The !HasLeft conjunct also excludes
+        // that case on its own (no joined AppUser, so it is not true); the tests showed each alone is
+        // enough, and both are kept so neither is a single point of failure. The Approver role
+        // matches no arm. Writes are not governed by a query filter at
+        // all: Teacher has no write path, and a Parent's write is checked against the same link in
+        // ParentConsentService. DbsCheck below is deliberately unchanged.
+        //
         // Whole-entity sensitive-data restriction (adr/0004 §"MFA-gated roles", pass 7 — STATE.md
-        // "Identity" item): only Admin/SafeguardingOfficer see rows, AND ONLY once they have TOTP
-        // MFA enabled (ICurrentUserContext.HasMfaEnabled). This is a genuine strengthening added
+        // "Identity" item): only Admin/SafeguardingOfficer see DbsCheck rows (and, for
+        // ConsentSensitiveDetails, arm 1 above), AND ONLY once they have TOTP MFA enabled (ICurrentUserContext.HasMfaEnabled). This is a genuine strengthening added
         // alongside the identity-provider swap, not a mechanical rename — MFA enforcement for these
         // two roles (item 4 of that STATE.md item) is only meaningful if it also protects the exact
         // entities ADR-0004 exists to protect, not just the Razor pages that display them; without
@@ -208,8 +225,15 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
             e.Property(x => x.Id).ValueGeneratedNever();
             e.HasIndex(x => x.ConsentRecordId).IsUnique();
             e.HasQueryFilter(x =>
-                (_currentUser.HasRole(Role.Admin) || _currentUser.HasRole(Role.SafeguardingOfficer))
-                && _currentUser.HasMfaEnabled);
+                ((_currentUser.HasRole(Role.Admin) || _currentUser.HasRole(Role.SafeguardingOfficer))
+                    && _currentUser.HasMfaEnabled)
+                || _currentUser.HasRole(Role.Teacher)
+                || (_currentUser.HasRole(Role.Parent)
+                    && _currentUser.UserId != null
+                    && StudentGuardianLinks.Any(link =>
+                        link.StudentId == x.ConsentRecord!.StudentId
+                        && link.ParentGuardian!.AppUserId == _currentUser.UserId
+                        && !link.ParentGuardian.AppUser!.HasLeft)));
         });
 
         modelBuilder.Entity<DbsCheck>(e =>

@@ -58,7 +58,12 @@ now in the hashed set, and `AccountEmailServiceTests.cs` has a floor of 9.
 - [ ] The **Approver** role still carries no path to `ConsentRecord`, `ConsentSensitiveDetails`, or
       `DbsCheck` — confirmed by reading `Program.cs`'s policy list (`RequireApprover` is used only
       by `Curriculum/ApproverProposals.razor`) and by `ConsentRecordService`/`DbsCheckService`'s own
-      in-service role checks (`Role.Admin`/`Role.SafeguardingOfficer` only — never `Role.Approver`).
+      in-service role checks (`Role.Admin`/`Role.SafeguardingOfficer` only — never `Role.Approver`),
+      `ParentConsentService` (`Role.Parent` only) and `StudentConsentViewService` (`Role.Teacher`/
+      `Role.Admin`/`Role.SafeguardingOfficer` only). The `ConsentSensitiveDetails` query filter has
+      no Approver arm (adr/0006); a user holding only Approver reads no row
+      (`SensitiveDataAccessControlTests.Parent_And_Approver_CannotRead_DbsCheck`,
+      `ParentConsentServiceTests.ApproverOnlyUser_ReadsNoSensitiveDetailsAtAll`).
       This is the CLAUDE.md hard constraint ("the Approver role is curriculum-only, never conflated
       with safeguarding/consent sign-off") — re-check it by name at every review, not by assumption.
 - [ ] Resource-based checks are still correctly scoped: `ParentStudentAccessHandler` (via the shared
@@ -83,6 +88,23 @@ now in the hashed set, and `AccountEmailServiceTests.cs` has a floor of 9.
       touches any of the four listed entities, and is reachable by design from an unauthenticated
       caller (`Register.razor`, the guardian invite-accept flow) — a new `AppUser` always gets zero
       `UserRole` rows (deny-by-default), so this is not a gap.
+- [ ] **Parent consent form and teacher consent view (functional.md FR-015,
+      adr/0006-parent-consent-and-teacher-read-access.md, 22/10/2026).** Writes to
+      `ConsentRecord`/`ConsentSensitiveDetails` happen only in `ConsentRecordService.RecordAsync`
+      (Admin/SafeguardingOfficer, paper form) and `ParentConsentService.SubmitAsync` (Parent). A query
+      filter does not govern writes, so `SubmitAsync` itself requires `Role.Parent`, a resolved
+      `UserId`, `AppUser.HasLeft == false`, and a `StudentGuardianLink` from a `ParentGuardian` whose
+      `AppUserId` is the caller to the target student — tested by
+      `ParentOfAnotherChild_CannotSubmit_ForThatChild_AndNothingIsCreated` and
+      `ParentWhoHasLeft_CannotReadOrSubmit`. A submission is always a new Pending row: no parent
+      path updates or deletes an existing `ConsentRecord`/`ConsentSensitiveDetails` row. Only
+      `ConsentRecordService.DecideAsync` (Admin/SafeguardingOfficer, Pending only, comments required
+      to reject) changes a record's status, and only an approval writes `Student.Name`/
+      `Student.DateOfBirth` (FR-013; never status, rank or assigned teacher). Teachers have no write
+      method at all (`StudentConsentViewService` is read-only; `Teacher_CannotWrite_ConsentOrDecide`).
+      Pages: `/parent/consent` (`RequireParent`), `/students/consent` and `/students/{id}/consent`
+      (`RequireTeacher`), `/safeguarding/consent` (`RequireAdminOrSafeguardingOfficer`), each with
+      `MfaRequirement` via its policy.
 - [ ] **MFA enforcement (STATE.md "Identity" item 4) is wired at both layers, not just one:** every
       policy in `Program.cs`'s `AddAuthorization` block (`Require{Role}` × 6, `StudentAccess`,
       `RequireAdminOrTeacher`, `RequireAdminOrSafeguardingOfficer`) also carries an `MfaRequirement`,
@@ -116,16 +138,22 @@ now in the hashed set, and `AccountEmailServiceTests.cs` has a floor of 9.
 
 ## V14 Data Protection — manual review items
 
-- [ ] The `HasQueryFilter` predicates on `ConsentSensitiveDetails`/`DbsCheck` in
-      `VlmsDbContext.OnModelCreating` still read exactly
-      `(_currentUser.HasRole(Role.Admin) || _currentUser.HasRole(Role.SafeguardingOfficer)) &&
-      _currentUser.HasMfaEnabled` — **updated this review** (STATE.md "Identity" item 4, adr/0004
-      §"MFA-gated roles" pass 7): the `&& HasMfaEnabled` conjunct is a genuine strengthening added
-      alongside the identity-provider swap, not a mechanical rename — it closes the gap where an
-      Admin/SafeguardingOfficer without MFA enrolled could be blocked from the `/safeguarding/*`
-      pages by `MfaRequirementHandler` yet still read these entities through any other code path
-      querying `VlmsDbContext` directly. No additional role has been added to either filter without
-      an explicit, documented decision.
+- [ ] The `HasQueryFilter` predicate on `DbsCheck` in `VlmsDbContext.OnModelCreating` still reads
+      exactly `(_currentUser.HasRole(Role.Admin) || _currentUser.HasRole(Role.SafeguardingOfficer)) &&
+      _currentUser.HasMfaEnabled` (adr/0004 §"MFA-gated roles" pass 7: the `&& HasMfaEnabled`
+      conjunct closes the gap where an Admin/SafeguardingOfficer without MFA could still read these
+      entities through any code path querying `VlmsDbContext` directly). **Amended 22/10/2026
+      (adr/0006, FR-015):** the predicate on `ConsentSensitiveDetails` is now that same Admin/
+      SafeguardingOfficer-with-MFA arm, OR `_currentUser.HasRole(Role.Teacher)`, OR
+      `_currentUser.HasRole(Role.Parent) && _currentUser.UserId != null &&
+      StudentGuardianLinks.Any(link => link.StudentId == x.ConsentRecord!.StudentId &&
+      link.ParentGuardian!.AppUserId == _currentUser.UserId && !link.ParentGuardian.AppUser!.HasLeft)`.
+      Re-check by reading the code that: the Parent arm is scoped by the link to the row's own
+      student (not "any link"); the `UserId != null` and `!HasLeft` conjuncts are both still present
+      (each alone excludes account-less guardians for a Parent caller with no resolved id — found by
+      break-testing, see the 22/10/2026 row); there is still no Approver/Student arm; Teacher is not
+      MFA-gated (a documented, open risk in adr/0006, not an oversight). No further role is added to
+      either filter without an explicit, documented decision.
 - [ ] `SystemCurrentUserContext` (used only by the `Vlms.Jobs` systemd-timer-invoked console host) still grants exactly
       `Role.Admin`/`Role.SafeguardingOfficer` and nothing broader, and its `HasMfaEnabled` is hardcoded
       `true` (documented in its own doc comment: MFA enforcement gates *interactive sign-in* by a
@@ -153,7 +181,14 @@ now in the hashed set, and `AccountEmailServiceTests.cs` has a floor of 9.
       entity itself (the exact regression the c0ff6b3 checker round-trip found and fixed in
       `ConsentExpiryJob.SweepDbsAsync` — a projection skips `IMaterializationInterceptor` entirely).
       Grep for `.Select(` near `DbsCheck`/`ConsentSensitiveDetails` and check each hit materializes
-      the entity first.
+      the entity first. Since adr/0006 this covers the Teacher and Parent read paths too:
+      `StudentConsentViewService.GetStudentAsync` and `ParentConsentService.GetMyChildrenAsync`
+      materialize whole `ConsentSensitiveDetails` entities before mapping them to view records, and
+      the audit row carries the Teacher's/Parent's own `UserId`
+      (`TeacherRead_WritesOneAuditRowPerDetailsRow_AttributedToTheTeacher`,
+      `ParentRead_WritesAuditRow_AttributedToTheParent_AndNoneForHiddenRows`). The former
+      `MAX(id)` aggregate over `ConsentSensitiveDetails` in `ConsentRecordService` is gone (a details
+      row now takes its record's id), so no aggregate over that table remains.
 
 ## Sign-off
 
@@ -185,5 +220,6 @@ now in the hashed set, and `AccountEmailServiceTests.cs` has a floor of 9.
 | Claude (Opus, `/work-next` session) — awaiting Philip's countersign | 2026-10-20 | Re-reviewed after the "Production storage-root guard" item (STATE.md), which invalidated the recorded hash: `Program.cs` changed. Read the diff: the `IBlobStorage` registration now resolves `Storage:LocalRootPath` once at startup through new `Storage/BlobStorageRoot.cs` (Production refuses a blank, relative or in-app-directory root) and passes the resolved path to the same `LocalDiskBlobStorage`. No `AddAuthorization`/policy, resource-handler, `HasQueryFilter`, `IgnoreQueryFilters`, `StudentGuardianLink` or role-check code touched; certificate PDFs are not `DbsCheck`/`ConsentSensitiveDetails` data. No new gaps. |
 | Claude (Opus, `/work-next` session); countersigned by Philip Luke Thomas 2026-10-20 | 2026-10-20 | Re-reviewed after the "Proactive parent notifications (BR-005)" item (STATE.md), which invalidated the recorded hash: `Program.cs` changed (one new `GuardianNotificationService` registration). Reviewed the new service as a data-disclosure path, since it sends student data to other users: recipients are only guardians linked by `StudentGuardianLink` whose account holds `Parent` and has not left (no `ContactInfo` addresses, no unapproved invite accounts); completion emails require the `Teacher` role and reminders `Admin`/`SafeguardingOfficer`, checked inside the service; content is student name, lesson title, rank name and consent expiry date only, with no `DbsCheck`/`ConsentSensitiveDetails` read (`GuardianNotificationServiceTests.Notifications_ReadNoRestrictedData` asserts no audit-log row). No `AddAuthorization`/policy, resource-handler, `HasQueryFilter`, `IgnoreQueryFilters` or `StudentGuardianLink`-creation code touched. No new gaps. |
 | Claude (Opus, `/work-next` session) — awaiting Philip's countersign | 22/10/2026 | Re-reviewed after the "Lesson model: order, tags, several files" item (STATE.md), which invalidated the recorded hash: `VlmsDbContext.cs` and `Curriculum/TeacherProposals.razor` changed. Read the diff: `VlmsDbContext` adds `LessonTagAssignment` and `LessonFile` (curriculum data, child rows of `Lesson`, cascade on delete) and a `(rank_id, order)` index. Neither entity holds `DbsCheck`/`ConsentSensitiveDetails` data, so neither needs a `HasQueryFilter`, and no existing query filter, `IgnoreQueryFilters` call or audit-interceptor path changed. `TeacherProposals.razor` keeps `RequireTeacher` and only gains form fields (order, tag checkboxes, file rows). Writes still go through `LessonProposalService`, whose `Teacher`/`Approver` checks are unchanged; tags and files are applied only on Approver approval. The Approver gains no safeguarding path. No new gaps. |
+| Claude (Opus subagent) — awaiting Philip's countersign | 22/10/2026 | Re-reviewed after the "Parent consent form" item (FR-013, FR-015; adr/0006 amends adr/0004), a substantive access-control change, which invalidated the recorded hash: `VlmsDbContext.cs`, `Program.cs`, `Home.razor`, `Safeguarding/ConsentRecords.razor`, and two new pages (`Parent/ParentConsent.razor`, `Safeguarding/StudentConsent.razor`). Read every hashed file that changed, not just the diff summary. **Query filter:** `ConsentSensitiveDetails` now admits Admin/SafeguardingOfficer with MFA (unchanged), any Teacher, and a Parent linked by `StudentGuardianLink` to the row's student who has not left; `DbsCheck`'s predicate is byte-for-byte unchanged. Updated the V14 predicate item, the Approver V8 item and the V16 item above, and added a V8 item for the new write paths. **Writes:** only `ConsentRecordService` (Admin/SO) and `ParentConsentService.SubmitAsync` (Parent, own linked children, checked in the service) create rows; submissions are append-only; only `DecideAsync` (Admin/SO, Pending only, comments required to reject) decides, and approval writes only `Student.Name`/`DateOfBirth`. Teachers have no write path. **Pages:** both new pages carry `[Authorize(Policy = ...)]` (`RequireParent`, `RequireTeacher`) and are not on the allow-list; `Home.razor` gained one link in each existing `AuthorizeView`. `Program.cs`: two DI registrations and a comment, no policy/handler change. No `IgnoreQueryFilters()`; `StudentGuardianLink` creation sites unchanged. **Tests:** `SensitiveDataAccessControlTests` (two Teacher tests changed from "cannot read" to "can read" per adr/0006; ten new), `ConsentRecordServiceTests` (+6 methods), new `ParentConsentServiceTests` (17 methods); floors raised to 19 / 16 and set at 17 in `check-access-control.ps1`. **Break tests (both restored):** (a) widening the Parent arm to any link (`StudentGuardianLinks.Any(link => link.ParentGuardianId > 0)`) failed six tests, including `LinkedParent_CanRead_OwnChildsConsentSensitiveDetails_Only` and `ParentOfAnotherChild_CannotRead_ThatChildsDetails`; (b) skipping the audit write for Teacher-only callers in `SensitiveDataAuditInterceptor` failed `TeacherRead_WritesOneAuditRowPerDetailsRow_AttributedToTheTeacher` and `Teacher_CanReadCurrentApprovedDetails_AndTheReadIsAudited`. Also break-tested the null-`UserId` guard: removing it alone failed nothing, because `!HasLeft` independently excludes account-less guardians; removing both failed `ParentRole_WithNoResolvedUserId_ReadsNothing_EvenWhereAGuardianHasNoAccount` — kept both, documented in the filter's comment. **Open risks, for Philip (adr/0006):** Teachers read medical/SEN data without MFA; projections (`.Select`) still bypass the read audit by design of `IMaterializationInterceptor`, so this stays a review item; the DPIA must be updated before go-live. Not exercised: the filter's SQL against a live PostgreSQL server (SQLite tests only). |
 
-Reviewed-hash: 2a5fa129840f81e03804f8abaff19772413750193f8aa6e8271ef5074b727e98
+Reviewed-hash: 6d8b2123c7e2bea11154a75452ea3a3bc87801c467ada2a08cba66c1dea65fef

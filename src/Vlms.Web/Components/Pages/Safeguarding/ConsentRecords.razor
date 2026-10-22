@@ -15,9 +15,11 @@
 
 <p>
     <code>ConsentRecord</code>/<code>ConsentSensitiveDetails</code> management — Admin or
-    Safeguarding Officer only (functional.md FR-001, adr/0004-sensitive-data-access-control.md).
-    The Approver role is curriculum-only and has no access here, and there is no parent
-    self-service path — this records what the programme has already been told in writing.
+    Safeguarding Officer only (functional.md FR-001, FR-015,
+    adr/0006-parent-consent-and-teacher-read-access.md). Parents submit the annual consent form
+    themselves; review each pending submission below and approve it, or reject it with comments
+    the parent will see. Approving applies the name and date of birth on the form to the student's
+    record. The Approver role is curriculum-only and has no access here.
 </p>
 
 @if (_errorMessage is not null)
@@ -29,7 +31,78 @@
     <p role="status">@_statusMessage</p>
 }
 
-<h2>Existing records</h2>
+<h2>Pending submissions</h2>
+@{
+    var pending = _records.Where(r => r.Status == ConsentStatus.Pending).OrderBy(r => r.Id).ToList();
+}
+@if (pending.Count == 0)
+{
+    <p>No submissions are awaiting review.</p>
+}
+else
+{
+    <table>
+        <thead>
+            <tr>
+                <th>Student</th>
+                <th>Submitted by</th>
+                <th>Submitted</th>
+                <th>Period</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var record in pending)
+            {
+                <tr>
+                    <td>@_studentNames.GetValueOrDefault(record.StudentId)</td>
+                    <td>@_guardianNames.GetValueOrDefault(record.SubmittedByParentId)@(record.SubmittedByUserId is { } enteredBy && _parentUserIds.Contains(enteredBy) ? "" : " (entered by staff)")</td>
+                    <td>@record.SubmittedAt?.ToString("d MMMM yyyy HH:mm")</td>
+                    <td>@record.PeriodStart - @record.PeriodEnd</td>
+                    <td><button @onclick="() => StartReview(record.Id)">Review</button></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@if (_reviewRecord is { } review)
+{
+    var details = _sensitiveDetailsByRecordId.GetValueOrDefault(review.Id);
+    var student = _students.FirstOrDefault(s => s.Id == review.StudentId);
+    <section aria-labelledby="reviewHeading">
+        <h2 id="reviewHeading">Review submission for @_studentNames.GetValueOrDefault(review.StudentId)</h2>
+        <dl>
+            <dt>Name on form</dt>
+            <dd>@(review.StudentName ?? "Not given") (on record: @student?.Name)</dd>
+            <dt>Date of birth on form</dt>
+            <dd>@(review.StudentDateOfBirth?.ToString("d MMMM yyyy") ?? "Not given") (on record: @student?.DateOfBirth.ToString("d MMMM yyyy"))</dd>
+            <dt>Period</dt>
+            <dd>@review.PeriodStart.ToString("d MMMM yyyy") to @review.PeriodEnd.ToString("d MMMM yyyy") (expires @review.ExpiryDate.ToString("d MMMM yyyy"))</dd>
+            <dt>Photo/media consent</dt>
+            <dd>@(review.PhotoMediaConsent ? "Yes" : "No")</dd>
+            <dt>Transport/off-site consent</dt>
+            <dd>@(review.TransportOffsiteConsent ? "Yes" : "No")</dd>
+            <dt>Data-sharing consent</dt>
+            <dd>@(review.DataSharingConsent ? "Yes" : "No")</dd>
+            <dt>Emergency contact</dt>
+            <dd>@details?.EmergencyContact</dd>
+            <dt>Emergency medical info</dt>
+            <dd>@(details?.EmergencyMedicalInfo ?? "None given")</dd>
+            <dt>Dietary/SEN needs</dt>
+            <dd>@(details?.DietarySEN ?? "None given")</dd>
+        </dl>
+        <div>
+            <label for="decisionComments">Comments (required to reject; the parent will see them)</label>
+            <InputTextArea id="decisionComments" @bind-Value="_decisionComments" />
+        </div>
+        <button @onclick="() => DecideAsync(review.Id, approve: true)">Approve</button>
+        <button @onclick="() => DecideAsync(review.Id, approve: false)">Reject</button>
+        <button @onclick="CancelReview">Cancel</button>
+    </section>
+}
+
+<h2>All records</h2>
 <table>
     <thead>
         <tr>
@@ -38,7 +111,7 @@
             <th>Expiry</th>
             <th>Status</th>
             <th>Emergency contact</th>
-            <th></th>
+            <th>Comments</th>
         </tr>
     </thead>
     <tbody>
@@ -50,19 +123,14 @@
                 <td>@record.ExpiryDate</td>
                 <td>@record.Status</td>
                 <td>@(_sensitiveDetailsByRecordId.GetValueOrDefault(record.Id)?.EmergencyContact)</td>
-                <td>
-                    @if (record.Status == ConsentStatus.Pending)
-                    {
-                        <button @onclick="() => DecideAsync(record.Id, approve: true)">Approve</button>
-                        <button @onclick="() => DecideAsync(record.Id, approve: false)">Reject</button>
-                    }
-                </td>
+                <td>@record.DecisionComments</td>
             </tr>
         }
     </tbody>
 </table>
 
-<h2>Record new consent</h2>
+<h2>Record a paper consent form</h2>
+<p>For a form a parent has handed in on paper. It is created as pending and reviewed above like any other submission.</p>
 <EditForm Model="_form" OnValidSubmit="SubmitAsync">
     <DataAnnotationsValidator />
     <ValidationSummary role="alert" />
@@ -128,6 +196,10 @@
     private List<ConsentRecord> _records = new();
     private Dictionary<int, string> _studentNames = new();
     private Dictionary<int, ConsentSensitiveDetails> _sensitiveDetailsByRecordId = new();
+    private Dictionary<int, string> _guardianNames = new();
+    private HashSet<int> _parentUserIds = new();
+    private ConsentRecord? _reviewRecord;
+    private string? _decisionComments;
     private ConsentFormModel _form = new();
     private string? _errorMessage;
     private string? _statusMessage;
@@ -140,6 +212,8 @@
         _guardians = await Db.ParentGuardians.OrderBy(g => g.Name).ToListAsync();
         _records = await Db.ConsentRecords.OrderByDescending(c => c.ExpiryDate).ToListAsync();
         _studentNames = _students.ToDictionary(s => s.Id, s => s.Name);
+        _guardianNames = _guardians.ToDictionary(g => g.Id, g => g.Name);
+        _parentUserIds = _guardians.Where(g => g.AppUserId is not null).Select(g => g.AppUserId!.Value).ToHashSet();
 
         // Subject to adr/0004's query filter — only resolves rows at all because this page is
         // gated to Admin/SafeguardingOfficer; every row materialized here writes a
@@ -188,6 +262,20 @@
         }
     }
 
+    private void StartReview(int consentRecordId)
+    {
+        _errorMessage = null;
+        _statusMessage = null;
+        _decisionComments = null;
+        _reviewRecord = _records.FirstOrDefault(r => r.Id == consentRecordId);
+    }
+
+    private void CancelReview()
+    {
+        _reviewRecord = null;
+        _decisionComments = null;
+    }
+
     private async Task DecideAsync(int consentRecordId, bool approve)
     {
         _errorMessage = null;
@@ -195,8 +283,9 @@
 
         try
         {
-            await ConsentService.DecideAsync(consentRecordId, approve);
+            await ConsentService.DecideAsync(consentRecordId, approve, _decisionComments);
             _statusMessage = approve ? "Consent record approved." : "Consent record rejected.";
+            CancelReview();
             await LoadAsync();
         }
         catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException or ArgumentException)

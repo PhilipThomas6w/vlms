@@ -66,10 +66,16 @@ public sealed class SensitiveDataAccessControlTests : IDisposable
 
     private CallerContext CreateContext(params Role[] roles) => CreateContext(hasMfaEnabled: true, roles);
 
-    private CallerContext CreateContext(bool hasMfaEnabled, params Role[] roles)
+    private CallerContext CreateContext(bool hasMfaEnabled, params Role[] roles) =>
+        CreateContextForUser(userId: 1, hasMfaEnabled, roles);
+
+    private CallerContext CreateContextForUser(int? userId, params Role[] roles) =>
+        CreateContextForUser(userId, hasMfaEnabled: true, roles);
+
+    private CallerContext CreateContextForUser(int? userId, bool hasMfaEnabled, params Role[] roles)
     {
         var services = new ServiceCollection();
-        services.AddSingleton<ICurrentUserContext>(new FakeCurrentUserContext(userId: 1, hasMfaEnabled, roles));
+        services.AddSingleton<ICurrentUserContext>(new FakeCurrentUserContext(userId, hasMfaEnabled, roles));
         services.AddDbContext<VlmsDbContext>(options => options.UseSqlite(_connectionString));
 
         var provider = services.BuildServiceProvider();
@@ -123,8 +129,10 @@ public sealed class SensitiveDataAccessControlTests : IDisposable
         context.SaveChanges();
     }
 
+    // Amended by adr/0006 (FR-015): this test used to assert Teacher could read neither entity.
+    // Teacher may now read ConsentSensitiveDetails; DbsCheck stays invisible to Teacher.
     [Fact]
-    public void Teacher_CannotRead_DbsCheck_Or_ConsentSensitiveDetails()
+    public void Teacher_CannotRead_DbsCheck_ButCanRead_ConsentSensitiveDetails()
     {
         using (var seed = CreateContext(Role.Admin))
         {
@@ -145,7 +153,7 @@ public sealed class SensitiveDataAccessControlTests : IDisposable
         using var teacher = CreateContext(Role.Teacher);
 
         Assert.Empty(teacher.Context.DbsChecks.ToList());
-        Assert.Empty(teacher.Context.ConsentSensitiveDetails.ToList());
+        Assert.Single(teacher.Context.ConsentSensitiveDetails.ToList());
     }
 
     [Fact]
@@ -198,9 +206,10 @@ public sealed class SensitiveDataAccessControlTests : IDisposable
         Assert.Equal(ConsentStatus.Approved, consentRecord.Status);
         Assert.Equal(expiry, consentRecord.ExpiryDate);
 
-        // The regression this whole entity split exists to prevent: sensitive details must
-        // still be invisible to Teacher even though the sibling ConsentRecord row is readable.
-        Assert.Empty(teacher.Context.ConsentSensitiveDetails.ToList());
+        // Amended by adr/0006 (FR-015): this used to assert the sensitive details were invisible
+        // to Teacher. Teacher now reads them (read only); the entity split still matters for the
+        // Approver role and for unlinked Parents — see the parent/Approver tests below.
+        Assert.Single(teacher.Context.ConsentSensitiveDetails.ToList());
     }
 
     // quality/test-plan.md TC-008: the Approver role is curriculum-only, so it gets no more
@@ -347,5 +356,190 @@ public sealed class SensitiveDataAccessControlTests : IDisposable
         using var sgoWithMfa = CreateContext(hasMfaEnabled: true, Role.SafeguardingOfficer);
 
         Assert.Single(sgoWithMfa.Context.DbsChecks.ToList());
+    }
+
+    // --- adr/0006 (functional.md FR-015): Teacher read, linked-Parent read, everyone else denied.
+
+    // Two families: Parent One (AppUser 1, guardian 1) is linked to student 1 only; Parent Two
+    // (AppUser 3, guardian 2) to student 2 only. Guardian 3 has no account yet (AppUserId null) and
+    // is linked to student 1 — the case the filter's "UserId != null" conjunct exists for. Each
+    // student has one consent record with sensitive details, and Teacher One has a DbsCheck.
+    private void SeedTwoFamilies()
+    {
+        using var seed = CreateContext(Role.Admin);
+        var context = seed.Context;
+        SeedCoreReferenceData(context);
+        context.AppUsers.Add(new AppUser { Id = 3, DisplayName = "Parent Two", Email = "parent2@example.com" });
+        context.ParentGuardians.Add(new ParentGuardian { Id = 2, Name = "Parent Two", ContactInfo = "parent2@example.com", IsPrimary = true, AppUserId = 3 });
+        context.ParentGuardians.Add(new ParentGuardian { Id = 3, Name = "No Account", ContactInfo = "none@example.com", IsPrimary = false });
+        context.Students.Add(new Student
+        {
+            Id = 2,
+            Name = "Sam Student",
+            DateOfBirth = new DateOnly(2016, 1, 1),
+            CurrentRankId = 1,
+            Status = StudentStatus.Active,
+            EnrolmentDate = new DateOnly(2024, 1, 1)
+        });
+        context.SaveChanges();
+
+        // ParentGuardian 1 is seeded without an account by SeedCoreReferenceData; link it to
+        // AppUser 1 the same way the guardian-invite flow would.
+        var guardianOne = context.ParentGuardians.Single(p => p.Id == 1);
+        context.Entry(guardianOne).CurrentValues[nameof(ParentGuardian.AppUserId)] = 1;
+
+        context.StudentGuardianLinks.Add(new StudentGuardianLink { StudentId = 1, ParentGuardianId = 1, CreatedByUserId = 2 });
+        context.StudentGuardianLinks.Add(new StudentGuardianLink { StudentId = 2, ParentGuardianId = 2, CreatedByUserId = 2 });
+        context.StudentGuardianLinks.Add(new StudentGuardianLink { StudentId = 1, ParentGuardianId = 3, CreatedByUserId = 2 });
+
+        context.ConsentRecords.Add(NewConsentRecord(id: 1, studentId: 1));
+        context.ConsentRecords.Add(NewConsentRecord(id: 2, studentId: 2));
+        context.ConsentSensitiveDetails.Add(new ConsentSensitiveDetails { Id = 1, ConsentRecordId = 1, EmergencyContact = "Family One" });
+        context.ConsentSensitiveDetails.Add(new ConsentSensitiveDetails { Id = 2, ConsentRecordId = 2, EmergencyContact = "Family Two" });
+        context.DbsChecks.Add(NewDbsCheck(id: 1, teacherUserId: 10));
+        context.SaveChanges();
+    }
+
+    [Fact]
+    public void LinkedParent_CanRead_OwnChildsConsentSensitiveDetails_Only()
+    {
+        SeedTwoFamilies();
+
+        using var parentOne = CreateContextForUser(1, Role.Parent);
+        var visible = Assert.Single(parentOne.Context.ConsentSensitiveDetails.ToList());
+        Assert.Equal(1, visible.ConsentRecordId);
+        Assert.Equal("Family One", visible.EmergencyContact);
+
+        using var parentTwo = CreateContextForUser(3, Role.Parent);
+        var visibleToTwo = Assert.Single(parentTwo.Context.ConsentSensitiveDetails.ToList());
+        Assert.Equal(2, visibleToTwo.ConsentRecordId);
+    }
+
+    [Fact]
+    public void Parent_CannotRead_AnotherChildsDetails_EvenByExplicitId()
+    {
+        SeedTwoFamilies();
+
+        using var parentOne = CreateContextForUser(1, Role.Parent);
+
+        Assert.Null(parentOne.Context.ConsentSensitiveDetails.SingleOrDefault(d => d.ConsentRecordId == 2));
+        Assert.Null(parentOne.Context.ConsentRecords
+            .Where(c => c.Id == 2)
+            .Select(c => c.SensitiveDetails)
+            .SingleOrDefault());
+    }
+
+    [Fact]
+    public void ParentRole_WithNoResolvedUserId_ReadsNothing_EvenWhereAGuardianHasNoAccount()
+    {
+        SeedTwoFamilies();
+
+        using var unresolvedParent = CreateContextForUser(null, Role.Parent);
+
+        Assert.Empty(unresolvedParent.Context.ConsentSensitiveDetails.ToList());
+    }
+
+    [Fact]
+    public void ParentWhoHasLeft_ReadsNothing()
+    {
+        SeedTwoFamilies();
+        using (var admin = CreateContext(Role.Admin))
+        {
+            var parentOne = admin.Context.AppUsers.Single(u => u.Id == 1);
+            admin.Context.Entry(parentOne).CurrentValues[nameof(AppUser.HasLeft)] = true;
+            admin.Context.SaveChanges();
+        }
+
+        using var leftParent = CreateContextForUser(1, Role.Parent);
+
+        Assert.Empty(leftParent.Context.ConsentSensitiveDetails.ToList());
+    }
+
+    [Fact]
+    public void UnlinkedParent_ReadsNothing()
+    {
+        SeedTwoFamilies();
+
+        // AppUser 2 holds the Parent role here but has no ParentGuardian row at all.
+        using var unlinked = CreateContextForUser(2, Role.Parent);
+
+        Assert.Empty(unlinked.Context.ConsentSensitiveDetails.ToList());
+    }
+
+    [Fact]
+    public void Parent_And_Approver_CannotRead_DbsCheck()
+    {
+        SeedTwoFamilies();
+
+        using var parent = CreateContextForUser(1, Role.Parent);
+        Assert.Empty(parent.Context.DbsChecks.ToList());
+
+        using var approver = CreateContextForUser(20, Role.Approver);
+        Assert.Empty(approver.Context.DbsChecks.ToList());
+        Assert.Empty(approver.Context.ConsentSensitiveDetails.ToList());
+    }
+
+    [Fact]
+    public void Teacher_CanRead_EveryStudentsDetails_WithoutMfa_ButNeverDbsCheck()
+    {
+        SeedTwoFamilies();
+
+        // MFA is enforced for Admin/SafeguardingOfficer only (adr/0004 pass 7); adr/0006 does not
+        // extend it to Teacher — see that ADR's risks section.
+        using var teacher = CreateContextForUser(10, hasMfaEnabled: false, Role.Teacher);
+
+        Assert.Equal(2, teacher.Context.ConsentSensitiveDetails.ToList().Count);
+        Assert.Empty(teacher.Context.DbsChecks.ToList());
+    }
+
+    [Fact]
+    public void SafeguardingOfficer_WithMfa_StillReadsAllDetails()
+    {
+        SeedTwoFamilies();
+
+        using var sgo = CreateContextForUser(5, Role.SafeguardingOfficer);
+
+        Assert.Equal(2, sgo.Context.ConsentSensitiveDetails.ToList().Count);
+        Assert.Single(sgo.Context.DbsChecks.ToList());
+    }
+
+    [Fact]
+    public void TeacherRead_WritesOneAuditRowPerDetailsRow_AttributedToTheTeacher()
+    {
+        SeedTwoFamilies();
+
+        using (var teacher = CreateContextForUser(10, Role.Teacher))
+        {
+            Assert.Equal(2, teacher.Context.ConsentSensitiveDetails.ToList().Count);
+        }
+
+        using var verify = CreateContext(Role.Admin);
+        var logEntries = verify.Context.SensitiveDataAccessLogs
+            .Where(l => l.Entity == nameof(ConsentSensitiveDetails))
+            .OrderBy(l => l.EntityId)
+            .ToList();
+
+        Assert.Equal(2, logEntries.Count);
+        Assert.All(logEntries, l => Assert.Equal(10, l.UserId));
+        Assert.Equal([1, 2], logEntries.Select(l => l.EntityId));
+    }
+
+    [Fact]
+    public void ParentRead_WritesAuditRow_AttributedToTheParent_AndNoneForHiddenRows()
+    {
+        SeedTwoFamilies();
+
+        using (var parent = CreateContextForUser(3, Role.Parent))
+        {
+            Assert.Single(parent.Context.ConsentSensitiveDetails.ToList());
+        }
+
+        using var verify = CreateContext(Role.Admin);
+        var logEntry = Assert.Single(verify.Context.SensitiveDataAccessLogs
+            .Where(l => l.Entity == nameof(ConsentSensitiveDetails))
+            .ToList());
+
+        Assert.Equal(3, logEntry.UserId);
+        Assert.Equal(2, logEntry.EntityId);
     }
 }

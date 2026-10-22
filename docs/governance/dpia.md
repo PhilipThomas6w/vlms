@@ -2,6 +2,15 @@
 
 Status: **draft for Philip's review**, written 13/10/2026 to discharge `governance/raid.md` D-003 (owner: Philip, due before go-live). Structure follows the ICO's DPIA steps ([ICO: Data protection impact assessments](https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/accountability-and-governance/data-protection-impact-assessments-dpias/)). This draft states what the system does and what the design already controls. **It does not decide legal questions:** lawful bases and conditions are proposed for Philip to confirm, with advice if needed, and are marked `[TBC – Philip]`. Nothing here is legal advice.
 
+
+> **REVIEW NEEDED — access change of 22/10/2026, not yet assessed here (Philip).** `adr/0006-parent-consent-and-teacher-read-access.md` (functional.md FR-013, FR-015) changes who handles the special category data in this assessment, and this DPIA has **not** been updated or re-signed for it:
+>
+> - **Parents now enter** the annual consent form in the app, including emergency medical information, dietary/SEN needs and emergency contact, for each child linked to them. A Safeguarding Officer or Admin approves or rejects each submission. Approval also updates the child's name and date of birth.
+> - **Teachers can now read** `ConsentSensitiveDetails` for every student (read only), without MFA. **Linked parents** can read and update their own children's details. Admin and Safeguarding Officer unchanged. Every read is still audit-logged, attributed to the reader. `DbsCheck` is unchanged.
+> - The "Who can see it" column in section 2's table, and the risks in section 5, describe the earlier Admin/Safeguarding Officer-only position and are now out of date for `ConsentSensitiveDetails`.
+>
+> Points for the review (from adr/0006 "Risks"): whether teachers should need MFA; whether all teachers, rather than a child's own teachers, need the details; necessity and proportionality of the wider access; how parents are told who will see what they enter (privacy information on the form). Nothing in this note is a sign-off.
+
 ## 1. Screening: is a DPIA needed?
 
 The ICO says a DPIA is required for processing likely to result in high risk, and lists examples ([ICO: examples of processing likely to result in high risk](https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/accountability-and-governance/data-protection-impact-assessments-dpias/examples-of-processing-likely-to-result-in-high-risk/)). Relevant factors here:

@@ -168,6 +168,14 @@ namespace Vlms.Infrastructure.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("data_sharing_consent");
 
+                    b.Property<DateTime?>("DecidedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("decided_at");
+
+                    b.Property<string>("DecisionComments")
+                        .HasColumnType("text")
+                        .HasColumnName("decision_comments");
+
                     b.Property<DateOnly>("ExpiryDate")
                         .HasColumnType("date")
                         .HasColumnName("expiry_date");
@@ -188,13 +196,29 @@ namespace Vlms.Infrastructure.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("status");
 
+                    b.Property<DateOnly?>("StudentDateOfBirth")
+                        .HasColumnType("date")
+                        .HasColumnName("student_date_of_birth");
+
                     b.Property<int>("StudentId")
                         .HasColumnType("integer")
                         .HasColumnName("student_id");
 
+                    b.Property<string>("StudentName")
+                        .HasColumnType("text")
+                        .HasColumnName("student_name");
+
+                    b.Property<DateTime?>("SubmittedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("submitted_at");
+
                     b.Property<int>("SubmittedByParentId")
                         .HasColumnType("integer")
                         .HasColumnName("submitted_by_parent_id");
+
+                    b.Property<int?>("SubmittedByUserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("submitted_by_user_id");
 
                     b.Property<bool>("TransportOffsiteConsent")
                         .HasColumnType("boolean")
@@ -207,6 +231,8 @@ namespace Vlms.Infrastructure.Migrations
                     b.HasIndex("StudentId");
 
                     b.HasIndex("SubmittedByParentId");
+
+                    b.HasIndex("SubmittedByUserId");
 
                     b.ToTable("consent_records");
                 });
@@ -907,11 +933,18 @@ namespace Vlms.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("Vlms.Domain.AppUser", "SubmittedByUser")
+                        .WithMany()
+                        .HasForeignKey("SubmittedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.Navigation("ApprovedByUser");
 
                     b.Navigation("Student");
 
                     b.Navigation("SubmittedByParent");
+
+                    b.Navigation("SubmittedByUser");
                 });
 
             modelBuilder.Entity("Vlms.Domain.ConsentSensitiveDetails", b =>

@@ -4,7 +4,11 @@ namespace Vlms.Domain;
 /// Split out from <see cref="ConsentRecord"/> at design review (adr/0004-sensitive-data-access-control.md):
 /// a global query filter can only restrict a whole row, not mask a column within a row a role
 /// otherwise needs — so the sensitive fields live in their own 1:1 entity, subject to the same
-/// whole-entity restriction as <see cref="DbsCheck"/> (visible only to Admin and Safeguarding Officer).
+/// whole-entity query-filter restriction as <see cref="DbsCheck"/>. Visible to Admin and Safeguarding
+/// Officer (with MFA), to Teachers (read only), and to the student's linked Parents (their own
+/// linked children only) — amended from Admin/Safeguarding Officer only by
+/// adr/0006-parent-consent-and-teacher-read-access.md (functional.md FR-015). Every materialized row
+/// is still read-audited.
 /// </summary>
 public sealed class ConsentSensitiveDetails
 {

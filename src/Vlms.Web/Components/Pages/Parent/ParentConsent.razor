@@ -1,0 +1,235 @@
+@page "/parent/consent"
+@attribute [Authorize(Policy = "RequireParent")]
+@rendermode InteractiveServer
+@using System.ComponentModel.DataAnnotations
+@using Vlms.Domain
+@using Vlms.Infrastructure.Safeguarding
+@inject ParentConsentService ConsentService
+
+<PageTitle>Consent forms</PageTitle>
+
+<h1>Consent forms</h1>
+
+<p>
+    Complete the annual consent form for each child linked to your account (functional.md FR-015).
+    A Safeguarding Officer or Admin reviews each form. Until a new form is approved, the last
+    approved one stays in place. Your child's teachers can see the medical, dietary/SEN and
+    emergency contact details on the approved form.
+</p>
+
+@if (_errorMessage is not null)
+{
+    <p class="error" role="alert">@_errorMessage</p>
+}
+@if (_statusMessage is not null)
+{
+    <p role="status">@_statusMessage</p>
+}
+
+@if (_children.Count == 0 && _errorMessage is null)
+{
+    <p>No children are currently linked to your account.</p>
+}
+
+@foreach (var child in _children)
+{
+    <section>
+        <h2>@child.StudentName</h2>
+        <p>
+            Current consent:
+            @if (child.CurrentConsent is { } current)
+            {
+                <strong>Approved</strong>
+                <span> for @current.PeriodStart.ToString("d MMMM yyyy") to @current.PeriodEnd.ToString("d MMMM yyyy")</span>
+            }
+            else
+            {
+                <strong>None in place</strong>
+                <span> (your child cannot be marked as completing lessons until a form is approved)</span>
+            }
+        </p>
+        @if (child.LatestSubmission is { } latest && latest.ConsentRecordId != child.CurrentConsent?.ConsentRecordId)
+        {
+            <p>
+                Latest form: <strong>@StatusText(latest.Status)</strong>
+                @if (latest.SubmittedAt is { } submittedAt)
+                {
+                    <span> (submitted @submittedAt.ToString("d MMMM yyyy"))</span>
+                }
+            </p>
+            @if (latest.Status == ConsentStatus.Rejected && latest.DecisionComments is not null)
+            {
+                <p>Reviewer's comments: @latest.DecisionComments</p>
+            }
+        }
+
+        @if (child.LatestSubmission?.Status == ConsentStatus.Pending)
+        {
+            <p>Your form is awaiting review. You can submit changes once it has been decided.</p>
+        }
+        else
+        {
+            <button @onclick="() => StartForm(child)">@(child.LatestSubmission is null ? "Complete the consent form" : "Update and resubmit")</button>
+        }
+    </section>
+}
+
+@if (_formStudentId is not null)
+{
+    <section aria-labelledby="formHeading">
+        <h2 id="formHeading">Consent form for @_formStudentName</h2>
+        <EditForm Model="_form" OnValidSubmit="SubmitAsync">
+            <DataAnnotationsValidator />
+            <ValidationSummary role="alert" />
+
+            <h3>Your child's details</h3>
+            <div>
+                <label for="studentName">Full name</label>
+                <InputText id="studentName" @bind-Value="_form.StudentName" autocomplete="off" />
+            </div>
+            <div>
+                <label for="dateOfBirth">Date of birth</label>
+                <InputDate id="dateOfBirth" @bind-Value="_form.DateOfBirth" />
+            </div>
+
+            <h3>Consent</h3>
+            <div>
+                <label><InputCheckbox @bind-Value="_form.PhotoMediaConsent" /> I consent to photos and media of my child</label>
+            </div>
+            <div>
+                <label><InputCheckbox @bind-Value="_form.TransportOffsiteConsent" /> I consent to transport and off-site trips</label>
+            </div>
+            <div>
+                <label><InputCheckbox @bind-Value="_form.DataSharingConsent" /> I consent to data sharing</label>
+            </div>
+
+            <h3>Medical, dietary and emergency details</h3>
+            <div>
+                <label for="emergencyContact">Emergency contact (name and phone number)</label>
+                <InputText id="emergencyContact" @bind-Value="_form.EmergencyContact" />
+            </div>
+            <div>
+                <label for="medicalInfo">Emergency medical information (optional)</label>
+                <InputTextArea id="medicalInfo" @bind-Value="_form.EmergencyMedicalInfo" />
+            </div>
+            <div>
+                <label for="dietarySen">Dietary or special educational needs (optional)</label>
+                <InputTextArea id="dietarySen" @bind-Value="_form.DietarySEN" />
+            </div>
+
+            <button type="submit">Submit for review</button>
+            <button type="button" @onclick="CancelForm">Cancel</button>
+        </EditForm>
+    </section>
+}
+
+@code {
+    private List<ParentConsentChild> _children = new();
+    private int? _formStudentId;
+    private string? _formStudentName;
+    private ConsentFormModel _form = new();
+    private string? _errorMessage;
+    private string? _statusMessage;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            _children = (await ConsentService.GetMyChildrenAsync()).ToList();
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+
+    private static string StatusText(ConsentStatus status) => status switch
+    {
+        ConsentStatus.Pending => "Awaiting review",
+        ConsentStatus.Approved => "Approved",
+        ConsentStatus.Rejected => "Rejected",
+        _ => status.ToString()
+    };
+
+    // Pre-filled from the latest form (any status), so a parent correcting a rejected form or
+    // updating an approved one starts from what they last gave, and from the student record for a
+    // first form.
+    private void StartForm(ParentConsentChild child)
+    {
+        _errorMessage = null;
+        _statusMessage = null;
+        _formStudentId = child.StudentId;
+        _formStudentName = child.StudentName;
+        var latest = child.LatestSubmission;
+        var details = child.LatestDetails;
+        _form = new ConsentFormModel
+        {
+            StudentName = child.StudentName,
+            DateOfBirth = child.DateOfBirth.ToDateTime(TimeOnly.MinValue),
+            PhotoMediaConsent = latest?.PhotoMediaConsent ?? false,
+            TransportOffsiteConsent = latest?.TransportOffsiteConsent ?? false,
+            DataSharingConsent = latest?.DataSharingConsent ?? false,
+            EmergencyContact = details?.EmergencyContact ?? "",
+            EmergencyMedicalInfo = details?.EmergencyMedicalInfo ?? "",
+            DietarySEN = details?.DietarySEN ?? ""
+        };
+    }
+
+    private void CancelForm()
+    {
+        _formStudentId = null;
+        _formStudentName = null;
+        _form = new ConsentFormModel();
+    }
+
+    private async Task SubmitAsync()
+    {
+        if (_formStudentId is not int studentId)
+        {
+            return;
+        }
+
+        _errorMessage = null;
+        _statusMessage = null;
+
+        try
+        {
+            await ConsentService.SubmitAsync(studentId, new ParentConsentForm(
+                _form.StudentName,
+                DateOnly.FromDateTime(_form.DateOfBirth),
+                _form.PhotoMediaConsent,
+                _form.TransportOffsiteConsent,
+                _form.DataSharingConsent,
+                _form.EmergencyContact,
+                string.IsNullOrWhiteSpace(_form.EmergencyMedicalInfo) ? null : _form.EmergencyMedicalInfo,
+                string.IsNullOrWhiteSpace(_form.DietarySEN) ? null : _form.DietarySEN));
+
+            _statusMessage = $"Consent form for {_formStudentName} submitted for review.";
+            CancelForm();
+            await LoadAsync();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException or ArgumentException)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+
+    private sealed class ConsentFormModel
+    {
+        [Required(ErrorMessage = "Enter your child's full name.")]
+        public string StudentName { get; set; } = "";
+
+        public DateTime DateOfBirth { get; set; } = DateTime.Today;
+        public bool PhotoMediaConsent { get; set; }
+        public bool TransportOffsiteConsent { get; set; }
+        public bool DataSharingConsent { get; set; }
+
+        [Required(ErrorMessage = "Enter an emergency contact.")]
+        public string EmergencyContact { get; set; } = "";
+
+        public string EmergencyMedicalInfo { get; set; } = "";
+        public string DietarySEN { get; set; } = "";
+    }
+}
