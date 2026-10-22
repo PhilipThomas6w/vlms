@@ -70,7 +70,7 @@ Full narrative for Done/Log items to 12/08/2026: `docs/harness/STATE-archive.md`
 - [x] Rank badge images (FR-014): `/administration/rank-badges`, `GET /badges/{rankId}/image` (SVG under a no-script CSP), parent dashboard images — 5d98f1b (Haiku subagent), merged 21e7b57
 - [x] Certificate view and download (FR-010): `GET /certificates/{id}` (`?download=1`), `CertificateAccessService`, parent dashboard links — a86d167 (Sonnet subagent), merged 663d124; full gate exit 0, 645/645 tests, 40 pages
 ## In progress
-- **Lesson uploads and Approver review** (FR-007) — Sonnet subagent, holds the migration slot
+- **Home page and navigation per role** (FR-012) — Sonnet subagent, in parallel with student accounts (the `/student` route is fixed in its brief)
 - **Student accounts and student page** (FR-011) — Opus subagent from 663d124 (wave 3; its dependencies are merged)
 
 ## Next
@@ -78,8 +78,6 @@ Fit-for-purpose build plan (Philip, 22/10/2026; `docs/delivery-plan.md` phase 2,
 
 Delegation (Philip, 22/10/2026): each item runs as a subagent in its own worktree, model in brackets. Items in a wave run in parallel; a wave starts when the items it depends on are merged into `master`.
 
-**Wave 4 (after lesson uploads and student accounts are merged)**
-- **Home page and navigation per role** (FR-012) — replace the template `Home.razor` with role-aware next actions and add persistent navigation in `MainLayout`. Journey J1.2. TC-022. [Sonnet]
 
 ## Decisions needed (Philip)
 Ordered by go-live critical path.
@@ -202,3 +200,4 @@ Ordered by go-live critical path.
 - 2026-10-22: Wave 1 merged: library, seed, admin, consent (51b1ec5). Student list and record completion to redo (stale worktree base). Local PostgreSQL 16 installed; all migrations and the seed verified against it
 - 2026-10-22: Philip approved pushing `master` to `origin` (739e975..473035c) and decided Teachers must have TOTP MFA. Wave 1 redo, wave 2 and teacher MFA launched as six parallel subagents
 - 2026-10-22: Merged teacher MFA, student list, record completion, badges and certificates; fixed the 500 on every protected page (05967e7). master 663d124: full gate exit 0, 645/645 tests
+- 2026-10-22: Merged lesson uploads (955aadd), gate exit 0, 692/692 tests. Home/navigation launched alongside student accounts
