@@ -58,7 +58,14 @@ else
                 <ul>
                     @foreach (var badge in student.Badges)
                     {
-                        <li>@badge.RankName — @badge.AwardedAt.ToString("d MMMM yyyy")</li>
+                        <li>
+                            @if (badge.HasImage)
+                            {
+                                <img src="/badges/@badge.RankId/image" alt="@badge.RankName badge" width="48" height="48" />
+                                <span> </span>
+                            }
+                            @badge.RankName — @badge.AwardedAt.ToString("d MMMM yyyy")
+                        </li>
                     }
                 </ul>
             }

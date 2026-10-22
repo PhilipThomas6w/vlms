@@ -5,7 +5,7 @@ using Vlms.Infrastructure.Authorization;
 namespace Vlms.Infrastructure.Engagement;
 
 /// <summary>One rank badge awarded to a student, for display on the parent dashboard.</summary>
-public sealed record ParentDashboardBadge(string RankName, DateTime AwardedAt);
+public sealed record ParentDashboardBadge(string RankName, DateTime AwardedAt, int RankId, bool HasImage);
 
 /// <summary>One certificate earned by a student, for display on the parent dashboard.</summary>
 public sealed record ParentDashboardCertificate(string LessonTitle, DateTime GeneratedAt, string BlobKey);
@@ -96,8 +96,8 @@ public sealed class ParentDashboardService
 
         var badges = await _db.StudentBadges
             .Where(b => studentIds.Contains(b.StudentId))
-            .Join(_db.RankBadges, b => b.RankBadgeId, rb => rb.Id, (b, rb) => new { b.StudentId, b.AwardedAt, rb.RankId })
-            .Join(_db.Ranks, x => x.RankId, r => r.Id, (x, r) => new { x.StudentId, x.AwardedAt, RankName = r.Name })
+            .Join(_db.RankBadges, b => b.RankBadgeId, rb => rb.Id, (b, rb) => new { b.StudentId, b.AwardedAt, rb.RankId, rb.ImageBlobKey })
+            .Join(_db.Ranks, x => x.RankId, r => r.Id, (x, r) => new { x.StudentId, x.AwardedAt, x.RankId, RankName = r.Name, HasImage = x.ImageBlobKey != null })
             .ToListAsync(ct);
 
         // Filters out certificates whose underlying StudentLessonCompletion has IsReversed == true.
@@ -128,7 +128,7 @@ public sealed class ParentDashboardService
         {
             var studentBadges = badges
                 .Where(b => b.StudentId == student.Id)
-                .Select(b => new ParentDashboardBadge(b.RankName, b.AwardedAt))
+                .Select(b => new ParentDashboardBadge(b.RankName, b.AwardedAt, b.RankId, b.HasImage))
                 .ToList();
 
             var studentCertificates = certificates

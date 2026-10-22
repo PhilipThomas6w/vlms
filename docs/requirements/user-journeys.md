@@ -68,7 +68,7 @@ Each step is marked:
 | 2 | Register a student and link guardians | Built | `/registration/students`, `/guardianship/links` |
 | 3 | Edit a student (name, assigned teacher, status) | Built | `/administration/students` (Admin: assigned teacher and status). Name and date of birth come from the approved consent form (FR-013), a28a6ac. |
 | 4 | Load the curriculum (ranks, lessons, files) | Built | `Vlms.Jobs seed-curriculum` (`deploy/README.md` §6b); run against local PostgreSQL 22/10/2026: 10 ranks, 56 lessons, 314 files. |
-| 5 | Set rank badge images | **Missing** | `RankBadge.ImageBlobKey` exists, but nothing creates badges. |
+| 5 | Set rank badge images | Built (untested live) | `/administration/rank-badges` (`RankBadgeService`). Images are served from `/badges/{rankId}/image` and shown on `/parent/dashboard`. Admin-only upload: PNG, JPEG, WebP or SVG, up to 2 MB. |
 | 6 | View progress reports and at-risk students | Built | `/reporting` |
 | 7 | Handle leavers and retention | Partial | `/retention/mark-as-left` and `/reporting/records-due-for-deletion` exist. Purge waits on decision 2. |
 
@@ -93,7 +93,7 @@ Core gaps (the app can't be used for its purpose without them):
 Needed but smaller:
 7. Edit student details (J6 step 3).
 8. Approver view that shows the proposal readably, compared with the current lesson (J3 step 2).
-9. Rank badge images (J6 step 5).
+9. ~~Rank badge images (J6 step 5)~~: built, see J6 step 5.
 
 Decided (Philip, 22/10/2026):
 10. Parents submit the consent form in the app, and the Safeguarding Officer or Admin approves (FR-015).

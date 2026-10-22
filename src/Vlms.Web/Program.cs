@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Vlms.Domain;
 using Vlms.Infrastructure;
 using Vlms.Infrastructure.Authorization;
+using Vlms.Infrastructure.Badges;
 using Vlms.Infrastructure.Curriculum;
 using Vlms.Infrastructure.Engagement;
 using Vlms.Infrastructure.Guardianship;
@@ -96,6 +97,10 @@ builder.Services.AddScoped<LessonProposalService>();
 // --- Lesson library (functional.md FR-006) — read-only browse + file download for Teacher/Approver/
 // Admin/Student/Parent, via LessonFileEndpoint and Pages/Lessons/LessonLibrary.razor.
 builder.Services.AddScoped<LessonLibraryService>();
+
+// --- Rank badge images (functional.md FR-014) — Admin uploads one image per rank at
+// /administration/rank-badges; shown on the parent dashboard via RankBadgeEndpoint.
+builder.Services.AddScoped<RankBadgeService>();
 
 // --- Guardian invite issuance (STATE.md "Identity" item 5) — must be registered before
 // GuardianLinkService below, which now depends on it.
@@ -307,6 +312,7 @@ app.UseAntiforgery();
 
 app.MapStaticAssets();
 app.MapLessonFileEndpoint();
+app.MapRankBadgeEndpoint();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
