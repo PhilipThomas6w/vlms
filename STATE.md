@@ -69,8 +69,11 @@ Full narrative for Done/Log items to 12/08/2026: `docs/harness/STATE-archive.md`
 - [x] Record lesson completion (FR-008): `/progress/record`, `CompletionService.MarkCompleteBatchAsync` — e1efbb2 (Sonnet subagent), merged 76c9f57
 - [x] Rank badge images (FR-014): `/administration/rank-badges`, `GET /badges/{rankId}/image` (SVG under a no-script CSP), parent dashboard images — 5d98f1b (Haiku subagent), merged 21e7b57
 - [x] Certificate view and download (FR-010): `GET /certificates/{id}` (`?download=1`), `CertificateAccessService`, parent dashboard links — a86d167 (Sonnet subagent), merged 663d124; full gate exit 0, 645/645 tests, 40 pages
+- [x] Sign-in fix: `IdentityRedirectManager` kept the pre-.NET 10 throw although `BlazorDisableThrowNavigationException` is set, so **every sign-in answered 500**; plus the missing `/Account/AccessDenied` page (refused users got 404) — 79a5d27 (main session). Found by signing in to the running app; nobody could have signed in before this
+- [x] Home page and navigation per role (FR-012): `NavMenu` per policy, role-aware `Home.razor`, `NavigationCoverageTests` fail on any unlinked page — bad58c7 (Sonnet subagent), merged 5590655; full gate exit 0, 697/697 tests, 42 pages. Checklist tails repaired (sign-off rows had been appended below duplicated hash lines)
+- [x] Running-app check against local PostgreSQL 22/10/2026 (HTTP, signed in): Admin, Teacher (TOTP), Approver and Safeguarding Officer sign in; each reaches its own pages and is refused the others; library lists 10 ranks and 314 files and serves a .docx with `nosniff`. Not yet walked: interactive (Blazor circuit) actions such as registering a student, linking a guardian, submitting consent, recording a completion, uploading and approving a proposal; these need a browser
+
 ## In progress
-- **Home page and navigation per role** (FR-012) — Sonnet subagent, in parallel with student accounts (the `/student` route is fixed in its brief)
 - **Student accounts and student page** (FR-011) — Opus subagent from 663d124 (wave 3; its dependencies are merged)
 
 ## Next
@@ -201,3 +204,4 @@ Ordered by go-live critical path.
 - 2026-10-22: Philip approved pushing `master` to `origin` (739e975..473035c) and decided Teachers must have TOTP MFA. Wave 1 redo, wave 2 and teacher MFA launched as six parallel subagents
 - 2026-10-22: Merged teacher MFA, student list, record completion, badges and certificates; fixed the 500 on every protected page (05967e7). master 663d124: full gate exit 0, 645/645 tests
 - 2026-10-22: Merged lesson uploads (955aadd), gate exit 0, 692/692 tests. Home/navigation launched alongside student accounts
+- 2026-10-22: Running the app found two defects that made it unusable whatever the tests said: 500 on every protected page (05967e7) and 500 on every sign-in (79a5d27); both fixed. Graph email from this machine fails (AADSTS7000215 invalid client secret); registration still tells the user an email was sent. Navigation merged (5590655), 697/697
