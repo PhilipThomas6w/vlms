@@ -3,38 +3,83 @@
 
 <PageTitle>Home</PageTitle>
 
-<h1>Hello, world!</h1>
+<h1>Varangians LMS</h1>
 
-Welcome to your new app.
+<AuthorizeView>
+    <NotAuthorized>
+        <p>Welcome to the Varangians learning management system. Sign in to see your lessons and tasks.</p>
+        <p><a href="/Account/Login">Log in</a></p>
+    </NotAuthorized>
+    <Authorized>
+        <h2>What to do next</h2>
 
-<AuthorizeView Policy="RequireLessonLibrary">
-    <p><a href="/lessons">Lesson library</a></p>
-</AuthorizeView>
-<AuthorizeView Policy="RequireTeacher">
-    <p><a href="/curriculum/teacher">Propose a lesson change</a></p>
-    <p><a href="/progress/completions">My recorded completions</a></p>
-    <p><a href="/students/consent">Student consent and medical details</a></p>
-</AuthorizeView>
-<AuthorizeView Policy="RequireApprover">
-    <p><a href="/curriculum/approver">Curriculum approvals</a></p>
-</AuthorizeView>
-<AuthorizeView Policy="RequireAdminOrTeacher">
-    <p><a href="/registration/students">Register a student</a></p>
-    <p><a href="/guardianship/links">Guardian links</a></p>
-</AuthorizeView>
-<AuthorizeView Policy="RequireAdminOrSafeguardingOfficer">
-    <p><a href="/safeguarding/consent">Consent records</a></p>
-    <p><a href="/safeguarding/dbs">DBS checks</a></p>
-</AuthorizeView>
-<AuthorizeView Policy="RequireAdmin">
-    <p><a href="/reporting">Reporting</a></p>
-    <p><a href="/reporting/records-due-for-deletion">Records due for deletion</a></p>
-    <p><a href="/retention/mark-as-left">Mark as left</a></p>
-    <p><a href="/administration/user-roles">User roles</a></p>
-    <p><a href="/administration/students">Students</a></p>
-    <p><a href="/administration/rank-badges">Rank badge images</a></p>
-</AuthorizeView>
-<AuthorizeView Policy="RequireParent">
-    <p><a href="/parent/dashboard">My dashboard</a></p>
-    <p><a href="/parent/consent">Consent forms</a></p>
+        <AuthorizeView Policy="RequireTeacher" Context="roleContext">
+            <section aria-labelledby="home-teacher">
+                <h3 id="home-teacher">Teacher</h3>
+                <ul>
+                    <li><a href="/lessons">Lesson library</a></li>
+                    <li><a href="/students">Students</a></li>
+                    <li><a href="/progress/record">Record completions</a></li>
+                    <li><a href="/curriculum/teacher">Propose lesson changes</a></li>
+                    <li><a href="/progress/completions">Correct a completion</a></li>
+                    <li><a href="/students/consent">Student consent and medical details</a></li>
+                </ul>
+            </section>
+        </AuthorizeView>
+        <AuthorizeView Policy="RequireApprover" Context="roleContext">
+            <section aria-labelledby="home-approver">
+                <h3 id="home-approver">Approver</h3>
+                <ul>
+                    <li><a href="/curriculum/approver">Pending proposals</a></li>
+                    <li><a href="/lessons">Lesson library</a></li>
+                </ul>
+            </section>
+        </AuthorizeView>
+        <AuthorizeView Policy="RequireParent" Context="roleContext">
+            <section aria-labelledby="home-parent">
+                <h3 id="home-parent">Parent</h3>
+                <ul>
+                    <li><a href="/parent/dashboard">Parent dashboard</a></li>
+                    <li><a href="/parent/consent">Consent form</a></li>
+                    <li><a href="/lessons">Lesson library</a></li>
+                </ul>
+            </section>
+        </AuthorizeView>
+        <AuthorizeView Policy="RequireStudent" Context="roleContext">
+            <section aria-labelledby="home-student">
+                <h3 id="home-student">Student</h3>
+                <ul>
+                    <li><a href="/student">My progress</a></li>
+                    <li><a href="/lessons">Lesson library</a></li>
+                </ul>
+            </section>
+        </AuthorizeView>
+        <AuthorizeView Policy="RequireSafeguardingOfficer" Context="roleContext">
+            <section aria-labelledby="home-safeguarding">
+                <h3 id="home-safeguarding">Safeguarding Officer</h3>
+                <ul>
+                    <li><a href="/safeguarding/consent">Consent records</a></li>
+                    <li><a href="/safeguarding/dbs">DBS checks</a></li>
+                </ul>
+            </section>
+        </AuthorizeView>
+        <AuthorizeView Policy="RequireAdmin" Context="roleContext">
+            <section aria-labelledby="home-admin">
+                <h3 id="home-admin">Admin</h3>
+                <ul>
+                    <li><a href="/administration/students">Manage students</a></li>
+                    <li><a href="/administration/user-roles">User roles</a></li>
+                    <li><a href="/registration/students">Register student</a></li>
+                    <li><a href="/guardianship/links">Guardian links</a></li>
+                    <li><a href="/administration/rank-badges">Rank badges</a></li>
+                    <li><a href="/reporting">Reporting</a></li>
+                    <li><a href="/reporting/records-due-for-deletion">Records due for deletion</a></li>
+                    <li><a href="/retention/mark-as-left">Mark as left</a></li>
+                    <li><a href="/safeguarding/consent">Consent records</a></li>
+                    <li><a href="/safeguarding/dbs">DBS checks</a></li>
+                    <li><a href="/lessons">Lesson library</a></li>
+                </ul>
+            </section>
+        </AuthorizeView>
+    </Authorized>
 </AuthorizeView>

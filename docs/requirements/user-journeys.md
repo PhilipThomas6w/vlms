@@ -14,12 +14,12 @@ Each step is marked:
 | # | Step | Status | Evidence / gap |
 |---|---|---|---|
 | 1 | Sign in | Built | `Account/Login` |
-| 2 | Land on a home page that shows what to do next | **Missing** | `Home.razor` is still the template ("Hello, world!") plus a list of links. There is no navigation menu. |
+| 2 | Land on a home page that shows what to do next | Built | `Home.razor` shows a "what to do next" section per held role; `Layout/NavMenu.razor` is the persistent, role-filtered navigation (`NavigationCoverageTests`). |
 | 3 | Browse the curriculum by rank, in delivery order, with tags | Built | `/lessons` (`LessonLibraryService`), 05dc741. |
 | 4 | Open a lesson's documents and the Teacher's Information to prepare | Built | `GET /lessons/files/{id}`: PDF and images inline, other types downloaded. |
 | 5 | Print or download handouts | Built | Same as step 4. |
 | 6 | See the students in their group, with each student's current rank | Built | `/students` (`StudentRosterService`): all active students, an "assigned to me" filter, rank and progress in rank. Each opens `/students/{id}` (completions, badges, certificates, consent status). Certificate links go to `/certificates/{id}`. |
-| 7 | Record that each student who attended completed the lesson | Built (not yet linked) | `/progress/record` calls `CompletionService.MarkCompleteBatchAsync` (certificate, promotion and parent email as before). Not reachable from navigation or the home page until FR-012. |
+| 7 | Record that each student who attended completed the lesson | Built | `/progress/record` calls `CompletionService.MarkCompleteBatchAsync` (certificate, promotion and parent email as before). |
 | 8 | Check that a student with lapsed consent is blocked from completion | Built | FR-003, enforced in `CompletionService`; `/progress/record` shows blocked students with the reason, and reports blocked results after submitting. |
 | 9 | Correct a mistaken completion | Built | `/progress/completions` (`CompletionReversals.razor`) |
 
