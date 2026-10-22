@@ -54,6 +54,13 @@ public sealed class LocalDiskBlobStorage : IBlobStorage
         await File.WriteAllBytesAsync(path, content, ct);
     }
 
+    public async Task<byte[]?> ReadAsync(string blobKey, CancellationToken ct = default)
+    {
+        // Same ResolvePath validation as UploadAsync, so a key can never read outside the root.
+        var path = ResolvePath(blobKey);
+        return File.Exists(path) ? await File.ReadAllBytesAsync(path, ct) : null;
+    }
+
     /// <summary>
     /// Maps a blob key onto a real filesystem path under <see cref="_rootPath"/>, rejecting any key
     /// that could otherwise escape it. <see cref="IBlobStorage.UploadAsync"/>'s contract accepts any
@@ -68,6 +75,12 @@ public sealed class LocalDiskBlobStorage : IBlobStorage
         if (string.IsNullOrWhiteSpace(blobKey))
         {
             throw new ArgumentException("Blob key must not be empty.", nameof(blobKey));
+        }
+
+        // A NUL or other control character has no place in a key (and NUL truncates paths in some APIs).
+        if (blobKey.Any(char.IsControl))
+        {
+            throw new ArgumentException("Blob key must not contain control characters.", nameof(blobKey));
         }
 
         // Reject absolute paths (Windows drive-qualified, UNC, or POSIX-rooted) outright — an

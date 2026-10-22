@@ -1,0 +1,69 @@
+@page "/lessons"
+@attribute [Authorize(Policy = "RequireLessonLibrary")]
+@using Vlms.Infrastructure.Curriculum
+@inject LessonLibraryService Library
+
+<PageTitle>Lesson library</PageTitle>
+
+<h1>Lesson library</h1>
+
+<p>Every active lesson, rank by rank, in the order it is taught. PDFs and images open in your browser; other files, such as Word documents, download.</p>
+
+@foreach (var rank in _ranks)
+{
+    <section>
+        <h2>@rank.Code: @rank.Name</h2>
+        @if (rank.Lessons.Count == 0)
+        {
+            <p>No lessons yet</p>
+        }
+        else
+        {
+            <table>
+                <caption>Lessons in @rank.Name</caption>
+                <thead>
+                    <tr>
+                        <th scope="col">Code</th>
+                        <th scope="col">Title</th>
+                        <th scope="col">Tags</th>
+                        <th scope="col">Files</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var lesson in rank.Lessons)
+                    {
+                        <tr>
+                            <td>@lesson.Code</td>
+                            <td>@lesson.Title</td>
+                            <td>@string.Join(", ", lesson.Tags)</td>
+                            <td>
+                                @if (lesson.Files.Count == 0)
+                                {
+                                    <text>No files</text>
+                                }
+                                else
+                                {
+                                    <ul>
+                                        @foreach (var file in lesson.Files)
+                                        {
+                                            <li><a href="/lessons/files/@file.Id" data-enhance-nav="false">@file.FileName</a></li>
+                                        }
+                                    </ul>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </section>
+}
+
+@code {
+    private IReadOnlyList<LibraryRank> _ranks = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _ranks = await Library.GetLibraryAsync();
+    }
+}

@@ -92,6 +92,10 @@ builder.Services.AddScoped<RoleAssignmentService>();
 // --- Curriculum management workflow (docs/design/low-level-design.md "LessonProposalService")
 builder.Services.AddScoped<LessonProposalService>();
 
+// --- Lesson library (functional.md FR-006) — read-only browse + file download for Teacher/Approver/
+// Admin/Student/Parent, via LessonFileEndpoint and Pages/Lessons/LessonLibrary.razor.
+builder.Services.AddScoped<LessonLibraryService>();
+
 // --- Guardian invite issuance (STATE.md "Identity" item 5) — must be registered before
 // GuardianLinkService below, which now depends on it.
 builder.Services.AddScoped<GuardianInviteService>();
@@ -190,6 +194,9 @@ builder.Services.AddAuthorization(options =>
         });
     }
 
+    // Lesson library (FR-006): any of Teacher/Approver/Admin/Student/Parent, never SafeguardingOfficer alone.
+    options.AddLessonLibraryPolicy();
+
     options.AddPolicy("StudentAccess", policy =>
     {
         policy.Requirements.Add(new StudentAccessRequirement());
@@ -282,6 +289,7 @@ app.UseAuthorization();
 app.UseAntiforgery();
 
 app.MapStaticAssets();
+app.MapLessonFileEndpoint();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 

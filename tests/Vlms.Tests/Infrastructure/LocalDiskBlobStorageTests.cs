@@ -112,6 +112,53 @@ public sealed class LocalDiskBlobStorageTests : IDisposable
     }
 
     [Fact]
+    public async Task ReadAsync_AfterUpload_RoundTripsTheExactBytes()
+    {
+        var content = Encoding.UTF8.GetBytes("lesson file bytes");
+        await _storage.UploadAsync("lessons/12/handout.pdf", content, CancellationToken.None);
+
+        var readBack = await _storage.ReadAsync("lessons/12/handout.pdf", CancellationToken.None);
+
+        Assert.Equal(content, readBack);
+    }
+
+    [Fact]
+    public async Task ReadAsync_MissingBlob_ReturnsNull()
+    {
+        Assert.Null(await _storage.ReadAsync("lessons/12/missing.pdf", CancellationToken.None));
+    }
+
+    [Theory]
+    [InlineData("../escape.pdf")]
+    [InlineData("lessons/../../escape.pdf")]
+    [InlineData("..\\escape.pdf")]
+    [InlineData("./lessons/1.pdf")]
+    [InlineData("/etc/passwd")]
+    [InlineData("C:\\Windows\\win.ini")]
+    [InlineData("lessons/1.pdf\u0000.txt")]
+    [InlineData("")]
+    public async Task ReadAsync_TraversalOrMalformedKey_Throws(string maliciousKey)
+    {
+        await Assert.ThrowsAsync<ArgumentException>(() => _storage.ReadAsync(maliciousKey, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task ReadAsync_FileOutsideTheRoot_IsNotReadable()
+    {
+        var outside = Path.Combine(Path.GetTempPath(), "vlms-outside-" + Path.GetRandomFileName() + ".txt");
+        await File.WriteAllTextAsync(outside, "secret");
+        try
+        {
+            var relative = Path.GetRelativePath(_rootPath, outside).Replace('\\', '/');
+            await Assert.ThrowsAsync<ArgumentException>(() => _storage.ReadAsync(relative, CancellationToken.None));
+        }
+        finally
+        {
+            File.Delete(outside);
+        }
+    }
+
+    [Fact]
     public void Constructor_NoRootPathSupplied_FallsBackToDefaultRootPath()
     {
         var storage = new LocalDiskBlobStorage();
