@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Http;
 
@@ -24,7 +23,6 @@ internal sealed class IdentityRedirectManager(NavigationManager navigationManage
         MaxAge = TimeSpan.FromSeconds(5),
     };
 
-    [DoesNotReturn]
     public void RedirectTo(string? uri)
     {
         uri ??= "";
@@ -35,14 +33,16 @@ internal sealed class IdentityRedirectManager(NavigationManager navigationManage
             uri = navigationManager.ToBaseRelativePath(uri);
         }
 
-        // During static rendering, NavigateTo throws a NavigationException which is handled by the
-        // framework as a redirect. So as long as this is called from a statically rendered
-        // Identity component, the InvalidOperationException is never thrown.
+        // Vlms.Web.csproj sets <BlazorDisableThrowNavigationException>, so NavigateTo no longer
+        // throws during static SSR and the code after a call keeps running. The template's
+        // InvalidOperationException and DoesNotReturn attributes are removed accordingly, per
+        // "Migrate from ASP.NET Core in .NET 9 to .NET 10" (learn.microsoft.com/aspnet/core/migration/90-to-100,
+        // "When navigation errors are disabled in a Blazor Web App with Individual Accounts"). Left in,
+        // that throw turned every sign-in into a 500 (found 22/10/2026). Callers must return after
+        // redirecting.
         navigationManager.NavigateTo(uri);
-        throw new InvalidOperationException($"{nameof(IdentityRedirectManager)} can only be used during static rendering.");
     }
 
-    [DoesNotReturn]
     public void RedirectTo(string uri, Dictionary<string, object?> queryParameters)
     {
         var uriWithoutQuery = navigationManager.ToAbsoluteUri(uri).GetLeftPart(UriPartial.Path);
@@ -50,7 +50,6 @@ internal sealed class IdentityRedirectManager(NavigationManager navigationManage
         RedirectTo(newUri);
     }
 
-    [DoesNotReturn]
     public void RedirectToWithStatus(string uri, string message, HttpContext context)
     {
         context.Response.Cookies.Append(StatusCookieName, message, StatusCookieBuilder.Build(context));
@@ -59,10 +58,8 @@ internal sealed class IdentityRedirectManager(NavigationManager navigationManage
 
     private string CurrentPath => navigationManager.ToAbsoluteUri(navigationManager.Uri).GetLeftPart(UriPartial.Path);
 
-    [DoesNotReturn]
     public void RedirectToCurrentPage() => RedirectTo(CurrentPath);
 
-    [DoesNotReturn]
     public void RedirectToCurrentPageWithStatus(string message, HttpContext context) =>
         RedirectToWithStatus(CurrentPath, message, context);
 }
