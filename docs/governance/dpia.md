@@ -6,10 +6,10 @@ Status: **draft for Philip's review**, written 13/10/2026 to discharge `governan
 > **REVIEW NEEDED — access change of 22/10/2026, not yet assessed here (Philip).** `adr/0006-parent-consent-and-teacher-read-access.md` (functional.md FR-013, FR-015) changes who handles the special category data in this assessment, and this DPIA has **not** been updated or re-signed for it:
 >
 > - **Parents now enter** the annual consent form in the app, including emergency medical information, dietary/SEN needs and emergency contact, for each child linked to them. A Safeguarding Officer or Admin approves or rejects each submission. Approval also updates the child's name and date of birth.
-> - **Teachers can now read** `ConsentSensitiveDetails` for every student (read only), without MFA. **Linked parents** can read and update their own children's details. Admin and Safeguarding Officer unchanged. Every read is still audit-logged, attributed to the reader. `DbsCheck` is unchanged.
+> - **Teachers can now read** `ConsentSensitiveDetails` for every student (read only), **with MFA required** (amended 22/10/2026, Philip: a Teacher without TOTP MFA reads none of it and is refused every Teacher page until they enrol; adr/0006 "Amendment 22/10/2026"). **Linked parents** can read and update their own children's details. Admin and Safeguarding Officer unchanged. Every read is still audit-logged, attributed to the reader. `DbsCheck` is unchanged.
 > - The "Who can see it" column in section 2's table, and the risks in section 5, describe the earlier Admin/Safeguarding Officer-only position and are now out of date for `ConsentSensitiveDetails`.
 >
-> Points for the review (from adr/0006 "Risks"): whether teachers should need MFA; whether all teachers, rather than a child's own teachers, need the details; necessity and proportionality of the wider access; how parents are told who will see what they enter (privacy information on the form). Nothing in this note is a sign-off.
+> Points for the review (from adr/0006 "Risks"): ~~whether teachers should need MFA~~ (decided 22/10/2026: yes, now enforced); whether all teachers, rather than a child's own teachers, need the details; necessity and proportionality of the wider access; how parents are told who will see what they enter (privacy information on the form). Nothing in this note is a sign-off.
 
 ## 1. Screening: is a DPIA needed?
 
@@ -80,7 +80,7 @@ Likelihood and severity: Remote / Possible / Probable; Minimal / Significant / S
 | 1 | A volunteer without the role sees a child's medical data or a DBS record | Possible | Severe | Whole-entity query filters (Admin/SO only, MFA required); Approver curriculum-only; tested (TC-007, TC-008); ASVS V8 gate stage | Low |
 | 2 | Authorised access is misused without trace | Possible | Significant | Every read of `DbsCheck`/`ConsentSensitiveDetails` logged (TC-011); log protected by PostgreSQL RLS (TC-014) | Low |
 | 3 | A stranger claims to be a parent and sees a child's data | Possible | Severe | Guardian links only by Admin/Teacher; invite acceptance grants no role until Admin approves (FR-004, TC-012) | Low |
-| 4 | Account takeover | Possible | Severe | ASP.NET Core Identity; MFA mandatory for Admin/SO; lockout after 5 attempts; rate limiting; confirmed email; HSTS | Low–medium (MFA optional for other roles) |
+| 4 | Account takeover | Possible | Severe | ASP.NET Core Identity; MFA mandatory for Admin/SO and (since 22/10/2026) Teachers; lockout after 5 attempts; rate limiting; confirmed email; HSTS | Low–medium (MFA optional for Parents, Students and Approvers) |
 | 5 | Server compromise or data breach | Remote | Severe | Hardened host (`operations/host-hardening.md`), least-privilege DB roles, secrets outside the repo, secret scanning, security updates | Medium (single operator) |
 | 6 | Data loss | Possible | Significant | Nightly off-box backups, restore testing (`operations/dr-bcp.md`) | Low once the restore test is done |
 | 7 | Data kept longer than the retention period | Probable until purge exists | Significant | Due-for-deletion report; manual deletion | **Medium: purge not built** |

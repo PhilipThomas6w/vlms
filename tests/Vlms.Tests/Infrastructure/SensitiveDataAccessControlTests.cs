@@ -480,16 +480,38 @@ public sealed class SensitiveDataAccessControlTests : IDisposable
     }
 
     [Fact]
-    public void Teacher_CanRead_EveryStudentsDetails_WithoutMfa_ButNeverDbsCheck()
+    public void Teacher_WithMfa_CanRead_EveryStudentsDetails_ButNeverDbsCheck()
     {
         SeedTwoFamilies();
 
-        // MFA is enforced for Admin/SafeguardingOfficer only (adr/0004 pass 7); adr/0006 does not
-        // extend it to Teacher — see that ADR's risks section.
-        using var teacher = CreateContextForUser(10, hasMfaEnabled: false, Role.Teacher);
+        using var teacher = CreateContextForUser(10, hasMfaEnabled: true, Role.Teacher);
 
         Assert.Equal(2, teacher.Context.ConsentSensitiveDetails.ToList().Count);
         Assert.Empty(teacher.Context.DbsChecks.ToList());
+    }
+
+    [Fact]
+    public void Teacher_WithoutMfa_CannotRead_AnyDetails()
+    {
+        SeedTwoFamilies();
+
+        // adr/0006 amendment (Philip, 22/10/2026): the Teacher arm of the ConsentSensitiveDetails
+        // filter requires MFA, matching MfaRequirementHandler.
+        using var teacher = CreateContextForUser(10, hasMfaEnabled: false, Role.Teacher);
+
+        Assert.Empty(teacher.Context.ConsentSensitiveDetails.ToList());
+        Assert.Empty(teacher.Context.DbsChecks.ToList());
+    }
+
+    [Fact]
+    public void Parent_WithoutMfa_StillReads_OwnLinkedChildsDetails()
+    {
+        SeedTwoFamilies();
+
+        // Parents are not MFA-gated (MFA offered, never required).
+        using var parent = CreateContextForUser(3, hasMfaEnabled: false, Role.Parent);
+
+        Assert.Single(parent.Context.ConsentSensitiveDetails.ToList());
     }
 
     [Fact]

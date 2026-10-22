@@ -17,10 +17,11 @@
    (like Login.razor's PasswordSignInAsync) writes the auth cookie and so needs a normal HTTP
    request/response cycle, not a live SignalR circuit. Deliberately NOT gated by any role-specific
    "RequireX" policy (see Program.cs) — just [Authorize], any signed-in user — because Admin/
-   SafeguardingOfficer must be able to reach this page to enable MFA in the first place; gating it
-   behind an MfaRequirement-carrying policy would be a lockout catch-22 (STATE.md "Identity" item 4's
-   own scope decision: MFA is enforced for those two roles, offered to everyone — this is the
-   "offered" entry point for everyone, including the two roles for whom it later becomes mandatory). *@
+   SafeguardingOfficer/Teacher must be able to reach this page to enable MFA in the first place;
+   gating it behind an MfaRequirement-carrying policy would be a lockout catch-22 (STATE.md
+   "Identity" item 4's own scope decision, extended to Teacher on 22/10/2026 by adr/0006's
+   amendment: MFA is enforced for those three roles, offered to everyone — this is the "offered"
+   entry point for everyone, including the roles for whom it later becomes mandatory). *@
 
 <PageTitle>Two-factor authentication</PageTitle>
 
@@ -61,7 +62,7 @@ else
     {
         <p class="error" role="alert">
             Your role requires two-factor authentication — you will not be able to access
-            Admin/Safeguarding Officer pages until it is enabled.
+            any pages that need your role until it is enabled.
         </p>
     }
     <p><a href="Account/Manage/EnableAuthenticator">Set up an authenticator app</a></p>
@@ -94,7 +95,8 @@ else
             // baked into claims (adr/0002-roles-as-application-claims.md), so this is a plain data
             // lookup for display purposes only, not an authorization decision.
             _holdsMfaGatedRole = await Db.UserRoles.AnyAsync(
-                r => r.UserId == _user.Id && (r.Role == Role.Admin || r.Role == Role.SafeguardingOfficer));
+                r => r.UserId == _user.Id
+                    && (r.Role == Role.Admin || r.Role == Role.SafeguardingOfficer || r.Role == Role.Teacher));
         }
     }
 

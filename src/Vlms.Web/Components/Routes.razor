@@ -3,6 +3,13 @@
         <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)">
             <NotAuthorized>
                 <p role="alert">You are not authorized to view this page.</p>
+                @* Admin, Safeguarding Officer and Teacher accounts are refused every policy-gated
+                   page until TOTP MFA is enabled (MfaRequirement); point them at the enrolment
+                   page, which is reachable without MFA. *@
+                <p>
+                    If your role requires two-factor authentication, set it up on the
+                    <a href="Account/Manage/TwoFactorAuthentication">two-factor authentication page</a>.
+                </p>
             </NotAuthorized>
         </AuthorizeRouteView>
         <FocusOnNavigate RouteData="routeData" Selector="h1" />

@@ -14,6 +14,7 @@ Status: in progress (ISO/IEC 25010:2023 checklist)
 
 - See `governance/security-compliance.md` for the safeguarding/consent data classification drivers (UK GDPR/DPA 2018, special-category and children's data).
 - Whole-entity access control/restriction on sensitive data, and audit logging of **reads** (not just writes) of `DbsCheck`/`ConsentSensitiveDetails` — confirmed as a firm NFR, enforced via `adr/0004-sensitive-data-access-control.md`. (Wording corrected at third design review: the original text said "column-level... `ConsentRecord`", which described the mechanism found not to work — see ADR-0004.)
+- TOTP MFA is required for the Admin, Safeguarding Officer and Teacher roles (Teacher added by Philip, 22/10/2026, because Teachers read `ConsentSensitiveDetails`; `adr/0006` amendment, FR-015), and offered but not required for Parents, Students and Approvers.
 
 ## Compatibility (NFR-004)
 

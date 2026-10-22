@@ -48,7 +48,7 @@ Status: strategy (design gate) plus automated results (13/10/2026) — per ISO/I
 | TC-022 | Each role's home page and navigation show only that role's actions | `functional.md` FR-012 |
 | TC-023 | Admin and teacher edits to student details are saved; a teacher cannot change status | `functional.md` FR-013 |
 | TC-024 | An Admin sets a rank badge image and it shows on dashboards | `functional.md` FR-014 |
-| TC-025 | A parent submits the consent form for a linked child only; Safeguarding Officer or Admin approves or rejects with comments; the Approver role cannot; sensitive-detail reads are audit-logged | `functional.md` FR-015 |
+| TC-025 | A parent submits the consent form for a linked child only; Safeguarding Officer or Admin approves or rejects with comments; the Approver role cannot; sensitive-detail reads are audit-logged; a Teacher without MFA reads no sensitive details and is refused Teacher pages, a Teacher with MFA reads them (22/10/2026, adr/0006 amendment: `MfaRequirementHandlerTests`, `SensitiveDataAccessControlTests.Teacher_WithoutMfa_CannotRead_AnyDetails`, `LessonFileEndpointTests.TeacherWithoutMfa_IsForbidden`) | `functional.md` FR-015 |
 
 Full RTM: `quality/traceability.md`.
 
