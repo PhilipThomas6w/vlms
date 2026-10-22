@@ -57,7 +57,7 @@ Each step is marked:
 | 2 | See each linked child's rank, completions, badges and consent status | Built | `/parent/dashboard` |
 | 3 | Download a child's certificates | Built | `/parent/dashboard` links View and Download for each certificate to `/certificates/{id}`. |
 | 4 | Browse and open all lessons to support learning at home | Built | `/lessons` (Parent role). |
-| 5 | Receive emails on completion, promotion and consent expiry | Built (untested live) | `GuardianNotificationService`. The first real send waits for go-live. |
+| 5 | Receive emails on completion, promotion and consent expiry | Built (untested live) | `GuardianNotificationService`. Also an email on submitting a consent form, and on approval (with the expiry date) or rejection (with the reviewer's comments and a link to the form): `ConsentNotificationService`, TC-035. The first real send waits for go-live. |
 | 6 | Submit or renew the annual consent form | Works (browser walk 22/10/2026): submit, approve, update and re-approve; the approved form stays in force while the update is pending | `/parent/consent`; Safeguarding Officer or Admin decides on `/safeguarding/consent` (FR-015, ADR-0006), 6f5b5d7. The review marks a changed name or date of birth, and any field that differs from the consent in force, as "Changed" (TC-031). |
 | 7 | Create and reset a sign-in for each of their children | Works (browser walk 22/10/2026): one parent, two children, a sign-in each; 8-character rule enforced | One parent account serves every linked child. `/parent/student-sign-ins` lists each linked child with Create sign-in (no sign-in yet) or Reset password (has one), and shows when the school has turned a child's sign-in off (FR-011, `adr/0007`). Tested with a parent of three children. |
 | 8 | Change their own password while signed in | Works (checked in the running app 22/10/2026: parent changed password, wrong current password refused, changed back) | `/Account/Manage/ChangePassword` (linked from the header once signed in): current password, new password, confirmation; the adult password rule applies and the session stays signed in. Together with step 7 this covers Philip's decision (22/10/2026) that a parent can reset both their own password and each child's. The same page serves every adult role (Admin, Teacher, Approver, Safeguarding Officer); a student is told to ask their parent (FR-011, `adr/0007` decision 1, TC-030). |
@@ -81,6 +81,7 @@ Each step is marked:
 | 1 | Record and approve consent | Built | `/safeguarding/consent` |
 | 2 | Record DBS checks | Built | `/safeguarding/dbs` |
 | 3 | Receive expiry alerts | Built (untested live) | `ConsentExpiryJob` and notifications |
+| 3a | Be alerted when a parent submits a consent form | Built (untested live) | Email to every active Admin and Safeguarding Officer (no sensitive details) with a link to `/safeguarding/consent`, and a "forms waiting for review" link on the home page (`ConsentNotificationService`, TC-035). |
 
 ## Gap summary (for Philip)
 

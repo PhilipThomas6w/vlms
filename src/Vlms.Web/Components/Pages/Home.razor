@@ -13,6 +13,10 @@
     <Authorized>
         <h2>What to do next</h2>
 
+        <AuthorizeView Policy="RequireAdminOrSafeguardingOfficer" Context="consentContext">
+            <PendingConsentNotice />
+        </AuthorizeView>
+
         <AuthorizeView Policy="RequireTeacher" Context="roleContext">
             <section aria-labelledby="home-teacher">
                 <h3 id="home-teacher">Teacher</h3>

@@ -81,11 +81,14 @@ public sealed class ParentConsentService
 {
     private readonly VlmsDbContext _db;
     private readonly ICurrentUserContext _currentUser;
+    private readonly ConsentNotificationService? _notifications;
 
-    public ParentConsentService(VlmsDbContext db, ICurrentUserContext currentUser)
+    public ParentConsentService(
+        VlmsDbContext db, ICurrentUserContext currentUser, ConsentNotificationService? notifications = null)
     {
         _db = db;
         _currentUser = currentUser;
+        _notifications = notifications;
     }
 
     /// <summary>Lists the caller's own linked children with their consent status. Parent only.</summary>
@@ -208,6 +211,13 @@ public sealed class ParentConsentService
         });
 
         await _db.SaveChangesAsync(ct);
+
+        // After the save; never throws (ConsentNotificationService's doc comment).
+        if (_notifications is not null)
+        {
+            await _notifications.NotifySubmittedAsync(recordId, ct);
+        }
+
         return record;
     }
 
