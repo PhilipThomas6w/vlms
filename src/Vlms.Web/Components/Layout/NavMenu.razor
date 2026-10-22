@@ -1,0 +1,61 @@
+@implements IDisposable
+@inject NavigationManager Navigation
+
+<nav aria-label="Main">
+    <ul class="nav-list">
+        <li><a href="/" aria-current="@Current("/")">Home</a></li>
+        <AuthorizeView Policy="RequireLessonLibrary">
+            <li><a href="/lessons" aria-current="@Current("/lessons")">Lesson library</a></li>
+        </AuthorizeView>
+        <AuthorizeView Policy="RequireStudent">
+            <li><a href="/student" aria-current="@Current("/student")">My progress</a></li>
+        </AuthorizeView>
+        <AuthorizeView Policy="RequireParent">
+            <li><a href="/parent/dashboard" aria-current="@Current("/parent/dashboard")">Parent dashboard</a></li>
+            <li><a href="/parent/consent" aria-current="@Current("/parent/consent")">Consent form</a></li>
+        </AuthorizeView>
+        <AuthorizeView Policy="RequireAdminOrTeacher">
+            <li><a href="/students" aria-current="@Current("/students")">Students</a></li>
+            <li><a href="/registration/students" aria-current="@Current("/registration/students")">Register student</a></li>
+            <li><a href="/guardianship/links" aria-current="@Current("/guardianship/links")">Guardian links</a></li>
+        </AuthorizeView>
+        <AuthorizeView Policy="RequireTeacher">
+            <li><a href="/students/consent" aria-current="@Current("/students/consent")">Student consent</a></li>
+            <li><a href="/progress/record" aria-current="@Current("/progress/record")">Record completions</a></li>
+            <li><a href="/progress/completions" aria-current="@Current("/progress/completions")">Correct a completion</a></li>
+            <li><a href="/curriculum/teacher" aria-current="@Current("/curriculum/teacher")">Propose lesson changes</a></li>
+        </AuthorizeView>
+        <AuthorizeView Policy="RequireApprover">
+            <li><a href="/curriculum/approver" aria-current="@Current("/curriculum/approver")">Pending proposals</a></li>
+        </AuthorizeView>
+        <AuthorizeView Policy="RequireAdminOrSafeguardingOfficer">
+            <li><a href="/safeguarding/consent" aria-current="@Current("/safeguarding/consent")">Consent records</a></li>
+            <li><a href="/safeguarding/dbs" aria-current="@Current("/safeguarding/dbs")">DBS checks</a></li>
+        </AuthorizeView>
+        <AuthorizeView Policy="RequireAdmin">
+            <li><a href="/administration/students" aria-current="@Current("/administration/students")">Manage students</a></li>
+            <li><a href="/administration/user-roles" aria-current="@Current("/administration/user-roles")">User roles</a></li>
+            <li><a href="/administration/rank-badges" aria-current="@Current("/administration/rank-badges")">Rank badges</a></li>
+            <li><a href="/reporting" aria-current="@Current("/reporting")">Reporting</a></li>
+            <li><a href="/reporting/records-due-for-deletion" aria-current="@Current("/reporting/records-due-for-deletion")">Records due for deletion</a></li>
+            <li><a href="/retention/mark-as-left" aria-current="@Current("/retention/mark-as-left")">Mark as left</a></li>
+        </AuthorizeView>
+    </ul>
+</nav>
+
+@code {
+    protected override void OnInitialized() => Navigation.LocationChanged += OnLocationChanged;
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e) =>
+        _ = InvokeAsync(StateHasChanged);
+
+    // aria-current="page" on the link for the current page; a null value omits the attribute.
+    private string? Current(string href)
+    {
+        var path = new Uri(Navigation.Uri).AbsolutePath.TrimEnd('/');
+        if (path.Length == 0) path = "/";
+        return string.Equals(path, href, StringComparison.OrdinalIgnoreCase) ? "page" : null;
+    }
+
+    public void Dispose() => Navigation.LocationChanged -= OnLocationChanged;
+}
