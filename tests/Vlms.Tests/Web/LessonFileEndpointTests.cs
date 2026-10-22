@@ -177,6 +177,23 @@ public sealed class LessonFileEndpointTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task TeacherWithoutMfa_IsForbidden()
+    {
+        // Teacher is MFA-gated since 22/10/2026 (adr/0006 amendment).
+        var response = await GetAsync(1, "Teacher", mfa: false);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ParentWithoutMfa_GetsTheFile()
+    {
+        var response = await GetAsync(1, "Parent", mfa: false);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
     public async Task FileOfInactiveLesson_IsNotFound()
     {
         var response = await GetAsync(5, "Admin");

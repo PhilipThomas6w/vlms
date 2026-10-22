@@ -6,7 +6,7 @@ Status: **template**, not yet run. Fill in during UAT on the production system a
 
 - **What is tested:** each role's core journey in the real app, through the browser, on the production hostname. This is the manual half of TC-001…TC-014 (`quality/test-plan.md` Results) plus the end-to-end journeys the automated suite does not drive.
 - **Devices:** at least one phone (iOS or Android) and one desktop browser, per NFR-004.
-- **Entry criteria:** release deployed; `deploy/README.md` §7 checklist complete; seed rank ladder and curriculum loaded (`STATE.md` Blocked: seed data); test accounts for each role, with MFA enrolled for Admin and Safeguarding Officer.
+- **Entry criteria:** release deployed; `deploy/README.md` §7 checklist complete; seed rank ladder and curriculum loaded (`STATE.md` Blocked: seed data); test accounts for each role, with MFA enrolled for Admin, Safeguarding Officer and Teacher (Teacher MFA required since 22/10/2026, adr/0006 amendment).
 - **Exit criteria:** every scenario below Passed or accepted with a recorded workaround; no open Critical/High defects.
 
 ## 2. Participants
