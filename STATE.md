@@ -75,16 +75,26 @@ Full narrative for Done/Log items to 12/08/2026: `docs/harness/STATE-archive.md`
 - [x] Student sign-ins and student page (FR-011, ADR-0007): parent creates and resets a username/password sign-in per linked child (Admin resets); emailless accounts count as confirmed only when linked to a `Student`; Student role granted only by this flow; `/student`, `/parent/student-sign-ins`, `/administration/student-sign-ins`; no migration — 9b34ffb (Opus subagent), merged 33d2f69; nav links added; full gate exit 0, 746/746 tests, 45 pages; sign-in and the new pages' access re-checked in the running app. Break tests listed in its ASVS row not yet run (Philip); a student signing in has not been tried in the running app (needs the interactive parent page)
 
 ## In progress
-_(none)_
+Subagents launched 22/10/2026 from `master` (pushed):
+- **Role changes take effect immediately** (FR-016) — update the security stamp on every role grant or removal; re-read roles per check rather than once per Blazor circuit; tests with a multi-role user (Teacher+Admin, Teacher+SO, Teacher+Parent) and a role removed mid-session. [Opus; no migration]
+- **Student sign-in rules** (ADR-0007 decisions) — 8+ character passwords with relaxed complexity for students only; stay signed in on the student's own device; reset by parent or Admin clears lockout; Admin disables and restores a student's sign-in (leaving does not); multi-child parent covered by tests. [Opus; holds the migration slot]
+- **Request-level end-to-end tests** — `WebApplicationFactory` over the real pipeline (SQLite swapped in): anonymous redirect, sign-in with and without TOTP, Access denied, each role's pages, a multi-role user, file endpoints. Would have caught both 500s. [Sonnet; no migration]
+- **Browser walk of the interactive journeys** — main session, Claude in Chrome on localhost (Philip's permission 22/10/2026).
 
 ## Next
 Fit-for-purpose build plan (Philip, 22/10/2026; `docs/delivery-plan.md` phase 2, `docs/governance/raid.md` I-001). Acceptance for every item below: tests, gate exits 0, **and** the matching steps in `docs/requirements/user-journeys.md` work in the running app for each named role (checked by running it, not inferred from service tests), with their status updated there.
+
+**Queued behind the student sign-in rules item (migration slot)**
+- **One badge per rank** — unique index on `rank_badges.rank_id` (Philip, 22/10/2026). [Haiku; migration]
 
 Delegation (Philip, 22/10/2026): each item runs as a subagent in its own worktree, model in brackets. Items in a wave run in parallel; a wave starts when the items it depends on are merged into `master`.
 
 
 ## Decisions needed (Philip)
 Ordered by go-live critical path.
+- **Graph client secret on the dev machine** — none is configured (the app sent the `appsettings.json` placeholder). Philip to store it as a user environment variable `GraphMail__ClientSecret` (steps given 22/10/2026), or generate a new one if the value is no longer to hand.
+- **Confirm "reset both passwords"** (ADR-0007 decision 1) — taken to mean a parent resets the password of each of their children.
+- **Tell Teachers before go-live** that they must set up two-factor sign-in (agreed 22/10/2026).
 1. ~~Seed rank ladder + curriculum~~: resolved 21/10/2026. See `seed/curriculum.json` and `requirements/functional.md`.
 2. **Retention purge approach** — manually run `BYPASSRLS` maintenance role vs scheduled job (adr/0004 pass 8); only flagging exists (`RecordsDueForDeletionService.cs:30`). `vlms_app` must never get DELETE on `sensitive_data_access_logs`. DPIA residual risk 7. Unblocks: purge item.
 3. **Alert route** (ops pack) — DPIA residual risk 8; needed before go-live.
@@ -207,3 +217,4 @@ Ordered by go-live critical path.
 - 2026-10-22: Merged lesson uploads (955aadd), gate exit 0, 692/692 tests. Home/navigation launched alongside student accounts
 - 2026-10-22: Running the app found two defects that made it unusable whatever the tests said: 500 on every protected page (05967e7) and 500 on every sign-in (79a5d27); both fixed. Graph email from this machine fails (AADSTS7000215 invalid client secret); registration still tells the user an email was sent. Navigation merged (5590655), 697/697
 - 2026-10-22: Student sign-ins merged (33d2f69), 746/746. Every fit-for-purpose build item is merged. Remaining before UAT: browser walk of the interactive journeys, decisions from ADR-0007 (child password rules, lockout on reset, leavers' sign-ins, Admin-created sign-ins)
+- 2026-10-22: Philip decided ADR-0007 questions, FR-016 (role changes immediate; multiple roles per identity; permissions fixed per role), unique badge index, request-level tests, browser walk. Corrected an earlier report: the Graph secret was never configured on this machine, not invalid

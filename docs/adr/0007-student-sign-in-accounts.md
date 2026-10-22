@@ -49,9 +49,12 @@ The requirement was not to weaken any of this for adults.
 - The Admin page `/administration/student-sign-ins` exists but is not linked from navigation until FR-012.
 - `AppUser.Email` is empty for students. Any future feature that emails `AppUser.Email` must skip empty addresses.
 
-## Open questions for Philip
+## Decisions (Philip, 22/10/2026)
 
-1. **Password rules for children.** Keep the adult rules, or relax them for student sign-ins only (for example 8+ characters, no symbol requirement)? Relaxing needs a custom `IPasswordValidator` that knows the account is a student's.
-2. **Lockout for children.** 5 failed attempts lock the account for 15 minutes, and a parent's reset does not unlock it. Should a parent's reset also clear the lockout?
-3. **Leavers.** A student marked Inactive or Graduated can still sign in and see their page. Should leaving disable the sign-in?
-4. **Admin creation.** Only a linked parent can create a sign-in. Should an Admin also be able to, for families without a parent account?
+1. **Passwords and staying signed in.** Student passwords are at least 8 characters, with the complexity rules relaxed for children (no upper-case, digit or symbol requirement; adult rules unchanged). A student stays signed in on their own phone or tablet so they don't enter the password each time the app opens. A parent can reset the password of each of their children (assumed meaning of "reset both passwords"; to confirm).
+2. **Lockout.** A parent's (or Admin's) reset clears the lockout.
+3. **Leavers.** Leaving does not disable a sign-in. Admins can disable and restore a student's sign-in.
+4. **Admin creation.** Not needed: every student has a parent account, because parental consent is mandatory (legal and safeguarding obligation). Sign-ins stay parent-created only.
+5. **Parents with several children** (almost all parents): one parent account, linked to every child, submits each child's consent form and creates each child's sign-in.
+
+Previous open questions, answered above: password rules, lockout on reset, leavers, Admin creation.
