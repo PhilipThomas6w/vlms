@@ -32,11 +32,13 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Vlms.Domain;
 using Vlms.Infrastructure;
+using Vlms.Infrastructure.Curriculum;
 using Vlms.Infrastructure.Engagement;
 using Vlms.Infrastructure.Identity;
 using Vlms.Infrastructure.Notifications;
 using Vlms.Infrastructure.Safeguarding;
 using Vlms.Infrastructure.Security;
+using Vlms.Infrastructure.Storage;
 
 // `Vlms.Jobs bootstrap-admin <email>` — one-off first-Admin bootstrap (STATE.md "Admin role
 // assignment + first-Admin bootstrap"; see FirstAdminBootstrapService's doc comment for why it lives
@@ -44,7 +46,12 @@ using Vlms.Infrastructure.Security;
 // arguments are kept out of the host builder so they are never read as configuration.
 var bootstrapEmail = args is ["bootstrap-admin", var emailArg] ? emailArg : null;
 
-var builder = Host.CreateApplicationBuilder(bootstrapEmail is null ? args : []);
+// `Vlms.Jobs seed-curriculum --manifest <path> --content-root <dir>` — idempotent rank ladder +
+// curriculum seed (STATE.md "Seed rank ladder + curriculum"; CurriculumSeeder's doc comment). Run once
+// after migrations, with the production connection string and Storage:LocalRootPath.
+var seedCurriculumArgs = args is ["seed-curriculum", ..] ? SeedCurriculumArgs.Parse(args[1..]) : null;
+
+var builder = Host.CreateApplicationBuilder(bootstrapEmail is null && seedCurriculumArgs is null ? args : []);
 
 builder.Services.AddDbContext<VlmsDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("VlmsDatabase")));
@@ -79,6 +86,15 @@ builder.Services.AddScoped(sp => new GuardianNotificationService(
     builder.Configuration["App:PublicBaseUrl"]));
 builder.Services.AddScoped<FirstAdminBootstrapService>();
 
+// Lesson files for seed-curriculum go to the same root the web app reads (Storage:LocalRootPath).
+// Resolved lazily so the scheduled sweep never needs it; Production refuses a blank, relative or
+// in-app-directory root (BlobStorageRoot).
+builder.Services.AddScoped<IBlobStorage>(sp => new LocalDiskBlobStorage(BlobStorageRoot.Resolve(
+    sp.GetRequiredService<IConfiguration>()[BlobStorageRoot.RootPathKey],
+    sp.GetRequiredService<IHostEnvironment>().IsProduction(),
+    AppContext.BaseDirectory)));
+builder.Services.AddScoped<CurriculumSeeder>();
+
 using var host = builder.Build();
 
 using var scope = host.Services.CreateScope();
@@ -96,6 +112,49 @@ if (bootstrapEmail is not null)
     catch (InvalidOperationException ex)
     {
         bootstrapLogger.LogError("First-Admin bootstrap refused: {Reason}", ex.Message);
+        Environment.ExitCode = 1;
+    }
+
+    return;
+}
+
+if (seedCurriculumArgs is not null)
+{
+    var seedLogger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    if (seedCurriculumArgs.Error is not null)
+    {
+        seedLogger.LogError("seed-curriculum: {Error}", seedCurriculumArgs.Error);
+        Environment.ExitCode = 2;
+        return;
+    }
+
+    try
+    {
+        var seed = await scope.ServiceProvider.GetRequiredService<CurriculumSeeder>()
+            .SeedAsync(seedCurriculumArgs.ManifestPath!, seedCurriculumArgs.ContentRoot!);
+        foreach (var warning in seed.Warnings)
+        {
+            seedLogger.LogWarning("seed-curriculum: {Warning}", warning);
+        }
+
+        if (!seed.Succeeded)
+        {
+            seedLogger.LogError("seed-curriculum refused: {ErrorCount} validation error(s); nothing was written.", seed.Errors.Count);
+            foreach (var error in seed.Errors)
+            {
+                seedLogger.LogError("  {Error}", error);
+            }
+            Environment.ExitCode = 1;
+            return;
+        }
+
+        seedLogger.LogInformation(
+            "seed-curriculum done: ranks {RanksCreated} created / {RanksUpdated} updated; lessons {LessonsCreated} created / {LessonsUpdated} updated; {FilesUploaded} file(s) uploaded.",
+            seed.RanksCreated, seed.RanksUpdated, seed.LessonsCreated, seed.LessonsUpdated, seed.FilesUploaded);
+    }
+    catch (Exception ex)
+    {
+        seedLogger.LogCritical(ex, "seed-curriculum failed.");
         Environment.ExitCode = 1;
     }
 

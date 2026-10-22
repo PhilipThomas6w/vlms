@@ -286,6 +286,38 @@ sudo systemd-run --wait --pipe -p User=vlms -p WorkingDirectory=/opt/vlms/jobs  
 Not yet verified on a live host (same status as the rest of this file — see §8), including the
 `systemd-run -p EnvironmentFile=` form.
 
+## 6b. Seed the rank ladder and curriculum (after migrations; safe to re-run)
+
+The 10 ranks and 56 lessons come from the versioned manifest `seed/curriculum.json`; the lesson
+files (Word documents and `Images` folders) are **not** in git, so copy the seed content folder to
+the server first (for example to `/tmp/vlms-seed`; it holds the rank folders `Recruits (1)`,
+`Guardsman (2)` and so on, as named by the manifest's `source` fields). Delete the copy afterwards:
+the `Admin` subfolder holds personal data and is never read.
+
+The command needs the migrated database and the **production** `Storage__LocalRootPath`
+(the same directory `Vlms.Web` reads), so `/etc/vlms/jobs.env` must contain
+`Storage__LocalRootPath=<the same path as in web.env>` as well as `ConnectionStrings__VlmsDatabase`.
+Run it as `vlms` with the same environment file the timer uses:
+
+```bash
+sudo systemd-run --wait --pipe -p User=vlms -p WorkingDirectory=/opt/vlms/jobs   -p EnvironmentFile=/etc/vlms/jobs.env   /usr/bin/dotnet /opt/vlms/jobs/Vlms.Jobs.dll seed-curriculum --manifest /opt/vlms/seed/curriculum.json --content-root /tmp/vlms-seed
+# expected: "seed-curriculum done: ranks 10 created ...; lessons 56 created ...; 314 file(s) uploaded." and exit code 0
+```
+
+(`seed/curriculum.json` is not part of the published output: copy it from the repository alongside
+the content, and point `--manifest` at wherever you put it.)
+
+- It validates everything first (every lesson folder exists, every tag is a known tag, codes are
+  unique). On any problem it writes nothing, prints the full list of errors and exits non-zero (1;
+  2 for bad arguments).
+- Re-running with the same input changes nothing. After editing the manifest or a document, re-run
+  it to apply the change. Files are uploaded under `lessons/<lesson code>/...` and overwritten.
+- It never deletes: a lesson or rank that is in the database but no longer in the manifest is
+  reported as a warning and left alone.
+
+Not yet verified on a live host or against PostgreSQL (tests use SQLite in memory), including the
+`systemd-run -p EnvironmentFile=` form.
+
 ## 7. Verification checklist
 
 - [ ] `curl -I https://<real-domain>` returns a response with a valid Let's Encrypt certificate

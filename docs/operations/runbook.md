@@ -59,6 +59,10 @@ journalctl -u vlms-jobs.service -n 50 --no-pager   # expect "ConsentExpiryJob co
 
 In the app: `/administration/user-roles` (Admin only, MFA required). Guardian invite acceptances show in the waiting-for-approval list and are approved there by granting `Parent`. There is no shell route for role changes apart from the one-off first-Admin bootstrap (`deploy/README.md` §6a).
 
+### Seed or update the curriculum
+
+`Vlms.Jobs seed-curriculum --manifest <path> --content-root <dir>` upserts the ranks, lessons, tags and lesson files from `seed/curriculum.json` and the lesson content folders. Idempotent, never deletes (extra lessons are reported as warnings), and writes nothing if validation fails. Needs the migrated database and the production `Storage__LocalRootPath` in `/etc/vlms/jobs.env`. Exact command: `deploy/README.md` §6b.
+
 ### A user is locked out or lost their authenticator
 
 - Wrong password five times locks the account for 15 minutes (`VlmsIdentityPolicy`). Wait, or use "Forgot your password?".
