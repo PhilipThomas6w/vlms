@@ -271,7 +271,9 @@ public sealed class LessonFileEndpointTests : IAsyncLifetime
     [InlineData("a.gif", "image/gif", true)]
     [InlineData("a.webp", "image/webp", true)]
     [InlineData("a.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", false)]
-    [InlineData("a.html", "application/octet-stream", false)]
+    [InlineData("a.html", "text/html", false)]
+    [InlineData("a.txt", "text/plain", false)]
+    [InlineData("a.xyz", "application/octet-stream", false)]
     [InlineData("noextension", "application/octet-stream", false)]
     public void FileTypes_MapExtensionToContentTypeAndDisposition(string fileName, string contentType, bool inline)
     {

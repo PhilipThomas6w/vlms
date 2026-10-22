@@ -93,6 +93,9 @@ builder.Services.AddScoped<RoleAssignmentService>();
 
 // --- Curriculum management workflow (docs/design/low-level-design.md "LessonProposalService")
 builder.Services.AddScoped<LessonProposalService>();
+// Lesson file uploads for proposals (FR-007); limits from the "LessonUploads" section (default 25 MB per file).
+builder.Services.Configure<LessonUploadOptions>(builder.Configuration.GetSection(LessonUploadOptions.SectionName));
+builder.Services.AddScoped<LessonUploadService>();
 
 // --- Lesson library (functional.md FR-006) — read-only browse + file download for Teacher/Approver/
 // Admin/Student/Parent, via LessonFileEndpoint and Pages/Lessons/LessonLibrary.razor.
@@ -215,6 +218,8 @@ builder.Services.AddAuthorization(options =>
 
     // Lesson library (FR-006): any of Teacher/Approver/Admin/Student/Parent, never SafeguardingOfficer alone.
     options.AddLessonLibraryPolicy();
+    // Pending proposal files (FR-007): Teacher/Approver at the door; the service limits Teachers to their own.
+    options.AddProposalFilePolicy();
 
     // Certificate view/download (FR-010): Student/Parent/Teacher/Admin; the service checks ownership or link.
     options.AddCertificateAccessPolicy();
@@ -319,6 +324,7 @@ app.MapStaticAssets();
 app.MapLessonFileEndpoint();
 app.MapRankBadgeEndpoint();
 app.MapCertificateEndpoint();
+app.MapProposalFileEndpoint();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 

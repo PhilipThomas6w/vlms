@@ -95,7 +95,7 @@ public sealed class LessonProposalServiceTests : IDisposable
         Title = title,
         Order = 2,
         Tags = [LessonTag.ChurchLife],
-        Files = [new ProposedLessonFile { FileName = $"{code}.docx", BlobKey = $"blob/{code}-v1" }],
+        Files = [new ProposedLessonFile { FileName = $"{code}.docx", BlobKey = $"lessons/pending/10/{code}/{code}.docx" }],
         IsActive = isActive
     };
 
@@ -107,8 +107,8 @@ public sealed class LessonProposalServiceTests : IDisposable
         Tags = [LessonTag.Prayers, LessonTag.Saints],
         Files =
         [
-            new ProposedLessonFile { FileName = "Knots v2.docx", BlobKey = "blob/knots-101-v2" },
-            new ProposedLessonFile { FileName = "Handout.pdf", BlobKey = "blob/knots-101-handout" }
+            new ProposedLessonFile { FileName = "Knots v2.docx", BlobKey = "lessons/pending/10/v2/Knots-v2.docx" },
+            new ProposedLessonFile { FileName = "Handout.pdf", BlobKey = "lessons/pending/10/v2/Handout.pdf" }
         ],
         IsActive = isActive
     };
@@ -171,7 +171,7 @@ public sealed class LessonProposalServiceTests : IDisposable
         Assert.True(lesson.IsActive);
         Assert.Equal([LessonTag.ChurchLife], verify.Context.LessonTagAssignments.Where(t => t.LessonId == lesson.Id).Select(t => t.Tag).ToList());
         var file = Assert.Single(verify.Context.LessonFiles.Where(f => f.LessonId == lesson.Id));
-        Assert.Equal(("L9.docx", "blob/L9-v1", 1), (file.FileName, file.BlobKey, file.Order));
+        Assert.Equal(("L9.docx", "lessons/pending/10/L9/L9.docx", 1), (file.FileName, file.BlobKey, file.Order));
 
         var proposal = await verify.Context.LessonChangeProposals.SingleAsync(p => p.Id == proposalId);
         Assert.Equal(lesson.Id, proposal.LessonId);
@@ -206,8 +206,8 @@ public sealed class LessonProposalServiceTests : IDisposable
         var files = verify.Context.LessonFiles.Where(f => f.LessonId == 1).OrderBy(f => f.Order)
             .Select(f => new { f.Order, f.FileName, f.BlobKey }).ToList();
         Assert.Equal(2, files.Count);
-        Assert.Equal((1, "Knots v2.docx", "blob/knots-101-v2"), (files[0].Order, files[0].FileName, files[0].BlobKey));
-        Assert.Equal((2, "Handout.pdf", "blob/knots-101-handout"), (files[1].Order, files[1].FileName, files[1].BlobKey));
+        Assert.Equal((1, "Knots v2.docx", "lessons/pending/10/v2/Knots-v2.docx"), (files[0].Order, files[0].FileName, files[0].BlobKey));
+        Assert.Equal((2, "Handout.pdf", "lessons/pending/10/v2/Handout.pdf"), (files[1].Order, files[1].FileName, files[1].BlobKey));
     }
 
     [Fact]

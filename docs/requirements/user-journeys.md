@@ -28,8 +28,8 @@ Each step is marked:
 | # | Step | Status | Evidence / gap |
 |---|---|---|---|
 | 1 | Find the lesson and open its current content | Built | `/lessons` and `GET /lessons/files/{id}`. |
-| 2 | Propose an edit: change title, order and tags, and upload new or replacement files | **Partial** | `/curriculum/teacher` handles title, order and tags (c8c13f4). Files are typed in as storage keys, and there is no upload. |
-| 3 | Propose a new lesson or the retirement of one | Built (except files) | `/curriculum/teacher` |
+| 2 | Propose an edit: change title, order and tags, and upload new or replacement files | Built | `/curriculum/teacher`: title, order and tags (c8c13f4); files are uploaded with `InputFile` (`LessonUploadService`: 25 MB default limit, extension allow-list, content-type and signature checks), start from the lesson's current files, and can be removed or reordered. Uploads are pending and go live only on approval. |
+| 3 | Propose a new lesson or the retirement of one | Built | `/curriculum/teacher` |
 | 4 | See the Approver's decision and comments, then revise and resubmit | Built | `/curriculum/teacher`, "My proposals" |
 
 ## J3. Approver: review a proposed change
@@ -37,7 +37,7 @@ Each step is marked:
 | # | Step | Status | Evidence / gap |
 |---|---|---|---|
 | 1 | See pending proposals | Built | `/curriculum/approver` |
-| 2 | Compare the proposed content with the current lesson, opening the files of both | **Partial** | The proposal is shown as raw JSON (`<pre>@proposal.ProposedContent</pre>`). Files can't be opened, and there is no comparison with the current lesson. |
+| 2 | Compare the proposed content with the current lesson, opening the files of both | Built | `/curriculum/approver` shows each proposal as a table of the current lesson against the proposal, differences marked in words (Changed / Added / Removed). Current files open from the library endpoint; proposed (pending) files open from `GET /curriculum/proposals/{id}/files/{index}`, for the proposer and Approvers only. |
 | 3 | Approve, or reject with comments | Built | `/curriculum/approver`. Approval puts the change live (`LessonProposalService.ApproveAsync`). |
 
 ## J4. Student: learn and track progress
@@ -92,8 +92,8 @@ Core gaps (the app can't be used for its purpose without them):
 
 Needed but smaller:
 7. Edit student details (J6 step 3).
-8. Approver view that shows the proposal readably, compared with the current lesson (J3 step 2).
 9. ~~Rank badge images (J6 step 5)~~: built, see J6 step 5.
+8. ~~Approver view that shows the proposal readably, compared with the current lesson (J3 step 2).~~ Built with FR-007.
 
 Decided (Philip, 22/10/2026):
 10. Parents submit the consent form in the app, and the Safeguarding Officer or Admin approves (FR-015).

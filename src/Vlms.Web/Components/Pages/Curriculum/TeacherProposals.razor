@@ -10,6 +10,7 @@
 @inject VlmsDbContext Db
 @inject ICurrentUserContext CurrentUser
 @inject LessonProposalService ProposalService
+@inject LessonUploadService Uploads
 
 <PageTitle>Propose a lesson change</PageTitle>
 
@@ -113,19 +114,36 @@
             </fieldset>
             <fieldset>
                 <legend>Files</legend>
-                @for (var i = 0; i < _form.Files.Count; i++)
+                @if (_form.Files.Count == 0)
                 {
-                    var file = _form.Files[i];
-                    var n = i + 1;
-                    <div>
-                        <label for="fileName@(n)">File @n name</label>
-                        <input id="fileName@(n)" @bind="file.FileName" />
-                        <label for="fileBlobKey@(n)">File @n content location</label>
-                        <input id="fileBlobKey@(n)" @bind="file.BlobKey" />
-                        <button type="button" @onclick="() => _form.Files.Remove(file)">Remove file @n</button>
-                    </div>
+                    <p>No files yet.</p>
                 }
-                <button type="button" @onclick="() => _form.Files.Add(new FileFormModel())">Add file</button>
+                else
+                {
+                    <ol>
+                        @for (var i = 0; i < _form.Files.Count; i++)
+                        {
+                            var index = i;
+                            var file = _form.Files[i];
+                            var n = i + 1;
+                            <li>
+                                @file.FileName (@(IsNewUpload(file) ? "new upload" : "current file"))
+                                <button type="button" disabled="@(index == 0)" @onclick="() => MoveFile(index, -1)">Move file @n up</button>
+                                <button type="button" disabled="@(index == _form.Files.Count - 1)" @onclick="() => MoveFile(index, 1)">Move file @n down</button>
+                                <button type="button" @onclick="() => _form.Files.Remove(file)">Remove file @n</button>
+                            </li>
+                        }
+                    </ol>
+                }
+                <div>
+                    <label for="fileUpload">Upload files</label>
+                    <InputFile id="fileUpload" OnChange="OnFilesSelectedAsync" multiple aria-describedby="fileUploadHelp" />
+                    <p id="fileUploadHelp">
+                        Accepted: @string.Join(", ", LessonUploadService.AllowedExtensions.Order()).
+                        Up to @(Uploads.MaxFileBytes / (1024 * 1024)) MB per file.
+                        New files go live only when an Approver approves the proposal.
+                    </p>
+                </div>
             </fieldset>
             <div>
                 <label><InputCheckbox @bind-Value="_form.IsActive" /> Active</label>
@@ -145,6 +163,7 @@
             <th>Type</th>
             <th>Status</th>
             <th>Submitted</th>
+            <th>Files</th>
             <th>Approver comments</th>
             <th></th>
         </tr>
@@ -157,6 +176,20 @@
                 <td>@proposal.ChangeType</td>
                 <td>@proposal.Status</td>
                 <td>@proposal.SubmittedAt.ToString("g")</td>
+                <td>
+                    @{
+                        var proposalFiles = FilesOfProposal(proposal);
+                    }
+                    @if (proposalFiles.Count > 0)
+                    {
+                        <ul>
+                            @for (var i = 0; i < proposalFiles.Count; i++)
+                            {
+                                <li><a href="@ProposalReview.ProposalFileUrl(proposal.Id, i)" target="_blank" rel="noopener">@proposalFiles[i].FileName (opens in a new tab)</a></li>
+                            }
+                        </ul>
+                    }
+                </td>
                 <td>@proposal.ApprovalComments</td>
                 <td>
                     @if (proposal.Status == ProposalStatus.Rejected)
@@ -282,6 +315,73 @@
         lesson.Files.OrderBy(f => f.Order)
             .Select(f => new FileFormModel { FileName = f.FileName, BlobKey = f.BlobKey })
             .ToList();
+
+    private const int MaxFilesPerSelection = 10;
+
+    private static IReadOnlyList<ProposedLessonFile> FilesOfProposal(LessonChangeProposal proposal)
+    {
+        try
+        {
+            return JsonSerializer.Deserialize<ProposedLessonContent>(proposal.ProposedContent)?.Files ?? [];
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
+    }
+
+    private static bool IsNewUpload(FileFormModel file) =>
+        file.BlobKey.StartsWith(PendingKeys.Prefix, StringComparison.Ordinal);
+
+    private void MoveFile(int index, int direction)
+    {
+        var target = index + direction;
+        if (_form is null || target < 0 || target >= _form.Files.Count)
+        {
+            return;
+        }
+
+        (_form.Files[index], _form.Files[target]) = (_form.Files[target], _form.Files[index]);
+    }
+
+    private async Task OnFilesSelectedAsync(InputFileChangeEventArgs e)
+    {
+        if (_form is null)
+        {
+            return;
+        }
+
+        _errorMessage = null;
+        _statusMessage = null;
+        var uploaded = 0;
+        try
+        {
+            foreach (var browserFile in e.GetMultipleFiles(MaxFilesPerSelection))
+            {
+                await using var stream = browserFile.OpenReadStream(Uploads.MaxFileBytes);
+                var file = await Uploads.UploadAsync(browserFile.Name, browserFile.ContentType, stream);
+                _form.Files.Add(new FileFormModel { FileName = file.FileName, BlobKey = file.BlobKey });
+                uploaded++;
+            }
+        }
+        catch (IOException)
+        {
+            _errorMessage = $"A file is larger than the {Uploads.MaxFileBytes / (1024 * 1024)} MB limit.";
+        }
+        catch (InvalidOperationException ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _errorMessage = ex.Message;
+        }
+
+        if (uploaded > 0)
+        {
+            _statusMessage = uploaded == 1 ? "1 file uploaded." : $"{uploaded} files uploaded.";
+        }
+    }
 
     private void ToggleTag(LessonTag tag, bool selected)
     {

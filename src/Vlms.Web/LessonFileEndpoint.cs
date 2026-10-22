@@ -44,10 +44,16 @@ public static class LessonFileEndpoint
                 return Results.NotFound();
             }
 
-            var disposition = new ContentDispositionHeaderValue(LessonFileTypes.IsInline(file.FileName) ? "inline" : "attachment");
-            disposition.SetHttpFileName(file.FileName);
-            http.Response.Headers.ContentDisposition = disposition.ToString();
-            http.Response.Headers.XContentTypeOptions = "nosniff";
-            return Results.Bytes(file.Content, LessonFileTypes.ContentTypeFor(file.FileName));
+            return ToResult(file, http);
         }).RequireAuthorization(PolicyName);
+
+    /// <summary>Inline for pdf/images, attachment for everything else, always nosniff.</summary>
+    internal static IResult ToResult(LessonFileContent file, HttpContext http)
+    {
+        var disposition = new ContentDispositionHeaderValue(LessonFileTypes.IsInline(file.FileName) ? "inline" : "attachment");
+        disposition.SetHttpFileName(file.FileName);
+        http.Response.Headers.ContentDisposition = disposition.ToString();
+        http.Response.Headers.XContentTypeOptions = "nosniff";
+        return Results.Bytes(file.Content, LessonFileTypes.ContentTypeFor(file.FileName));
+    }
 }

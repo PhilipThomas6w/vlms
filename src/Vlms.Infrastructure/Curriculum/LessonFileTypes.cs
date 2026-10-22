@@ -24,7 +24,10 @@ public static class LessonFileTypes
         [".docx"] = "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         [".doc"] = "application/msword",
         [".pptx"] = "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-        [".xlsx"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        [".xlsx"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        // Never inline: html is served as an attachment so uploaded markup cannot run in the app's origin.
+        [".html"] = "text/html",
+        [".txt"] = "text/plain"
     };
 
     public static string ContentTypeFor(string fileName)

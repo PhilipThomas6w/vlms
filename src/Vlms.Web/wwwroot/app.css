@@ -36,3 +36,6 @@ h1:focus {
 .form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
     text-align: start;
 }
+/* Approver proposal review (FR-007): a change is marked by text ("Changed", "Added", "Removed") as well as by this background, so colour is never the only cue. */
+.review-changed { background: #fff3bf; color: #000; }
+.review-removed { text-decoration: line-through; }
