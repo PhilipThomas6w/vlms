@@ -417,4 +417,98 @@ public sealed class GuardianInviteServiceTests : IDisposable
 
         Assert.Equal(1099, (await owner.Db.ParentGuardians.AsNoTracking().SingleAsync(g => g.Id == 2)).AppUserId);
     }
+
+    // --- Resend (functional.md FR-018, TC-036) ---
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ResendAsync_ByTeacherOrParent_Throws_AndChangesNothing(bool teacher)
+    {
+        using var issuer = Build(1000, null, Role.Admin);
+        var (invite, _) = await issuer.InviteService.IssueAsync(studentId: 100, parentGuardianId: 1);
+        issuer.Notifications.SentRequests.Clear();
+
+        using var fixture = Build(teacher ? 1000 : 1099, null, teacher ? Role.Teacher : Role.Parent);
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => fixture.InviteService.ResendAsync(1));
+
+        Assert.Single(fixture.Db.GuardianInvites);
+        Assert.Empty(fixture.Notifications.SentRequests);
+    }
+
+    [Fact]
+    public async Task ResendAsync_ForAGuardianWithAnAccount_IsRefused_AndSendsNothing()
+    {
+        using var fixture = Build(1000, null, Role.Admin);
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => fixture.InviteService.ResendAsync(2));
+
+        Assert.Equal(GuardianInviteService.ResendAlreadyLinkedMessage, ex.Message);
+        Assert.Contains("sign in", ex.Message);
+        Assert.Empty(fixture.Db.GuardianInvites);
+        Assert.Empty(fixture.Notifications.SentRequests);
+    }
+
+    [Fact]
+    public async Task ResendAsync_ByAdmin_StopsTheOldTokenWorking_AndTheNewOneWorks_AndEmailsTheGuardian()
+    {
+        using var fixture = Build(1000, null, Role.Admin);
+        var (_, oldToken) = await fixture.InviteService.IssueAsync(studentId: 100, parentGuardianId: 1);
+        fixture.Notifications.SentRequests.Clear();
+
+        await fixture.InviteService.ResendAsync(1);
+
+        var sent = Assert.Single(fixture.Notifications.SentRequests);
+        Assert.Equal("jane@example.com", sent.RecipientEmail);
+        var newToken = System.Text.RegularExpressions.Regex.Match(sent.Body, @"token=(\S+)").Groups[1].Value;
+        newToken = Uri.UnescapeDataString(newToken);
+        Assert.False(string.IsNullOrEmpty(newToken));
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => fixture.InviteService.AcceptAsync(oldToken, "Str0ng!Passw0rd"));
+        Assert.Contains("expired", ex.Message);
+        Assert.Empty(fixture.Db.AppUsers.Where(u => u.Email == "jane@example.com"));
+
+        var appUser = await fixture.InviteService.AcceptAsync(newToken, "Str0ng!Passw0rd");
+        Assert.Equal("jane@example.com", appUser.Email);
+        Assert.Equal(appUser.Id, (await fixture.Db.ParentGuardians.SingleAsync(g => g.Id == 1)).AppUserId);
+    }
+
+    [Fact]
+    public async Task ResendAsync_IssuesAFreshInvite_WithTheNormalLifetime_ForTheSameStudent()
+    {
+        using var fixture = Build(1000, null, Role.Admin);
+        await fixture.InviteService.IssueAsync(studentId: 100, parentGuardianId: 1);
+
+        await fixture.InviteService.ResendAsync(1);
+
+        var invites = await fixture.Db.GuardianInvites.ToListAsync();
+        Assert.Equal(2, invites.Count);
+        var now = DateTimeOffset.UtcNow;
+        Assert.Single(invites, i => i.ExpiresAt > now);
+        var fresh = invites.Single(i => i.ExpiresAt > now);
+        Assert.Equal(100, fresh.StudentId);
+        Assert.True(fresh.ExpiresAt > now.Add(GuardianInviteService.DefaultInviteLifetime).AddMinutes(-1));
+    }
+
+    [Fact]
+    public async Task ResendAsync_WhenTheEarlierInviteHasExpired_StillIssuesANewWorkingInvite()
+    {
+        using var fixture = Build(1000, null, Role.Admin);
+        var (invite, _) = await fixture.InviteService.IssueAsync(studentId: 100, parentGuardianId: 1);
+        var row = await fixture.Db.GuardianInvites.SingleAsync(i => i.Id == invite.Id);
+        fixture.Db.Entry(row).CurrentValues.SetValues(new GuardianInvite
+        {
+            Id = row.Id, StudentId = row.StudentId, ParentGuardianId = row.ParentGuardianId,
+            CreatedByUserId = row.CreatedByUserId, CreatedAt = row.CreatedAt,
+            ExpiresAt = DateTimeOffset.UtcNow.AddDays(-1)
+        });
+        await fixture.Db.SaveChangesAsync();
+        fixture.Notifications.SentRequests.Clear();
+
+        await fixture.InviteService.ResendAsync(1);
+
+        Assert.Single(fixture.Notifications.SentRequests);
+        Assert.Equal(2, await fixture.Db.GuardianInvites.CountAsync());
+    }
 }

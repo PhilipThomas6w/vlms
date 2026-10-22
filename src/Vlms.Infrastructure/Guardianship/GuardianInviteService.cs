@@ -312,6 +312,75 @@ public sealed class GuardianInviteService
             ct);
     }
 
+    public const string ResendAlreadyLinkedMessage =
+        "This guardian already has an account. Ask them to sign in, or to use \"Forgot password\" on the sign-in page; there is no invite to resend.";
+
+    /// <summary>
+    /// Resends the account-setup invite to a guardian who has no account yet (functional.md FR-018).
+    /// Admin only (Teachers are not Admins; Philip, 22/10/2026). Refused when the guardian is already linked to an account. Every unused
+    /// invite for the guardian is invalidated and a fresh one, with the normal lifetime, is issued
+    /// to the guardian's contact email, so only the newest token works. The invite names the student
+    /// of the guardian's most recent invite, or failing that of one of their links.
+    ///
+    /// **Invalidation needs no schema change:** the earlier invite rows get an <see cref="GuardianInvite.ExpiresAt"/>
+    /// in the past. <c>ValidateAndLoadInviteAsync</c> already re-checks the row's own expiry after
+    /// unprotecting the token, so the earlier (still cryptographically valid) token is refused.
+    /// ConsumedAt is left alone because it records an acceptance. The invalidation and the new
+    /// invite commit together: if the email cannot be sent, nothing changes.
+    /// </summary>
+    public async Task ResendAsync(int parentGuardianId, CancellationToken ct = default)
+    {
+        if (!_currentUser.HasRole(Role.Admin))
+        {
+            throw new UnauthorizedAccessException("Caller must hold the Admin role to resend a guardian invite.");
+        }
+
+
+        var guardian = await _db.ParentGuardians.SingleAsync(g => g.Id == parentGuardianId, ct);
+        if (guardian.AppUserId is not null)
+        {
+            throw new InvalidOperationException(ResendAlreadyLinkedMessage);
+        }
+
+        var unused = await _db.GuardianInvites
+            .Where(i => i.ParentGuardianId == parentGuardianId && i.ConsumedAt == null)
+            .ToListAsync(ct);
+
+        // Filtered/ordered in memory: SQLite can't order DateTimeOffset in SQL, and the list is tiny.
+        var studentId = unused.OrderByDescending(i => i.CreatedAt).Select(i => (int?)i.StudentId).FirstOrDefault()
+            ?? await _db.StudentGuardianLinks
+                .Where(l => l.ParentGuardianId == parentGuardianId)
+                .OrderBy(l => l.StudentId)
+                .Select(l => (int?)l.StudentId)
+                .FirstOrDefaultAsync(ct)
+            ?? throw new InvalidOperationException("This guardian is not linked to a student, so there is nothing to invite them to.");
+
+        var ownsTransaction = _db.Database.CurrentTransaction is null;
+        await using var transaction = ownsTransaction ? await _db.Database.BeginTransactionAsync(ct) : null;
+
+        var past = DateTimeOffset.UtcNow.AddSeconds(-1);
+        foreach (var old in unused.Where(i => i.ExpiresAt > past))
+        {
+            _db.Entry(old).CurrentValues.SetValues(new GuardianInvite
+            {
+                Id = old.Id,
+                StudentId = old.StudentId,
+                ParentGuardianId = old.ParentGuardianId,
+                CreatedByUserId = old.CreatedByUserId,
+                CreatedAt = old.CreatedAt,
+                ExpiresAt = past
+            });
+        }
+        await _db.SaveChangesAsync(ct);
+
+        _ = await IssueAsync(studentId, parentGuardianId, ct);
+
+        if (transaction is not null)
+        {
+            await transaction.CommitAsync(ct);
+        }
+    }
+
     private async Task<ParentGuardian> LoadUnlinkedGuardianAsync(GuardianInvite invite, CancellationToken ct)
     {
         var guardian = await _db.ParentGuardians.SingleAsync(g => g.Id == invite.ParentGuardianId, ct);
@@ -384,7 +453,7 @@ public sealed class GuardianInviteService
 
         if (invite.ExpiresAt < DateTimeOffset.UtcNow)
         {
-            throw new InvalidOperationException("This invite link has expired.");
+            throw new InvalidOperationException("This invite link has expired or been replaced by a newer one.");
         }
 
         return invite;
