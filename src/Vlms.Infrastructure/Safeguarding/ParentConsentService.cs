@@ -71,9 +71,10 @@ public sealed record ParentConsentForm(
 /// <see cref="ConsentRecordService.DecideAsync"/>. A second submission while one is still Pending
 /// is refused, so the reviewer never has two competing versions to choose between.
 ///
-/// <b>Period:</b> a submission covers one year from the day it is submitted
-/// (<see cref="ConsentRecord.PeriodStart"/> = today, <see cref="ConsentRecord.PeriodEnd"/> =
-/// <see cref="ConsentRecord.ExpiryDate"/> = a year later less a day). Approval does not move it.
+/// <b>Period:</b> a submission runs from the day it is submitted
+/// (<see cref="ConsentRecord.PeriodStart"/> = today) to the 31 August that ends the church year
+/// (<see cref="ConsentRecord.PeriodEnd"/> = <see cref="ConsentRecord.ExpiryDate"/> =
+/// <see cref="ConsentYear.EndFor"/>; adr/0008 answer 2). Approval does not move it.
 ///
 /// Reads materialize whole <see cref="ConsentSensitiveDetails"/> entities (never a column
 /// projection), so <see cref="Auditing.SensitiveDataAuditInterceptor"/> logs each one. Only the
@@ -93,6 +94,9 @@ public sealed class ParentConsentService
         _currentUser = currentUser;
         _notifications = notifications;
     }
+
+    /// <summary>The expiry date a form submitted today would carry, shown on the form before submitting.</summary>
+    public static DateOnly ExpiryIfSubmittedToday() => ConsentYear.EndFor(ConsentYear.Today());
 
     /// <summary>Lists the caller's own linked children with their consent status. Parent only.</summary>
     public async Task<IReadOnlyList<ParentConsentChild>> GetMyChildrenAsync(CancellationToken ct = default)
@@ -170,7 +174,7 @@ public sealed class ParentConsentService
         ArgumentException.ThrowIfNullOrWhiteSpace(form.EmergencyContact);
         RequireWithinTextLimit(form.DietaryRequirements, "Dietary requirements");
         RequireWithinTextLimit(form.SpecialEducationalNeeds, "Special educational needs");
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = ConsentYear.Today();
         if (form.StudentDateOfBirth > today)
         {
             throw new ArgumentException("Date of birth cannot be in the future.", nameof(form));
@@ -182,7 +186,7 @@ public sealed class ParentConsentService
                 "A consent form for this child is already awaiting review. You can submit changes once it has been approved or rejected.");
         }
 
-        var periodEnd = today.AddYears(1).AddDays(-1);
+        var periodEnd = ConsentYear.EndFor(today);
         var recordId = (await _db.ConsentRecords.Select(x => (int?)x.Id).MaxAsync(ct) ?? 0) + 1;
         var record = new ConsentRecord
         {

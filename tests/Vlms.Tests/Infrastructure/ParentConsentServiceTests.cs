@@ -159,7 +159,10 @@ public sealed class ParentConsentServiceTests : IDisposable
         Assert.Equal(ParentOneUserId, record.SubmittedByUserId);
         Assert.Equal("Alex Student", record.StudentName);
         Assert.Equal(new DateOnly(2012, 2, 3), record.StudentDateOfBirth);
-        Assert.Equal(record.PeriodStart.AddYears(1).AddDays(-1), record.ExpiryDate);
+        Assert.Equal(ConsentYear.EndFor(record.PeriodStart), record.ExpiryDate);
+        Assert.Equal(8, record.ExpiryDate.Month);
+        Assert.Equal(31, record.ExpiryDate.Day);
+        Assert.Equal(record.ExpiryDate, record.PeriodEnd);
 
         var details = await verify.Context.ConsentSensitiveDetails.SingleAsync(d => d.ConsentRecordId == recordId);
         Assert.Equal("Asthma", details.EmergencyMedicalInfo);

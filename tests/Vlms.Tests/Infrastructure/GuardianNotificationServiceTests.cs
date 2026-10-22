@@ -215,67 +215,246 @@ public sealed class GuardianNotificationServiceTests : IDisposable
             admin.Notifier(new FakeNotificationService()).NotifyCompletionAsync(1, promoted: false));
     }
 
+    // 31 August 2027 is a Tuesday. Student 100 (guardian "Approved Parent", approved@example.com) is the
+    // one under test; student 101 (Other Parent) has no consent, so it gets the weekly email on
+    // Mondays, which these tests filter out by recipient where it would otherwise get in the way.
+    private static readonly DateOnly YearEnd = new(2027, 8, 31);
+
+    private void SetConsents(params ConsentRecord[] records)
+    {
+        using var caller = CreateContext(1, Role.Admin);
+        caller.Context.ConsentSensitiveDetails.RemoveRange(caller.Context.ConsentSensitiveDetails.IgnoreQueryFilters());
+        caller.Context.ConsentRecords.RemoveRange(caller.Context.ConsentRecords);
+        caller.Context.SaveChanges();
+        caller.Context.ConsentRecords.AddRange(records);
+        caller.Context.SaveChanges();
+    }
+
+    private static ConsentRecord Record(int id, ConsentStatus status, DateOnly expiry) => new()
+    {
+        Id = id, StudentId = 100, PeriodStart = expiry.AddYears(-1).AddDays(1), PeriodEnd = expiry,
+        PhotoMediaConsent = true, TransportConsent = true, OffsiteTripConsent = true, DataSharingConsent = true,
+        Status = status, SubmittedByParentId = 2, ExpiryDate = expiry
+    };
+
+    private async Task<List<NotificationRequest>> RemindersForAsync(DateOnly today, string recipient = "approved@example.com")
+    {
+        var notifications = new FakeNotificationService();
+        using var admin = CreateContext(1, Role.Admin);
+        await admin.Notifier(notifications).SendConsentRemindersAsync(today);
+        return notifications.SentRequests.Where(r => r.RecipientEmail == recipient).ToList();
+    }
+
     [Theory]
-    [InlineData(28)]
+    [InlineData(30)]
+    [InlineData(14)]
     [InlineData(7)]
     [InlineData(1)]
-    public async Task Reminder_SentOnScheduledDays(int daysLeft)
+    public async Task Renewal_SentOn30_14_7_And1DaysBefore31August(int daysLeft)
     {
-        var today = new DateOnly(2026, 10, 20);
-        var notifications = new FakeNotificationService();
-        using var admin = CreateContext(1, Role.Admin);
+        SetConsents(Record(1, ConsentStatus.Approved, YearEnd));
 
-        await admin.Notifier(notifications).SendConsentRemindersAsync(
-            Result(new ConsentExpiryFlag(100, "Alex Student", 1, today.AddDays(daysLeft), IsExpired: false)), today);
+        var sent = Assert.Single(await RemindersForAsync(YearEnd.AddDays(-daysLeft)));
 
-        var sent = Assert.Single(notifications.SentRequests);
-        Assert.Equal("approved@example.com", sent.RecipientEmail);
         Assert.Equal(NotificationPriority.Standard, sent.Priority);
-        Assert.Contains(today.AddDays(daysLeft).ToString("dd/MM/yyyy"), sent.Body);
+        Assert.Contains("31/08/2027", sent.Body);
+        Assert.Contains("Alex Student", sent.Subject);
+        Assert.Contains($"{BaseUrl}/parent/consent", sent.Body);
     }
 
     [Theory]
-    [InlineData(27, false)]
-    [InlineData(10, false)]
-    [InlineData(0, false)]
-    [InlineData(-5, true)]
-    public async Task Reminder_NotSentOnOtherDays(int daysLeft, bool isExpired)
+    [InlineData(31)]
+    [InlineData(29)]
+    [InlineData(15)]
+    [InlineData(10)]
+    [InlineData(2)]
+    [InlineData(0)]
+    public async Task Renewal_NotSentOnOtherDays(int daysLeft)
     {
-        var today = new DateOnly(2026, 10, 20);
-        var notifications = new FakeNotificationService();
-        using var admin = CreateContext(1, Role.Admin);
+        SetConsents(Record(1, ConsentStatus.Approved, YearEnd));
 
-        await admin.Notifier(notifications).SendConsentRemindersAsync(
-            Result(new ConsentExpiryFlag(100, "Alex Student", 1, today.AddDays(daysLeft), isExpired)), today);
-
-        Assert.Empty(notifications.SentRequests);
+        // 28 days before is no longer a reminder day; 0 days is the last day of consent (a Tuesday).
+        Assert.Empty(await RemindersForAsync(YearEnd.AddDays(-daysLeft)));
     }
 
     [Fact]
-    public async Task LapsedConsent_DayAfterExpiry_SendsSafeguardingCriticalNotice()
+    public async Task Renewal_NotSentWhenNewerApprovedConsentExists()
     {
-        var today = new DateOnly(2026, 10, 20);
-        var notifications = new FakeNotificationService();
-        using var admin = CreateContext(1, Role.Admin);
+        SetConsents(
+            Record(1, ConsentStatus.Approved, YearEnd),
+            Record(2, ConsentStatus.Approved, YearEnd.AddYears(1)));
 
-        await admin.Notifier(notifications).SendConsentRemindersAsync(
-            Result(new ConsentExpiryFlag(100, "Alex Student", 1, today.AddDays(-1), IsExpired: true)), today);
-
-        var sent = Assert.Single(notifications.SentRequests);
-        Assert.Equal(NotificationPriority.SafeguardingCritical, sent.Priority);
-        Assert.Contains("has expired", sent.Subject);
+        Assert.Empty(await RemindersForAsync(YearEnd.AddDays(-7)));
     }
 
     [Fact]
-    public async Task NoConsentRecordAtAll_SendsNothing()
+    public async Task Renewal_NotSentWhileResubmissionAwaitsReview()
     {
+        SetConsents(
+            Record(1, ConsentStatus.Approved, YearEnd),
+            Record(2, ConsentStatus.Pending, YearEnd.AddYears(1)));
+
+        Assert.Empty(await RemindersForAsync(YearEnd.AddDays(-7)));
+    }
+
+    [Fact]
+    public async Task Renewal_NotSentToParentWhoHasLeft_ButOtherParentsStillGetIt()
+    {
+        SetConsents(Record(1, ConsentStatus.Approved, YearEnd));
         var notifications = new FakeNotificationService();
         using var admin = CreateContext(1, Role.Admin);
 
-        await admin.Notifier(notifications).SendConsentRemindersAsync(
-            Result(new ConsentExpiryFlag(100, "Alex Student", null, null, IsExpired: true)), new DateOnly(2026, 10, 20));
+        await admin.Notifier(notifications).SendConsentRemindersAsync(YearEnd.AddDays(-14));
 
-        Assert.Empty(notifications.SentRequests);
+        Assert.DoesNotContain(notifications.SentRequests, r => r.RecipientEmail == "left@example.com");
+        Assert.DoesNotContain(notifications.SentRequests, r => r.RecipientEmail == "waiting@example.com");
+        Assert.Contains(notifications.SentRequests, r => r.RecipientEmail == "approved@example.com");
+    }
+
+    [Theory]
+    [InlineData(StudentStatus.Inactive)]
+    [InlineData(StudentStatus.Graduated)]
+    public async Task NoReminders_ForStudentWhoIsNoLongerActive(StudentStatus status)
+    {
+        SetConsents(Record(1, ConsentStatus.Approved, YearEnd));
+        using (var admin = CreateContext(1, Role.Admin))
+        {
+            admin.Context.Entry(await admin.Context.Students.SingleAsync(s => s.Id == 100))
+                .CurrentValues.SetValues(new { Status = status });
+            await admin.Context.SaveChangesAsync();
+        }
+
+        Assert.Empty(await RemindersForAsync(YearEnd.AddDays(-7)));
+        Assert.Empty(await RemindersForAsync(new DateOnly(2027, 9, 6))); // a Monday
+    }
+
+    [Fact]
+    public async Task NoReminders_ForStudentMarkedAsLeft()
+    {
+        SetConsents();
+        using (var admin = CreateContext(1, Role.Admin))
+        {
+            admin.Context.Entry(await admin.Context.Students.SingleAsync(s => s.Id == 100))
+                .CurrentValues.SetValues(new { LeftAt = DateTime.UtcNow });
+            await admin.Context.SaveChangesAsync();
+        }
+
+        Assert.Empty(await RemindersForAsync(new DateOnly(2027, 9, 6)));
+    }
+
+    [Fact]
+    public async Task Weekly_SentOnMondayWhileNoConsentInForce()
+    {
+        // Lapsed yesterday (31 August 2027); the first Monday after is 6 September 2027.
+        SetConsents(Record(1, ConsentStatus.Approved, YearEnd));
+        var monday = new DateOnly(2027, 9, 6);
+        Assert.Equal(GuardianNotificationService.WeeklyReminderDay, monday.DayOfWeek);
+
+        var sent = Assert.Single(await RemindersForAsync(monday));
+
+        Assert.Contains("needs a consent form", sent.Subject);
+        Assert.Contains($"{BaseUrl}/parent/consent", sent.Body);
+    }
+
+    [Fact]
+    public async Task Weekly_SentEveryMondayAndOnlyMondays()
+    {
+        SetConsents(); // never had consent
+        var monday = new DateOnly(2027, 9, 6);
+
+        for (var offset = 0; offset < 21; offset++)
+        {
+            var day = monday.AddDays(offset);
+            var sent = await RemindersForAsync(day);
+            if (day.DayOfWeek == DayOfWeek.Monday)
+            {
+                Assert.Single(sent);
+            }
+            else
+            {
+                Assert.Empty(sent);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task Weekly_SentWhileRejectedFormAwaitsResubmission_WithRejectionWording()
+    {
+        SetConsents(Record(1, ConsentStatus.Rejected, YearEnd));
+        var monday = new DateOnly(2027, 9, 6);
+
+        var sent = Assert.Single(await RemindersForAsync(monday));
+
+        Assert.Contains("needs changes", sent.Subject);
+    }
+
+    [Fact]
+    public async Task Weekly_RejectedRenewalReplacesTheRenewalEmailOnThatDay()
+    {
+        // Approved to 31/08/2027, and a newer form was rejected: on the Monday 7 days before expiry
+        // the parent gets one weekly "needs changes" email, not that plus a renewal email.
+        SetConsents(
+            Record(1, ConsentStatus.Approved, YearEnd),
+            Record(2, ConsentStatus.Rejected, YearEnd.AddYears(1)));
+        var monday = new DateOnly(2027, 8, 23);
+        Assert.Equal(DayOfWeek.Monday, monday.DayOfWeek);
+
+        var sent = Assert.Single(await RemindersForAsync(monday));
+
+        Assert.Contains("needs changes", sent.Subject);
+    }
+
+    [Fact]
+    public async Task Weekly_NotSentWhileFormAwaitsReview()
+    {
+        SetConsents(Record(1, ConsentStatus.Pending, YearEnd));
+
+        Assert.Empty(await RemindersForAsync(new DateOnly(2027, 9, 6)));
+    }
+
+    [Fact]
+    public async Task Weekly_NotSentWhenConsentInForce()
+    {
+        SetConsents(Record(1, ConsentStatus.Approved, YearEnd.AddYears(1)));
+
+        Assert.Empty(await RemindersForAsync(new DateOnly(2027, 9, 6)));
+    }
+
+    [Fact]
+    public async Task Weekly_NotSentToParentWhoHasLeft()
+    {
+        SetConsents();
+        var notifications = new FakeNotificationService();
+        using var admin = CreateContext(1, Role.Admin);
+
+        await admin.Notifier(notifications).SendConsentRemindersAsync(new DateOnly(2027, 9, 6));
+
+        Assert.DoesNotContain(notifications.SentRequests, r => r.RecipientEmail == "left@example.com");
+        Assert.Contains(notifications.SentRequests, r => r.RecipientEmail == "approved@example.com");
+    }
+
+    [Fact]
+    public async Task Reminders_DoNotIncludeSensitiveDetails()
+    {
+        SetConsents(Record(1, ConsentStatus.Approved, YearEnd));
+
+        var sent = await RemindersForAsync(YearEnd.AddDays(-7));
+
+        Assert.All(sent, r => Assert.DoesNotContain(SensitiveMarker, r.Body));
+    }
+
+    [Fact]
+    public async Task FailingSend_DoesNotStopOtherStudentsReminders()
+    {
+        SetConsents();
+        var notifications = new FailFirstNotificationService();
+        using var admin = CreateContext(1, Role.Admin);
+
+        await admin.Notifier(notifications).SendConsentRemindersAsync(new DateOnly(2027, 9, 6));
+
+        // Two students with a linked, active parent each; the first send throws, the second still goes.
+        Assert.Equal(1, notifications.Delivered);
+        Assert.Contains(admin.Logger.Entries, e => e.Level == LogLevel.Warning && e.Message.Contains("continuing"));
     }
 
     [Fact]
@@ -284,13 +463,13 @@ public sealed class GuardianNotificationServiceTests : IDisposable
         using var teacher = CreateContext(10, Role.Teacher);
 
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
-            teacher.Notifier(new FakeNotificationService()).SendConsentRemindersAsync(Result(), new DateOnly(2026, 10, 20)));
+            teacher.Notifier(new FakeNotificationService()).SendConsentRemindersAsync(new DateOnly(2027, 9, 6)));
     }
 
     [Fact]
     public async Task Notifications_ReadNoRestrictedData()
     {
-        var today = new DateOnly(2026, 10, 20);
+        var today = DateOnly.FromDateTime(DateTime.UtcNow.AddMonths(6)).AddDays(-7);
         var notifications = new FakeNotificationService();
         using (var teacher = CreateContext(10, Role.Teacher))
         {
@@ -299,19 +478,34 @@ public sealed class GuardianNotificationServiceTests : IDisposable
 
         using (var admin = CreateContext(1, Role.Admin))
         {
-            await admin.Notifier(notifications).SendConsentRemindersAsync(
-                Result(new ConsentExpiryFlag(100, "Alex Student", 1, today.AddDays(7), IsExpired: false)), today);
+            await admin.Notifier(notifications).SendConsentRemindersAsync(today);
         }
 
-        Assert.Equal(2, notifications.SentRequests.Count);
+        // Completion email plus the renewal reminder (and a weekly one for student 101 on a Monday).
+        Assert.True(notifications.SentRequests.Count >= 2);
         Assert.All(notifications.SentRequests, r => Assert.DoesNotContain(SensitiveMarker, r.Body));
 
         using var verify = CreateContext(1, Role.Admin);
         Assert.Empty(verify.Context.SensitiveDataAccessLogs.ToList());
     }
 
-    private static ConsentExpiryJobResult Result(params ConsentExpiryFlag[] flags) =>
-        new(flags, [], [], [], []);
+    private sealed class FailFirstNotificationService : INotificationService
+    {
+        private bool _first = true;
+        public int Delivered { get; private set; }
+
+        public Task<NotificationOutcome> SendAsync(NotificationRequest request, CancellationToken ct = default)
+        {
+            if (_first)
+            {
+                _first = false;
+                throw new InvalidOperationException("mail down");
+            }
+
+            Delivered++;
+            return Task.FromResult(NotificationOutcome.Sent);
+        }
+    }
 
     private sealed class ThrowingNotificationService : INotificationService
     {

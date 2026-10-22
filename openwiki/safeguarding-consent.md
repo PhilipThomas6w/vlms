@@ -37,6 +37,10 @@ Items 4–5 are logged at `LogWarning` (administrative housekeeping, not a safeg
 - **"No consent record at all" is treated as expired, not as a separate case** — this mirrors `CompletionService`'s own blocking condition exactly (see above), so the two are guaranteed to describe the same population without duplicating the rule.
 - **Scoped to Active students/all-time teachers** — a Graduated/Inactive student needs no ongoing monitoring for either consent expiry or disengagement; there's no equivalent "inactive teacher" concept in this schema, so the DBS sweep considers every `AppUser` ever assigned `Role.Teacher`.
 
+## Consent year (`ConsentYear`)
+
+`ConsentYear.EndFor(date)` returns the 31 August closing the church year (1 September to 31 August) containing `date`; no cut-off. `ParentConsentService.SubmitAsync` uses it for `PeriodEnd`/`ExpiryDate`, `ParentConsent.razor` shows the date on the form before submitting, and the staff form on `ConsentRecords.razor` defaults to it (staff can still edit the dates for paper forms). `ConsentNotificationService`'s approval email reads the record's `ExpiryDate`, so it states the same date. Clock: UTC calendar date, matching the other consent checks. Parent reminders: see [notifications.md](notifications.md).
+
 ## `SystemCurrentUserContext` (`src/Vlms.Infrastructure/Security/SystemCurrentUserContext.cs`)
 
 The `ICurrentUserContext` the WebJob host uses — there is no signed-in human caller for a scheduled job. Grants exactly the two roles the sensitive-data query filter checks for (`Role.Admin`, `Role.SafeguardingOfficer`) and nothing else — not a general bypass, just what the job legitimately needs to read `DbsCheck` through the normal filtered/audited path. `UserId` is null, which both `ICurrentUserContext.UserId`'s own doc comment and `SensitiveDataAccessLog.UserId` already model as a valid, resolvable-caller-absent case. Never wired into `Vlms.Web` — only used by the `Vlms.Jobs` host below.

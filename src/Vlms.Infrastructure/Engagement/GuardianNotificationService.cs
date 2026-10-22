@@ -24,18 +24,25 @@ namespace Vlms.Infrastructure.Engagement;
 /// failure is logged and the Teacher's action stands. <see cref="INotificationService"/> itself
 /// never throws.
 ///
-/// <b>Reminder schedule.</b> The daily <see cref="ConsentExpiryJob"/> sweep flags every student
-/// in the warning window every day, so reminding on every flag would email parents daily for four
-/// weeks. Reminders go only when the latest consent expires in exactly
-/// <see cref="ReminderDaysBeforeExpiry"/> days, plus one <see cref="NotificationPriority.SafeguardingCritical"/>
-/// notice the day after it lapses (consent is valid through its <see cref="ConsentRecord.ExpiryDate"/>).
-/// No sent-reminder state is stored: a missed daily run skips that day's reminder rather than
-/// adding a table. Students with no consent record at all are left to the Admin/SO digest
-/// (<see cref="ConsentExpiryNotifier"/>), since there is nothing to remind the parent to renew.
+/// <b>Reminder schedule</b> (adr/0008 answer 3). For each Active student who has not left, to
+/// their linked parents (parents who have left get nothing, FR-017): (1) a renewal email when the
+/// consent in force expires in exactly 30, 14, 7 or 1 days (31 August for consent issued under the
+/// church-year rule, see <see cref="ConsentYear"/>) and no later-expiring approved consent exists;
+/// (2) a weekly email, every <see cref="WeeklyReminderDay"/>, while the child has no consent in
+/// force or the latest form was rejected and awaits resubmission. Nothing is sent while a submitted
+/// form is Pending review. The weekday is fixed so no sent-reminder state is stored (no migration):
+/// a missed daily run skips that day's reminder. If the latest form was rejected, the weekly email
+/// replaces any renewal email for that day. Links go to <c>/parent/consent</c>. Each student is
+/// processed in its own try/catch so one failure never stops the run.
 /// </summary>
 public sealed class GuardianNotificationService
 {
-    public static readonly IReadOnlyList<int> ReminderDaysBeforeExpiry = [28, 7, 1];
+    public static readonly IReadOnlyList<int> ReminderDaysBeforeExpiry = [30, 14, 7, 1];
+
+    /// <summary>The weekday of the weekly reminder: fixed, so the daily job needs no stored state.</summary>
+    public const DayOfWeek WeeklyReminderDay = DayOfWeek.Monday;
+
+    private const string ConsentPath = "/parent/consent";
 
     private readonly VlmsDbContext _db;
     private readonly ICurrentUserContext _currentUser;
@@ -103,11 +110,13 @@ public sealed class GuardianNotificationService
     }
 
     /// <summary>
-    /// Sends consent-expiry reminders to guardians from the daily sweep's flags, on the schedule in
-    /// the class comment. Admin/SafeguardingOfficer only, the same gate as <see cref="ConsentExpiryNotifier"/>.
+    /// Sends the parent consent reminders for <paramref name="today"/>, on the schedule in the class
+    /// comment. Admin/SafeguardingOfficer only, the same gate as <see cref="ConsentExpiryNotifier"/>.
+    /// Works from the consent records directly, not the daily sweep's flags: the sweep's warning
+    /// window (28 days by default) is shorter than the 30-day reminder.
     /// </summary>
     public async Task<IReadOnlyList<NotificationOutcome>> SendConsentRemindersAsync(
-        ConsentExpiryJobResult result, DateOnly today, CancellationToken ct = default)
+        DateOnly today, CancellationToken ct = default)
     {
         if (!_currentUser.HasRole(Role.Admin) && !_currentUser.HasRole(Role.SafeguardingOfficer))
         {
@@ -115,35 +124,66 @@ public sealed class GuardianNotificationService
                 "Caller must hold the Admin or SafeguardingOfficer role to send consent-expiry reminders.");
         }
 
+        var isWeeklyDay = today.DayOfWeek == WeeklyReminderDay;
+        var students = await _db.Students
+            .Where(s => s.Status == StudentStatus.Active && s.LeftAt == null)
+            .Select(s => new { s.Id, s.Name })
+            .ToListAsync(ct);
+        var records = (await _db.ConsentRecords
+                .Select(c => new { c.Id, c.StudentId, c.Status, c.ExpiryDate })
+                .ToListAsync(ct))
+            .ToLookup(c => c.StudentId);
+
         var outcomes = new List<NotificationOutcome>();
-        foreach (var flag in result.ConsentFlags)
+        foreach (var student in students)
         {
-            if (flag.ExpiryDate is not { } expiry)
+            try
             {
-                continue;
-            }
+                var mine = records[student.Id].ToList();
+                var inForce = mine
+                    .Where(c => c.Status == ConsentStatus.Approved && c.ExpiryDate >= today)
+                    .OrderByDescending(c => c.ExpiryDate)
+                    .FirstOrDefault();
+                var awaitingReview = mine.Any(c => c.Status == ConsentStatus.Pending);
+                var latestRejected = mine.OrderByDescending(c => c.Id).FirstOrDefault()?.Status == ConsentStatus.Rejected;
 
-            var daysLeft = expiry.DayNumber - today.DayNumber;
-            (string Subject, string Body)? message = null;
-            var priority = NotificationPriority.Standard;
+                // Nothing for the parent to do while staff are reviewing a submitted form.
+                if (awaitingReview)
+                {
+                    continue;
+                }
 
-            if (!flag.IsExpired && ReminderDaysBeforeExpiry.Contains(daysLeft))
-            {
-                message = ($"VLMS: {flag.StudentName}'s consent expires on {expiry:dd/MM/yyyy}",
-                    $"The annual consent for {flag.StudentName} expires on {expiry:dd/MM/yyyy}. " +
-                    "Please renew it before then: lessons cannot be recorded for a student without current consent.");
-            }
-            else if (flag.IsExpired && daysLeft == -1)
-            {
-                priority = NotificationPriority.SafeguardingCritical;
-                message = ($"VLMS: {flag.StudentName}'s consent has expired",
-                    $"The annual consent for {flag.StudentName} expired on {expiry:dd/MM/yyyy}. " +
-                    "Lessons cannot be recorded until it is renewed. Please renew it as soon as possible.");
-            }
+                (string Subject, string Body)? message = null;
+                if (inForce is null || latestRejected)
+                {
+                    if (isWeeklyDay)
+                    {
+                        message = latestRejected
+                            ? ($"VLMS: the consent form for {student.Name} needs changes",
+                                $"The consent form for {student.Name} was not approved and is waiting for you to update and resubmit it.")
+                            : ($"VLMS: {student.Name} needs a consent form",
+                                $"{student.Name} has no consent in force, so lessons cannot be recorded. Please complete the consent form.");
+                    }
+                }
+                else
+                {
+                    var daysLeft = inForce.ExpiryDate.DayNumber - today.DayNumber;
+                    if (ReminderDaysBeforeExpiry.Contains(daysLeft))
+                    {
+                        message = ($"VLMS: {student.Name}'s consent expires on {inForce.ExpiryDate:dd/MM/yyyy}",
+                            $"The annual consent for {student.Name} expires on {inForce.ExpiryDate:dd/MM/yyyy}. " +
+                            "Please renew it before then: lessons cannot be recorded for a student without current consent.");
+                    }
+                }
 
-            if (message is { } m)
+                if (message is { } m)
+                {
+                    outcomes.AddRange(await SendToGuardiansAsync(student.Id, [m], NotificationPriority.Standard, ct, ConsentPath));
+                }
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                outcomes.AddRange(await SendToGuardiansAsync(flag.StudentId, [m], priority, ct));
+                _logger.LogWarning(ex, "Consent reminder for student {StudentId} failed; continuing with the others.", student.Id);
             }
         }
 
@@ -151,7 +191,8 @@ public sealed class GuardianNotificationService
     }
 
     private async Task<IReadOnlyList<NotificationOutcome>> SendToGuardiansAsync(
-        int studentId, IReadOnlyList<(string Subject, string Body)> messages, NotificationPriority priority, CancellationToken ct)
+        int studentId, IReadOnlyList<(string Subject, string Body)> messages, NotificationPriority priority, CancellationToken ct,
+        string? consentPath = null)
     {
         var recipients = await _db.StudentGuardianLinks
             .Where(l => l.StudentId == studentId && l.ParentGuardian!.AppUserId != null)
@@ -163,7 +204,9 @@ public sealed class GuardianNotificationService
 
         var footer = _publicBaseUrl is null
             ? "\n\nVarangians"
-            : $"\n\nSee progress and certificates on the parent dashboard: {_publicBaseUrl}/parent/dashboard\n\nVarangians";
+            : consentPath is not null
+                ? $"\n\nComplete or renew the consent form here: {_publicBaseUrl}{consentPath}\n\nVarangians"
+                : $"\n\nSee progress and certificates on the parent dashboard: {_publicBaseUrl}/parent/dashboard\n\nVarangians";
 
         var outcomes = new List<NotificationOutcome>();
         foreach (var recipient in recipients)

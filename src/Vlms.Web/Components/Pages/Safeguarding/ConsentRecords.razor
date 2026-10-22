@@ -351,8 +351,8 @@ else
         public int StudentId { get; set; }
         public int SubmittedByParentId { get; set; }
         public DateTime PeriodStart { get; set; } = DateTime.Today;
-        public DateTime PeriodEnd { get; set; } = DateTime.Today.AddYears(1);
-        public DateTime ExpiryDate { get; set; } = DateTime.Today.AddYears(1);
+        public DateTime PeriodEnd { get; set; } = ConsentYear.EndFor(DateOnly.FromDateTime(DateTime.Today)).ToDateTime(TimeOnly.MinValue);
+        public DateTime ExpiryDate { get; set; } = ConsentYear.EndFor(DateOnly.FromDateTime(DateTime.Today)).ToDateTime(TimeOnly.MinValue);
         public bool PhotoMediaConsent { get; set; }
         public bool TransportConsent { get; set; }
         public bool OffsiteTripConsent { get; set; }
