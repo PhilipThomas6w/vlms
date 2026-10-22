@@ -32,8 +32,10 @@
 else
 {
     <p>
-        These accounts have no role yet, so they can do nothing. A guardian who accepted an invite is
-        approved by granting Parent. Anyone else gets a role from the table below.
+        These accounts are waiting for a role: new accounts with none, and guardians who accepted an
+        invite but are not yet a Parent (some already hold other roles, such as a Teacher who is also a
+        parent). Approve a guardian by granting Parent, which adds to any roles they already hold.
+        Anyone else gets a role from the table below.
     </p>
     <table>
         <thead>
@@ -42,6 +44,7 @@ else
                 <th>Email</th>
                 <th>Came from</th>
                 <th>Linked students</th>
+                <th>Current roles</th>
                 <th></th>
             </tr>
         </thead>
@@ -53,6 +56,7 @@ else
                     <td>@waiting.Email</td>
                     <td>@(waiting.FromGuardianInvite ? "Guardian invite" : "Self-registration")</td>
                     <td>@(waiting.LinkedStudentNames.Count == 0 ? "None" : string.Join(", ", waiting.LinkedStudentNames))</td>
+                    <td>@(waiting.CurrentRoles.Count == 0 ? "None" : string.Join(", ", waiting.CurrentRoles))</td>
                     <td>
                         @if (waiting.FromGuardianInvite)
                         {

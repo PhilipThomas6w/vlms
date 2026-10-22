@@ -82,21 +82,33 @@ public sealed class RoleAssignmentService
     /// <see cref="ParentGuardian"/> record is linked to (empty for a self-registered account).
     /// </summary>
     public sealed record AwaitingApproval(
-        int UserId, string DisplayName, string Email, bool FromGuardianInvite, IReadOnlyList<string> LinkedStudentNames);
+        int UserId, string DisplayName, string Email, bool FromGuardianInvite, IReadOnlyList<string> LinkedStudentNames,
+        IReadOnlyList<Role> CurrentRoles);
 
     /// <summary>
-    /// STATE.md "Waiting-for-approval list on the role-assignment page" — every account with no
-    /// roles that hasn't been marked as having left, ordered by display name. Admin-only. Per
-    /// Philip's decision (functional.md FR-004, 11/10/2026), accepting a guardian invite grants no
-    /// role; this is how the Admin sees who is waiting for that approval.
+    /// STATE.md "Waiting-for-approval list on the role-assignment page" — every account that hasn't
+    /// been marked as having left and either has no roles, or accepted a guardian invite and does not
+    /// yet hold <see cref="Role.Parent"/>, ordered by display name. Admin-only. Per Philip's decision
+    /// (functional.md FR-004, 11/10/2026), accepting a guardian invite grants no role; this is how the
+    /// Admin sees who is waiting for that approval. The second arm (FR-004, 22/10/2026) covers an
+    /// existing account that signed in to accept an invite, such as a Teacher who is also a parent:
+    /// it already holds other roles, which <see cref="AwaitingApproval.CurrentRoles"/> shows, and
+    /// approving it adds Parent to them.
     /// </summary>
     public async Task<IReadOnlyList<AwaitingApproval>> ListAwaitingApprovalAsync(CancellationToken ct = default)
     {
         RequireAdmin();
 
         var usersWithRoles = _db.UserRoles.Select(r => r.UserId);
+        var parents = _db.UserRoles.Where(r => r.Role == Role.Parent).Select(r => r.UserId);
+        var inviteAccepters = _db.GuardianInvites
+            .Where(i => i.ConsumedByAppUserId != null)
+            .Select(i => i.ConsumedByAppUserId!.Value);
+
         var waiting = await _db.AppUsers
-            .Where(u => !u.HasLeft && !usersWithRoles.Contains(u.Id))
+            .Where(u => !u.HasLeft
+                && (!usersWithRoles.Contains(u.Id)
+                    || (inviteAccepters.Contains(u.Id) && !parents.Contains(u.Id))))
             .OrderBy(u => u.DisplayName)
             .ToListAsync(ct);
 
@@ -107,6 +119,10 @@ public sealed class RoleAssignmentService
             .Select(i => i.ConsumedByAppUserId!.Value)
             .ToListAsync(ct)).ToHashSet();
 
+        var rolesByUser = (await _db.UserRoles
+            .Where(r => waitingIds.Contains(r.UserId))
+            .ToListAsync(ct)).ToLookup(r => r.UserId, r => r.Role);
+
         var links = await _db.StudentGuardianLinks
             .Where(l => l.ParentGuardian!.AppUserId != null && waitingIds.Contains(l.ParentGuardian.AppUserId.Value))
             .Select(l => new { UserId = l.ParentGuardian!.AppUserId!.Value, StudentName = l.Student!.Name })
@@ -116,7 +132,8 @@ public sealed class RoleAssignmentService
         return waiting
             .Select(u => new AwaitingApproval(
                 u.Id, u.DisplayName, u.Email, inviteUserIds.Contains(u.Id),
-                studentsByUser[u.Id].Distinct().OrderBy(n => n).ToList()))
+                studentsByUser[u.Id].Distinct().OrderBy(n => n).ToList(),
+                rolesByUser[u.Id].OrderBy(r => r).ToList()))
             .ToList();
     }
 

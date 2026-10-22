@@ -270,6 +270,34 @@ public sealed class RoleAssignmentServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task GuardianWhoAlreadyHoldsOtherRoles_IsListedAsWaiting_AndApprovalAddsParentToThoseRoles()
+    {
+        // functional.md FR-004 (22/10/2026): a Teacher who is also a parent signs in to accept the
+        // invite. Their account already has roles, so the "no roles" rule alone would hide them.
+        SeedAcceptedGuardianInvite();
+        using (var seed = CreateContext(1, Role.Admin))
+        {
+            seed.Context.UserRoles.Add(new UserRole { UserId = 40, Role = Role.Teacher });
+            seed.Context.UserRoles.Add(new UserRole { UserId = 40, Role = Role.SafeguardingOfficer });
+            await seed.Context.SaveChangesAsync();
+        }
+
+        using var admin = CreateContext(1, Role.Admin);
+        var gail = Assert.Single(await admin.Service.ListAwaitingApprovalAsync(), w => w.UserId == 40);
+        Assert.True(gail.FromGuardianInvite);
+        Assert.Equal(new[] { Role.Teacher, Role.SafeguardingOfficer }.OrderBy(r => r), gail.CurrentRoles);
+        Assert.Equal(["Student A"], gail.LinkedStudentNames);
+
+        await admin.Service.ApproveGuardianAsParentAsync(40);
+
+        Assert.Equal(new[] { Role.Parent, Role.SafeguardingOfficer, Role.Teacher }.OrderBy(r => r), (await RolesOf(40)).OrderBy(r => r));
+        using var verify = CreateContext(1, Role.Admin);
+        Assert.DoesNotContain(40, (await verify.Service.ListAwaitingApprovalAsync()).Select(w => w.UserId));
+        // A roles-holding account that never accepted an invite is not listed (Teacher One, 20).
+        Assert.DoesNotContain(20, (await verify.Service.ListAwaitingApprovalAsync()).Select(w => w.UserId));
+    }
+
+    [Fact]
     public async Task ApproveGuardianAsParentAsync_SelfRegisteredAccount_Throws_AndGrantsNothing()
     {
         SeedAcceptedGuardianInvite();
