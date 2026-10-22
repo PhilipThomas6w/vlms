@@ -9,7 +9,7 @@
 <h1>Reporting</h1>
 
 <p>
-    Core progress reports and at-risk/disengaged-student flagging (functional.md "Reporting (MVP)").
+    Core progress reports, and flags for students who may be at risk of disengaging.
     Admin-only — see <code>ProgressReportingService</code>'s doc comment for why this isn't gated the
     same way as the consent/DBS pages.
 </p>
@@ -84,8 +84,7 @@ else
     <h2>At-risk / disengaged students</h2>
     <p>
         No non-reversed lesson completion in @AtRiskStudentFlagging.AtRiskThresholdDays days —
-        the same disengagement flag <code>ConsentExpiryJob</code>'s daily sweep raises
-        (functional.md, quality/test-plan.md TC-010), surfaced here on demand.
+        the same disengagement flag that the daily check raises, shown here on demand.
     </p>
     @if (_atRiskStudents.Count == 0)
     {

@@ -55,10 +55,10 @@
                 <td>@string.Join(", ", lesson.Tags.Select(t => TagLabel(t.Tag)).Order())</td>
                 <td>@(lesson.IsActive ? "Active" : "Retired")</td>
                 <td>
-                    <button type="button" @onclick="() => StartEdit(lesson)">Propose edit</button>
+                    <button type="button" aria-label="@($"Propose edit to {lesson.Title}")" @onclick="() => StartEdit(lesson)">Propose edit</button>
                     @if (lesson.IsActive)
                     {
-                        <button type="button" @onclick="() => StartRetire(lesson)">Propose retirement</button>
+                        <button type="button" aria-label="@($"Propose retirement of {lesson.Title}")" @onclick="() => StartRetire(lesson)">Propose retirement</button>
                     }
                 </td>
             </tr>
@@ -194,7 +194,7 @@
                 <td>
                     @if (proposal.Status == ProposalStatus.Rejected)
                     {
-                        <button type="button" @onclick="() => StartResubmit(proposal)">Resubmit</button>
+                        <button type="button" aria-label="@($"Resubmit proposal {proposal.Id}")" @onclick="() => StartResubmit(proposal)">Resubmit</button>
                     }
                 </td>
             </tr>

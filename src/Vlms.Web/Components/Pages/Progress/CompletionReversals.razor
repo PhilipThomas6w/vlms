@@ -16,7 +16,7 @@
 
 <p>
     Lists lesson completions you personally recorded. You can self-correct/reverse your own entry
-    (functional.md) within @CompletionService.DefaultReversalWindowDays days of recording it — no
+    within @CompletionService.DefaultReversalWindowDays days of recording it — no
     separate correction gate through Admin. A reversal excludes the completion from rank-promotion
     counting and hides any certificate it generated; it does not undo a promotion that already
     happened.
@@ -63,7 +63,7 @@
                 <td>
                     @if (!completion.IsReversed)
                     {
-                        <button type="button" @onclick="() => StartReverse(completion)">Reverse</button>
+                        <button type="button" aria-label="@($"Reverse completion of {completion.Lesson?.Title} for {completion.Student?.Name}")" @onclick="() => StartReverse(completion)">Reverse</button>
                     }
                 </td>
             </tr>
