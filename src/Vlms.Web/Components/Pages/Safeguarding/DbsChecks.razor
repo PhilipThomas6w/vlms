@@ -14,9 +14,8 @@
 <h1>DBS checks</h1>
 
 <p>
-    <code>DbsCheck</code> management — Admin or Safeguarding Officer only (functional.md FR-002:
-    "Whole-record access restricted to Admin and Safeguarding Officer only — Teacher and Approver
-    have no access").
+    DBS check records. Only Admins and Safeguarding Officers can see or change them. Teachers and
+    Approvers have no access.
 </p>
 
 @if (_errorMessage is not null)
@@ -54,7 +53,7 @@
                     {
                         @if (status != check.Status)
                         {
-                            <button @onclick="() => UpdateStatusAsync(check.Id, status)">Mark @status</button>
+                            <button aria-label="@($"Mark {status} for {_teacherNames.GetValueOrDefault(check.TeacherUserId)}")" @onclick="() => UpdateStatusAsync(check.Id, status)">Mark @status</button>
                         }
                     }
                 </td>

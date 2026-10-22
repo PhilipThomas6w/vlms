@@ -14,10 +14,8 @@
 <h1>Consent records</h1>
 
 <p>
-    <code>ConsentRecord</code>/<code>ConsentSensitiveDetails</code> management — Admin or
-    Safeguarding Officer only (functional.md FR-001, FR-015,
-    adr/0006-parent-consent-and-teacher-read-access.md). Parents submit the annual consent form
-    themselves; review each pending submission below and approve it, or reject it with comments
+    Consent forms for each student. Only Admins and Safeguarding Officers can use this page.
+    Parents submit the annual consent form themselves; review each pending submission below and approve it, or reject it with comments
     the parent will see. Approving applies the name and date of birth on the form to the student's
     record. The Approver role is curriculum-only and has no access here.
 </p>
@@ -59,7 +57,7 @@ else
                     <td>@_guardianNames.GetValueOrDefault(record.SubmittedByParentId)@(record.SubmittedByUserId is { } enteredBy && _parentUserIds.Contains(enteredBy) ? "" : " (entered by staff)")</td>
                     <td>@record.SubmittedAt?.ToString("d MMMM yyyy HH:mm")</td>
                     <td>@record.PeriodStart - @record.PeriodEnd</td>
-                    <td><button @onclick="() => StartReview(record.Id)">Review</button></td>
+                    <td><button aria-label="@($"Review submission for {_studentNames.GetValueOrDefault(record.StudentId)}")" @onclick="() => StartReview(record.Id)">Review</button></td>
                 </tr>
             }
         </tbody>

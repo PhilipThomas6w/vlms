@@ -43,15 +43,15 @@ else
                 <p>No sign-in yet.</p>
                 <div>
                     <label for="username@(student.StudentId)">Username for @student.StudentName</label>
-                    <input type="text" id="username@(student.StudentId)" @bind="form.Username" autocomplete="off" aria-required="true" />
+                    <input type="text" id="username@(student.StudentId)" @bind="form.Username" autocomplete="off" aria-required="true" aria-describedby="@ErrorIdFor(student.StudentId)" />
                 </div>
                 <div>
                     <label for="password@(student.StudentId)">Password for @student.StudentName</label>
-                    <input type="password" id="password@(student.StudentId)" @bind="form.Password" autocomplete="new-password" aria-required="true" />
+                    <input type="password" id="password@(student.StudentId)" @bind="form.Password" autocomplete="new-password" aria-required="true" aria-describedby="@ErrorIdFor(student.StudentId)" />
                 </div>
                 <div>
                     <label for="confirm@(student.StudentId)">Confirm password for @student.StudentName</label>
-                    <input type="password" id="confirm@(student.StudentId)" @bind="form.Confirm" autocomplete="new-password" aria-required="true" />
+                    <input type="password" id="confirm@(student.StudentId)" @bind="form.Confirm" autocomplete="new-password" aria-required="true" aria-describedby="@ErrorIdFor(student.StudentId)" />
                 </div>
                 <button type="button" aria-label="@($"Create sign-in for {student.StudentName}")" @onclick="() => CreateAsync(student)">Create sign-in</button>
             }
@@ -64,13 +64,17 @@ else
                 }
                 <div>
                     <label for="password@(student.StudentId)">New password for @student.StudentName</label>
-                    <input type="password" id="password@(student.StudentId)" @bind="form.Password" autocomplete="new-password" aria-required="true" />
+                    <input type="password" id="password@(student.StudentId)" @bind="form.Password" autocomplete="new-password" aria-required="true" aria-describedby="@ErrorIdFor(student.StudentId)" />
                 </div>
                 <div>
                     <label for="confirm@(student.StudentId)">Confirm new password for @student.StudentName</label>
-                    <input type="password" id="confirm@(student.StudentId)" @bind="form.Confirm" autocomplete="new-password" aria-required="true" />
+                    <input type="password" id="confirm@(student.StudentId)" @bind="form.Confirm" autocomplete="new-password" aria-required="true" aria-describedby="@ErrorIdFor(student.StudentId)" />
                 </div>
                 <button type="button" aria-label="@($"Reset password for {student.StudentName}")" @onclick="() => ResetAsync(student)">Reset password</button>
+            }
+            @if (_childErrors.TryGetValue(student.StudentId, out var childError))
+            {
+                <p class="error" role="alert" id="@ErrorIdFor(student.StudentId)">@childError</p>
             }
         </section>
     }
@@ -79,8 +83,11 @@ else
 @code {
     private IReadOnlyList<StudentSignInSummary>? _students;
     private readonly Dictionary<int, SignInForm> _forms = new();
+    private readonly Dictionary<int, string> _childErrors = new();
     private string? _errorMessage;
     private string? _statusMessage;
+
+    private static string ErrorIdFor(int studentId) => $"signin-error-{studentId}";
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
 
@@ -111,12 +118,13 @@ else
     private async Task CreateAsync(StudentSignInSummary student)
     {
         var form = FormFor(student.StudentId);
-        if (!PasswordsMatch(form))
+        if (!PasswordsMatch(student.StudentId, form))
         {
             return;
         }
 
         await RunAsync(
+            student.StudentId,
             () => StudentAccounts.CreateSignInAsync(student.StudentId, form.Username, form.Password),
             $"Sign-in created for {student.StudentName}. They can now log in with the username {form.Username.Trim()}.");
     }
@@ -124,32 +132,35 @@ else
     private async Task ResetAsync(StudentSignInSummary student)
     {
         var form = FormFor(student.StudentId);
-        if (!PasswordsMatch(form))
+        if (!PasswordsMatch(student.StudentId, form))
         {
             return;
         }
 
         await RunAsync(
+            student.StudentId,
             () => StudentAccounts.ResetPasswordAsync(student.StudentId, form.Password),
             $"Password reset for {student.StudentName}.");
     }
 
-    private bool PasswordsMatch(SignInForm form)
+    private bool PasswordsMatch(int studentId, SignInForm form)
     {
         _statusMessage = null;
+        _childErrors.Remove(studentId);
         if (form.Password != form.Confirm)
         {
-            _errorMessage = "The two passwords don't match.";
+            _childErrors[studentId] = "The two passwords don't match.";
             return false;
         }
 
         return true;
     }
 
-    private async Task RunAsync(Func<Task<StudentSignInResult>> action, string successMessage)
+    private async Task RunAsync(int studentId, Func<Task<StudentSignInResult>> action, string successMessage)
     {
         _errorMessage = null;
         _statusMessage = null;
+        _childErrors.Remove(studentId);
         try
         {
             var result = await action();
@@ -161,12 +172,12 @@ else
             }
             else
             {
-                _errorMessage = string.Join(" ", result.Errors);
+                _childErrors[studentId] = string.Join(" ", result.Errors);
             }
         }
         catch (Exception ex) when (ex is UnauthorizedAccessException or InvalidOperationException)
         {
-            _errorMessage = ex.Message;
+            _childErrors[studentId] = ex.Message;
         }
     }
 

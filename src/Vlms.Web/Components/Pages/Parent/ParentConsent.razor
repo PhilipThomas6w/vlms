@@ -11,7 +11,7 @@
 <h1>Consent forms</h1>
 
 <p>
-    Complete the annual consent form for each child linked to your account (functional.md FR-015).
+    Complete the annual consent form for each child linked to your account.
     A Safeguarding Officer or Admin reviews each form. Until a new form is approved, the last
     approved one stays in place. Your child's teachers can see the medical, dietary/SEN and
     emergency contact details on the approved form.
@@ -69,7 +69,7 @@
         }
         else
         {
-            <button @onclick="() => StartForm(child)">@(child.LatestSubmission is null ? "Complete the consent form" : "Update and resubmit")</button>
+            <button @onclick="() => StartForm(child)" aria-label="@(child.LatestSubmission is null ? $"Complete the consent form for {child.StudentName}" : $"Update and resubmit the consent form for {child.StudentName}")">@(child.LatestSubmission is null ? "Complete the consent form" : "Update and resubmit")</button>
         }
     </section>
 }

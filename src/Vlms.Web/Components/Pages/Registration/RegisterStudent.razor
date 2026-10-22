@@ -14,10 +14,9 @@
 <h1>Register a student</h1>
 
 <p>
-    Registering a student creates their <code>Student</code> record, opens their first
-    <code>StudentRankProgress</code> row at the starting rank, and creates at least one
-    <code>StudentGuardianLink</code> — a guardian link is only ever created by Admin or Teacher,
-    never by parent self-service (functional.md FR-004).
+    Registering a student creates their record, starts their progress at the first rank, and links
+    them to at least one guardian. Only an Admin or Teacher can create this link; parents cannot
+    link themselves to a student.
 </p>
 
 @if (_errorMessage is not null)
