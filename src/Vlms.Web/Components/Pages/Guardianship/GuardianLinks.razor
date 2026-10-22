@@ -8,6 +8,7 @@
 @using Vlms.Infrastructure.Guardianship
 @inject VlmsDbContext Db
 @inject GuardianLinkService LinkService
+@inject GuardianInviteService InviteService
 
 <PageTitle>Guardian links</PageTitle>
 
@@ -36,6 +37,7 @@
             <th>Guardian</th>
             <th>Primary</th>
             <th>Created by</th>
+            <th>Account</th>
         </tr>
     </thead>
     <tbody>
@@ -46,6 +48,20 @@
                 <td>@link.ParentGuardian?.Name</td>
                 <td>@(link.ParentGuardian?.IsPrimary == true ? "Yes" : "No")</td>
                 <td>@link.CreatedByUser?.DisplayName</td>
+                <td>
+                    @if (link.ParentGuardian?.AppUserId is null && link.ParentGuardian is not null)
+                    {
+                        <AuthorizeView Policy="RequireAdmin" Context="adminContext">
+                            <button type="button" aria-label="Resend invite to @link.ParentGuardian.Name"
+                                    @onclick="() => ResendAsync(link.ParentGuardian.Id, link.ParentGuardian.Name)">Resend invite</button>
+                        </AuthorizeView>
+                        <span>No account yet</span>
+                    }
+                    else
+                    {
+                        <span>Has an account</span>
+                    }
+                </td>
             </tr>
         }
     </tbody>
@@ -133,6 +149,23 @@
         if (_form.ParentGuardianId == 0)
         {
             _form.ParentGuardianId = _guardians.FirstOrDefault()?.Id ?? 0;
+        }
+    }
+
+    private async Task ResendAsync(int parentGuardianId, string guardianName)
+    {
+        _errorMessage = null;
+        _statusMessage = null;
+
+        try
+        {
+            await InviteService.ResendAsync(parentGuardianId);
+            _statusMessage = $"A new invite has been sent to {guardianName}. Any earlier invite no longer works.";
+            await LoadAsync();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException)
+        {
+            _errorMessage = ex.Message;
         }
     }
 
