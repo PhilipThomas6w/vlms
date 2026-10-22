@@ -100,6 +100,8 @@ $expectedMinimums = @{
     # STATE.md "Password reset + Identity hardening" (2026-10-12): reset/confirmation are the
     # unauthenticated route back into an account.
     "AccountEmailServiceTests.cs"        = 9
+    # FR-013 student administration: assign teacher / change status are Admin-only.
+    "StudentAdministrationServiceTests.cs" = 13
 }
 
 foreach ($testFileName in $expectedMinimums.Keys) {

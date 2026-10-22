@@ -1,0 +1,150 @@
+@page "/administration/students"
+@attribute [Authorize(Policy = "RequireAdmin")]
+@rendermode InteractiveServer
+@using Vlms.Domain
+@using Vlms.Infrastructure.Administration
+@inject StudentAdministrationService StudentAdministrationService
+
+<PageTitle>Students</PageTitle>
+
+<h1>Students</h1>
+
+<p>
+    Admin-only (functional.md FR-013). Only an Admin assigns a student's teacher or changes a
+    student's status. Marking a student Inactive records the date they left, which feeds the
+    <a href="/reporting/records-due-for-deletion">records due for deletion</a> report; making them
+    Active again clears that date. Graduated is set only by a promotion and cannot be changed here.
+    Names and dates of birth come from the parent's consent form and are not edited on this page.
+</p>
+
+@if (_errorMessage is not null)
+{
+    <p class="error" role="alert">@_errorMessage</p>
+}
+<p role="status">@_statusMessage</p>
+
+@if (_students.Count == 0)
+{
+    <p>No students.</p>
+}
+else
+{
+    <table>
+        <thead>
+            <tr>
+                <th>Student</th>
+                <th>Rank</th>
+                <th>Status</th>
+                <th>Assigned teacher</th>
+                <th>Assign a teacher</th>
+                <th>Change status</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var student in _students)
+            {
+                <tr>
+                    <td>@student.Name</td>
+                    <td>@student.RankName</td>
+                    <td>@student.Status</td>
+                    <td>@(student.AssignedTeacherName ?? "None")</td>
+                    <td>
+                        @{
+                            var teacherSelectId = $"assign-teacher-{student.StudentId}";
+                        }
+                        <label for="@teacherSelectId">Teacher for @student.Name</label>
+                        <select id="@teacherSelectId" @bind="_selectedTeachers[student.StudentId]">
+                            <option value="">None</option>
+                            @foreach (var teacher in _teachers)
+                            {
+                                <option value="@teacher.UserId">@teacher.DisplayName</option>
+                            }
+                        </select>
+                        <button type="button" aria-label="@($"Save teacher for {student.Name}")"
+                                @onclick="() => AssignTeacherAsync(student)">Save teacher</button>
+                    </td>
+                    <td>
+                        @if (student.Status == StudentStatus.Graduated)
+                        {
+                            <span>Cannot be changed</span>
+                        }
+                        else
+                        {
+                            var statusSelectId = $"change-status-{student.StudentId}";
+                            <label for="@statusSelectId">Status for @student.Name</label>
+                            <select id="@statusSelectId" @bind="_selectedStatuses[student.StudentId]">
+                                <option value="@StudentStatus.Active">Active</option>
+                                <option value="@StudentStatus.Inactive">Inactive</option>
+                            </select>
+                            <button type="button" aria-label="@($"Save status for {student.Name}")"
+                                    @onclick="() => ChangeStatusAsync(student)">Save status</button>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private IReadOnlyList<StudentAdministrationService.StudentSummary> _students = [];
+    private IReadOnlyList<StudentAdministrationService.AssignableTeacher> _teachers = [];
+    private readonly Dictionary<int, int?> _selectedTeachers = new();
+    private readonly Dictionary<int, StudentStatus> _selectedStatuses = new();
+    private string? _errorMessage;
+    private string? _statusMessage;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _students = await StudentAdministrationService.ListStudentsAsync();
+        _teachers = await StudentAdministrationService.ListAssignableTeachersAsync();
+
+        _selectedTeachers.Clear();
+        _selectedStatuses.Clear();
+        foreach (var student in _students)
+        {
+            _selectedTeachers[student.StudentId] = student.AssignedTeacherUserId;
+            _selectedStatuses[student.StudentId] = student.Status;
+        }
+    }
+
+    private async Task AssignTeacherAsync(StudentAdministrationService.StudentSummary student)
+    {
+        _errorMessage = null;
+        _statusMessage = null;
+
+        try
+        {
+            var teacherUserId = _selectedTeachers[student.StudentId];
+            await StudentAdministrationService.AssignTeacherAsync(student.StudentId, teacherUserId);
+            _statusMessage = teacherUserId is null
+                ? $"Teacher cleared for {student.Name}."
+                : $"Teacher assigned to {student.Name}.";
+            await LoadAsync();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+
+    private async Task ChangeStatusAsync(StudentAdministrationService.StudentSummary student)
+    {
+        _errorMessage = null;
+        _statusMessage = null;
+
+        try
+        {
+            var newStatus = _selectedStatuses[student.StudentId];
+            await StudentAdministrationService.ChangeStatusAsync(student.StudentId, newStatus);
+            _statusMessage = $"{student.Name} is now {newStatus}.";
+            await LoadAsync();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+}
