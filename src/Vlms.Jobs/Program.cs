@@ -191,7 +191,7 @@ try
         "ConsentExpiryNotifier sent {NotificationCount} safeguarding-critical notification(s).",
         notificationOutcomes.Count);
 
-    var reminderOutcomes = await guardianNotifications.SendConsentRemindersAsync(result, DateOnly.FromDateTime(DateTime.UtcNow));
+    var reminderOutcomes = await guardianNotifications.SendConsentRemindersAsync(ConsentYear.Today());
     logger.LogInformation("GuardianNotificationService sent {ReminderCount} parent consent reminder(s).", reminderOutcomes.Count);
 }
 catch (Exception ex)

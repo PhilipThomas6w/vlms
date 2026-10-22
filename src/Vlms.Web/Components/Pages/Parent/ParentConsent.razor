@@ -82,6 +82,11 @@
             <DataAnnotationsValidator />
             <ValidationSummary role="alert" />
 
+            <p>
+                If approved, this consent runs until <strong>@ParentConsentService.ExpiryIfSubmittedToday().ToString("d MMMM yyyy")</strong>,
+                the end of the church year (31 August). You will be reminded to renew it before then.
+            </p>
+
             <h3>Your child's details</h3>
             <div>
                 <label for="studentName">Full name</label>

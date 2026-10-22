@@ -73,7 +73,7 @@ Each submission is a new `ConsentRecord` (status Pending) with its own `ConsentS
 
 `ConsentRecord` gains (migration `AddParentConsentSubmissionFields`, nullable columns only): `SubmittedAt`, `SubmittedByUserId` (the parent, or the staff member entering a paper form), `StudentName`, `StudentDateOfBirth`, `DecidedAt`, `DecisionComments`.
 
-A parent submission covers one year from the day it is submitted (`PeriodStart` = that day, `PeriodEnd` = `ExpiryDate` = a year later less a day). Approval does not move it.
+A parent submission runs from the day it is submitted (`PeriodStart` = that day) to the 31 August that ends the church year (`PeriodEnd` = `ExpiryDate`), amended 22/10/2026 by `adr/0008` answer 2 (was: a year later less a day). Approval does not move it.
 
 A `ConsentSensitiveDetails` row now takes its `ConsentRecord`'s id. The previous `MAX(id) + 1` over `ConsentSensitiveDetails` runs through the caller's query filter; a parent sees only their own children's rows, so it would hand out ids already in use. `ConsentRecord` has no filter, and the two are strictly 1:1.
 
