@@ -1,0 +1,123 @@
+@page "/students/{StudentId:int}"
+@attribute [Authorize(Policy = "RequireAdminOrTeacher")]
+@rendermode InteractiveServer
+@using Vlms.Infrastructure.Engagement
+@inject StudentRosterService Roster
+
+<PageTitle>Student record</PageTitle>
+
+@if (_errorMessage is not null)
+{
+    <h1>Student record</h1>
+    <p class="error" role="alert">@_errorMessage</p>
+}
+else if (_record is null)
+{
+    <h1>Student record</h1>
+    <p>Active student not found.</p>
+    <p><a href="/students">Back to students</a></p>
+}
+else
+{
+    <h1>@_record.StudentName</h1>
+    <p><a href="/students">Back to students</a></p>
+    <dl>
+        <dt>Current rank</dt>
+        <dd>@_record.CurrentRankName</dd>
+        <dt>Progress in rank</dt>
+        <dd>@_record.CompletedLessons of @_record.TotalLessons lessons</dd>
+        <dt>Consent</dt>
+        <dd>
+            @if (_record.HasCurrentConsent)
+            {
+                <span>Approved, expires @_record.ConsentExpiryDate?.ToString("d MMMM yyyy")</span>
+            }
+            else
+            {
+                <span>None in place — lesson completions are blocked</span>
+            }
+            @if (_record.LatestSubmissionStatus == Vlms.Domain.ConsentStatus.Pending)
+            {
+                <span> (a new form is awaiting review)</span>
+            }
+            <span> · <a href="/students/@_record.StudentId/consent">Consent details</a></span>
+        </dd>
+    </dl>
+
+    <h2>Completions</h2>
+    @if (_record.Completions.Count == 0)
+    {
+        <p>No lessons completed yet.</p>
+    }
+    else
+    {
+        <table>
+            <thead>
+                <tr>
+                    <th scope="col">Lesson</th>
+                    <th scope="col">Rank</th>
+                    <th scope="col">Completed</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var completion in _record.Completions)
+                {
+                    <tr>
+                        <td>@completion.LessonTitle</td>
+                        <td>@completion.RankName</td>
+                        <td>@completion.CompletedAt.ToString("d MMMM yyyy")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+
+    <h2>Badges</h2>
+    @if (_record.Badges.Count == 0)
+    {
+        <p>No badges yet.</p>
+    }
+    else
+    {
+        <ul>
+            @foreach (var badge in _record.Badges)
+            {
+                <li>@badge.RankName — @badge.AwardedAt.ToString("d MMMM yyyy")</li>
+            }
+        </ul>
+    }
+
+    <h2>Certificates</h2>
+    @if (_record.Certificates.Count == 0)
+    {
+        <p>No certificates yet.</p>
+    }
+    else
+    {
+        <ul>
+            @foreach (var certificate in _record.Certificates)
+            {
+                <li><a href="/certificates/@certificate.CertificateId">@certificate.RankName — @certificate.GeneratedAt.ToString("d MMMM yyyy")</a></li>
+            }
+        </ul>
+    }
+}
+
+@code {
+    [Parameter] public int StudentId { get; set; }
+
+    private StudentRecord? _record;
+    private string? _errorMessage;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        try
+        {
+            _record = await Roster.GetRecordAsync(StudentId);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+}

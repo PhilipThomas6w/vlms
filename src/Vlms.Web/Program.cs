@@ -125,6 +125,7 @@ builder.Services.AddScoped<StudentConsentViewService>();
 // own StudentGuardianLink-linked students, via ParentGuardianLinkage (shared with
 // ParentStudentAccessHandler below).
 builder.Services.AddScoped<ParentDashboardService>();
+builder.Services.AddScoped<StudentRosterService>();
 
 // --- Admin reporting (STATE.md "Reporting screens: core progress stats + at-risk flagging",
 // functional.md "Reporting (MVP)") — Admin-only (see ProgressReportingService's doc comment for

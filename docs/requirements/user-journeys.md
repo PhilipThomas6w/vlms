@@ -18,7 +18,7 @@ Each step is marked:
 | 3 | Browse the curriculum by rank, in delivery order, with tags | **Missing** | The only lesson list is on `/curriculum/teacher`, which is for proposing changes. |
 | 4 | Open a lesson's documents and the Teacher's Information to prepare | **Missing** | No page serves lesson files, and `IBlobStorage` has no read method (`UploadAsync` only). |
 | 5 | Print or download handouts | **Missing** | Same as step 4. |
-| 6 | See the students in their group, with each student's current rank | **Missing** | No student list page exists for teachers. Students appear only in admin, reporting and guardian-link pages. |
+| 6 | See the students in their group, with each student's current rank | Built | `/students` (`StudentRosterService`): all active students, an "assigned to me" filter, rank and progress in rank. Each opens `/students/{id}` (completions, badges, certificates, consent status). Certificate links go to `/certificates/{id}`. |
 | 7 | Record that each student who attended completed the lesson | **Missing (service only)** | `CompletionService.MarkCompleteAsync` exists, with certificate, promotion and parent email, but no page calls it. |
 | 8 | Check that a student with lapsed consent is blocked from completion | Built (service) | FR-003, enforced in `CompletionService`. It becomes visible once step 7 has a page. |
 | 9 | Correct a mistaken completion | Built | `/progress/completions` (`CompletionReversals.razor`) |
