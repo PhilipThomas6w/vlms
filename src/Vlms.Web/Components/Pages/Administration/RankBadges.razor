@@ -1,0 +1,141 @@
+@page "/administration/rank-badges"
+@attribute [Authorize(Policy = "RequireAdmin")]
+@rendermode InteractiveServer
+@using Vlms.Infrastructure.Badges
+@inject RankBadgeService RankBadgeService
+
+<PageTitle>Rank badge images</PageTitle>
+
+<h1>Rank badge images</h1>
+
+<p>
+    Admin-only (functional.md FR-014). Upload one badge image per rank: PNG, JPEG, WebP or SVG, no
+    larger than 2 MB. Uploading again replaces the image. Each image shows on the parent dashboard next
+    to the badge a child has earned for that rank.
+</p>
+
+@if (_errorMessage is not null)
+{
+    <p class="error" role="alert">@_errorMessage</p>
+}
+<p role="status">@_statusMessage</p>
+
+@if (_ranks.Count == 0)
+{
+    <p>No ranks.</p>
+}
+else
+{
+    <table>
+        <thead>
+            <tr>
+                <th>Rank</th>
+                <th>Current badge</th>
+                <th>Upload a new image</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var rank in _ranks)
+            {
+                var fileInputId = $"badge-file-{rank.RankId}";
+                <tr>
+                    <td>@rank.RankName</td>
+                    <td>
+                        @if (rank.HasImage)
+                        {
+                            <img src="/badges/@rank.RankId/image" alt="@rank.RankName badge" width="64" height="64" />
+                        }
+                        else
+                        {
+                            <span>No badge image</span>
+                        }
+                    </td>
+                    <td>
+                        <label for="@fileInputId">Badge image for @rank.RankName</label>
+                        <InputFile id="@fileInputId" accept=".png,.jpg,.jpeg,.webp,.svg" OnChange="@(e => SelectFile(rank.RankId, e))" />
+                        <button type="button" aria-label="@($"Upload badge image for {rank.RankName}")"
+                                disabled="@(!_selectedFiles.ContainsKey(rank.RankId))"
+                                @onclick="() => UploadAsync(rank)">Upload</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private IReadOnlyList<RankBadgeService.RankBadgeRow> _ranks = [];
+    private readonly Dictionary<int, IBrowserFile> _selectedFiles = new();
+    private string? _errorMessage;
+    private string? _statusMessage;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            _ranks = await RankBadgeService.ListRanksAsync();
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+
+    private Task SelectFile(int rankId, InputFileChangeEventArgs e)
+    {
+        _errorMessage = null;
+        _statusMessage = null;
+
+        if (e.File is null)
+        {
+            _selectedFiles.Remove(rankId);
+        }
+        else
+        {
+            _selectedFiles[rankId] = e.File;
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private async Task UploadAsync(RankBadgeService.RankBadgeRow rank)
+    {
+        if (!_selectedFiles.TryGetValue(rank.RankId, out var file))
+        {
+            return;
+        }
+
+        _errorMessage = null;
+        _statusMessage = null;
+
+        if (file.Size > RankBadgeService.MaxBytes)
+        {
+            _errorMessage = $"{rank.RankName}: the image is larger than 2 MB.";
+            return;
+        }
+
+        try
+        {
+            using var buffer = new MemoryStream();
+            await using (var stream = file.OpenReadStream(RankBadgeService.MaxBytes))
+            {
+                await stream.CopyToAsync(buffer);
+            }
+
+            await RankBadgeService.SetImageAsync(rank.RankId, file.Name, buffer.ToArray());
+            _selectedFiles.Remove(rank.RankId);
+            _statusMessage = $"Badge image saved for {rank.RankName}.";
+            await LoadAsync();
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        catch (ArgumentException ex)
+        {
+            _errorMessage = $"{rank.RankName}: {ex.Message}";
+        }
+    }
+}
