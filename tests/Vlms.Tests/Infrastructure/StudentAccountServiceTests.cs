@@ -763,7 +763,8 @@ public sealed class StudentAccountServiceTests : IDisposable
         using (var admin = As(AdminUser, Role.Admin))
         {
             var leaving = new Vlms.Infrastructure.Retention.LeavingService(
-                admin.Services.GetRequiredService<VlmsDbContext>(), admin.Services.GetRequiredService<ICurrentUserContext>());
+                admin.Services.GetRequiredService<VlmsDbContext>(), admin.Services.GetRequiredService<ICurrentUserContext>(),
+                admin.Services.GetRequiredService<Microsoft.AspNetCore.Identity.UserManager<VlmsIdentityUser>>());
             await leaving.MarkStudentInactiveAsync(Alex);
         }
 
