@@ -36,6 +36,7 @@ Discrete `FR-nnn` numbering assigned here specifically (per design review), give
 - **FR-003:** Expiry monitoring: consent and DBS expiry are tracked, with escalating alerts, and **expired consent blocks lesson completion** for that student until renewed.
 - **FR-004:** A `StudentGuardianLink` (parent-to-child relationship) is created only by Admin/Teacher at student registration — never by parent self-service — before a parent can access any progress, medical, or consent data for that child.
   - Accepting a guardian invite creates the account only; it grants no role. An Admin approves the guardian by granting `Parent` (Philip's decision, 11/10/2026).
+  - If the invited email already belongs to an account (for example a Teacher who is also a parent), the invitee signs in to that account to accept, and the existing identity is linked to the guardian record. Ownership is proved by signing in, never by matching the email alone; `Parent` is still granted by an Admin. One identity can hold several roles. (Philip's decision, 22/10/2026.)
 - **FR-005:** Every read of a `DbsCheck` record, or of a `ConsentSensitiveDetails` record, is written to an audit log (who, what, when).
 
 ## Parent engagement (MVP)
