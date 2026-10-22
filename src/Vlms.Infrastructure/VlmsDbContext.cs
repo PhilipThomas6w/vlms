@@ -59,7 +59,7 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
-        optionsBuilder.AddInterceptors(SensitiveDataAuditInterceptor.Instance);
+        optionsBuilder.AddInterceptors(SensitiveDataAuditInterceptor.Instance, UtcDateTimeGuardInterceptor.Instance);
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

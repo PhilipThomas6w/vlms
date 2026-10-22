@@ -151,7 +151,7 @@ public sealed class StudentRegistrationService
             Id = await NextId(_db.StudentRankProgresses, ct),
             StudentId = student.Id,
             RankId = startingRank.Id,
-            StartedAt = enrolmentDate.ToDateTime(TimeOnly.MinValue),
+            StartedAt = enrolmentDate.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc),
             CompletedAt = null
         };
         _db.StudentRankProgresses.Add(progress);
