@@ -42,7 +42,7 @@ Status: strategy (design gate) plus automated results (13/10/2026) — per ISO/I
 | TC-016 | Every role (Teacher, Approver, Admin, Student, Parent) can browse the lesson library and open or download a lesson file; an anonymous request for a file is refused | `functional.md` FR-006 |
 | TC-017 | A teacher's uploaded file stays pending (visible to the proposer and Approvers only) until the Approver approves, then goes live; oversized or disallowed file types are rejected | `functional.md` FR-007 |
 | TC-018 | A teacher marks several students complete for a lesson in one action; a student with lapsed consent is reported as blocked, not skipped | `functional.md` FR-008 |
-| TC-019 | A teacher sees active students with current rank and progress, and can open a student's record | `functional.md` FR-009 |
+| TC-019 | A teacher sees active students with current rank and progress, and can open a student's record | `functional.md` FR-009; automated in `StudentRosterServiceTests` (active-only, assigned-to-me, progress, role refusal) |
 | TC-020 | A student, their linked parent, a teacher and an Admin can download a certificate; an unlinked parent cannot | `functional.md` FR-010 |
 | TC-021 | A student sees their own rank, completions, badges and certificates and no other student's | `functional.md` FR-011 |
 | TC-022 | Each role's home page and navigation show only that role's actions | `functional.md` FR-012 |

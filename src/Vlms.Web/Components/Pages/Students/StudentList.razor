@@ -1,0 +1,77 @@
+@page "/students"
+@attribute [Authorize(Policy = "RequireAdminOrTeacher")]
+@rendermode InteractiveServer
+@using Vlms.Infrastructure.Engagement
+@inject StudentRosterService Roster
+
+<PageTitle>Students</PageTitle>
+
+<h1>Students</h1>
+
+@if (_errorMessage is not null)
+{
+    <p class="error" role="alert">@_errorMessage</p>
+}
+else
+{
+    <p>
+        <input type="checkbox" id="assignedToMe" checked="@_assignedToMe" @onchange="OnFilterChanged" />
+        <label for="assignedToMe">Assigned to me</label>
+    </p>
+
+    @if (_students.Count == 0)
+    {
+        <p>No active students to show.</p>
+    }
+    else
+    {
+        <table>
+            <caption>Active students</caption>
+            <thead>
+                <tr>
+                    <th scope="col">Student</th>
+                    <th scope="col">Rank</th>
+                    <th scope="col">Progress in rank</th>
+                    <th scope="col">Record</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var student in _students)
+                {
+                    <tr>
+                        <td>@student.StudentName</td>
+                        <td>@student.CurrentRankName</td>
+                        <td>@student.CompletedLessons of @student.TotalLessons lessons</td>
+                        <td><a href="/students/@student.StudentId">Record for @student.StudentName</a></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+}
+
+@code {
+    private List<StudentListItem> _students = new();
+    private bool _assignedToMe;
+    private string? _errorMessage;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task OnFilterChanged(ChangeEventArgs e)
+    {
+        _assignedToMe = e.Value is true;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            _students = (await Roster.ListActiveStudentsAsync(_assignedToMe)).ToList();
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+}
