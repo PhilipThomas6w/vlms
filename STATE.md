@@ -63,27 +63,22 @@ Full narrative for Done/Log items to 12/08/2026: `docs/harness/STATE-archive.md`
 - [x] Admin assign teacher and change status (FR-013): `StudentAdministrationService`, `/administration/students`; Inactive via `LeavingService`; Graduated only by promotion — a28a5c6 (Sonnet subagent), merged 401109e
 - [x] Parent consent form and consent access change (FR-015, ADR-0006): `/parent/consent`, SO/Admin decide with mandatory rejection comments, approval updates student name/DOB, teacher read view, widened `ConsentSensitiveDetails` filter, migration `AddParentConsentSubmissionFields` — 6f5b5d7 (Opus subagent), merged 51b1ec5; full gate exit 0, 564/564 tests; migration applied to local PostgreSQL 16. Teachers reading medical details without MFA (ADR-0006 risk): Philip decided 22/10/2026 that Teachers must have MFA; in progress
 
+- [x] Authorization fix: every protected page and file endpoint answered 500 (AuthenticationStateProvider unset outside components); `UseAuthenticationStatePriming()` between authentication and authorization — 05967e7 (main session). Found on the first run of the app against PostgreSQL; 568 passing tests had missed it (no end-to-end pipeline test)
+- [x] Teacher MFA (Philip, 22/10/2026): `MfaRequirementHandler` gates Teacher; `ConsentSensitiveDetails` Teacher arm requires MFA; ADR-0006 amended, DPIA note updated; refused-page message links to 2FA enrolment — 20849c2 (Opus subagent), merged e0eb8d4. Existing Teachers must enrol before go-live
+- [x] Teacher's student list (FR-009): `StudentRosterService`, `/students`, `/students/{id}` — f5fb640 (Sonnet subagent), merged f23dfe6
+- [x] Record lesson completion (FR-008): `/progress/record`, `CompletionService.MarkCompleteBatchAsync` — e1efbb2 (Sonnet subagent), merged 76c9f57
+- [x] Rank badge images (FR-014): `/administration/rank-badges`, `GET /badges/{rankId}/image` (SVG under a no-script CSP), parent dashboard images — 5d98f1b (Haiku subagent), merged 21e7b57
+- [x] Certificate view and download (FR-010): `GET /certificates/{id}` (`?download=1`), `CertificateAccessService`, parent dashboard links — a86d167 (Sonnet subagent), merged 663d124; full gate exit 0, 645/645 tests, 40 pages
 ## In progress
-Running as subagents from `473035c` (pushed to `origin` 22/10/2026, so worktrees now start from current code): teacher's student list, record lesson completion, certificate download, lesson uploads and Approver review (sole migration slot), rank badge images, and **teacher MFA** (decided by Philip 22/10/2026: Teachers must have TOTP MFA, closing the ADR-0006 risk; Opus).
+- **Lesson uploads and Approver review** (FR-007) — Sonnet subagent, holds the migration slot
+- **Student accounts and student page** (FR-011) — Opus subagent from 663d124 (wave 3; its dependencies are merged)
 
 ## Next
 Fit-for-purpose build plan (Philip, 22/10/2026; `docs/delivery-plan.md` phase 2, `docs/governance/raid.md` I-001). Acceptance for every item below: tests, gate exits 0, **and** the matching steps in `docs/requirements/user-journeys.md` work in the running app for each named role (checked by running it, not inferred from service tests), with their status updated there.
 
 Delegation (Philip, 22/10/2026): each item runs as a subagent in its own worktree, model in brackets. Items in a wave run in parallel; a wave starts when the items it depends on are merged into `master`.
 
-**Wave 1 (no dependencies)** — redo: the first attempts were built on a stale base (worktrees start from `origin/master`)
-- **Teacher's student list** (FR-009) — active students with current rank and progress in rank, filter to "assigned to me", and a student record view (completions, badges, certificates). Journey J1.6. TC-019. [Sonnet]
-- **Record lesson completion** (FR-008) — a page on which a teacher picks a lesson and marks the attending students complete in one action through `CompletionService.MarkCompleteAsync`. Consent-blocked students are shown with the reason. Journey J1.7–8. TC-018. [Sonnet]
-
-**Wave 2 (after the lesson library is merged)**
-- **Certificate download** (FR-010) — certificate PDFs viewable in the app and downloadable by the student, their linked parents, teachers and Admins through the authorised file endpoint; links on the parent dashboard and student record. Journeys J4.4, J5.3. TC-020. [Sonnet]
-- **Lesson uploads and Approver review** (FR-007) — file upload on the proposal form, replacing the typed storage keys, with size and type limits. Pending files are visible to the proposer and Approvers only and go live on approval. The Approver page shows the proposal readably next to the current lesson, with both sets of files openable. Journeys J2.2, J3.2. TC-017. ASVS re-review (file upload). [Sonnet; waits for the consent form item too if it needs a migration]
-- **Rank badge images** (FR-014) — Admin uploads one image per rank; shown on dashboards. Journey J6.5. TC-024. [Haiku]
-
-**Wave 3 (after the library, certificate download and consent form items)**
-- **Student accounts and student page** (FR-011) — parent creates and resets a username/password sign-in for each linked child (no email); student page with rank, completions, badges, certificates and a library link. Journeys J4.1, J4.3. TC-021. ASVS re-review (identity). [Opus]
-
-**Wave 4 (after all pages exist)**
+**Wave 4 (after lesson uploads and student accounts are merged)**
 - **Home page and navigation per role** (FR-012) — replace the template `Home.razor` with role-aware next actions and add persistent navigation in `MainLayout`. Journey J1.2. TC-022. [Sonnet]
 
 ## Decisions needed (Philip)
@@ -206,3 +201,4 @@ Ordered by go-live critical path.
 - 2026-10-22: Decisions 9–11 resolved and 12 partly (Philip); consent details access widened (ADR-0004 amendment to follow). Working model changed to subagents per item in worktrees, in dependency waves (CLAUDE.md)
 - 2026-10-22: Wave 1 merged: library, seed, admin, consent (51b1ec5). Student list and record completion to redo (stale worktree base). Local PostgreSQL 16 installed; all migrations and the seed verified against it
 - 2026-10-22: Philip approved pushing `master` to `origin` (739e975..473035c) and decided Teachers must have TOTP MFA. Wave 1 redo, wave 2 and teacher MFA launched as six parallel subagents
+- 2026-10-22: Merged teacher MFA, student list, record completion, badges and certificates; fixed the 500 on every protected page (05967e7). master 663d124: full gate exit 0, 645/645 tests
