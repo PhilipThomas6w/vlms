@@ -52,7 +52,7 @@ The requirement was not to weaken any of this for adults.
 
 ## Decisions (Philip, 22/10/2026)
 
-1. **Passwords and staying signed in.** Student passwords are at least 8 characters, with the complexity rules relaxed for children (no upper-case, digit or symbol requirement; adult rules unchanged). A student stays signed in on their own phone or tablet so they don't enter the password each time the app opens. A parent can reset the password of each of their children (assumed meaning of "reset both passwords"; to confirm).
+1. **Passwords and staying signed in.** Student passwords are at least 8 characters, with the complexity rules relaxed for children (no upper-case, digit or symbol requirement; adult rules unchanged). A student stays signed in on their own phone or tablet so they don't enter the password each time the app opens. A parent can reset both their own password and the password of each of their children ("reset both passwords", confirmed by Philip 22/10/2026). The children's reset is `/parent/student-sign-ins`; the parent's own is the emailed link (`/Account/ForgotPassword`) plus a change-password page while signed in (queued in STATE.md).
 2. **Lockout.** A parent's (or Admin's) reset clears the lockout.
 3. **Leavers.** Leaving does not disable a sign-in. Admins can disable and restore a student's sign-in.
 4. **Admin creation.** Not needed: every student has a parent account, because parental consent is mandatory (legal and safeguarding obligation). Sign-ins stay parent-created only.

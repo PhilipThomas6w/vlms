@@ -88,11 +88,12 @@ Fit-for-purpose build plan (Philip, 22/10/2026; `docs/delivery-plan.md` phase 2,
 
 Delegation (Philip, 22/10/2026): each item runs as a subagent in its own worktree, model in brackets. Items in a wave run in parallel; a wave starts when the items it depends on are merged into `master`.
 
+- **Change password while signed in** (Sonnet) — `/Account/Manage/ChangePassword` for any adult (current password + new password, Identity `ChangePasswordAsync`), linked from the account menu. Completes ADR-0007 decision 1 as confirmed by Philip 22/10/2026: a parent resets their own password as well as each child's. Today a parent's own reset is only the emailed link (`/Account/ForgotPassword`), which needs the Graph secret.
+
 
 ## Decisions needed (Philip)
 Ordered by go-live critical path.
 - **Graph client secret on the dev machine** — none is configured (the app sent the `appsettings.json` placeholder). Philip to store it as a user environment variable `GraphMail__ClientSecret` (steps given 22/10/2026), or generate a new one if the value is no longer to hand.
-- **Confirm "reset both passwords"** (ADR-0007 decision 1) — taken to mean a parent resets the password of each of their children.
 - **Tell Teachers before go-live** that they must set up two-factor sign-in (agreed 22/10/2026).
 1. ~~Seed rank ladder + curriculum~~: resolved 21/10/2026. See `seed/curriculum.json` and `requirements/functional.md`.
 2. **Retention purge approach** — manually run `BYPASSRLS` maintenance role vs scheduled job (adr/0004 pass 8); only flagging exists (`RecordsDueForDeletionService.cs:30`). `vlms_app` must never get DELETE on `sensitive_data_access_logs`. DPIA residual risk 7. Unblocks: purge item.
