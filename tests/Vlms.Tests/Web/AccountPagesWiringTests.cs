@@ -67,6 +67,23 @@ public sealed class AccountPagesWiringTests
         Assert.Contains(".AddUserConfirmation<VlmsUserConfirmation>()", program);
     }
 
+    // adr/0007 (Philip, 22/10/2026): the student password rule and "stay signed in" cookie are the
+    // registered ones, and the stamp recheck that ends a reset or disabled student's sessions is
+    // set explicitly. Their behaviour is tested in StudentAccountServiceTests.
+    [Fact]
+    public void Program_RegistersTheStudentSignInRules_AndTheStampRecheck()
+    {
+        var program = Read("src", "Vlms.Web", "Program.cs");
+        var login = Read("src", "Vlms.Web", "Components", "Account", "Pages", "Login.razor");
+
+        Assert.Contains(".AddSignInManager<VlmsSignInManager>()", program);
+        Assert.DoesNotContain(".AddSignInManager()", program);
+        Assert.Contains(".AddVlmsPasswordRules()", program);
+        Assert.Contains("options.SlidingExpiration = true", program);
+        Assert.Contains("options.ValidationInterval = VlmsIdentityPolicy.SecurityStampValidationInterval", program);
+        Assert.Contains("This student sign-in has been turned off", login);
+    }
+
     private static string Read(params string[] parts) =>
         File.ReadAllText(Path.Combine([RepoRoot(), .. parts]));
 

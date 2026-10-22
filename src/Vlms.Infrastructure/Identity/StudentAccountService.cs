@@ -5,8 +5,11 @@ using Vlms.Infrastructure.Authorization;
 
 namespace Vlms.Infrastructure.Identity;
 
-/// <summary>One student and their sign-in, if any, for the parent and Admin sign-in pages.</summary>
-public sealed record StudentSignInSummary(int StudentId, string StudentName, string? Username);
+/// <summary>
+/// One student and their sign-in, if any, for the parent and Admin sign-in pages.
+/// <paramref name="SignInDisabled"/> is true when an Admin has turned the sign-in off.
+/// </summary>
+public sealed record StudentSignInSummary(int StudentId, string StudentName, string? Username, bool SignInDisabled = false);
 
 /// <summary>Outcome of creating a sign-in or resetting its password: success, or the reasons it failed validation.</summary>
 public sealed record StudentSignInResult(bool Succeeded, IReadOnlyList<string> Errors)
@@ -32,6 +35,7 @@ public sealed record StudentSignInResult(bool Succeeded, IReadOnlyList<string> E
 /// and is linked to the student through <see cref="StudentGuardianLink"/>
 /// (<see cref="ParentGuardianLinkage"/>). Admins do not create sign-ins.</item>
 /// <item>Reset: the same linked parent, or an <see cref="Role.Admin"/> with MFA enabled.</item>
+/// <item>Disable and restore: an <see cref="Role.Admin"/> with MFA enabled only.</item>
 /// </list>
 /// Refusals throw <see cref="UnauthorizedAccessException"/>; a second sign-in for the same student
 /// throws <see cref="InvalidOperationException"/>; a bad username or password returns
@@ -43,9 +47,18 @@ public sealed record StudentSignInResult(bool Succeeded, IReadOnlyList<string> E
 /// same child at once cannot both succeed.
 ///
 /// <b>Reset</b> uses Identity's own reset-token path, which validates the new password before
-/// changing anything and rotates the security stamp, so the student's existing sessions end at the
-/// next revalidation. It refuses an account that has an email address: a student sign-in never has
-/// one, so a parent can never reset an adult's password through this route.
+/// changing anything (<see cref="VlmsPasswordValidator"/>: 8+ characters for a student) and rotates
+/// the security stamp, so the student's existing sessions end at the next revalidation. A
+/// successful reset also clears any lockout and the failed-attempt count (Philip, 22/10/2026). It
+/// refuses an account that has an email address: a student sign-in never has one, so a parent can
+/// never reset an adult's password through this route. It does not touch
+/// <see cref="VlmsIdentityUser.SignInDisabled"/>: a parent's reset can't undo an Admin's disable.
+///
+/// <b>Disable and restore</b> (Philip, 22/10/2026) set or clear
+/// <see cref="VlmsIdentityUser.SignInDisabled"/> and rotate the security stamp in the same save, so
+/// a disabled student can't sign in (<see cref="VlmsUserConfirmation"/>) and their open sessions,
+/// including a long-lived "stay signed in" cookie, end at the next revalidation. Leaving (Inactive
+/// or Graduated) does not disable a sign-in.
 /// </summary>
 public sealed class StudentAccountService
 {
@@ -149,24 +162,87 @@ public sealed class StudentAccountService
             await RequireLinkedAsync(studentId, parentUserId, ct);
         }
 
-        var appUserId = await _db.Students.Where(s => s.Id == studentId).Select(s => s.AppUserId).SingleOrDefaultAsync(ct)
-            ?? throw new InvalidOperationException($"Student {studentId} does not have a sign-in yet.");
-
-        var identityUser = await _userManager.FindByIdAsync(appUserId.ToString(System.Globalization.CultureInfo.InvariantCulture))
-            ?? throw new InvalidOperationException($"Student {studentId}'s sign-in account is missing.");
-        if (!string.IsNullOrEmpty(identityUser.Email))
-        {
-            throw new InvalidOperationException(
-                $"Student {studentId}'s account has an email address, so it is not a student sign-in and can't be reset here.");
-        }
+        var identityUser = await FindStudentAccountAsync(studentId, ct);
 
         if (string.IsNullOrEmpty(newPassword))
         {
             return StudentSignInResult.Failed("Enter a password.");
         }
 
+        await using var transaction = await _db.Database.BeginTransactionAsync(ct);
+
         var token = await _userManager.GeneratePasswordResetTokenAsync(identityUser);
-        return StudentSignInResult.From(await _userManager.ResetPasswordAsync(identityUser, token, newPassword));
+        var reset = await _userManager.ResetPasswordAsync(identityUser, token, newPassword);
+        if (!reset.Succeeded)
+        {
+            return StudentSignInResult.From(reset);
+        }
+
+        // A parent's or Admin's reset clears the lockout (Philip, 22/10/2026); the adult self-service
+        // reset does not. SignInDisabled is deliberately left as it is.
+        if (await _userManager.GetLockoutEnabledAsync(identityUser))
+        {
+            ThrowIfFailed(await _userManager.SetLockoutEndDateAsync(identityUser, null), "clear the lockout");
+        }
+
+        ThrowIfFailed(await _userManager.ResetAccessFailedCountAsync(identityUser), "reset the failed sign-in count");
+
+        await transaction.CommitAsync(ct);
+        return StudentSignInResult.Success;
+    }
+
+    /// <summary>
+    /// Turns <paramref name="studentId"/>'s sign-in off, so the student can't sign in and their open
+    /// sessions end. Admin with MFA only. A no-op if it is already off.
+    /// </summary>
+    public Task DisableSignInAsync(int studentId, CancellationToken ct = default) =>
+        SetSignInDisabledAsync(studentId, disabled: true, ct);
+
+    /// <summary>Turns <paramref name="studentId"/>'s sign-in back on. Admin with MFA only. A no-op if it is already on.</summary>
+    public Task RestoreSignInAsync(int studentId, CancellationToken ct = default) =>
+        SetSignInDisabledAsync(studentId, disabled: false, ct);
+
+    private async Task SetSignInDisabledAsync(int studentId, bool disabled, CancellationToken ct)
+    {
+        RequireAdmin();
+
+        var identityUser = await FindStudentAccountAsync(studentId, ct);
+        if (identityUser.SignInDisabled == disabled)
+        {
+            return;
+        }
+
+        identityUser.SignInDisabled = disabled;
+        // Rotates the stamp and saves the flag in one update: existing sessions end at their next
+        // revalidation whichever way the flag moved.
+        ThrowIfFailed(
+            await _userManager.UpdateSecurityStampAsync(identityUser),
+            disabled ? "disable the sign-in" : "restore the sign-in");
+    }
+
+    private async Task<VlmsIdentityUser> FindStudentAccountAsync(int studentId, CancellationToken ct)
+    {
+        var appUserId = await _db.Students.Where(s => s.Id == studentId).Select(s => s.AppUserId).SingleOrDefaultAsync(ct)
+            ?? throw new InvalidOperationException($"Student {studentId} does not have a sign-in yet.");
+
+        var identityUser = await _userManager.FindByIdAsync(appUserId.ToString(System.Globalization.CultureInfo.InvariantCulture))
+            ?? throw new InvalidOperationException($"Student {studentId}'s sign-in account is missing.");
+        if (!StudentSignInPolicy.IsStudentAccount(identityUser))
+        {
+            throw new InvalidOperationException(
+                $"Student {studentId}'s account has an email address, so it is not a student sign-in and can't be changed here.");
+        }
+
+        return identityUser;
+    }
+
+    private static void ThrowIfFailed(IdentityResult result, string action)
+    {
+        if (!result.Succeeded)
+        {
+            throw new InvalidOperationException(
+                $"Could not {action}: {string.Join(" ", result.Errors.Select(e => e.Description))}");
+        }
     }
 
     private async Task<IReadOnlyList<StudentSignInSummary>> SummariesAsync(IQueryable<Student> students, CancellationToken ct)
@@ -177,13 +253,15 @@ public sealed class StudentAccountService
             .ToListAsync(ct);
 
         var accountIds = rows.Where(r => r.AppUserId != null).Select(r => r.AppUserId!.Value).ToList();
-        var usernames = await _db.Users
+        var accounts = await _db.Users
             .Where(u => accountIds.Contains(u.Id))
-            .Select(u => new { u.Id, u.UserName })
-            .ToDictionaryAsync(u => u.Id, u => u.UserName, ct);
+            .Select(u => new { u.Id, u.UserName, u.SignInDisabled })
+            .ToDictionaryAsync(u => u.Id, ct);
 
         return rows
-            .Select(r => new StudentSignInSummary(r.Id, r.Name, r.AppUserId is int id ? usernames.GetValueOrDefault(id) : null))
+            .Select(r => r.AppUserId is int id && accounts.TryGetValue(id, out var account)
+                ? new StudentSignInSummary(r.Id, r.Name, account.UserName, account.SignInDisabled)
+                : new StudentSignInSummary(r.Id, r.Name, null))
             .ToList();
     }
 

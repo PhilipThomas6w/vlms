@@ -110,7 +110,9 @@ $expectedMinimums = @{
     "CertificateAccessServiceTests.cs"  = 8
     # FR-011 student sign-ins (adr/0007): who may create or reset a sign-in, the confirmation rule,
     # and the student page's own-record scoping. Raised RoleAssignmentServiceTests for its two new guards.
-    "StudentAccountServiceTests.cs"     = 23
+    # Raised 22/10/2026 for the sign-in rules (adr/0007 decisions 9-13): password rules, lockout
+    # clearing, disable/restore, persistent student cookie, parent of several children.
+    "StudentAccountServiceTests.cs"     = 42
     "StudentPageServiceTests.cs"        = 4
 }
 
@@ -144,6 +146,10 @@ $hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Infrastructure/Identity/
 $hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Infrastructure/Identity/StudentUsername.cs")
 $hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Infrastructure/Identity/AppUserProvisioningService.cs")
 $hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Infrastructure/Engagement/StudentPageService.cs")
+# adr/0007 decisions 9-13: student password rule, disable flag, persistent student cookie.
+$hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Infrastructure/Identity/StudentSignInPolicy.cs")
+$hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Infrastructure/Identity/VlmsIdentityUser.cs")
+$hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Web/Components/Account/VlmsSignInManager.cs")
 $hashedFiles += $pageFiles
 
 if ($PrintHash) {

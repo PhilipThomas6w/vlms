@@ -10,8 +10,11 @@
 
 <p>
     Students whose parent has created a sign-in for them (FR-011). An Admin can reset a student's
-    password here; only a linked parent can create a sign-in.
+    password, and turn a sign-in off or back on, here; only a linked parent can create a sign-in.
+    Turning a sign-in off signs the student out on every device. A parent's password reset does not
+    turn it back on. A student leaving does not turn it off.
 </p>
+<p>@StudentSignInPolicy.PasswordRuleDescription A reset also clears a lockout.</p>
 
 @if (_errorMessage is not null)
 {
@@ -35,7 +38,9 @@ else
             <tr>
                 <th scope="col">Student</th>
                 <th scope="col">Username</th>
+                <th scope="col">Status</th>
                 <th scope="col">Reset password</th>
+                <th scope="col">Sign-in</th>
             </tr>
         </thead>
         <tbody>
@@ -44,10 +49,21 @@ else
                 <tr>
                     <th scope="row">@student.StudentName</th>
                     <td>@student.Username</td>
+                    <td>@(student.SignInDisabled ? "Turned off" : "Active")</td>
                     <td>
                         <label for="password@(student.StudentId)">New password for @student.StudentName</label>
                         <input type="password" id="password@(student.StudentId)" @bind="_passwords[student.StudentId]" autocomplete="new-password" />
                         <button type="button" aria-label="@($"Reset password for {student.StudentName}")" @onclick="() => ResetAsync(student)">Reset password</button>
+                    </td>
+                    <td>
+                        @if (student.SignInDisabled)
+                        {
+                            <button type="button" aria-label="@($"Turn on sign-in for {student.StudentName}")" @onclick="() => SetDisabledAsync(student, false)">Turn on</button>
+                        }
+                        else
+                        {
+                            <button type="button" aria-label="@($"Turn off sign-in for {student.StudentName}")" @onclick="() => SetDisabledAsync(student, true)">Turn off</button>
+                        }
                     </td>
                 </tr>
             }
@@ -97,6 +113,31 @@ else
             {
                 _errorMessage = string.Join(" ", result.Errors);
             }
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or InvalidOperationException)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+
+    private async Task SetDisabledAsync(StudentSignInSummary student, bool disabled)
+    {
+        _errorMessage = null;
+        _statusMessage = null;
+        try
+        {
+            if (disabled)
+            {
+                await StudentAccounts.DisableSignInAsync(student.StudentId);
+                _statusMessage = $"Sign-in turned off for {student.StudentName}. They are signed out on every device within 30 minutes.";
+            }
+            else
+            {
+                await StudentAccounts.RestoreSignInAsync(student.StudentId);
+                _statusMessage = $"Sign-in turned back on for {student.StudentName}.";
+            }
+
+            await LoadAsync();
         }
         catch (Exception ex) when (ex is UnauthorizedAccessException or InvalidOperationException)
         {

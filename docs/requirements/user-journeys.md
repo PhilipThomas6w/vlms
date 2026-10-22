@@ -44,7 +44,7 @@ Each step is marked:
 
 | # | Step | Status | Evidence / gap |
 |---|---|---|---|
-| 1 | Get an account and sign in | Built (not yet checked in the running app) | A linked parent creates the username and password at `/parent/student-sign-ins` (linked from `/parent/dashboard`) and can reset it; an Admin can reset at `/administration/student-sign-ins`. The student signs in at `/Account/Login` with the username (FR-011, `adr/0007-student-sign-in-accounts.md`, `StudentAccountService`). |
+| 1 | Get an account and sign in | Built (not yet checked in the running app) | A linked parent creates the username and password at `/parent/student-sign-ins` (linked from `/parent/dashboard`) and can reset it; an Admin can reset at `/administration/student-sign-ins`. The student signs in at `/Account/Login` with the username (FR-011, `adr/0007-student-sign-in-accounts.md`, `StudentAccountService`). Student passwords need only 8 characters; the student stays signed in on their own device for 90 days between visits (`VlmsSignInManager`); a parent's or Admin's reset clears a lockout. An Admin can turn the sign-in off and on again at `/administration/student-sign-ins`: a turned-off sign-in can't log in, open sessions end within 30 minutes, and a parent's reset doesn't turn it back on. Leaving doesn't turn it off. |
 | 2 | Browse all lessons in every rank and open or download them | Built (not yet checked in the running app) | `/lessons` admits the Student role; linked from `/student`. |
 | 3 | See own rank, completed lessons, badges and certificates | Built (not yet checked in the running app) | `/student` (`StudentPageService`): own record only, resolved from the sign-in, no id in the URL. Badge images from `/badges/{rankId}/image`. |
 | 4 | Download own certificates | Built (not yet checked in the running app) | `/student` links View and Download for each certificate to `GET /certificates/{id}` (inline, or `?download=1`). |
@@ -59,6 +59,7 @@ Each step is marked:
 | 4 | Browse and open all lessons to support learning at home | Built | `/lessons` (Parent role). |
 | 5 | Receive emails on completion, promotion and consent expiry | Built (untested live) | `GuardianNotificationService`. The first real send waits for go-live. |
 | 6 | Submit or renew the annual consent form | Built | `/parent/consent`; Safeguarding Officer or Admin decides on `/safeguarding/consent` (FR-015, ADR-0006), 6f5b5d7. |
+| 7 | Create and reset a sign-in for each of their children | Built (not yet checked in the running app) | One parent account serves every linked child. `/parent/student-sign-ins` lists each linked child with Create sign-in (no sign-in yet) or Reset password (has one), and shows when the school has turned a child's sign-in off (FR-011, `adr/0007`). Tested with a parent of three children. |
 
 ## J6. Admin: run the programme
 

@@ -45,6 +45,8 @@
     <div>
         <label><InputCheckbox @bind-Value="Input.RememberMe" /> Remember me</label>
     </div>
+    @* Students always stay signed in on their own device (VlmsSignInManager, adr/0007). *@
+    <p>Students stay signed in on this device for up to 90 days between visits. On a shared device, log out when you finish.</p>
 
     <button type="submit">Log in</button>
 </EditForm>
@@ -94,6 +96,12 @@
         else if (result.IsLockedOut)
         {
             _errorMessage = "This account is locked after too many failed attempts. Try again in 15 minutes, or reset your password.";
+        }
+        else if (result.IsNotAllowed && !Input.UserName.Contains('@'))
+        {
+            // A student username (never contains '@', adr/0007) is not confirmed only when an Admin
+            // has turned the sign-in off (VlmsUserConfirmation).
+            _errorMessage = "This student sign-in has been turned off. Ask your parent or the school.";
         }
         else if (result.IsNotAllowed)
         {
