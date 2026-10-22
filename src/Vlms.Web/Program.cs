@@ -132,6 +132,12 @@ builder.Services.AddScoped<StudentConsentViewService>();
 builder.Services.AddScoped<ParentDashboardService>();
 builder.Services.AddScoped<StudentRosterService>();
 
+// --- Student sign-ins and the student page (functional.md FR-011, adr/0007-student-sign-in-accounts.md).
+// A linked parent creates a username-and-password sign-in with no email, and resets it (Admins can
+// also reset); StudentPageService resolves the caller's own Student record, never one from the URL.
+builder.Services.AddScoped<StudentAccountService>();
+builder.Services.AddScoped<StudentPageService>();
+
 // --- Admin reporting (STATE.md "Reporting screens: core progress stats + at-risk flagging",
 // functional.md "Reporting (MVP)") — Admin-only (see ProgressReportingService's doc comment for
 // why this isn't the Admin-or-SafeguardingOfficer pattern the consent/DBS pages use). At-risk
@@ -260,10 +266,13 @@ builder.Services.AddAuthentication(options =>
     .AddIdentityCookies();
 
 // Sign-in policy (confirmed email required, lockout) — see VlmsIdentityPolicy's doc comment.
+// VlmsUserConfirmation keeps the confirmed-email rule for every account with an email, and treats
+// an emailless account as confirmed only when it is a student's parent-created sign-in (adr/0007).
 builder.Services.AddIdentityCore<VlmsIdentityUser>(VlmsIdentityPolicy.Apply)
     .AddEntityFrameworkStores<VlmsDbContext>()
     .AddSignInManager()
-    .AddDefaultTokenProviders();
+    .AddDefaultTokenProviders()
+    .AddUserConfirmation<VlmsUserConfirmation>();
 builder.Services.Configure<DataProtectionTokenProviderOptions>(options =>
     options.TokenLifespan = VlmsIdentityPolicy.EmailTokenLifespan);
 builder.Services.AddScoped<AccountEmailService>();

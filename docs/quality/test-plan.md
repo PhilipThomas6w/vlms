@@ -44,7 +44,7 @@ Status: strategy (design gate) plus automated results (13/10/2026) — per ISO/I
 | TC-018 | A teacher marks several students complete for a lesson in one action; a student with lapsed consent is reported as blocked, not skipped | `functional.md` FR-008 |
 | TC-019 | A teacher sees active students with current rank and progress, and can open a student's record | `functional.md` FR-009; automated in `StudentRosterServiceTests` (active-only, assigned-to-me, progress, role refusal) |
 | TC-020 | A student, their linked parent, a teacher and an Admin can download a certificate; an unlinked parent cannot | `functional.md` FR-010 |
-| TC-021 | A student sees their own rank, completions, badges and certificates and no other student's | `functional.md` FR-011 |
+| TC-021 | A student sees their own rank, completions, badges and certificates and no other student's; only a linked parent who hasn't left creates the student's sign-in (one per student, unique non-email username, no email), and that parent or an Admin resets it; the student signs in with the username and holds the Student role; adult confirmation and forgot-password rules are unchanged (automated in `StudentPageServiceTests`, `StudentAccountServiceTests`, `RoleAssignmentServiceTests` Student-role guards, `AccountPagesWiringTests`; `adr/0007`) | `functional.md` FR-011 |
 | TC-022 | Each role's home page and navigation show only that role's actions | `functional.md` FR-012 |
 | TC-023 | Admin and teacher edits to student details are saved; a teacher cannot change status | `functional.md` FR-013 |
 | TC-024 | An Admin sets a rank badge image and it shows on dashboards | `functional.md` FR-014 |

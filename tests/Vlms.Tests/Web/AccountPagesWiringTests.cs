@@ -53,6 +53,20 @@ public sealed class AccountPagesWiringTests
         Assert.Contains("result.IsNotAllowed", login);
     }
 
+    // FR-011, adr/0007: students sign in with a username, not an email, on the same page, and the
+    // confirmation rule that admits them is the registered one.
+    [Fact]
+    public void Login_AcceptsAStudentUsername_AndProgramRegistersTheStudentConfirmationRule()
+    {
+        var login = Read("src", "Vlms.Web", "Components", "Account", "Pages", "Login.razor");
+        var program = Read("src", "Vlms.Web", "Program.cs");
+
+        Assert.DoesNotContain("[EmailAddress]", login);
+        Assert.Contains("PasswordSignInAsync(", login);
+        Assert.Contains("Input.UserName", login);
+        Assert.Contains(".AddUserConfirmation<VlmsUserConfirmation>()", program);
+    }
+
     private static string Read(params string[] parts) =>
         File.ReadAllText(Path.Combine([RepoRoot(), .. parts]));
 

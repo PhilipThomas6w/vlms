@@ -99,7 +99,7 @@ $expectedMinimums = @{
     "GuardianLinkServiceTests.cs"        = 13
     # STATE.md "Admin role assignment + first-Admin bootstrap" (2026-10-11): role grant/revoke and
     # the first-Admin bootstrap are access-control surfaces in their own right.
-    "RoleAssignmentServiceTests.cs"      = 17
+    "RoleAssignmentServiceTests.cs"      = 19
     "FirstAdminBootstrapServiceTests.cs" = 6
     # STATE.md "Password reset + Identity hardening" (2026-10-12): reset/confirmation are the
     # unauthenticated route back into an account.
@@ -108,6 +108,10 @@ $expectedMinimums = @{
     "StudentAdministrationServiceTests.cs" = 13
     # FR-010 certificate view/download: owner, linked-parent and staff access, everything else refused.
     "CertificateAccessServiceTests.cs"  = 8
+    # FR-011 student sign-ins (adr/0007): who may create or reset a sign-in, the confirmation rule,
+    # and the student page's own-record scoping. Raised RoleAssignmentServiceTests for its two new guards.
+    "StudentAccountServiceTests.cs"     = 23
+    "StudentPageServiceTests.cs"        = 4
 }
 
 foreach ($testFileName in $expectedMinimums.Keys) {
@@ -134,6 +138,12 @@ $hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Infrastructure/Identity/
 $hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Infrastructure/Identity/FirstAdminBootstrapService.cs")
 $hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Infrastructure/Identity/AccountEmailService.cs")
 $hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Infrastructure/Identity/VlmsIdentityPolicy.cs")
+# FR-011 student sign-ins (adr/0007).
+$hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Infrastructure/Identity/StudentAccountService.cs")
+$hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Infrastructure/Identity/VlmsUserConfirmation.cs")
+$hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Infrastructure/Identity/StudentUsername.cs")
+$hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Infrastructure/Identity/AppUserProvisioningService.cs")
+$hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Infrastructure/Engagement/StudentPageService.cs")
 $hashedFiles += $pageFiles
 
 if ($PrintHash) {

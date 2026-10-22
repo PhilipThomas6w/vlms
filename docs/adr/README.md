@@ -1,6 +1,6 @@
 # Architecture Decision Records
 
-Status: in progress — 6 ADRs recorded (see below).
+Status: in progress — 7 ADRs recorded (see below).
 
 ADRs are added here as `NNNN-<slug>.md` in Nygard format (Context, Decision, Status, Consequences) as decisions are made during design.
 
@@ -10,3 +10,4 @@ ADRs are added here as `NNNN-<slug>.md` in Nygard format (Context, Decision, Sta
 - `0004-sensitive-data-access-control.md` — `ConsentRecord`/`ConsentSensitiveDetails` entity split + EF Core global query filters + `IMaterializationInterceptor`-based read audit log for `DbsCheck`/`ConsentSensitiveDetails`.
 - `0005-hosting-pivot-self-hosted-vps-postgresql.md` — self-hosted Linux VPS + PostgreSQL + ASP.NET Core Identity + local disk storage; partially supersedes 0001, amends 0003.
 - `0006-parent-consent-and-teacher-read-access.md` — parents submit the annual consent form; `ConsentSensitiveDetails` also readable by Teachers and by the student's linked Parents (amends 0004; `DbsCheck` unchanged).
+- `0007-student-sign-in-accounts.md` — parent-created student sign-ins (username and password, no email); `VlmsUserConfirmation` keeps the confirmed-email rule for adults and admits an emailless account only when it is a student's sign-in (FR-011).

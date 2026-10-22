@@ -302,4 +302,41 @@ public sealed class RoleAssignmentServiceTests : IDisposable
 
         Assert.Empty(await RolesOf(40));
     }
+
+    // FR-011, adr/0007: only a parent creating a student sign-in grants Student.
+    [Fact]
+    public async Task GrantAsync_StudentRole_IsRefused_ToAnyAccount()
+    {
+        using var admin = CreateContext(1, Role.Admin);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => admin.Service.GrantAsync(10, Role.Student));
+
+        Assert.Empty(await RolesOf(10));
+    }
+
+    [Theory]
+    [InlineData(Role.Admin)]
+    [InlineData(Role.Teacher)]
+    [InlineData(Role.Parent)]
+    public async Task GrantAsync_AnyRole_ToAStudentSignIn_IsRefused(Role role)
+    {
+        using (var seed = CreateContext(1, Role.Admin))
+        {
+            seed.Context.Ranks.Add(new Rank { Id = 1, Order = 1, Code = "R1", Name = "Recruit" });
+            seed.Context.AppUsers.Add(new AppUser { Id = 50, DisplayName = "Kid", Email = "" });
+            seed.Context.UserRoles.Add(new UserRole { UserId = 50, Role = Role.Student });
+            seed.Context.Students.Add(new Student
+            {
+                Id = 500, Name = "Kid", DateOfBirth = new DateOnly(2016, 1, 1), CurrentRankId = 1,
+                Status = StudentStatus.Active, EnrolmentDate = new DateOnly(2025, 1, 1), AppUserId = 50
+            });
+            seed.Context.SaveChanges();
+        }
+
+        using var admin = CreateContext(1, Role.Admin);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => admin.Service.GrantAsync(50, role));
+
+        Assert.Equal([Role.Student], await RolesOf(50));
+    }
 }

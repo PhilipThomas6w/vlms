@@ -13,7 +13,9 @@
     Admin-only (STATE.md "Admin role assignment + first-Admin bootstrap"). A new account has no
     roles and can do nothing until a role is granted here. Admin and Safeguarding Officer holders
     must enrol two-factor authentication before those roles take effect. The last remaining Admin
-    cannot lose the Admin role, and a user marked as having left cannot be granted a role.
+    cannot lose the Admin role, and a user marked as having left cannot be granted a role. The
+    Student role comes only from a parent creating their child's sign-in, and a student sign-in
+    can't be given other roles.
 </p>
 
 @if (_errorMessage is not null)
@@ -104,7 +106,7 @@ else
                     <td>
                         @if (!user.HasLeft)
                         {
-                            var available = Enum.GetValues<Role>().Except(user.Roles).ToList();
+                            var available = GrantableRoles(user);
                             if (available.Count > 0)
                             {
                                 var selectId = $"grant-role-{user.UserId}";
@@ -135,6 +137,13 @@ else
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
 
+    // Student is granted only by a parent creating the sign-in, and a student sign-in gets no other
+    // role (FR-011, adr/0007; RoleAssignmentService refuses both).
+    private static List<Role> GrantableRoles(RoleAssignmentService.UserWithRoles user) =>
+        user.Roles.Contains(Role.Student)
+            ? []
+            : Enum.GetValues<Role>().Except(user.Roles).Where(r => r != Role.Student).ToList();
+
     private async Task LoadAsync()
     {
         _awaiting = await RoleAssignmentService.ListAwaitingApprovalAsync();
@@ -143,7 +152,7 @@ else
         _selectedRoles.Clear();
         foreach (var user in _users)
         {
-            var firstAvailable = Enum.GetValues<Role>().Except(user.Roles).Cast<Role?>().FirstOrDefault();
+            var firstAvailable = GrantableRoles(user).Cast<Role?>().FirstOrDefault();
             if (firstAvailable is Role role)
             {
                 _selectedRoles[user.UserId] = role;

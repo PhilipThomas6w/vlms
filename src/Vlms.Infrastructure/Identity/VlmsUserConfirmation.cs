@@ -1,0 +1,42 @@
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+
+namespace Vlms.Infrastructure.Identity;
+
+/// <summary>
+/// What "confirmed" means for <see cref="SignInOptions.RequireConfirmedAccount"/>
+/// (<see cref="VlmsIdentityPolicy"/>), replacing Identity's <see cref="DefaultUserConfirmation{TUser}"/>
+/// (adr/0007-student-sign-in-accounts.md):
+/// <list type="bullet">
+/// <item><b>An account with an email address</b> (every adult account) is confirmed only when that
+/// email is confirmed — exactly the default rule, unchanged.</item>
+/// <item><b>An account with no email address</b> is confirmed only when a <see cref="Domain.Student"/>
+/// record names it as its sign-in (<see cref="Domain.Student.AppUserId"/>). Only
+/// <see cref="StudentAccountService.CreateSignInAsync"/> sets that, for a parent linked to the child,
+/// in the same transaction that creates the account. The parent's act is the confirmation.</item>
+/// </list>
+/// An emailless account that no student points at (which no code path creates) can never sign in,
+/// and an adult cannot drop their email to skip confirmation: no page edits a user's email.
+/// </summary>
+public sealed class VlmsUserConfirmation : IUserConfirmation<VlmsIdentityUser>
+{
+    private readonly VlmsDbContext _db;
+
+    public VlmsUserConfirmation(VlmsDbContext db)
+    {
+        _db = db;
+    }
+
+    public async Task<bool> IsConfirmedAsync(UserManager<VlmsIdentityUser> manager, VlmsIdentityUser user)
+    {
+        ArgumentNullException.ThrowIfNull(manager);
+        ArgumentNullException.ThrowIfNull(user);
+
+        if (!string.IsNullOrEmpty(user.Email))
+        {
+            return await manager.IsEmailConfirmedAsync(user);
+        }
+
+        return await _db.Students.AnyAsync(s => s.AppUserId == user.Id);
+    }
+}

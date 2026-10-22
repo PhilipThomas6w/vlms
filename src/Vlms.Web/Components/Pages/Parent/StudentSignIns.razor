@@ -1,0 +1,174 @@
+@page "/parent/student-sign-ins"
+@attribute [Authorize(Policy = "RequireParent")]
+@rendermode InteractiveServer
+@using Vlms.Infrastructure.Identity
+@inject StudentAccountService StudentAccounts
+
+<PageTitle>Children's sign-ins</PageTitle>
+
+<h1>Children's sign-ins</h1>
+
+<p>
+    Create a sign-in for each of your children so they can see their progress and the lesson library.
+    A sign-in is a username and password: no email address is needed. Your child signs in on the normal
+    log-in page with that username. Only a parent linked to the child can create or reset it.
+</p>
+<p>@StudentUsername.RuleDescription</p>
+<p><a href="/parent/dashboard">Back to my dashboard</a></p>
+
+@if (_errorMessage is not null)
+{
+    <p class="error" role="alert">@_errorMessage</p>
+}
+<p role="status">@_statusMessage</p>
+
+@if (_students is null)
+{
+    <p>Loading…</p>
+}
+else if (_students.Count == 0)
+{
+    <p>No children are currently linked to your account.</p>
+}
+else
+{
+    @foreach (var student in _students)
+    {
+        var form = FormFor(student.StudentId);
+        <section>
+            <h2>@student.StudentName</h2>
+            @if (student.Username is null)
+            {
+                <p>No sign-in yet.</p>
+                <div>
+                    <label for="username@(student.StudentId)">Username for @student.StudentName</label>
+                    <input type="text" id="username@(student.StudentId)" @bind="form.Username" autocomplete="off" aria-required="true" />
+                </div>
+                <div>
+                    <label for="password@(student.StudentId)">Password for @student.StudentName</label>
+                    <input type="password" id="password@(student.StudentId)" @bind="form.Password" autocomplete="new-password" aria-required="true" />
+                </div>
+                <div>
+                    <label for="confirm@(student.StudentId)">Confirm password for @student.StudentName</label>
+                    <input type="password" id="confirm@(student.StudentId)" @bind="form.Confirm" autocomplete="new-password" aria-required="true" />
+                </div>
+                <button type="button" aria-label="@($"Create sign-in for {student.StudentName}")" @onclick="() => CreateAsync(student)">Create sign-in</button>
+            }
+            else
+            {
+                <p>Username: <strong>@student.Username</strong></p>
+                <div>
+                    <label for="password@(student.StudentId)">New password for @student.StudentName</label>
+                    <input type="password" id="password@(student.StudentId)" @bind="form.Password" autocomplete="new-password" aria-required="true" />
+                </div>
+                <div>
+                    <label for="confirm@(student.StudentId)">Confirm new password for @student.StudentName</label>
+                    <input type="password" id="confirm@(student.StudentId)" @bind="form.Confirm" autocomplete="new-password" aria-required="true" />
+                </div>
+                <button type="button" aria-label="@($"Reset password for {student.StudentName}")" @onclick="() => ResetAsync(student)">Reset password</button>
+            }
+        </section>
+    }
+}
+
+@code {
+    private IReadOnlyList<StudentSignInSummary>? _students;
+    private readonly Dictionary<int, SignInForm> _forms = new();
+    private string? _errorMessage;
+    private string? _statusMessage;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            _students = await StudentAccounts.ListForParentAsync();
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _students = [];
+            _errorMessage = ex.Message;
+        }
+    }
+
+    private SignInForm FormFor(int studentId)
+    {
+        if (!_forms.TryGetValue(studentId, out var form))
+        {
+            form = new SignInForm();
+            _forms[studentId] = form;
+        }
+
+        return form;
+    }
+
+    private async Task CreateAsync(StudentSignInSummary student)
+    {
+        var form = FormFor(student.StudentId);
+        if (!PasswordsMatch(form))
+        {
+            return;
+        }
+
+        await RunAsync(
+            () => StudentAccounts.CreateSignInAsync(student.StudentId, form.Username, form.Password),
+            $"Sign-in created for {student.StudentName}. They can now log in with the username {form.Username.Trim()}.");
+    }
+
+    private async Task ResetAsync(StudentSignInSummary student)
+    {
+        var form = FormFor(student.StudentId);
+        if (!PasswordsMatch(form))
+        {
+            return;
+        }
+
+        await RunAsync(
+            () => StudentAccounts.ResetPasswordAsync(student.StudentId, form.Password),
+            $"Password reset for {student.StudentName}.");
+    }
+
+    private bool PasswordsMatch(SignInForm form)
+    {
+        _statusMessage = null;
+        if (form.Password != form.Confirm)
+        {
+            _errorMessage = "The two passwords don't match.";
+            return false;
+        }
+
+        return true;
+    }
+
+    private async Task RunAsync(Func<Task<StudentSignInResult>> action, string successMessage)
+    {
+        _errorMessage = null;
+        _statusMessage = null;
+        try
+        {
+            var result = await action();
+            if (result.Succeeded)
+            {
+                _statusMessage = successMessage;
+                _forms.Clear();
+                await LoadAsync();
+            }
+            else
+            {
+                _errorMessage = string.Join(" ", result.Errors);
+            }
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or InvalidOperationException)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+
+    private sealed class SignInForm
+    {
+        public string Username { get; set; } = "";
+        public string Password { get; set; } = "";
+        public string Confirm { get; set; } = "";
+    }
+}
