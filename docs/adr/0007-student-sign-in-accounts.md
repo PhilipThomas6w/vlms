@@ -23,6 +23,8 @@ The requirement was not to weaken any of this for adults.
    - an account **with** an email is confirmed only when its email is confirmed: the default rule, unchanged;
    - an account **without** an email is confirmed only when a `Student` row's `AppUserId` points at it.
 
+   *Update 22/10/2026:* an adult can now also change their own password while signed in, at `/Account/Manage/ChangePassword` (`PasswordChangeService` over `UserManager.ChangePasswordAsync`, so the adult rule runs and the security stamp rotates). A student account is refused there and in the service: its password is set and reset only by its parent or an Admin.
+
    Only `StudentAccountService.CreateSignInAsync` sets `Student.AppUserId`, for a linked, non-leaver parent, in the same transaction that creates the account. The parent's act is the confirmation. `RequireConfirmedAccount` stays `true`. No page lets a user change or remove their email, so an adult cannot drop their email to skip confirmation; an emailless account that no student points at cannot sign in (tested).
 
    Alternative rejected: create the student account with `EmailConfirmed = true` and no email. It works with the default confirmation, but it records a false fact ("email confirmed") and would admit *any* emailless account that some future code path marks that way, rather than tying admission to the student link.

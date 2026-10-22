@@ -5,6 +5,11 @@
         <Authorized>
             Signed in as @context.User.Identity?.Name
             — <a href="/Account/Manage/TwoFactorAuthentication">Two-factor authentication</a>
+            @* Not for a student sign-in (no email claim, adr/0007): its parent sets its password. *@
+            @if (context.User.HasClaim(c => c.Type == System.Security.Claims.ClaimTypes.Email))
+            {
+                <text>— <a href="/Account/Manage/ChangePassword">Change password</a></text>
+            }
             — <form action="/Account/Logout" method="post" style="display:inline">
                 <AntiforgeryToken />
                 <input type="hidden" name="returnUrl" value="" />

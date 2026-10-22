@@ -291,6 +291,7 @@ builder.Services.ConfigureApplicationCookie(options => options.SlidingExpiration
 builder.Services.Configure<SecurityStampValidatorOptions>(options =>
     options.ValidationInterval = VlmsIdentityPolicy.SecurityStampValidationInterval);
 builder.Services.AddScoped<AccountEmailService>();
+builder.Services.AddScoped<PasswordChangeService>();
 
 var app = builder.Build();
 
