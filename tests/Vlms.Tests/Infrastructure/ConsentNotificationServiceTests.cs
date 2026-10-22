@@ -19,6 +19,7 @@ public sealed class ConsentNotificationServiceTests : IDisposable
     private const string BaseUrl = "https://www.example.test";
     private const string Medical = "Severe asthma (sensitive)";
     private const string Dietary = "Peanut allergy (sensitive)";
+    private const string Sen = "Needs extra time to read (sensitive)";
     private const string Emergency = "Grandma 07000 111222 (sensitive)";
 
     private readonly SqliteConnection _anchorConnection;
@@ -95,7 +96,7 @@ public sealed class ConsentNotificationServiceTests : IDisposable
     }
 
     private static ParentConsentForm Form() =>
-        new("Alex Student", new DateOnly(2012, 1, 1), true, false, true, Emergency, Medical, Dietary);
+        new("Alex Student", new DateOnly(2012, 1, 1), true, false, false, true, Emergency, Medical, Dietary, Sen);
 
     private static void AssertNoSensitiveContent(IEnumerable<NotificationRequest> requests)
     {
@@ -104,6 +105,7 @@ public sealed class ConsentNotificationServiceTests : IDisposable
             var text = r.Subject + r.Body;
             Assert.DoesNotContain("asthma", text, StringComparison.OrdinalIgnoreCase);
             Assert.DoesNotContain("Peanut", text, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("extra time", text, StringComparison.OrdinalIgnoreCase);
             Assert.DoesNotContain("Grandma", text, StringComparison.OrdinalIgnoreCase);
             Assert.DoesNotContain("07000", text);
         }
@@ -223,7 +225,7 @@ public sealed class ConsentNotificationServiceTests : IDisposable
         using var admin = CreateContext(1, Role.Admin);
 
         await admin.Records(fake).RecordAsync(100, new DateOnly(2026, 9, 1), new DateOnly(2027, 8, 31), new DateOnly(2027, 8, 31),
-            true, true, true, 1, "Emergency", null, null);
+            true, true, true, true, 1, "Emergency", null, null, null);
 
         Assert.Empty(fake.SentRequests);
     }

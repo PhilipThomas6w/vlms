@@ -124,7 +124,7 @@ public sealed class GuardianNotificationServiceTests : IDisposable
         context.ConsentRecords.Add(new ConsentRecord
         {
             Id = 1, StudentId = 100, PeriodStart = new DateOnly(2026, 1, 1), PeriodEnd = new DateOnly(2026, 12, 31),
-            PhotoMediaConsent = true, TransportOffsiteConsent = true, DataSharingConsent = true,
+            PhotoMediaConsent = true, TransportConsent = true, OffsiteTripConsent = true, DataSharingConsent = true,
             Status = ConsentStatus.Approved, SubmittedByParentId = 2,
             ExpiryDate = DateOnly.FromDateTime(DateTime.UtcNow.AddMonths(6))
         });

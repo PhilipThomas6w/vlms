@@ -437,7 +437,7 @@ public sealed class RoleChangeTests : IDisposable
     private static ConsentRecord NewConsentRecord(int id, int studentId, int parentId) => new()
     {
         Id = id, StudentId = studentId, PeriodStart = new DateOnly(2026, 1, 1), PeriodEnd = new DateOnly(2026, 12, 31),
-        PhotoMediaConsent = true, TransportOffsiteConsent = true, DataSharingConsent = true,
+        PhotoMediaConsent = true, TransportConsent = true, OffsiteTripConsent = true, DataSharingConsent = true,
         Status = ConsentStatus.Approved, SubmittedByParentId = parentId, ApprovedByUserId = AdminA,
         ExpiryDate = new DateOnly(2026, 12, 31)
     };

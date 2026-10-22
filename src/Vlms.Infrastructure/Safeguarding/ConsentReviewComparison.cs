@@ -59,11 +59,13 @@ public static class ConsentReviewComparison
                 $"{FormatDate(submission.PeriodStart)} to {FormatDate(submission.PeriodEnd)}"),
             Row("Expiry", FormatDate(inForce.ExpiryDate), FormatDate(submission.ExpiryDate)),
             Row("Photo/media consent", YesNo(inForce.PhotoMediaConsent), YesNo(submission.PhotoMediaConsent)),
-            Row("Transport/off-site consent", YesNo(inForce.TransportOffsiteConsent), YesNo(submission.TransportOffsiteConsent)),
+            Row("Transport between sites", YesNo(inForce.TransportConsent), YesNo(submission.TransportConsent)),
+            Row("Off-site trips and outings", YesNo(inForce.OffsiteTripConsent), YesNo(submission.OffsiteTripConsent)),
             Row("Data-sharing consent", YesNo(inForce.DataSharingConsent), YesNo(submission.DataSharingConsent)),
             Row("Emergency contact", Text(inForceDetails?.EmergencyContact), Text(submissionDetails?.EmergencyContact)),
             Row("Emergency medical info", Text(inForceDetails?.EmergencyMedicalInfo), Text(submissionDetails?.EmergencyMedicalInfo)),
-            Row("Dietary/SEN needs", Text(inForceDetails?.DietarySEN), Text(submissionDetails?.DietarySEN)),
+            Row("Dietary requirements", Text(inForceDetails?.DietaryRequirements), Text(submissionDetails?.DietaryRequirements)),
+            Row("Special educational needs", Text(inForceDetails?.SpecialEducationalNeeds), Text(submissionDetails?.SpecialEducationalNeeds)),
         ];
     }
 

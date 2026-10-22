@@ -96,12 +96,14 @@ public sealed class ConsentRecordServiceTests : IDisposable
             periodEnd: new DateOnly(2026, 12, 31),
             expiryDate: new DateOnly(2026, 12, 31),
             photoMediaConsent: true,
-            transportOffsiteConsent: true,
+            transportConsent: true,
+            offsiteTripConsent: false,
             dataSharingConsent: false,
             submittedByParentId: 1,
             emergencyContact: "Jane Parent, 07000 000000",
             emergencyMedicalInfo: "Asthma",
-            dietarySEN: "No nuts",
+            dietaryRequirements: "No nuts",
+            specialEducationalNeeds: "Dyslexia",
             CancellationToken.None);
 
         Assert.Equal(ConsentStatus.Pending, record.Status);
@@ -124,7 +126,7 @@ public sealed class ConsentRecordServiceTests : IDisposable
 
         var record = await sut.RecordAsync(
             100, new DateOnly(2026, 1, 1), new DateOnly(2026, 12, 31), new DateOnly(2026, 12, 31),
-            true, true, true, 1, "Emergency contact", null, null, CancellationToken.None);
+            true, true, true, true, 1, "Emergency contact", null, null, null, CancellationToken.None);
 
         Assert.Equal(ConsentStatus.Pending, record.Status);
     }
@@ -137,7 +139,7 @@ public sealed class ConsentRecordServiceTests : IDisposable
 
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => sut.RecordAsync(
             100, new DateOnly(2026, 1, 1), new DateOnly(2026, 12, 31), new DateOnly(2026, 12, 31),
-            true, true, true, 1, "Emergency contact", null, null, CancellationToken.None));
+            true, true, true, true, 1, "Emergency contact", null, null, null, CancellationToken.None));
 
         using var verify = CreateContext(1, Role.Admin);
         Assert.Empty(verify.Context.ConsentRecords.Where(c => c.StudentId == 100));
@@ -154,7 +156,7 @@ public sealed class ConsentRecordServiceTests : IDisposable
 
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => sut.RecordAsync(
             100, new DateOnly(2026, 1, 1), new DateOnly(2026, 12, 31), new DateOnly(2026, 12, 31),
-            true, true, true, 1, "Emergency contact", null, null, CancellationToken.None));
+            true, true, true, true, 1, "Emergency contact", null, null, null, CancellationToken.None));
 
         using var verify = CreateContext(1, Role.Admin);
         Assert.Empty(verify.Context.ConsentRecords.Where(c => c.StudentId == 100));
@@ -169,7 +171,7 @@ public sealed class ConsentRecordServiceTests : IDisposable
 
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => sut.RecordAsync(
             100, new DateOnly(2026, 1, 1), new DateOnly(2026, 12, 31), new DateOnly(2026, 12, 31),
-            true, true, true, 1, "Emergency contact", null, null, CancellationToken.None));
+            true, true, true, true, 1, "Emergency contact", null, null, null, CancellationToken.None));
     }
 
     [Fact]
@@ -180,7 +182,7 @@ public sealed class ConsentRecordServiceTests : IDisposable
 
         await Assert.ThrowsAsync<ArgumentException>(() => sut.RecordAsync(
             100, new DateOnly(2026, 1, 1), new DateOnly(2026, 12, 31), new DateOnly(2026, 12, 31),
-            true, true, true, 1, "   ", null, null, CancellationToken.None));
+            true, true, true, true, 1, "   ", null, null, null, CancellationToken.None));
     }
 
     [Fact]
@@ -191,7 +193,7 @@ public sealed class ConsentRecordServiceTests : IDisposable
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => sut.RecordAsync(
             9999, new DateOnly(2026, 1, 1), new DateOnly(2026, 12, 31), new DateOnly(2026, 12, 31),
-            true, true, true, 1, "Emergency contact", null, null, CancellationToken.None));
+            true, true, true, true, 1, "Emergency contact", null, null, null, CancellationToken.None));
     }
 
     [Fact]
@@ -202,7 +204,7 @@ public sealed class ConsentRecordServiceTests : IDisposable
         {
             var record = await admin.Service.RecordAsync(
                 100, new DateOnly(2026, 1, 1), new DateOnly(2026, 12, 31), new DateOnly(2026, 12, 31),
-                true, true, true, 1, "Emergency contact", null, null, CancellationToken.None);
+                true, true, true, true, 1, "Emergency contact", null, null, null, CancellationToken.None);
             recordId = record.Id;
         }
 
@@ -221,7 +223,7 @@ public sealed class ConsentRecordServiceTests : IDisposable
         {
             var record = await admin.Service.RecordAsync(
                 100, new DateOnly(2026, 1, 1), new DateOnly(2026, 12, 31), new DateOnly(2026, 12, 31),
-                true, true, true, 1, "Emergency contact", null, null, CancellationToken.None);
+                true, true, true, true, 1, "Emergency contact", null, null, null, CancellationToken.None);
             recordId = record.Id;
         }
 
@@ -239,7 +241,7 @@ public sealed class ConsentRecordServiceTests : IDisposable
         {
             var record = await admin.Service.RecordAsync(
                 100, new DateOnly(2026, 1, 1), new DateOnly(2026, 12, 31), new DateOnly(2026, 12, 31),
-                true, true, true, 1, "Emergency contact", null, null, CancellationToken.None);
+                true, true, true, true, 1, "Emergency contact", null, null, null, CancellationToken.None);
             recordId = record.Id;
         }
 
@@ -260,7 +262,7 @@ public sealed class ConsentRecordServiceTests : IDisposable
         using var admin = CreateContext(1, Role.Admin);
         var record = await admin.Service.RecordAsync(
             100, new DateOnly(2026, 1, 1), new DateOnly(2026, 12, 31), new DateOnly(2026, 12, 31),
-            true, true, true, 1, "Emergency contact", null, null, CancellationToken.None);
+            true, true, true, true, 1, "Emergency contact", null, null, null, CancellationToken.None);
         return record.Id;
     }
 

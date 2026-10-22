@@ -71,17 +71,21 @@ public sealed class ConsentRecordService
         DateOnly periodEnd,
         DateOnly expiryDate,
         bool photoMediaConsent,
-        bool transportOffsiteConsent,
+        bool transportConsent,
+        bool offsiteTripConsent,
         bool dataSharingConsent,
         int submittedByParentId,
         string emergencyContact,
         string? emergencyMedicalInfo,
-        string? dietarySEN,
+        string? dietaryRequirements,
+        string? specialEducationalNeeds,
         CancellationToken ct = default)
     {
         RequireAdminOrSafeguardingOfficer();
         var callerUserId = RequireResolvedUserId();
         ArgumentException.ThrowIfNullOrWhiteSpace(emergencyContact);
+        ParentConsentService.RequireWithinTextLimit(dietaryRequirements, "Dietary requirements");
+        ParentConsentService.RequireWithinTextLimit(specialEducationalNeeds, "Special educational needs");
 
         _ = await _db.Students.SingleAsync(s => s.Id == studentId, ct);
         _ = await _db.ParentGuardians.SingleAsync(p => p.Id == submittedByParentId, ct);
@@ -94,7 +98,8 @@ public sealed class ConsentRecordService
             PeriodStart = periodStart,
             PeriodEnd = periodEnd,
             PhotoMediaConsent = photoMediaConsent,
-            TransportOffsiteConsent = transportOffsiteConsent,
+            TransportConsent = transportConsent,
+            OffsiteTripConsent = offsiteTripConsent,
             DataSharingConsent = dataSharingConsent,
             Status = ConsentStatus.Pending,
             SubmittedByParentId = submittedByParentId,
@@ -110,7 +115,8 @@ public sealed class ConsentRecordService
             ConsentRecordId = recordId,
             EmergencyContact = emergencyContact,
             EmergencyMedicalInfo = emergencyMedicalInfo,
-            DietarySEN = dietarySEN
+            DietaryRequirements = dietaryRequirements,
+            SpecialEducationalNeeds = specialEducationalNeeds
         });
 
         await _db.SaveChangesAsync(ct);

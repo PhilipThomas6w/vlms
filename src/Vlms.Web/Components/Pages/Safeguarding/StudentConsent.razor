@@ -78,7 +78,8 @@ else
         <h2>Consents given</h2>
         <ul>
             <li>Photos and media: @(consent.PhotoMediaConsent ? "Yes" : "No")</li>
-            <li>Transport and off-site trips: @(consent.TransportOffsiteConsent ? "Yes" : "No")</li>
+            <li>Transport between sites: @(consent.TransportConsent ? "Yes" : "No")</li>
+            <li>Off-site trips and outings: @(consent.OffsiteTripConsent ? "Yes" : "No")</li>
             <li>Data sharing: @(consent.DataSharingConsent ? "Yes" : "No")</li>
         </ul>
     }
@@ -91,8 +92,10 @@ else
             <dd>@details.EmergencyContact</dd>
             <dt>Emergency medical information</dt>
             <dd>@(details.EmergencyMedicalInfo ?? "None given")</dd>
-            <dt>Dietary or special educational needs</dt>
-            <dd>@(details.DietarySEN ?? "None given")</dd>
+            <dt>Dietary requirements</dt>
+            <dd>@(details.DietaryRequirements ?? "None given")</dd>
+            <dt>Special educational needs</dt>
+            <dd>@(details.SpecialEducationalNeeds ?? "None given")</dd>
         </dl>
     }
 }

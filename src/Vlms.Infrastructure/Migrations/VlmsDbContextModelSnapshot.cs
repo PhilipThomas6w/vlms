@@ -180,6 +180,10 @@ namespace Vlms.Infrastructure.Migrations
                         .HasColumnType("date")
                         .HasColumnName("expiry_date");
 
+                    b.Property<bool>("OffsiteTripConsent")
+                        .HasColumnType("boolean")
+                        .HasColumnName("offsite_trip_consent");
+
                     b.Property<DateOnly>("PeriodEnd")
                         .HasColumnType("date")
                         .HasColumnName("period_end");
@@ -220,9 +224,9 @@ namespace Vlms.Infrastructure.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("submitted_by_user_id");
 
-                    b.Property<bool>("TransportOffsiteConsent")
+                    b.Property<bool>("TransportConsent")
                         .HasColumnType("boolean")
-                        .HasColumnName("transport_offsite_consent");
+                        .HasColumnName("transport_consent");
 
                     b.HasKey("Id");
 
@@ -247,9 +251,9 @@ namespace Vlms.Infrastructure.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("consent_record_id");
 
-                    b.Property<string>("DietarySEN")
+                    b.Property<string>("DietaryRequirements")
                         .HasColumnType("text")
-                        .HasColumnName("dietary_sen");
+                        .HasColumnName("dietary_requirements");
 
                     b.Property<string>("EmergencyContact")
                         .IsRequired()
@@ -259,6 +263,10 @@ namespace Vlms.Infrastructure.Migrations
                     b.Property<string>("EmergencyMedicalInfo")
                         .HasColumnType("text")
                         .HasColumnName("emergency_medical_info");
+
+                    b.Property<string>("SpecialEducationalNeeds")
+                        .HasColumnType("text")
+                        .HasColumnName("special_educational_needs");
 
                     b.HasKey("Id");
 

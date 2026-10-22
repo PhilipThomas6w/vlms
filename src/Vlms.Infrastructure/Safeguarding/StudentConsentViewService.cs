@@ -102,7 +102,7 @@ public sealed class StudentConsentViewService
             student.Name,
             student.DateOfBirth,
             current is null ? null : ConsentSubmissionSummary.From(current),
-            details is null ? null : new ConsentDetailsView(details.EmergencyContact, details.EmergencyMedicalInfo, details.DietarySEN),
+            details is null ? null : new ConsentDetailsView(details.EmergencyContact, details.EmergencyMedicalInfo, details.DietaryRequirements, details.SpecialEducationalNeeds),
             records.OrderByDescending(c => c.Id).FirstOrDefault()?.Status);
     }
 
