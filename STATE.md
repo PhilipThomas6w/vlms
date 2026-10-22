@@ -75,17 +75,16 @@ Full narrative for Done/Log items to 12/08/2026: `docs/harness/STATE-archive.md`
 - [x] Student sign-ins and student page (FR-011, ADR-0007): parent creates and resets a username/password sign-in per linked child (Admin resets); emailless accounts count as confirmed only when linked to a `Student`; Student role granted only by this flow; `/student`, `/parent/student-sign-ins`, `/administration/student-sign-ins`; no migration — 9b34ffb (Opus subagent), merged 33d2f69; nav links added; full gate exit 0, 746/746 tests, 45 pages; sign-in and the new pages' access re-checked in the running app. Break tests listed in its ASVS row not yet run (Philip); a student signing in has not been tried in the running app (needs the interactive parent page)
 - [x] Request-level end-to-end tests (TC-026): `WebApplicationFactory` over the real pipeline (SQLite, fake email); anonymous redirects, sign-in with and without TOTP, every page for 6 roles plus Teacher+Admin and Teacher+Parent, Access denied, file endpoint; checked to fail on both 500 defects — fa85117 (Sonnet subagent), merged 73dca6e; full gate exit 0, 771/771. Not covered: PostgreSQL-only SQL (audit-log RLS), the rate limiter
 - [x] Role changes take effect immediately (FR-016): roles and MFA re-read on every check; security stamp rotated on role grant/revoke and teacher leaving; stamp check every 1 minute — ec37d53 (Opus subagent), merged df99aa1; full gate exit 0, 785/785. Open for Philip: a teacher marked as left can still sign in
+- [x] Student sign-in rules (ADR-0007 decisions): student passwords 8+ with no complexity (adult rules are Identity's own validator, unchanged); students always get a 90-day sliding persistent cookie; reset clears lockout; Admin disable/restore via `asp_net_users.sign_in_disabled` (migration `AddStudentSignInDisabled`), which a reset never clears; three-child parent tested — 5f0d21a (Opus subagent), merged ec22373; recheck interval reconciled to FR-016's 1 minute; full gate exit 0, 817/817
 
 ## In progress
 Subagents launched 22/10/2026 from `master` (pushed):
-- **Student sign-in rules** (ADR-0007 decisions) — 8+ character passwords with relaxed complexity for students only; stay signed in on the student's own device; reset by parent or Admin clears lockout; Admin disables and restores a student's sign-in (leaving does not); multi-child parent covered by tests. [Opus; holds the migration slot]
+- **One badge per rank** — unique index on `rank_badges.rank_id` (Philip, 22/10/2026). [Haiku; holds the migration slot]
 - **Browser walk of the interactive journeys** — main session, Claude in Chrome on localhost (Philip's permission 22/10/2026).
 
 ## Next
 Fit-for-purpose build plan (Philip, 22/10/2026; `docs/delivery-plan.md` phase 2, `docs/governance/raid.md` I-001). Acceptance for every item below: tests, gate exits 0, **and** the matching steps in `docs/requirements/user-journeys.md` work in the running app for each named role (checked by running it, not inferred from service tests), with their status updated there.
 
-**Queued behind the student sign-in rules item (migration slot)**
-- **One badge per rank** — unique index on `rank_badges.rank_id` (Philip, 22/10/2026). [Haiku; migration]
 
 Delegation (Philip, 22/10/2026): each item runs as a subagent in its own worktree, model in brackets. Items in a wave run in parallel; a wave starts when the items it depends on are merged into `master`.
 
@@ -220,3 +219,4 @@ Ordered by go-live critical path.
 - 2026-10-22: Philip decided ADR-0007 questions, FR-016 (role changes immediate; multiple roles per identity; permissions fixed per role), unique badge index, request-level tests, browser walk. Corrected an earlier report: the Graph secret was never configured on this machine, not invalid
 - 2026-10-22: Request-level tests merged (73dca6e), 771/771. Browser walk waiting for the Claude in Chrome extension to be connected
 - 2026-10-22: FR-016 merged (df99aa1), 785/785. Usage limit reached; student sign-in rules agent still running; badge index and browser walk not started
+- 2026-10-22: Student sign-in rules merged (ec22373), 817/817. Badge index launched
