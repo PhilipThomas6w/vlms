@@ -86,7 +86,7 @@ public sealed class ConsentExpiryJobTests : IDisposable
         PeriodStart = expiryDate.AddYears(-1),
         PeriodEnd = expiryDate,
         PhotoMediaConsent = true,
-        TransportOffsiteConsent = true,
+        TransportConsent = true, OffsiteTripConsent = true,
         DataSharingConsent = true,
         Status = ConsentStatus.Approved,
         SubmittedByParentId = 1,

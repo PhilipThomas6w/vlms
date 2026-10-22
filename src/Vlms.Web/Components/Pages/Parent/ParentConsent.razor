@@ -97,7 +97,10 @@
                 <label><InputCheckbox @bind-Value="_form.PhotoMediaConsent" /> I consent to photos and media of my child</label>
             </div>
             <div>
-                <label><InputCheckbox @bind-Value="_form.TransportOffsiteConsent" /> I consent to transport and off-site trips</label>
+                <label for="transportConsent"><InputCheckbox id="transportConsent" @bind-Value="_form.TransportConsent" /> I consent to my child being transported between our sites (this can be a short trip)</label>
+            </div>
+            <div>
+                <label for="offsiteTripConsent"><InputCheckbox id="offsiteTripConsent" @bind-Value="_form.OffsiteTripConsent" /> I consent to my child going on off-site trips and outings</label>
             </div>
             <div>
                 <label><InputCheckbox @bind-Value="_form.DataSharingConsent" /> I consent to data sharing</label>
@@ -113,8 +116,12 @@
                 <InputTextArea id="medicalInfo" @bind-Value="_form.EmergencyMedicalInfo" />
             </div>
             <div>
-                <label for="dietarySen">Dietary or special educational needs (optional)</label>
-                <InputTextArea id="dietarySen" @bind-Value="_form.DietarySEN" />
+                <label for="dietaryRequirements">Dietary requirements, including allergies (optional)</label>
+                <InputTextArea id="dietaryRequirements" rows="4" maxlength="4000" @bind-Value="_form.DietaryRequirements" />
+            </div>
+            <div>
+                <label for="specialEducationalNeeds">Special educational needs (optional)</label>
+                <InputTextArea id="specialEducationalNeeds" rows="4" maxlength="4000" @bind-Value="_form.SpecialEducationalNeeds" />
             </div>
 
             <button type="submit">Submit for review</button>
@@ -169,11 +176,13 @@
             StudentName = child.StudentName,
             DateOfBirth = child.DateOfBirth.ToDateTime(TimeOnly.MinValue),
             PhotoMediaConsent = latest?.PhotoMediaConsent ?? false,
-            TransportOffsiteConsent = latest?.TransportOffsiteConsent ?? false,
+            TransportConsent = latest?.TransportConsent ?? false,
+            OffsiteTripConsent = latest?.OffsiteTripConsent ?? false,
             DataSharingConsent = latest?.DataSharingConsent ?? false,
             EmergencyContact = details?.EmergencyContact ?? "",
             EmergencyMedicalInfo = details?.EmergencyMedicalInfo ?? "",
-            DietarySEN = details?.DietarySEN ?? ""
+            DietaryRequirements = details?.DietaryRequirements ?? "",
+            SpecialEducationalNeeds = details?.SpecialEducationalNeeds ?? ""
         };
     }
 
@@ -200,11 +209,13 @@
                 _form.StudentName,
                 DateOnly.FromDateTime(_form.DateOfBirth),
                 _form.PhotoMediaConsent,
-                _form.TransportOffsiteConsent,
+                _form.TransportConsent,
+                _form.OffsiteTripConsent,
                 _form.DataSharingConsent,
                 _form.EmergencyContact,
                 string.IsNullOrWhiteSpace(_form.EmergencyMedicalInfo) ? null : _form.EmergencyMedicalInfo,
-                string.IsNullOrWhiteSpace(_form.DietarySEN) ? null : _form.DietarySEN));
+                string.IsNullOrWhiteSpace(_form.DietaryRequirements) ? null : _form.DietaryRequirements,
+                string.IsNullOrWhiteSpace(_form.SpecialEducationalNeeds) ? null : _form.SpecialEducationalNeeds));
 
             _statusMessage = $"Consent form for {_formStudentName} submitted for review.";
             CancelForm();
@@ -223,13 +234,18 @@
 
         public DateTime DateOfBirth { get; set; } = DateTime.Today;
         public bool PhotoMediaConsent { get; set; }
-        public bool TransportOffsiteConsent { get; set; }
+        public bool TransportConsent { get; set; }
+        public bool OffsiteTripConsent { get; set; }
         public bool DataSharingConsent { get; set; }
 
         [Required(ErrorMessage = "Enter an emergency contact.")]
         public string EmergencyContact { get; set; } = "";
 
         public string EmergencyMedicalInfo { get; set; } = "";
-        public string DietarySEN { get; set; } = "";
+        [StringLength(4000, ErrorMessage = "Dietary requirements must be 4000 characters or fewer.")]
+        public string DietaryRequirements { get; set; } = "";
+
+        [StringLength(4000, ErrorMessage = "Special educational needs must be 4000 characters or fewer.")]
+        public string SpecialEducationalNeeds { get; set; } = "";
     }
 }

@@ -76,7 +76,7 @@ public sealed class ParentDashboardServiceTests : IDisposable
         schema.Context.ConsentRecords.Add(new ConsentRecord
         {
             Id = 1, StudentId = 100, PeriodStart = new DateOnly(2025, 1, 1), PeriodEnd = new DateOnly(2026, 1, 1),
-            PhotoMediaConsent = true, TransportOffsiteConsent = true, DataSharingConsent = true,
+            PhotoMediaConsent = true, TransportConsent = true, OffsiteTripConsent = true, DataSharingConsent = true,
             Status = ConsentStatus.Approved, SubmittedByParentId = 1, ExpiryDate = new DateOnly(2026, 12, 31)
         });
 

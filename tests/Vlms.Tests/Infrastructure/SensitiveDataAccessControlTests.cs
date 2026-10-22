@@ -92,7 +92,7 @@ public sealed class SensitiveDataAccessControlTests : IDisposable
         PeriodStart = new DateOnly(2026, 1, 1),
         PeriodEnd = new DateOnly(2026, 12, 31),
         PhotoMediaConsent = true,
-        TransportOffsiteConsent = true,
+        TransportConsent = true, OffsiteTripConsent = true,
         DataSharingConsent = true,
         Status = ConsentStatus.Approved,
         SubmittedByParentId = 1,

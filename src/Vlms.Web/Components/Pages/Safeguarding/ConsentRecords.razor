@@ -97,16 +97,20 @@ else
             <dd>@review.PeriodStart.ToString("d MMMM yyyy") to @review.PeriodEnd.ToString("d MMMM yyyy") (expires @review.ExpiryDate.ToString("d MMMM yyyy"))</dd>
             <dt>Photo/media consent</dt>
             <dd>@(review.PhotoMediaConsent ? "Yes" : "No")</dd>
-            <dt>Transport/off-site consent</dt>
-            <dd>@(review.TransportOffsiteConsent ? "Yes" : "No")</dd>
+            <dt>Transport between sites</dt>
+            <dd>@(review.TransportConsent ? "Yes" : "No")</dd>
+            <dt>Off-site trips and outings</dt>
+            <dd>@(review.OffsiteTripConsent ? "Yes" : "No")</dd>
             <dt>Data-sharing consent</dt>
             <dd>@(review.DataSharingConsent ? "Yes" : "No")</dd>
             <dt>Emergency contact</dt>
             <dd>@details?.EmergencyContact</dd>
             <dt>Emergency medical info</dt>
             <dd>@(details?.EmergencyMedicalInfo ?? "None given")</dd>
-            <dt>Dietary/SEN needs</dt>
-            <dd>@(details?.DietarySEN ?? "None given")</dd>
+            <dt>Dietary requirements</dt>
+            <dd>@(details?.DietaryRequirements ?? "None given")</dd>
+            <dt>Special educational needs</dt>
+            <dd>@(details?.SpecialEducationalNeeds ?? "None given")</dd>
         </dl>
         @if (inForceChanges.Count > 0)
         {
@@ -205,7 +209,10 @@ else
         <label><InputCheckbox @bind-Value="_form.PhotoMediaConsent" /> Photo/media consent</label>
     </div>
     <div>
-        <label><InputCheckbox @bind-Value="_form.TransportOffsiteConsent" /> Transport/off-site consent</label>
+        <label for="transportConsent"><InputCheckbox id="transportConsent" @bind-Value="_form.TransportConsent" /> Transport between our sites</label>
+    </div>
+    <div>
+        <label for="offsiteTripConsent"><InputCheckbox id="offsiteTripConsent" @bind-Value="_form.OffsiteTripConsent" /> Off-site trips and outings</label>
     </div>
     <div>
         <label><InputCheckbox @bind-Value="_form.DataSharingConsent" /> Data-sharing consent</label>
@@ -219,8 +226,12 @@ else
         <InputTextArea id="medicalInfo" @bind-Value="_form.EmergencyMedicalInfo" />
     </div>
     <div>
-        <label for="dietarySen">Dietary/SEN needs</label>
-        <InputTextArea id="dietarySen" @bind-Value="_form.DietarySEN" />
+        <label for="dietaryRequirements">Dietary requirements</label>
+        <InputTextArea id="dietaryRequirements" rows="4" maxlength="4000" @bind-Value="_form.DietaryRequirements" />
+    </div>
+    <div>
+        <label for="specialEducationalNeeds">Special educational needs</label>
+        <InputTextArea id="specialEducationalNeeds" rows="4" maxlength="4000" @bind-Value="_form.SpecialEducationalNeeds" />
     </div>
 
     <button type="submit">Record consent</button>
@@ -281,12 +292,14 @@ else
                 DateOnly.FromDateTime(_form.PeriodEnd),
                 DateOnly.FromDateTime(_form.ExpiryDate),
                 _form.PhotoMediaConsent,
-                _form.TransportOffsiteConsent,
+                _form.TransportConsent,
+                _form.OffsiteTripConsent,
                 _form.DataSharingConsent,
                 _form.SubmittedByParentId,
                 _form.EmergencyContact,
                 string.IsNullOrWhiteSpace(_form.EmergencyMedicalInfo) ? null : _form.EmergencyMedicalInfo,
-                string.IsNullOrWhiteSpace(_form.DietarySEN) ? null : _form.DietarySEN);
+                string.IsNullOrWhiteSpace(_form.DietaryRequirements) ? null : _form.DietaryRequirements,
+                string.IsNullOrWhiteSpace(_form.SpecialEducationalNeeds) ? null : _form.SpecialEducationalNeeds);
 
             _form = new ConsentFormModel();
             _statusMessage = "Consent record created.";
@@ -330,7 +343,7 @@ else
         }
     }
 
-    // EmergencyMedicalInfo/DietarySEN are deliberately not [Required] (ConsentSensitiveDetails
+    // EmergencyMedicalInfo/DietaryRequirements/SpecialEducationalNeeds are deliberately not [Required] (ConsentSensitiveDetails
     // itself only requires EmergencyContact — see the entity) — blank is mapped to null before
     // calling the service, matching data-design.md's nullable fields.
     private sealed class ConsentFormModel
@@ -341,13 +354,18 @@ else
         public DateTime PeriodEnd { get; set; } = DateTime.Today.AddYears(1);
         public DateTime ExpiryDate { get; set; } = DateTime.Today.AddYears(1);
         public bool PhotoMediaConsent { get; set; }
-        public bool TransportOffsiteConsent { get; set; }
+        public bool TransportConsent { get; set; }
+        public bool OffsiteTripConsent { get; set; }
         public bool DataSharingConsent { get; set; }
 
         [Required]
         public string EmergencyContact { get; set; } = "";
 
         public string EmergencyMedicalInfo { get; set; } = "";
-        public string DietarySEN { get; set; } = "";
+        [StringLength(4000)]
+        public string DietaryRequirements { get; set; } = "";
+
+        [StringLength(4000)]
+        public string SpecialEducationalNeeds { get; set; } = "";
     }
 }

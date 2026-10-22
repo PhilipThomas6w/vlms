@@ -19,7 +19,7 @@ public sealed class ConsentReviewComparisonTests
         bool photo = true, DateOnly? expiry = null) => new()
     {
         Id = id, StudentId = 1, PeriodStart = new DateOnly(2026, 1, 1), PeriodEnd = new DateOnly(2026, 12, 31),
-        PhotoMediaConsent = photo, TransportOffsiteConsent = true, DataSharingConsent = true, Status = status,
+        PhotoMediaConsent = photo, TransportConsent = true, OffsiteTripConsent = true, DataSharingConsent = true, Status = status,
         SubmittedByParentId = 1, ExpiryDate = expiry ?? new DateOnly(2026, 12, 31), StudentName = name, StudentDateOfBirth = dob,
     };
 
@@ -73,6 +73,41 @@ public sealed class ConsentReviewComparisonTests
         var update = MakeRecord(2, null, null, photo: false);
         var result = ConsentReviewComparison.CompareWithInForce(update, null, inForce, null);
         Assert.Equal(["Photo/media consent"], result.Where(f => f.Changed).Select(f => f.Label));
+    }
+
+    [Fact]
+    public void TransportAndOffsiteTrips_AreComparedSeparately()
+    {
+        var inForce = MakeRecord(1, null, null, ConsentStatus.Approved);
+        var update = new ConsentRecord
+        {
+            Id = 2, StudentId = 1, PeriodStart = inForce.PeriodStart, PeriodEnd = inForce.PeriodEnd,
+            PhotoMediaConsent = true, TransportConsent = true, OffsiteTripConsent = false, DataSharingConsent = true,
+            Status = ConsentStatus.Pending, SubmittedByParentId = 1, ExpiryDate = inForce.ExpiryDate,
+        };
+        var result = ConsentReviewComparison.CompareWithInForce(update, null, inForce, null);
+        Assert.Equal(["Off-site trips and outings"], result.Where(f => f.Changed).Select(f => f.Label));
+    }
+
+    [Fact]
+    public void DietaryRequirementsAndSpecialEducationalNeeds_AreComparedSeparately()
+    {
+        var inForce = MakeRecord(1, null, null, ConsentStatus.Approved);
+        var update = MakeRecord(2, null, null);
+        var before = new ConsentSensitiveDetails
+        {
+            Id = 1, ConsentRecordId = 1, EmergencyContact = "Jane", DietaryRequirements = "No nuts", SpecialEducationalNeeds = "Dyslexia",
+        };
+        var after = new ConsentSensitiveDetails
+        {
+            Id = 2, ConsentRecordId = 2, EmergencyContact = "Jane", DietaryRequirements = "No nuts", SpecialEducationalNeeds = "Dyslexia and dyscalculia",
+        };
+        var result = ConsentReviewComparison.CompareWithInForce(update, after, inForce, before);
+        var changed = Assert.Single(result, f => f.Changed);
+        Assert.Equal("Special educational needs", changed.Label);
+        Assert.Equal("Dyslexia", changed.Current);
+        Assert.Equal("Dyslexia and dyscalculia", changed.Submitted);
+        Assert.False(result.Single(f => f.Label == "Dietary requirements").Changed);
     }
 
     [Fact]

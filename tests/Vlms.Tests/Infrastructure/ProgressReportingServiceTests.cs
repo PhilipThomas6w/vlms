@@ -179,7 +179,7 @@ public sealed class ProgressReportingServiceTests : IDisposable
             db.ConsentRecords.Add(new ConsentRecord
             {
                 Id = 900, StudentId = 900, PeriodStart = new DateOnly(2024, 1, 1), PeriodEnd = new DateOnly(2026, 12, 31),
-                PhotoMediaConsent = true, TransportOffsiteConsent = true, DataSharingConsent = true,
+                PhotoMediaConsent = true, TransportConsent = true, OffsiteTripConsent = true, DataSharingConsent = true,
                 Status = ConsentStatus.Approved, SubmittedByParentId = 900, ExpiryDate = new DateOnly(2026, 12, 31)
             });
             db.SaveChanges();

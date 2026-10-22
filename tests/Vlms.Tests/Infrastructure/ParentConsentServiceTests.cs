@@ -123,7 +123,7 @@ public sealed class ParentConsentServiceTests : IDisposable
 
     private static ParentConsentForm Form(
         string name = "Alex Student", string emergencyContact = "Jane Parent, 07000 000000", string? medical = "Asthma") =>
-        new(name, new DateOnly(2012, 2, 3), true, false, true, emergencyContact, medical, "No nuts");
+        new(name, new DateOnly(2012, 2, 3), true, true, false, true, emergencyContact, medical, "No nuts", "Dyslexia");
 
     private async Task<int> SubmitAsParentOneAsync(ParentConsentForm? form = null)
     {
@@ -163,10 +163,80 @@ public sealed class ParentConsentServiceTests : IDisposable
 
         var details = await verify.Context.ConsentSensitiveDetails.SingleAsync(d => d.ConsentRecordId == recordId);
         Assert.Equal("Asthma", details.EmergencyMedicalInfo);
-        Assert.Equal("No nuts", details.DietarySEN);
+        Assert.Equal("No nuts", details.DietaryRequirements);
+        Assert.Equal("Dyslexia", details.SpecialEducationalNeeds);
 
         // Submitting does not touch the Student — only approval does (FR-013).
         Assert.Equal("Alex Studnet", (await verify.Context.Students.SingleAsync(s => s.Id == StudentOneId)).Name);
+    }
+
+    [Fact]
+    public async Task Submit_SavesTransportAndOffsiteTripsSeparately_AndDietaryAndSenSeparately()
+    {
+        var recordId = await SubmitAsParentOneAsync(new ParentConsentForm(
+            "Alex Student", new DateOnly(2012, 2, 3), true, false, true, true, "Jane Parent", null, "Vegetarian", null));
+        await DecideAsync(recordId, approve: true);
+        var secondId = await SubmitAsParentOneAsync(new ParentConsentForm(
+            "Alex Student", new DateOnly(2012, 2, 3), true, true, false, true, "Jane Parent", null, null, "Needs a quiet space"));
+
+        using var verify = CreateContext(AdminUserId, Role.Admin);
+        var first = await verify.Context.ConsentRecords.SingleAsync(c => c.Id == recordId);
+        Assert.False(first.TransportConsent);
+        Assert.True(first.OffsiteTripConsent);
+        var second = await verify.Context.ConsentRecords.SingleAsync(c => c.Id == secondId);
+        Assert.True(second.TransportConsent);
+        Assert.False(second.OffsiteTripConsent);
+
+        var d1 = await verify.Context.ConsentSensitiveDetails.SingleAsync(d => d.ConsentRecordId == recordId);
+        Assert.Equal("Vegetarian", d1.DietaryRequirements);
+        Assert.Null(d1.SpecialEducationalNeeds);
+        var d2 = await verify.Context.ConsentSensitiveDetails.SingleAsync(d => d.ConsentRecordId == secondId);
+        Assert.Null(d2.DietaryRequirements);
+        Assert.Equal("Needs a quiet space", d2.SpecialEducationalNeeds);
+
+        using var parent = CreateContext(ParentOneUserId, Role.Parent);
+        var child = Assert.Single(await parent.Parent.GetMyChildrenAsync());
+        Assert.True(child.LatestSubmission?.TransportConsent);
+        Assert.False(child.LatestSubmission?.OffsiteTripConsent);
+        Assert.Null(child.LatestDetails?.DietaryRequirements);
+        Assert.Equal("Needs a quiet space", child.LatestDetails?.SpecialEducationalNeeds);
+    }
+
+    [Fact]
+    public async Task Submit_DietaryOrSenOverTheLimit_IsRefused_AndNothingIsCreated()
+    {
+        var limit = ConsentSensitiveDetails.MaxTextLength;
+        using (var parent = CreateContext(ParentOneUserId, Role.Parent))
+        {
+            await Assert.ThrowsAsync<ArgumentException>(() => parent.Parent.SubmitAsync(StudentOneId, new ParentConsentForm(
+                "Alex Student", new DateOnly(2012, 2, 3), true, true, true, true, "Jane", null, new string('a', limit + 1), null)));
+            await Assert.ThrowsAsync<ArgumentException>(() => parent.Parent.SubmitAsync(StudentOneId, new ParentConsentForm(
+                "Alex Student", new DateOnly(2012, 2, 3), true, true, true, true, "Jane", null, null, new string('a', limit + 1))));
+        }
+
+        using var verify = CreateContext(AdminUserId, Role.Admin);
+        Assert.Empty(await verify.Context.ConsentRecords.ToListAsync());
+
+        // Exactly at the limit is accepted.
+        var id = await SubmitAsParentOneAsync(new ParentConsentForm(
+            "Alex Student", new DateOnly(2012, 2, 3), true, true, true, true, "Jane", null, new string('a', limit), new string('b', limit)));
+        var details = await verify.Context.ConsentSensitiveDetails.SingleAsync(d => d.ConsentRecordId == id);
+        Assert.Equal(limit, details.DietaryRequirements!.Length);
+        Assert.Equal(limit, details.SpecialEducationalNeeds!.Length);
+    }
+
+    [Fact]
+    public async Task StaffRecord_DietaryOrSenOverTheLimit_IsRefused()
+    {
+        var tooLong = new string('a', ConsentSensitiveDetails.MaxTextLength + 1);
+        using var admin = CreateContext(AdminUserId, Role.Admin);
+        await Assert.ThrowsAsync<ArgumentException>(() => admin.Records.RecordAsync(
+            StudentOneId, new DateOnly(2026, 1, 1), new DateOnly(2026, 12, 31), new DateOnly(2026, 12, 31),
+            true, true, true, true, 1, "Contact", null, tooLong, null));
+        await Assert.ThrowsAsync<ArgumentException>(() => admin.Records.RecordAsync(
+            StudentOneId, new DateOnly(2026, 1, 1), new DateOnly(2026, 12, 31), new DateOnly(2026, 12, 31),
+            true, true, true, true, 1, "Contact", null, null, tooLong));
+        Assert.Empty(await admin.Context.ConsentRecords.ToListAsync());
     }
 
     [Fact]
@@ -287,7 +357,7 @@ public sealed class ParentConsentServiceTests : IDisposable
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => teacher.Records.DecideAsync(recordId, approve: true));
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => teacher.Records.RecordAsync(
             StudentOneId, new DateOnly(2026, 1, 1), new DateOnly(2026, 12, 31), new DateOnly(2026, 12, 31),
-            true, true, true, 1, "Contact", null, null));
+            true, true, true, true, 1, "Contact", null, null, null));
     }
 
     [Theory]
@@ -449,7 +519,7 @@ public sealed class ParentConsentServiceTests : IDisposable
         {
             var staff = await admin.Records.RecordAsync(
                 StudentTwoId, new DateOnly(2026, 1, 1), new DateOnly(2026, 12, 31), new DateOnly(2026, 12, 31),
-                true, true, true, 2, "Pat Parent", null, null);
+                true, true, true, true, 2, "Pat Parent", null, null, null);
             Assert.Equal(1, staff.Id);
         }
 

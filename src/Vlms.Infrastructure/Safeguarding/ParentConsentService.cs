@@ -14,17 +14,18 @@ public sealed record ConsentSubmissionSummary(
     DateTime? DecidedAt,
     string? DecisionComments,
     bool PhotoMediaConsent,
-    bool TransportOffsiteConsent,
+    bool TransportConsent,
+    bool OffsiteTripConsent,
     bool DataSharingConsent)
 {
     public static ConsentSubmissionSummary From(ConsentRecord record) => new(
         record.Id, record.Status, record.PeriodStart, record.PeriodEnd, record.ExpiryDate,
         record.SubmittedAt, record.DecidedAt, record.DecisionComments,
-        record.PhotoMediaConsent, record.TransportOffsiteConsent, record.DataSharingConsent);
+        record.PhotoMediaConsent, record.TransportConsent, record.OffsiteTripConsent, record.DataSharingConsent);
 }
 
 /// <summary>The sensitive fields of one submission (<see cref="ConsentSensitiveDetails"/>).</summary>
-public sealed record ConsentDetailsView(string EmergencyContact, string? EmergencyMedicalInfo, string? DietarySEN);
+public sealed record ConsentDetailsView(string EmergencyContact, string? EmergencyMedicalInfo, string? DietaryRequirements, string? SpecialEducationalNeeds);
 
 /// <summary>
 /// One linked child on the parent's consent page. <see cref="CurrentConsent"/> is the latest
@@ -45,11 +46,13 @@ public sealed record ParentConsentForm(
     string StudentName,
     DateOnly StudentDateOfBirth,
     bool PhotoMediaConsent,
-    bool TransportOffsiteConsent,
+    bool TransportConsent,
+    bool OffsiteTripConsent,
     bool DataSharingConsent,
     string EmergencyContact,
     string? EmergencyMedicalInfo,
-    string? DietarySEN);
+    string? DietaryRequirements,
+    string? SpecialEducationalNeeds);
 
 /// <summary>
 /// The parent's own annual consent form (functional.md FR-015, user-journeys.md J5 step 6,
@@ -137,7 +140,7 @@ public sealed class ParentConsentService
                 latest is null ? null : ConsentSubmissionSummary.From(latest),
                 latestDetails is null
                     ? null
-                    : new ConsentDetailsView(latestDetails.EmergencyContact, latestDetails.EmergencyMedicalInfo, latestDetails.DietarySEN));
+                    : new ConsentDetailsView(latestDetails.EmergencyContact, latestDetails.EmergencyMedicalInfo, latestDetails.DietaryRequirements, latestDetails.SpecialEducationalNeeds));
         }).ToList();
     }
 
@@ -162,6 +165,8 @@ public sealed class ParentConsentService
 
         ArgumentException.ThrowIfNullOrWhiteSpace(form.StudentName);
         ArgumentException.ThrowIfNullOrWhiteSpace(form.EmergencyContact);
+        RequireWithinTextLimit(form.DietaryRequirements, "Dietary requirements");
+        RequireWithinTextLimit(form.SpecialEducationalNeeds, "Special educational needs");
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
         if (form.StudentDateOfBirth > today)
         {
@@ -183,7 +188,8 @@ public sealed class ParentConsentService
             PeriodStart = today,
             PeriodEnd = periodEnd,
             PhotoMediaConsent = form.PhotoMediaConsent,
-            TransportOffsiteConsent = form.TransportOffsiteConsent,
+            TransportConsent = form.TransportConsent,
+            OffsiteTripConsent = form.OffsiteTripConsent,
             DataSharingConsent = form.DataSharingConsent,
             Status = ConsentStatus.Pending,
             SubmittedByParentId = parentGuardianId.Value,
@@ -204,11 +210,21 @@ public sealed class ParentConsentService
             ConsentRecordId = recordId,
             EmergencyContact = form.EmergencyContact.Trim(),
             EmergencyMedicalInfo = string.IsNullOrWhiteSpace(form.EmergencyMedicalInfo) ? null : form.EmergencyMedicalInfo.Trim(),
-            DietarySEN = string.IsNullOrWhiteSpace(form.DietarySEN) ? null : form.DietarySEN.Trim()
+            DietaryRequirements = string.IsNullOrWhiteSpace(form.DietaryRequirements) ? null : form.DietaryRequirements.Trim(),
+            SpecialEducationalNeeds = string.IsNullOrWhiteSpace(form.SpecialEducationalNeeds) ? null : form.SpecialEducationalNeeds.Trim()
         });
 
         await _db.SaveChangesAsync(ct);
         return record;
+    }
+
+    /// <summary>Rejects dietary/SEN text longer than <see cref="ConsentSensitiveDetails.MaxTextLength"/> (after trimming).</summary>
+    internal static void RequireWithinTextLimit(string? value, string fieldName)
+    {
+        if (value is not null && value.Trim().Length > ConsentSensitiveDetails.MaxTextLength)
+        {
+            throw new ArgumentException($"{fieldName} must be {ConsentSensitiveDetails.MaxTextLength} characters or fewer.");
+        }
     }
 
     private IQueryable<int> LinkedStudentIds(int userId) =>

@@ -12,10 +12,17 @@ namespace Vlms.Domain;
 /// </summary>
 public sealed class ConsentSensitiveDetails
 {
+    /// <summary>Longest allowed <see cref="DietaryRequirements"/> or <see cref="SpecialEducationalNeeds"/>; the columns are unbounded text, so this is enforced in the services and on the inputs.</summary>
+    public const int MaxTextLength = 4000;
+
     public required int Id { get; init; }
     public required int ConsentRecordId { get; init; }
     public string? EmergencyMedicalInfo { get; init; }
-    public string? DietarySEN { get; init; }
+    /// <summary>Dietary requirements, in full (adr/0008 decision 5). At most <see cref="MaxTextLength"/> characters.</summary>
+    public string? DietaryRequirements { get; init; }
+
+    /// <summary>Special educational needs, in full (adr/0008 decision 5). At most <see cref="MaxTextLength"/> characters.</summary>
+    public string? SpecialEducationalNeeds { get; init; }
     public required string EmergencyContact { get; init; }
 
     public ConsentRecord? ConsentRecord { get; init; }

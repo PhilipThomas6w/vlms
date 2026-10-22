@@ -25,7 +25,12 @@ public sealed class ConsentRecord
     public required DateOnly PeriodStart { get; init; }
     public required DateOnly PeriodEnd { get; init; }
     public required bool PhotoMediaConsent { get; init; }
-    public required bool TransportOffsiteConsent { get; init; }
+    /// <summary>Consent to transport between sites (adr/0008 decision 5); separate from <see cref="OffsiteTripConsent"/>.</summary>
+    public required bool TransportConsent { get; init; }
+
+    /// <summary>Consent to off-site trips and outings (adr/0008 decision 5).</summary>
+    public required bool OffsiteTripConsent { get; init; }
+
     public required bool DataSharingConsent { get; init; }
     public required ConsentStatus Status { get; init; }
     public required int SubmittedByParentId { get; init; }
