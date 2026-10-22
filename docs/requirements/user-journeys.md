@@ -60,6 +60,7 @@ Each step is marked:
 | 5 | Receive emails on completion, promotion and consent expiry | Built (untested live) | `GuardianNotificationService`. The first real send waits for go-live. |
 | 6 | Submit or renew the annual consent form | Built | `/parent/consent`; Safeguarding Officer or Admin decides on `/safeguarding/consent` (FR-015, ADR-0006), 6f5b5d7. |
 | 7 | Create and reset a sign-in for each of their children | Built (not yet checked in the running app) | One parent account serves every linked child. `/parent/student-sign-ins` lists each linked child with Create sign-in (no sign-in yet) or Reset password (has one), and shows when the school has turned a child's sign-in off (FR-011, `adr/0007`). Tested with a parent of three children. |
+| 8 | Change their own password while signed in | Built (not yet checked in the running app) | `/Account/Manage/ChangePassword` (linked from the header once signed in): current password, new password, confirmation; the adult password rule applies and the session stays signed in. Together with step 7 this covers Philip's decision (22/10/2026) that a parent can reset both their own password and each child's. The same page serves every adult role (Admin, Teacher, Approver, Safeguarding Officer); a student is told to ask their parent (FR-011, `adr/0007` decision 1, TC-030). |
 
 ## J6. Admin: run the programme
 
