@@ -7,3 +7,6 @@ artifacts/
 # Seed content: only the manifest is versioned; source files are supplied at seed time (Admin/ holds personal data)
 /seed/*
 !/seed/curriculum.json
+
+# Subagent worktrees
+/.claude/worktrees/

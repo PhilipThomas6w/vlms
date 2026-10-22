@@ -14,6 +14,7 @@ using Vlms.Infrastructure.Notifications;
 using Vlms.Infrastructure.Progress;
 using Vlms.Infrastructure.Registration;
 using Vlms.Infrastructure.Reporting;
+using Vlms.Infrastructure.Administration;
 using Vlms.Infrastructure.Retention;
 using Vlms.Infrastructure.Safeguarding;
 using Vlms.Infrastructure.Security;
@@ -135,6 +136,10 @@ builder.Services.AddScoped<RecordsDueForDeletionService>();
 // feeding RetentionFlagging above — Admin-only, no self-service path (see LeavingService's own doc
 // comment for the schema-placement judgement call on AppUser.HasLeft/LeftAt).
 builder.Services.AddScoped<LeavingService>();
+
+// --- Admin student administration (FR-013: assign teacher, change status) — Admin-only; delegates
+// Active-to-Inactive to LeavingService (see StudentAdministrationService's doc comment).
+builder.Services.AddScoped<StudentAdministrationService>();
 
 // --- Progress tracking (docs/design/low-level-design.md "CompletionService"/"PromotionService"/
 // "CertificateService", STATE.md "Teacher-facing reverse a completion flow") — first wired into
