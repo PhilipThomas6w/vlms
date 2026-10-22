@@ -23,10 +23,21 @@
     <!-- In-memory TestServer for exercising Vlms.Web's real middleware registrations
          (WebHardening: rate limiting, HSTS) without Kestrel, a database or Program.cs's full host. -->
     <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="10.0.13" />
+    <!-- Request-level end-to-end tests: WebApplicationFactory boots the real Program.cs pipeline. -->
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.13" />
   </ItemGroup>
 
   <ItemGroup>
     <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Vlms.Web.csproj sets BlazorDisableThrowNavigationException, which the SDK turns into this runtime
+         switch in Vlms.Web's own runtimeconfig. The in-process test host reads the test project's
+         runtimeconfig instead, so the same switch is set here; without it the end-to-end tests run
+         with the framework default and cannot catch a redirect helper that still throws (the 22/10/2026
+         "every sign-in answers 500" defect). -->
+    <RuntimeHostConfigurationOption Include="Microsoft.AspNetCore.Components.Endpoints.NavigationManager.DisableThrowNavigationException" Value="true" />
   </ItemGroup>
 
   <ItemGroup>

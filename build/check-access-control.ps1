@@ -128,6 +128,26 @@ foreach ($testFileName in $expectedMinimums.Keys) {
     }
 }
 
+# Request-level end-to-end suites (real Vlms.Web pipeline via WebApplicationFactory): anonymous
+# redirects, sign-in, the per-role page matrix and the lesson-file endpoint. Same floor semantics.
+$endToEndRoot = Join-Path $repoRoot "tests/Vlms.Tests/EndToEnd"
+$endToEndMinimums = @{
+    "AccessEndToEndTests.cs"     = 8
+    "RoleMatrixEndToEndTests.cs" = 5
+}
+foreach ($testFileName in $endToEndMinimums.Keys) {
+    $testFilePath = Join-Path $endToEndRoot $testFileName
+    if (-not (Test-Path -LiteralPath $testFilePath)) {
+        $failures += "end-to-end test file missing entirely: tests/Vlms.Tests/EndToEnd/$testFileName"
+        continue
+    }
+    $testContent = Get-Content -Raw -LiteralPath $testFilePath
+    $actualCount = ([regex]::Matches($testContent, '\[Fact\]|\[Theory\]')).Count
+    if ($actualCount -lt $endToEndMinimums[$testFileName]) {
+        $failures += "tests/Vlms.Tests/EndToEnd/$testFileName has only $actualCount test method(s), expected at least $($endToEndMinimums[$testFileName]) — a test appears to have been removed"
+    }
+}
+
 # --- 4. Manual-review checklist currency (content-hash gate) ------------------------------------
 $hashedFiles = @()
 $hashedFiles += Get-ChildItem (Join-Path $repoRoot "src/Vlms.Infrastructure/Authorization") -Filter "*.cs"
