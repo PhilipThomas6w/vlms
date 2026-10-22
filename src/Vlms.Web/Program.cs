@@ -195,8 +195,20 @@ builder.Services.AddScoped<CompletionService>();
 // batch/job context to defer this to, unlike ConsentExpiryNotifier's daily-sweep digest). Sent via
 // Microsoft Graph as noreply@varangians.co.uk (adr/0005 amendment, 12/10/2026) — see
 // GraphEmailSender; the "GraphMail" section, with the client secret supplied only by environment.
-builder.Services.AddSingleton<IEmailSender>(sp =>
-    new GraphEmailSender(GraphEmailOptions.FromConfiguration(sp.GetRequiredService<IConfiguration>())));
+// Development is the exception (Philip's decision, 22/10/2026): the development machine holds no
+// real GraphMail:ClientSecret, so Development writes each email to a folder instead
+// (PickupDirectoryEmailSender, Mail:PickupDirectory). Every other environment is unchanged.
+if (builder.Environment.IsDevelopment())
+{
+    builder.Services.AddSingleton<IEmailSender>(sp => new PickupDirectoryEmailSender(
+        PickupDirectoryEmailSender.ResolveDirectory(sp.GetRequiredService<IConfiguration>()),
+        sp.GetRequiredService<ILogger<PickupDirectoryEmailSender>>()));
+}
+else
+{
+    builder.Services.AddSingleton<IEmailSender>(sp =>
+        new GraphEmailSender(GraphEmailOptions.FromConfiguration(sp.GetRequiredService<IConfiguration>())));
+}
 builder.Services.AddSingleton<INotificationService, NotificationService>();
 
 // --- Authorization: one policy per Role.Enum value (role-based), plus a resource-based
