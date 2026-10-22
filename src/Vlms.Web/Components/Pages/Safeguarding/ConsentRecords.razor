@@ -70,13 +70,31 @@ else
 {
     var details = _sensitiveDetailsByRecordId.GetValueOrDefault(review.Id);
     var student = _students.FirstOrDefault(s => s.Id == review.StudentId);
+    var studentChanges = ConsentReviewComparison.CompareStudentDetails(review, student);
+    var inForce = ConsentReviewComparison.FindInForce(_records, review.StudentId, DateOnly.FromDateTime(DateTime.UtcNow));
+    var inForceChanges = ConsentReviewComparison.CompareWithInForce(
+        review, details, inForce, inForce is null ? null : _sensitiveDetailsByRecordId.GetValueOrDefault(inForce.Id));
     <section aria-labelledby="reviewHeading">
         <h2 id="reviewHeading">Review submission for @_studentNames.GetValueOrDefault(review.StudentId)</h2>
+        @if (studentChanges.Any(f => f.Changed))
+        {
+            <p role="alert"><strong>Check before approving:</strong> approving will replace the student's details on record with the details on this form. Changed: @string.Join(", ", studentChanges.Where(f => f.Changed).Select(f => f.Label.ToLowerInvariant())).</p>
+        }
         <dl>
-            <dt>Name on form</dt>
-            <dd>@(review.StudentName ?? "Not given") (on record: @student?.Name)</dd>
-            <dt>Date of birth on form</dt>
-            <dd>@(review.StudentDateOfBirth?.ToString("d MMMM yyyy") ?? "Not given") (on record: @student?.DateOfBirth.ToString("d MMMM yyyy"))</dd>
+            @foreach (var field in studentChanges)
+            {
+                <dt>@field.Label on form</dt>
+                <dd class="@(field.Changed ? "review-changed" : null)">
+                    @if (field.Changed)
+                    {
+                        <strong>Changed:</strong> <span>was @field.Current on record, now @field.Submitted on form</span>
+                    }
+                    else
+                    {
+                        <span>@field.Submitted (same as record)</span>
+                    }
+                </dd>
+            }
             <dt>Period</dt>
             <dd>@review.PeriodStart.ToString("d MMMM yyyy") to @review.PeriodEnd.ToString("d MMMM yyyy") (expires @review.ExpiryDate.ToString("d MMMM yyyy"))</dd>
             <dt>Photo/media consent</dt>
@@ -92,6 +110,26 @@ else
             <dt>Dietary/SEN needs</dt>
             <dd>@(details?.DietarySEN ?? "None given")</dd>
         </dl>
+        @if (inForceChanges.Count > 0)
+        {
+            <h3>Compared with the consent currently in force</h3>
+            <table>
+                <thead>
+                    <tr><th>Field</th><th>In force</th><th>Submitted</th><th>Result</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var field in inForceChanges)
+                    {
+                        <tr class="@(field.Changed ? "review-changed" : null)">
+                            <th scope="row">@field.Label</th>
+                            <td>@field.Current</td>
+                            <td>@field.Submitted</td>
+                            <td>@(field.Changed ? "Changed" : "Same")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
         <div>
             <label for="decisionComments">Comments (required to reject; the parent will see them)</label>
             <InputTextArea id="decisionComments" @bind-Value="_decisionComments" />
