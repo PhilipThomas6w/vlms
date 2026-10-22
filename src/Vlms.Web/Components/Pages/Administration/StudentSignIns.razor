@@ -1,0 +1,106 @@
+@page "/administration/student-sign-ins"
+@attribute [Authorize(Policy = "RequireAdmin")]
+@rendermode InteractiveServer
+@using Vlms.Infrastructure.Identity
+@inject StudentAccountService StudentAccounts
+
+<PageTitle>Student sign-ins</PageTitle>
+
+<h1>Student sign-ins</h1>
+
+<p>
+    Students whose parent has created a sign-in for them (FR-011). An Admin can reset a student's
+    password here; only a linked parent can create a sign-in.
+</p>
+
+@if (_errorMessage is not null)
+{
+    <p class="error" role="alert">@_errorMessage</p>
+}
+<p role="status">@_statusMessage</p>
+
+@if (_students is null)
+{
+    <p>Loading…</p>
+}
+else if (_students.Count == 0)
+{
+    <p>No student has a sign-in yet.</p>
+}
+else
+{
+    <table>
+        <caption>Students with a sign-in</caption>
+        <thead>
+            <tr>
+                <th scope="col">Student</th>
+                <th scope="col">Username</th>
+                <th scope="col">Reset password</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var student in _students)
+            {
+                <tr>
+                    <th scope="row">@student.StudentName</th>
+                    <td>@student.Username</td>
+                    <td>
+                        <label for="password@(student.StudentId)">New password for @student.StudentName</label>
+                        <input type="password" id="password@(student.StudentId)" @bind="_passwords[student.StudentId]" autocomplete="new-password" />
+                        <button type="button" aria-label="@($"Reset password for {student.StudentName}")" @onclick="() => ResetAsync(student)">Reset password</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private IReadOnlyList<StudentSignInSummary>? _students;
+    private readonly Dictionary<int, string> _passwords = new();
+    private string? _errorMessage;
+    private string? _statusMessage;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            _students = await StudentAccounts.ListWithSignInAsync();
+            _passwords.Clear();
+            foreach (var student in _students)
+            {
+                _passwords[student.StudentId] = "";
+            }
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _students = [];
+            _errorMessage = ex.Message;
+        }
+    }
+
+    private async Task ResetAsync(StudentSignInSummary student)
+    {
+        _errorMessage = null;
+        _statusMessage = null;
+        try
+        {
+            var result = await StudentAccounts.ResetPasswordAsync(student.StudentId, _passwords[student.StudentId]);
+            if (result.Succeeded)
+            {
+                _statusMessage = $"Password reset for {student.StudentName}.";
+                await LoadAsync();
+            }
+            else
+            {
+                _errorMessage = string.Join(" ", result.Errors);
+            }
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or InvalidOperationException)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+}

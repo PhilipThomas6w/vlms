@@ -44,10 +44,10 @@ Each step is marked:
 
 | # | Step | Status | Evidence / gap |
 |---|---|---|---|
-| 1 | Get an account and sign in | **Partial** | `Student` role and `Student.AppUserId` exist, but there is no student invite or account-linking flow. |
-| 2 | Browse all lessons in every rank and open or download them | Partial | `/lessons` admits the Student role, but students can't sign in until FR-011 (student accounts). |
-| 3 | See own rank, completed lessons, badges and certificates | **Missing** | No student page exists. `StudentSelfAccessHandler` authorises it, but nothing uses it. |
-| 4 | Download own certificates | **Built (not yet linked from a student page)** | `GET /certificates/{id}` (`CertificateEndpoint`, `CertificateAccessService`): inline, or `?download=1`. The student page (FR-011) will link to it. |
+| 1 | Get an account and sign in | Built (not yet checked in the running app) | A linked parent creates the username and password at `/parent/student-sign-ins` (linked from `/parent/dashboard`) and can reset it; an Admin can reset at `/administration/student-sign-ins`. The student signs in at `/Account/Login` with the username (FR-011, `adr/0007-student-sign-in-accounts.md`, `StudentAccountService`). |
+| 2 | Browse all lessons in every rank and open or download them | Built (not yet checked in the running app) | `/lessons` admits the Student role; linked from `/student`. |
+| 3 | See own rank, completed lessons, badges and certificates | Built (not yet checked in the running app) | `/student` (`StudentPageService`): own record only, resolved from the sign-in, no id in the URL. Badge images from `/badges/{rankId}/image`. |
+| 4 | Download own certificates | Built (not yet checked in the running app) | `/student` links View and Download for each certificate to `GET /certificates/{id}` (inline, or `?download=1`). |
 
 ## J5. Parent: follow and support their child
 

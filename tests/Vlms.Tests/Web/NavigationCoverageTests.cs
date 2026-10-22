@@ -31,8 +31,8 @@ public class NavigationCoverageTests
     // Reached from list pages, not the nav.
     private static readonly string[] ExcludedRoutes = ["/students/{StudentId:int}", "/students/{StudentId:int}/consent"];
 
-    // Built by a parallel item (student progress page); linked ahead of its merge.
-    private static readonly string[] PendingRoutes = ["/student"];
+    // Routes linked ahead of their page being merged; empty since /student merged (FR-011).
+    private static readonly string[] PendingRoutes = [];
 
     [Fact]
     public void EveryRoutablePage_HasANavLink_WithTheSamePolicy()

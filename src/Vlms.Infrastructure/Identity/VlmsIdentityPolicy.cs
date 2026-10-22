@@ -11,6 +11,9 @@ namespace Vlms.Infrastructure.Identity;
 /// else's email, and an Admin working through the waiting-for-approval list could grant a role to
 /// what looks like a known person's account. Guardian accounts are confirmed on creation: the
 /// invite link they used was sent to that address (<see cref="AppUserProvisioningService"/>).
+/// Student sign-ins have no email; one counts as confirmed only when a linked parent created it for
+/// a student record (<see cref="VlmsUserConfirmation"/>, adr/0007). The rule for every account
+/// with an email is unchanged.
 ///
 /// <b>Lockout:</b> 5 consecutive failed password or TOTP attempts lock the account for 15 minutes,
 /// for new accounts too. The framework default is 5 attempts / 5 minutes; 15 minutes slows online

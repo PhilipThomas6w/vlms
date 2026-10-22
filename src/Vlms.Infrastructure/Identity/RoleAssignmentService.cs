@@ -22,6 +22,9 @@ namespace Vlms.Infrastructure.Identity;
 /// <item>Granting any role to an <see cref="AppUser"/> marked as having left
 /// (<see cref="AppUser.HasLeft"/>) is refused — a leaver should not regain access through this page.
 /// Revoking from a leaver stays allowed (removing access is always safe).</item>
+/// <item>Granting <see cref="Role.Student"/>, or any role to a student sign-in
+/// (<see cref="Student.AppUserId"/>), is refused (FR-011, adr/0007): only
+/// <see cref="StudentAccountService"/> grants Student, when a linked parent creates the sign-in.</item>
 /// <item>Granting a role already held, or revoking one not held, throws rather than silently
 /// succeeding, so the page reports exactly what happened.</item>
 /// </list>
@@ -143,6 +146,20 @@ public sealed class RoleAssignmentService
         {
             throw new InvalidOperationException(
                 $"{user.DisplayName} has been marked as having left — roles cannot be granted to a leaver.");
+        }
+
+        // FR-011, adr/0007: Student is granted only when a linked parent creates a student sign-in
+        // (StudentAccountService), never here; and a student sign-in gets no other role.
+        if (role == Role.Student)
+        {
+            throw new InvalidOperationException(
+                "The Student role is granted only when a parent creates the student's sign-in.");
+        }
+
+        if (await _db.Students.AnyAsync(s => s.AppUserId == userId, ct))
+        {
+            throw new InvalidOperationException(
+                $"{user.DisplayName} is a student sign-in — it can't be given other roles.");
         }
 
         if (await _db.UserRoles.AnyAsync(r => r.UserId == userId && r.Role == role, ct))

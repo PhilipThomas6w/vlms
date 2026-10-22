@@ -37,7 +37,8 @@ internal static class TestIdentityServices
     /// already trigger for real.
     /// </summary>
     public static ServiceProvider BuildServiceProvider(
-        string connectionString, ICurrentUserContext currentUser, string? publicBaseUrl = "https://test.example")
+        string connectionString, ICurrentUserContext currentUser, string? publicBaseUrl = "https://test.example",
+        Action<IServiceCollection>? configure = null)
     {
         var services = new ServiceCollection();
         services.AddLogging();
@@ -60,6 +61,8 @@ internal static class TestIdentityServices
         services.AddScoped<GuardianInviteService>();
         services.AddScoped<GuardianLinkService>();
         services.AddScoped<AccountEmailService>();
+        services.AddScoped<StudentAccountService>();
+        configure?.Invoke(services);
 
         return services.BuildServiceProvider();
     }

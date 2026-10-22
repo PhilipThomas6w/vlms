@@ -9,7 +9,9 @@ namespace Vlms.Infrastructure.Identity;
 /// <see cref="AppUser"/>'s and <see cref="VlmsIdentityUser"/>'s doc comments). Used by both the
 /// general <c>/Account/Register</c> flow and the guardian invite-accept flow
 /// (<see cref="Guardianship.GuardianInviteService.AcceptAsync"/>) — the two places this codebase
-/// creates an Identity account at all.
+/// creates an adult Identity account — and, through <see cref="CreateStudentSignInAsync"/>, by
+/// <see cref="StudentAccountService"/> for a parent-created student sign-in with no email (FR-011,
+/// adr/0007-student-sign-in-accounts.md).
 ///
 /// **Retires <c>Provisioning/UserProvisioningService</c>, does not adapt it — a deliberate
 /// judgement call, recorded per STATE.md's instruction not to silently drop it:** the old service's
@@ -71,6 +73,12 @@ public sealed class AppUserProvisioningService
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(email);
         ArgumentException.ThrowIfNullOrWhiteSpace(displayName);
+        // An adult's username is its email, so it always contains '@'; a student username never
+        // does (StudentUsername). Enforced here so the two can never collide (adr/0007).
+        if (!email.Contains('@'))
+        {
+            throw new ArgumentException("An adult account's email address must contain '@'.", nameof(email));
+        }
 
         var identityUser = new VlmsIdentityUser
         {
@@ -81,6 +89,42 @@ public sealed class AppUserProvisioningService
             EmailConfirmed = emailConfirmed
         };
 
+        return await CreatePairAsync(identityUser, password, displayName, appUserEmail: email, ct);
+    }
+
+    /// <summary>
+    /// Creates a student sign-in (functional.md FR-011, adr/0007-student-sign-in-accounts.md): a
+    /// <see cref="VlmsIdentityUser"/> with a username and password and <b>no email address</b>, and
+    /// its paired, zero-role <see cref="AppUser"/> (whose required <see cref="AppUser.Email"/> is the
+    /// empty string: there is no address, and no email is ever sent to it). Only
+    /// <see cref="StudentAccountService.CreateSignInAsync"/> calls this, inside its own transaction,
+    /// which also grants <see cref="Role.Student"/> and sets <see cref="Student.AppUserId"/>; that
+    /// link is what makes the account confirmed (<see cref="VlmsUserConfirmation"/>).
+    /// <paramref name="username"/> must already meet <see cref="StudentUsername"/>'s rule; this
+    /// throws otherwise, so an email-shaped or invalid username can never reach the store.
+    /// </summary>
+    public async Task<(IdentityResult Result, VlmsIdentityUser? IdentityUser, AppUser? AppUser)> CreateStudentSignInAsync(
+        string username, string password, string displayName, CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(displayName);
+        if (!StudentUsername.IsValid(username))
+        {
+            throw new ArgumentException(StudentUsername.RuleDescription, nameof(username));
+        }
+
+        var identityUser = new VlmsIdentityUser
+        {
+            UserName = username,
+            Email = null,
+            EmailConfirmed = false
+        };
+
+        return await CreatePairAsync(identityUser, password, displayName, appUserEmail: "", ct);
+    }
+
+    private async Task<(IdentityResult Result, VlmsIdentityUser? IdentityUser, AppUser? AppUser)> CreatePairAsync(
+        VlmsIdentityUser identityUser, string password, string displayName, string appUserEmail, CancellationToken ct)
+    {
         // Ambient-transaction composition — see the class doc comment.
         var ownsTransaction = _db.Database.CurrentTransaction is null;
         var transaction = ownsTransaction ? await _db.Database.BeginTransactionAsync(ct) : null;
@@ -102,7 +146,7 @@ public sealed class AppUserProvisioningService
             {
                 Id = identityUser.Id,
                 DisplayName = displayName,
-                Email = email
+                Email = appUserEmail
             };
             _db.AppUsers.Add(appUser);
             await _db.SaveChangesAsync(ct);

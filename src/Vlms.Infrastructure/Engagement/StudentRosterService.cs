@@ -14,9 +14,9 @@ public sealed record StudentListItem(
 
 public sealed record StudentRecordCompletion(string LessonTitle, string RankName, DateTime CompletedAt);
 
-public sealed record StudentRecordBadge(string RankName, DateTime AwardedAt);
+public sealed record StudentRecordBadge(string RankName, DateTime AwardedAt, int RankId, bool HasImage);
 
-public sealed record StudentRecordCertificate(int CertificateId, string RankName, DateTime GeneratedAt);
+public sealed record StudentRecordCertificate(int CertificateId, string RankName, DateTime GeneratedAt, string LessonTitle);
 
 /// <summary>
 /// One student's record view. Consent is the non-sensitive "current consent" status only
@@ -111,10 +111,19 @@ public sealed class StudentRosterService
     public async Task<StudentRecord?> GetRecordAsync(int studentId, CancellationToken ct = default)
     {
         RequireStaff();
+        return await LoadRecordAsync(_db, studentId, activeOnly: true, ct);
+    }
 
-        var student = await _db.Students
-            .Where(s => s.Id == studentId && s.Status == StudentStatus.Active)
-            .Join(_db.Ranks, s => s.CurrentRankId, r => r.Id,
+    /// <summary>
+    /// Builds one student's record with no caller check of its own. Shared with
+    /// <see cref="StudentPageService"/> (FR-011), which resolves the caller's own student id first;
+    /// every caller must do its own authorization before calling this.
+    /// </summary>
+    internal static async Task<StudentRecord?> LoadRecordAsync(VlmsDbContext db, int studentId, bool activeOnly, CancellationToken ct)
+    {
+        var student = await db.Students
+            .Where(s => s.Id == studentId && (!activeOnly || s.Status == StudentStatus.Active))
+            .Join(db.Ranks, s => s.CurrentRankId, r => r.Id,
                 (s, r) => new { s.Id, s.Name, s.CurrentRankId, RankName = r.Name })
             .SingleOrDefaultAsync(ct);
         if (student is null)
@@ -122,41 +131,45 @@ public sealed class StudentRosterService
             return null;
         }
 
-        var completionRows = await _db.StudentLessonCompletions
+        var completionRows = await db.StudentLessonCompletions
             .Where(c => c.StudentId == studentId && !c.IsReversed)
-            .Join(_db.Lessons, c => c.LessonId, l => l.Id,
+            .Join(db.Lessons, c => c.LessonId, l => l.Id,
                 (c, l) => new { c.Id, c.LessonId, l.RankId, LessonTitle = l.Title, c.CompletedAt })
-            .Join(_db.Ranks, x => x.RankId, r => r.Id,
+            .Join(db.Ranks, x => x.RankId, r => r.Id,
                 (x, r) => new { x.Id, x.LessonId, x.LessonTitle, x.CompletedAt, RankName = r.Name })
             .ToListAsync(ct);
 
-        var rankLessonIds = await _db.Lessons
+        var rankLessonIds = await db.Lessons
             .Where(l => l.IsActive && l.RankId == student.CurrentRankId)
             .Select(l => l.Id)
             .ToListAsync(ct);
         var completed = completionRows.Where(c => rankLessonIds.Contains(c.LessonId)).Select(c => c.LessonId).Distinct().Count();
 
-        var badges = (await _db.StudentBadges
+        var badges = (await db.StudentBadges
                 .Where(b => b.StudentId == studentId)
-                .Join(_db.RankBadges, b => b.RankBadgeId, rb => rb.Id, (b, rb) => new { b.AwardedAt, rb.RankId })
-                .Join(_db.Ranks, x => x.RankId, r => r.Id, (x, r) => new { x.AwardedAt, RankName = r.Name })
+                .Join(db.RankBadges, b => b.RankBadgeId, rb => rb.Id, (b, rb) => new { b.AwardedAt, rb.RankId, rb.ImageBlobKey })
+                .Join(db.Ranks, x => x.RankId, r => r.Id, (x, r) => new { x.AwardedAt, x.RankId, HasImage = x.ImageBlobKey != null, RankName = r.Name })
                 .ToListAsync(ct))
             .OrderBy(b => b.AwardedAt)
-            .Select(b => new StudentRecordBadge(b.RankName, b.AwardedAt))
+            .Select(b => new StudentRecordBadge(b.RankName, b.AwardedAt, b.RankId, b.HasImage))
             .ToList();
 
-        var certificateRows = await _db.Certificates
-            .Where(c => _db.StudentLessonCompletions.Any(slc =>
+        var certificateRows = await db.Certificates
+            .Where(c => db.StudentLessonCompletions.Any(slc =>
                 slc.Id == c.StudentLessonCompletionId && slc.StudentId == studentId && !slc.IsReversed))
             .Select(c => new { c.Id, c.GeneratedAt, c.StudentLessonCompletionId })
             .ToListAsync(ct);
-        var rankByCompletion = completionRows.ToDictionary(c => c.Id, c => c.RankName);
+        var completionById = completionRows.ToDictionary(c => c.Id);
         var certificates = certificateRows
             .OrderBy(c => c.GeneratedAt)
-            .Select(c => new StudentRecordCertificate(c.Id, rankByCompletion.GetValueOrDefault(c.StudentLessonCompletionId, ""), c.GeneratedAt))
+            .Select(c => new StudentRecordCertificate(
+                c.Id,
+                completionById.GetValueOrDefault(c.StudentLessonCompletionId)?.RankName ?? "",
+                c.GeneratedAt,
+                completionById.GetValueOrDefault(c.StudentLessonCompletionId)?.LessonTitle ?? ""))
             .ToList();
 
-        var consents = await _db.ConsentRecords
+        var consents = await db.ConsentRecords
             .Where(c => c.StudentId == studentId)
             .Select(c => new { c.Id, c.Status, c.ExpiryDate })
             .ToListAsync(ct);

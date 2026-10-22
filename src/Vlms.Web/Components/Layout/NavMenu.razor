@@ -13,6 +13,7 @@
         <AuthorizeView Policy="RequireParent">
             <li><a href="/parent/dashboard" aria-current="@Current("/parent/dashboard")">Parent dashboard</a></li>
             <li><a href="/parent/consent" aria-current="@Current("/parent/consent")">Consent form</a></li>
+            <li><a href="/parent/student-sign-ins" aria-current="@Current("/parent/student-sign-ins")">Student sign-ins</a></li>
         </AuthorizeView>
         <AuthorizeView Policy="RequireAdminOrTeacher">
             <li><a href="/students" aria-current="@Current("/students")">Students</a></li>
@@ -35,6 +36,7 @@
         <AuthorizeView Policy="RequireAdmin">
             <li><a href="/administration/students" aria-current="@Current("/administration/students")">Manage students</a></li>
             <li><a href="/administration/user-roles" aria-current="@Current("/administration/user-roles")">User roles</a></li>
+            <li><a href="/administration/student-sign-ins" aria-current="@Current("/administration/student-sign-ins")">Student sign-ins</a></li>
             <li><a href="/administration/rank-badges" aria-current="@Current("/administration/rank-badges")">Rank badges</a></li>
             <li><a href="/reporting" aria-current="@Current("/reporting")">Reporting</a></li>
             <li><a href="/reporting/records-due-for-deletion" aria-current="@Current("/reporting/records-due-for-deletion")">Records due for deletion</a></li>

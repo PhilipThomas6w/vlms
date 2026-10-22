@@ -83,3 +83,12 @@ The same `AnyRoleRequirement`/`AnyRoleAuthorizationHandler` machinery also backs
 - **Waiting for approval** — `ListAwaitingApprovalAsync` lists accounts with no roles that aren't leavers, flagging those created by accepting a guardian invite (`GuardianInvite.ConsumedByAppUserId`) and naming their linked students; `ApproveGuardianAsParentAsync` grants `Parent` to an invite-created account only (self-registrations get a role through the general grant). Shown as the "Waiting for approval" section at the top of `/administration/user-roles`.
 - **Guardian invite acceptance still grants no role.** A guardian who accepts an invite gets an account with zero roles until an Admin grants `Parent` on the role-assignment page — by design: Philip decided (11/10/2026) that an Admin approves every guardian, rather than acceptance granting `Parent` automatically (`docs/requirements/functional.md` FR-004).
 - Both services are in `build/check-access-control.ps1`'s hashed set and have test-count floors there.
+
+## Student sign-ins (FR-011, `docs/adr/0007-student-sign-in-accounts.md`)
+
+- **`StudentAccountService`** (`src/Vlms.Infrastructure/Identity/`) — a linked, non-leaver Parent creates a student's sign-in (username and password, **no email**); that parent or an Admin with MFA resets it. The only code that grants `Role.Student` or sets `Student.AppUserId`; creation is one transaction (Identity row, `AppUser` with `Email = ""`, `UserRole`, conditional `Student.AppUserId` update). Pages: `/parent/student-sign-ins` (linked from `/parent/dashboard`), `/administration/student-sign-ins`.
+- **`VlmsUserConfirmation`** replaces Identity's `DefaultUserConfirmation` (`AddUserConfirmation<T>()` in `Program.cs`): an account with an email must have it confirmed (unchanged); an emailless account is confirmed only when a `Student` row points at it. `RequireConfirmedAccount` stays true.
+- **`StudentUsername`** — 3–32 of `[A-Za-z0-9._-]`, never `@`; adult provisioning now refuses an email without `@`, so usernames can't collide.
+- `RoleAssignmentService.GrantAsync` refuses `Student`, and any role to a student sign-in.
+- Login's field is "Email or student username" (no email validation). Forgot/reset-by-email can't reach a student (no email).
+- **`StudentPageService`** + `/student` (`RequireStudent`): resolves the caller's own record, reusing `StudentRosterService.LoadRecordAsync`.

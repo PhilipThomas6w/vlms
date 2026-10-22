@@ -1,0 +1,119 @@
+@page "/student"
+@attribute [Authorize(Policy = "RequireStudent")]
+@rendermode InteractiveServer
+@using Vlms.Infrastructure.Engagement
+@using Vlms.Web
+@inject StudentPageService StudentPage
+
+@* FR-011, journey J4 steps 3–4. Takes no student id: StudentPageService resolves the signed-in
+   student's own record, so no other student's data can be requested from here. *@
+
+<PageTitle>My progress</PageTitle>
+
+<h1>My progress</h1>
+
+@if (_errorMessage is not null)
+{
+    <p class="error" role="alert">@_errorMessage</p>
+}
+else if (!_loaded)
+{
+    <p>Loading…</p>
+}
+else if (_record is null)
+{
+    <p>Your sign-in isn't linked to a student record. Ask your parent or teacher for help.</p>
+}
+else
+{
+    <p>Hello, @_record.StudentName.</p>
+
+    <h2>Rank</h2>
+    <p>
+        Current rank: <strong>@_record.CurrentRankName</strong>.
+        You have completed @_record.CompletedLessons of @_record.TotalLessons lessons in this rank.
+    </p>
+    @if (_record.TotalLessons > 0)
+    {
+        <progress max="@_record.TotalLessons" value="@_record.CompletedLessons"
+                  aria-label="Lessons completed in @_record.CurrentRankName">@_record.CompletedLessons of @_record.TotalLessons</progress>
+    }
+
+    <p><a href="/lessons">Open the lesson library</a></p>
+
+    <h2>Completed lessons</h2>
+    @if (_record.Completions.Count == 0)
+    {
+        <p>No lessons completed yet.</p>
+    }
+    else
+    {
+        <ul>
+            @foreach (var completion in _record.Completions)
+            {
+                <li>@completion.LessonTitle (@completion.RankName) — @completion.CompletedAt.ToString("d MMMM yyyy")</li>
+            }
+        </ul>
+    }
+
+    <h2>Badges</h2>
+    @if (_record.Badges.Count == 0)
+    {
+        <p>No badges yet.</p>
+    }
+    else
+    {
+        <ul>
+            @foreach (var badge in _record.Badges)
+            {
+                <li>
+                    @if (badge.HasImage)
+                    {
+                        <img src="/badges/@badge.RankId/image" alt="@badge.RankName badge" width="48" height="48" />
+                        <span> </span>
+                    }
+                    @badge.RankName — @badge.AwardedAt.ToString("d MMMM yyyy")
+                </li>
+            }
+        </ul>
+    }
+
+    <h2>Certificates</h2>
+    @if (_record.Certificates.Count == 0)
+    {
+        <p>No certificates yet.</p>
+    }
+    else
+    {
+        <ul>
+            @foreach (var certificate in _record.Certificates)
+            {
+                <li>
+                    @certificate.LessonTitle — @certificate.GeneratedAt.ToString("d MMMM yyyy")
+                    (<a href="@CertificateEndpoint.ViewUrl(certificate.CertificateId)" target="_blank" rel="noopener" aria-label="View certificate for @certificate.LessonTitle (opens in a new tab)" data-enhance-nav="false">View</a>
+                    | <a href="@CertificateEndpoint.DownloadUrl(certificate.CertificateId)" aria-label="Download certificate for @certificate.LessonTitle" data-enhance-nav="false">Download</a>)
+                </li>
+            }
+        </ul>
+    }
+}
+
+@code {
+    private StudentRecord? _record;
+    private bool _loaded;
+    private string? _errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _record = await StudentPage.GetOwnRecordAsync();
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _errorMessage = ex.Message;
+        }
+
+        _loaded = true;
+    }
+}
