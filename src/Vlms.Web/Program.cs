@@ -273,15 +273,21 @@ builder.Services.AddAuthentication(options =>
 // Sign-in policy (confirmed email required, lockout) — see VlmsIdentityPolicy's doc comment.
 // VlmsUserConfirmation keeps the confirmed-email rule for every account with an email, and treats
 // an emailless account as confirmed only when it is a student's parent-created sign-in (adr/0007).
+// Student sign-ins (adr/0007): VlmsPasswordValidator keeps the adult password rules and needs only
+// 8+ characters for a student; VlmsSignInManager gives a student a persistent, 90-day sliding cookie
+// (adults unchanged). Disabled sign-ins fail VlmsUserConfirmation.
 builder.Services.AddIdentityCore<VlmsIdentityUser>(VlmsIdentityPolicy.Apply)
     .AddEntityFrameworkStores<VlmsDbContext>()
-    .AddSignInManager()
+    .AddSignInManager<VlmsSignInManager>()
     .AddDefaultTokenProviders()
-    .AddUserConfirmation<VlmsUserConfirmation>();
+    .AddUserConfirmation<VlmsUserConfirmation>()
+    .AddVlmsPasswordRules();
 builder.Services.Configure<DataProtectionTokenProviderOptions>(options =>
     options.TokenLifespan = VlmsIdentityPolicy.EmailTokenLifespan);
 // Cookie security-stamp check for static SSR requests, explicit rather than the 30-minute default
 // (FR-016; see VlmsIdentityPolicy's doc comment). The circuit's revalidation uses the same interval.
+// Sliding cookie expiry, set explicitly: the student "stay signed in" window (adr/0007) relies on it.
+builder.Services.ConfigureApplicationCookie(options => options.SlidingExpiration = true);
 builder.Services.Configure<SecurityStampValidatorOptions>(options =>
     options.ValidationInterval = VlmsIdentityPolicy.SecurityStampValidationInterval);
 builder.Services.AddScoped<AccountEmailService>();

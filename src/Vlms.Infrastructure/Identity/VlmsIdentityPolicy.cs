@@ -17,8 +17,19 @@ namespace Vlms.Infrastructure.Identity;
 ///
 /// <b>Lockout:</b> 5 consecutive failed password or TOTP attempts lock the account for 15 minutes,
 /// for new accounts too. The framework default is 5 attempts / 5 minutes; 15 minutes slows online
-/// guessing further while keeping a genuine user's wait short. A successful password reset doesn't
-/// clear an active lockout.
+/// guessing further while keeping a genuine user's wait short. An adult's own password reset doesn't
+/// clear an active lockout. A student password reset by their parent or an Admin does
+/// (<see cref="StudentAccountService.ResetPasswordAsync"/>, adr/0007).
+///
+/// <b>Passwords:</b> adult accounts keep Identity's default rules (6+ characters, upper, lower,
+/// digit, symbol). Student sign-ins need only 8+ characters (<see cref="StudentSignInPolicy"/>,
+/// enforced by <see cref="VlmsPasswordValidator"/>).
+///
+/// <b>Session revalidation:</b> the sign-in cookie's security stamp is rechecked every
+/// <see cref="SecurityStampValidationInterval"/> (1 minute, FR-016; see below). This applies to every
+/// cookie, persistent or not, so a student who stays signed in for weeks
+/// (<see cref="StudentSignInPolicy.PersistentSignInLifetime"/>) is still signed out within about a
+/// minute of a reset, disable or restore.
 ///
 /// <b>Email-link lifetime:</b> <see cref="EmailTokenLifespan"/> (2 hours) for password-reset and
 /// email-confirmation links, against the framework's 1-day default — a reset link sitting in an inbox

@@ -855,6 +855,10 @@ namespace Vlms.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("security_stamp");
 
+                    b.Property<bool>("SignInDisabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("sign_in_disabled");
+
                     b.Property<bool>("TwoFactorEnabled")
                         .HasColumnType("boolean")
                         .HasColumnName("two_factor_enabled");

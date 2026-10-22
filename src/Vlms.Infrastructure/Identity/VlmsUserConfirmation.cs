@@ -14,6 +14,8 @@ namespace Vlms.Infrastructure.Identity;
 /// record names it as its sign-in (<see cref="Domain.Student.AppUserId"/>). Only
 /// <see cref="StudentAccountService.CreateSignInAsync"/> sets that, for a parent linked to the child,
 /// in the same transaction that creates the account. The parent's act is the confirmation.</item>
+/// <item><b>An account with <see cref="VlmsIdentityUser.SignInDisabled"/> set</b> is never
+/// confirmed: this is how an Admin's disable stops a student signing in (adr/0007).</item>
 /// </list>
 /// An emailless account that no student points at (which no code path creates) can never sign in,
 /// and an adult cannot drop their email to skip confirmation: no page edits a user's email.
@@ -31,6 +33,11 @@ public sealed class VlmsUserConfirmation : IUserConfirmation<VlmsIdentityUser>
     {
         ArgumentNullException.ThrowIfNull(manager);
         ArgumentNullException.ThrowIfNull(user);
+
+        if (user.SignInDisabled)
+        {
+            return false;
+        }
 
         if (!string.IsNullOrEmpty(user.Email))
         {

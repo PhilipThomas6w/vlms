@@ -28,4 +28,14 @@ namespace Vlms.Infrastructure.Identity;
 /// </summary>
 public sealed class VlmsIdentityUser : IdentityUser<int>
 {
+    /// <summary>
+    /// An Admin has turned this student sign-in off (functional.md FR-011, adr/0007, Philip
+    /// 22/10/2026). A disabled account is not confirmed (<see cref="VlmsUserConfirmation"/>), so it
+    /// can't sign in; disabling also rotates the security stamp, ending existing sessions. Only
+    /// <see cref="StudentAccountService"/> sets or clears it, and a password reset leaves it alone.
+    /// A dedicated flag, not a lockout, because a parent's or Admin's reset clears lockouts; and on
+    /// this row rather than <see cref="Vlms.Domain.Student"/>, whose updates copy every property and
+    /// would silently clear a field they didn't know about.
+    /// </summary>
+    public bool SignInDisabled { get; set; }
 }

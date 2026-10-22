@@ -56,7 +56,9 @@ internal static class TestIdentityServices
         // Identity.Core stands in as the "Default" provider so reset/confirmation tokens work here.
         services.AddIdentityCore<VlmsIdentityUser>()
             .AddEntityFrameworkStores<VlmsDbContext>()
-            .AddTokenProvider<EmailTokenProvider<VlmsIdentityUser>>(TokenOptions.DefaultProvider);
+            .AddTokenProvider<EmailTokenProvider<VlmsIdentityUser>>(TokenOptions.DefaultProvider)
+            // The real password rules, as Program.cs registers them (adr/0007).
+            .AddVlmsPasswordRules();
         services.AddScoped<AppUserProvisioningService>();
         services.AddScoped<GuardianInviteService>();
         services.AddScoped<GuardianLinkService>();
