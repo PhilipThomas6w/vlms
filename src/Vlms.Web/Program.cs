@@ -297,6 +297,9 @@ app.UseHttpsRedirection();
 app.UseRateLimiter();
 
 app.UseAuthentication();
+// Between authentication and authorization: the authorization handlers resolve the caller through
+// AuthenticationStateProvider (see AuthenticationStatePriming's doc comment).
+app.UseAuthenticationStatePriming();
 app.UseAuthorization();
 
 app.UseAntiforgery();
