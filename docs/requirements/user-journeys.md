@@ -64,7 +64,7 @@ Each step is marked:
 
 | # | Step | Status | Evidence / gap |
 |---|---|---|---|
-| 1 | Bootstrap the first Admin, assign roles, approve parents | Built | `Vlms.Jobs bootstrap-admin`, `/administration/user-roles` |
+| 1 | Bootstrap the first Admin, assign roles, approve parents | Built | `Vlms.Jobs bootstrap-admin`, `/administration/user-roles`. A role change takes effect on the user's next action, including in pages already open, and rotates their security stamp (FR-016, `RoleChangeTests`); not yet checked in the running app. |
 | 2 | Register a student and link guardians | Built | `/registration/students`, `/guardianship/links` |
 | 3 | Edit a student (name, assigned teacher, status) | Built | `/administration/students` (Admin: assigned teacher and status). Name and date of birth come from the approved consent form (FR-013), a28a6ac. |
 | 4 | Load the curriculum (ranks, lessons, files) | Built | `Vlms.Jobs seed-curriculum` (`deploy/README.md` §6b); run against local PostgreSQL 22/10/2026: 10 ranks, 56 lessons, 314 files. |

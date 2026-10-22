@@ -31,7 +31,8 @@ internal sealed class IdentityRevalidatingAuthenticationStateProvider(
         IOptions<IdentityOptions> options)
     : RevalidatingServerAuthenticationStateProvider(loggerFactory)
 {
-    protected override TimeSpan RevalidationInterval => TimeSpan.FromMinutes(30);
+    // Same interval as the cookie's SecurityStampValidator (FR-016; VlmsIdentityPolicy's doc comment).
+    protected override TimeSpan RevalidationInterval => VlmsIdentityPolicy.SecurityStampValidationInterval;
 
     protected override async Task<bool> ValidateAuthenticationStateAsync(
         AuthenticationState authenticationState, CancellationToken cancellationToken)

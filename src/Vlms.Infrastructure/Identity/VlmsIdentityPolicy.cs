@@ -26,12 +26,23 @@ namespace Vlms.Infrastructure.Identity;
 /// Configured in Program.cs via <c>DataProtectionTokenProviderOptions</c>, which lives in the
 /// web-only Identity assembly. Every reset also rotates the security stamp, so a used link is dead
 /// and existing sessions are signed out at their next revalidation.
+///
+/// <b>Security-stamp validation interval:</b> <see cref="SecurityStampValidationInterval"/>
+/// (1 minute), against the framework's 30-minute default
+/// (learn.microsoft.com/dotnet/api/microsoft.aspnetcore.identity.securitystampvalidatoroptions.validationinterval).
+/// Used for both the cookie's <c>SecurityStampValidator</c> (static SSR requests, set in Program.cs
+/// via <c>SecurityStampValidatorOptions</c>) and the interactive circuit's
+/// <c>IdentityRevalidatingAuthenticationStateProvider</c>. A rotated stamp (password reset, 2FA
+/// change, role change or leaving — <see cref="SecurityStamps"/>, FR-016) therefore signs existing
+/// sessions out within about a minute. The cost is one user lookup per signed-in user per minute.
+/// Roles and MFA themselves are re-read on every check regardless (<c>IdentityCurrentUserContext</c>).
 /// </summary>
 public static class VlmsIdentityPolicy
 {
     public const int MaxFailedAccessAttempts = 5;
     public static readonly TimeSpan LockoutDuration = TimeSpan.FromMinutes(15);
     public static readonly TimeSpan EmailTokenLifespan = TimeSpan.FromHours(2);
+    public static readonly TimeSpan SecurityStampValidationInterval = TimeSpan.FromMinutes(1);
 
     public static void Apply(IdentityOptions options)
     {

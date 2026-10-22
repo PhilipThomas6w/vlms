@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Vlms.Domain;
 
@@ -29,6 +30,12 @@ namespace Vlms.Infrastructure.Identity;
 /// succeeding, so the page reports exactly what happened.</item>
 /// </list>
 ///
+/// <b>Role changes take effect immediately (FR-016):</b> every grant and revoke also rotates the
+/// user's Identity security stamp (<see cref="SecurityStamps"/>), in the same transaction, so their
+/// existing sign-ins are re-validated; <c>Security.IdentityCurrentUserContext</c> re-reads roles on
+/// every check, so the change applies on the user's next action even in pages already open. An Admin
+/// who changes their own roles is signed out at the next validation and signs in again.
+///
 /// Holding several roles at once is allowed (data-design.md: "A single user may hold more than one
 /// role (e.g. a Teacher who is also the Approver)"). The Approver role still carries no safeguarding
 /// privilege of its own — that separation lives in the policies and query filters, not here.
@@ -37,11 +44,13 @@ public sealed class RoleAssignmentService
 {
     private readonly VlmsDbContext _db;
     private readonly ICurrentUserContext _currentUser;
+    private readonly UserManager<VlmsIdentityUser> _userManager;
 
-    public RoleAssignmentService(VlmsDbContext db, ICurrentUserContext currentUser)
+    public RoleAssignmentService(VlmsDbContext db, ICurrentUserContext currentUser, UserManager<VlmsIdentityUser> userManager)
     {
         _db = db;
         _currentUser = currentUser;
+        _userManager = userManager;
     }
 
     /// <summary>One user and the roles they currently hold, for the role-assignment page.</summary>
@@ -167,8 +176,11 @@ public sealed class RoleAssignmentService
             throw new InvalidOperationException($"{user.DisplayName} already holds the {role} role.");
         }
 
+        await using var transaction = await _db.Database.BeginTransactionAsync(ct);
         _db.UserRoles.Add(new UserRole { UserId = userId, Role = role });
         await _db.SaveChangesAsync(ct);
+        await SecurityStamps.RotateAsync(_userManager, userId);
+        await transaction.CommitAsync(ct);
     }
 
     /// <summary>
@@ -192,8 +204,11 @@ public sealed class RoleAssignmentService
             }
         }
 
+        await using var transaction = await _db.Database.BeginTransactionAsync(ct);
         _db.UserRoles.Remove(userRole);
         await _db.SaveChangesAsync(ct);
+        await SecurityStamps.RotateAsync(_userManager, userId);
+        await transaction.CommitAsync(ct);
     }
 
     private void RequireAdmin()

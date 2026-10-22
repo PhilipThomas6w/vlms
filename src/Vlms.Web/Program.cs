@@ -280,6 +280,10 @@ builder.Services.AddIdentityCore<VlmsIdentityUser>(VlmsIdentityPolicy.Apply)
     .AddUserConfirmation<VlmsUserConfirmation>();
 builder.Services.Configure<DataProtectionTokenProviderOptions>(options =>
     options.TokenLifespan = VlmsIdentityPolicy.EmailTokenLifespan);
+// Cookie security-stamp check for static SSR requests, explicit rather than the 30-minute default
+// (FR-016; see VlmsIdentityPolicy's doc comment). The circuit's revalidation uses the same interval.
+builder.Services.Configure<SecurityStampValidatorOptions>(options =>
+    options.ValidationInterval = VlmsIdentityPolicy.SecurityStampValidationInterval);
 builder.Services.AddScoped<AccountEmailService>();
 
 var app = builder.Build();

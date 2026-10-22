@@ -1,5 +1,7 @@
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Vlms.Domain;
+using Vlms.Infrastructure.Identity;
 
 namespace Vlms.Infrastructure.Retention;
 
@@ -52,11 +54,13 @@ public sealed class LeavingService
 {
     private readonly VlmsDbContext _db;
     private readonly ICurrentUserContext _currentUser;
+    private readonly UserManager<VlmsIdentityUser> _userManager;
 
-    public LeavingService(VlmsDbContext db, ICurrentUserContext currentUser)
+    public LeavingService(VlmsDbContext db, ICurrentUserContext currentUser, UserManager<VlmsIdentityUser> userManager)
     {
         _db = db;
         _currentUser = currentUser;
+        _userManager = userManager;
     }
 
     /// <summary>
@@ -124,6 +128,7 @@ public sealed class LeavingService
         }
 
         var now = DateTime.UtcNow;
+        await using var transaction = await _db.Database.BeginTransactionAsync(ct);
         _db.Entry(teacher).CurrentValues.SetValues(new AppUser
         {
             Id = teacher.Id,
@@ -134,6 +139,9 @@ public sealed class LeavingService
         });
 
         await _db.SaveChangesAsync(ct);
+        // FR-016: leaving changes what the user may do, so their existing sign-ins are re-validated.
+        await SecurityStamps.RotateAsync(_userManager, teacherUserId);
+        await transaction.CommitAsync(ct);
         return teacher;
     }
 
