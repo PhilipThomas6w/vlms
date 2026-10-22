@@ -54,7 +54,11 @@ namespace Vlms.Infrastructure.Guardianship;
 /// moment it exists, so issuing another invite there would be pointless (and, if accepted, would
 /// throw — <c>GuardianInviteService.AcceptAsync</c> rejects accepting an invite for a guardian who
 /// already has an account). See <see cref="Vlms.Domain.GuardianInvite"/>'s doc comment for the full
-/// design.
+/// design. **Amended 22/10/2026 (browser-walk finding):** the decision now lives in
+/// <see cref="GuardianInviteService.InviteOrNotifyAsync"/>. A guardian with an account gets a note
+/// that the child was linked instead of nothing, and a guardian with no account but a usable invite
+/// outstanding gets a note pointing back to it instead of a second invite, so there is one working
+/// invite per guardian.
 ///
 /// **Atomicity (checker-FAIL round-trip fix on the STATE.md "Identity" item):** the link write
 /// (this class's own <c>SaveChangesAsync</c>) and the invite write (a separate
@@ -204,16 +208,13 @@ public sealed class GuardianLinkService
         }
     }
 
-    /// <summary>See this class's doc comment for the exact trigger condition and why.</summary>
-    private async Task IssueInviteIfUnregisteredAsync(int studentId, ParentGuardian guardian, CancellationToken ct)
-    {
-        if (guardian.AppUserId is not null)
-        {
-            return;
-        }
-
-        _ = await _guardianInvites.IssueAsync(studentId, guardian.Id, ct);
-    }
+    /// <summary>
+    /// One working invite per guardian (STATE.md browser-walk finding, 22/10/2026): an invite only
+    /// when the guardian has no account and no usable invite outstanding; otherwise a note that the
+    /// child was linked. See <see cref="GuardianInviteService.InviteOrNotifyAsync"/>.
+    /// </summary>
+    private Task IssueInviteIfUnregisteredAsync(int studentId, ParentGuardian guardian, CancellationToken ct) =>
+        _guardianInvites.InviteOrNotifyAsync(studentId, guardian.Id, ct);
 
     /// <summary>data-design.md's StudentGuardianLink composite key already prevents a duplicate row
     /// at the database level; this checks first so the caller sees a clear message rather than a

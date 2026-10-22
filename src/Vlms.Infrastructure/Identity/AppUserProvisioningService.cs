@@ -93,6 +93,22 @@ public sealed class AppUserProvisioningService
     }
 
     /// <summary>
+    /// The id of the adult account that already owns <paramref name="email"/>, or null if none does
+    /// (functional.md FR-004, 22/10/2026: an invite to an email that already has an account is
+    /// accepted by signing in to it). Looks up by email and then by user name (an adult's user name is
+    /// its email, see <see cref="CreateAsync"/>), both through <see cref="UserManager{TUser}"/>, so the
+    /// address is normalised exactly as Identity normalises it (case-insensitive). Never use the
+    /// result on its own as proof of ownership: the caller must also be signed in as that account.
+    /// </summary>
+    public async Task<int?> FindAdultAccountIdByEmailAsync(string email)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(email);
+        var trimmed = email.Trim();
+        var user = await _userManager.FindByEmailAsync(trimmed) ?? await _userManager.FindByNameAsync(trimmed);
+        return user?.Id;
+    }
+
+    /// <summary>
     /// Creates a student sign-in (functional.md FR-011, adr/0007-student-sign-in-accounts.md): a
     /// <see cref="VlmsIdentityUser"/> with a username and password and <b>no email address</b>, and
     /// its paired, zero-role <see cref="AppUser"/> (whose required <see cref="AppUser.Email"/> is the

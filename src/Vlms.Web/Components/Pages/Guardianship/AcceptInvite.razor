@@ -19,13 +19,34 @@
    replacing the former Microsoft Graph guardian-invitation blocker — see
    GuardianInviteService/GuardianInvite's doc comments for the full token design). *@
 
-<PageTitle>Set up your account</PageTitle>
+<PageTitle>@(_mode == GuardianInviteService.AcceptMode.CreateAccount ? "Set up your account" : "Accept your invite")</PageTitle>
 
-<h1>Set up your account</h1>
+<h1>@(_mode == GuardianInviteService.AcceptMode.CreateAccount ? "Set up your account" : "Accept your invite")</h1>
 
 @if (_errorMessage is not null)
 {
     <p class="error" role="alert">@_errorMessage</p>
+}
+else if (_accepted)
+{
+    <p role="status">Invite accepted. Your account is now linked to the guardian record. Once an Admin has approved you as a parent, your children appear on <a href="parent/dashboard">your dashboard</a>.</p>
+}
+else if (_mode == GuardianInviteService.AcceptMode.SignInRequired)
+{
+    <p>@GuardianInviteService.SignInToAcceptMessage</p>
+    <p><a href="@SignInHref">Sign in to accept</a></p>
+}
+else if (_mode == GuardianInviteService.AcceptMode.SignedInAsDifferentAccount)
+{
+    <p class="error" role="alert">@GuardianInviteService.DifferentAccountMessage</p>
+}
+else if (_mode == GuardianInviteService.AcceptMode.ReadyToLink)
+{
+    <p>Accept this invite to link your account to the guardian record. An Admin then approves you as a parent.</p>
+
+    <EditForm Model="Input" method="post" OnSubmit="AcceptSignedInAsync" FormName="accept-invite-signed-in">
+        <button type="submit">Accept invite</button>
+    </EditForm>
 }
 else
 {
@@ -59,14 +80,56 @@ else
     private string? Token { get; set; }
 
     private string? _errorMessage;
+    private bool _accepted;
+    private GuardianInviteService.AcceptMode _mode = GuardianInviteService.AcceptMode.CreateAccount;
 
-    protected override void OnInitialized()
+    // Back to this page, token and all, after sign-in (including the TOTP step: Login.razor passes
+    // returnUrl on to LoginWith2fa). IdentityRedirectManager only follows relative URLs.
+    private string SignInHref =>
+        "Account/Login?ReturnUrl=" + Uri.EscapeDataString("/guardianship/accept-invite?token=" + Uri.EscapeDataString(Token ?? ""));
+
+    protected override async Task OnInitializedAsync()
     {
         Input ??= new();
 
         if (string.IsNullOrEmpty(Token))
         {
             _errorMessage = "This invite link is missing its token.";
+            return;
+        }
+
+        // functional.md FR-004 (22/10/2026): an invite to an email that already has an account is
+        // accepted by signing in to that account, never by the email match alone.
+        try
+        {
+            _mode = await InviteService.GetAcceptModeAsync(Token);
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or System.Security.Cryptography.CryptographicException)
+        {
+            _errorMessage = ex is System.Security.Cryptography.CryptographicException
+                ? "This invite link is invalid or has expired."
+                : ex.Message;
+        }
+    }
+
+    private async Task AcceptSignedInAsync()
+    {
+        if (string.IsNullOrEmpty(Token))
+        {
+            _errorMessage = "This invite link is missing its token.";
+            return;
+        }
+
+        try
+        {
+            await InviteService.AcceptForSignedInUserAsync(Token);
+            _accepted = true;
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException)
+        {
+            _errorMessage = ex is System.Security.Cryptography.CryptographicException
+                ? "This invite link is invalid or has expired."
+                : ex.Message;
         }
     }
 

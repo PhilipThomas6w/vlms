@@ -25,7 +25,7 @@ namespace Vlms.Tests.Web;
 /// code-behind sets `_statusMessage` on every successful action path, not just that the field
 /// exists.
 ///
-/// Guardianship/AcceptInvite.razor is deliberately excluded — its success path redirects
+/// Guardianship/AcceptInvite.razor's new-account path is deliberately excluded — it redirects
 /// (`RedirectManager.RedirectTo("/parent/dashboard")`) rather than staying on the page with a
 /// silently-reset form, the same "success navigates away" shape already accepted as needing no
 /// in-page status message for Account/Pages/Login.razor and friends. There is nothing to assert a
@@ -73,16 +73,17 @@ public class StatusMessageAccessibilityTests
     }
 
     [Fact]
-    public void AcceptInvite_HasNoStatusRoleElement_BecauseSuccessRedirectsAway()
+    public void AcceptInvite_NewAccountRedirectsAway_AndSignedInAcceptAnnouncesStatus()
     {
-        // Documents the deliberate exclusion (see class doc comment) rather than leaving it silently
-        // unaddressed — if a future change makes AcceptInvite stay on the page after success, this
-        // assertion is the tripwire that says the "redirect away" assumption no longer holds and the
-        // status-message gap needs revisiting for this page too.
+        // The new-account path still redirects away (see class doc comment). Since FR-004's
+        // 22/10/2026 amendment, an existing account signed in to accept stays on the page, so that
+        // path must announce its success through a role="status" element, set by _accepted.
         var content = ReadPage("Guardianship", "AcceptInvite.razor");
 
         Assert.Contains("RedirectManager.RedirectTo(\"/parent/dashboard\")", content);
-        Assert.DoesNotContain("role=\"status\"", content);
+        Assert.Contains("else if (_accepted)", content);
+        Assert.Contains("<p role=\"status\">Invite accepted.", content);
+        Assert.Contains("_accepted = true;", content);
     }
 
     private static string ReadPage(string folder, string fileName)

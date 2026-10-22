@@ -15,9 +15,14 @@ namespace Vlms.Infrastructure.Guardianship;
 /// (when one is issued, what "signed"/"single-use"/"expiring" mean here).
 ///
 /// **Called from <see cref="GuardianLinkService"/>, after a <see cref="StudentGuardianLink"/> is
-/// created, only when the target <see cref="ParentGuardian.AppUserId"/> is still null** — see
-/// <see cref="GuardianLinkService"/>'s own updated doc comment for exactly where this is wired in
-/// and why that condition (not "new vs existing guardian") is the correct one.
+/// created, through <see cref="InviteOrNotifyAsync"/>**, which issues an invite only when the
+/// guardian has no account and no usable invite outstanding (one working invite per guardian), and
+/// otherwise sends a note that the child was linked.
+///
+/// **Two ways to accept (functional.md FR-004, 22/10/2026):** <see cref="AcceptAsync"/> creates a
+/// new account when the invited email has none; when it already belongs to an account (a Teacher
+/// who is also a parent), the invitee signs in to that account and <see cref="AcceptForSignedInUserAsync"/>
+/// links it. <see cref="GetAcceptModeAsync"/> tells the page which applies.
 ///
 /// **Token shape — verified against current ASP.NET Core Data Protection guidance rather than
 /// hand-rolling HMAC signing (CLAUDE.md "verify, don't invent"):** <see cref="IDataProtectionProvider.CreateProtector(string)"/>
@@ -123,21 +128,20 @@ public sealed class GuardianInviteService
     /// <c>HttpContext</c> to write the auth cookie and so deliberately stays in Vlms.Web's
     /// accept-invite page, not here (this project's existing Infrastructure/Web split — Infrastructure
     /// never depends on ASP.NET Core's hosting-only types).
+    ///
+    /// Refused when the invited email already belongs to an account (functional.md FR-004,
+    /// 22/10/2026): that invitee signs in and accepts through <see cref="AcceptForSignedInUserAsync"/>
+    /// instead. Before that decision this path tried to create a second account and failed with
+    /// Identity's "Username is already taken".
     /// </summary>
     public async Task<AppUser> AcceptAsync(string token, string password, CancellationToken ct = default)
     {
         var invite = await ValidateAndLoadInviteAsync(token, ct);
-        var guardian = await _db.ParentGuardians.SingleAsync(g => g.Id == invite.ParentGuardianId, ct);
+        var guardian = await LoadUnlinkedGuardianAsync(invite, ct);
 
-        if (guardian.AppUserId is not null)
+        if (await _provisioning.FindAdultAccountIdByEmailAsync(guardian.ContactInfo) is not null)
         {
-            // Genuinely shouldn't happen — GuardianLinkService only ever issues an invite when
-            // AppUserId is null (see this class's doc comment) — but a second, still-unexpired,
-            // still-unconsumed invite for the same guardian (e.g. issued again by mistake before the
-            // first was used) must still be rejected here rather than silently overwriting an
-            // AppUserId that's since been set by a different path.
-            throw new InvalidOperationException(
-                $"ParentGuardian {guardian.Id} already has an account — this invite is stale.");
+            throw new InvalidOperationException(SignInToAcceptMessage);
         }
 
         await using var transaction = await _db.Database.BeginTransactionAsync(ct);
@@ -151,13 +155,187 @@ public sealed class GuardianInviteService
                 "Account creation failed: " + string.Join("; ", result.Errors.Select(e => e.Description)));
         }
 
+        LinkGuardianAndConsumeInvite(guardian, invite, appUser.Id);
+
+        await _db.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
+
+        return appUser;
+    }
+
+    /// <summary>What the accept-invite page should offer for a valid token (functional.md FR-004).</summary>
+    public enum AcceptMode
+    {
+        /// <summary>No account has the invited email: choose a password to create one.</summary>
+        CreateAccount,
+
+        /// <summary>An account already has the invited email and nobody is signed in: sign in to it to accept.</summary>
+        SignInRequired,
+
+        /// <summary>Signed in as the account that owns the invited email: accepting links it.</summary>
+        ReadyToLink,
+
+        /// <summary>Signed in as some other account: refused, without saying anything about the invited one.</summary>
+        SignedInAsDifferentAccount
+    }
+
+    public const string AlreadyLinkedMessage =
+        "This invite is no longer needed: the guardian it was sent to already has an account. Sign in to that account instead.";
+
+    public const string SignInToAcceptMessage =
+        "An account already exists for the email address this invite was sent to. Sign in to that account to accept the invite.";
+
+    public const string DifferentAccountMessage =
+        "You are signed in with a different account from the one this invite was sent to. Sign out, then sign in with the account the invite was sent to.";
+
+    /// <summary>
+    /// Validates <paramref name="token"/> (signature, expiry, single use, guardian not already
+    /// linked to an account; each refusal throws exactly as <see cref="AcceptAsync"/> does) and says
+    /// which acceptance path applies. Only a holder of a valid token can learn from this that the
+    /// invited email already has an account, which functional.md FR-004 accepts. Writes nothing.
+    /// </summary>
+    public async Task<AcceptMode> GetAcceptModeAsync(string token, CancellationToken ct = default)
+    {
+        var invite = await ValidateAndLoadInviteAsync(token, ct);
+        var guardian = await LoadUnlinkedGuardianAsync(invite, ct);
+
+        var existingAccountId = await _provisioning.FindAdultAccountIdByEmailAsync(guardian.ContactInfo);
+        if (existingAccountId is null)
+        {
+            return AcceptMode.CreateAccount;
+        }
+
+        var callerId = _currentUser.UserId;
+        if (callerId is null)
+        {
+            return AcceptMode.SignInRequired;
+        }
+
+        return callerId == existingAccountId ? AcceptMode.ReadyToLink : AcceptMode.SignedInAsDifferentAccount;
+    }
+
+    /// <summary>
+    /// Accepts <paramref name="token"/> for the signed-in caller's existing account (functional.md
+    /// FR-004, 22/10/2026): sets <see cref="ParentGuardian.AppUserId"/> to the caller and marks the
+    /// invite consumed by them. Grants no role; an Admin still approves the guardian as
+    /// <see cref="Role.Parent"/>, and that grant adds to the roles the account already holds.
+    ///
+    /// <b>Ownership is proved by signing in, never by the email alone:</b> the caller must be signed
+    /// in (<see cref="ICurrentUserContext.UserId"/>, which comes only from the authentication cookie,
+    /// so sign-in including any TOTP step has completed), and must BE the account Identity resolves
+    /// from the invited email (same normalisation as sign-in, so case-insensitive). Any other
+    /// signed-in account is refused with <see cref="DifferentAccountMessage"/>, which names nothing
+    /// about the invited account. A used, expired or tampered token, or a guardian already linked to
+    /// an account, is refused exactly as in <see cref="AcceptAsync"/>, so a guardian record is never
+    /// re-linked to a different identity.
+    /// </summary>
+    public async Task<AppUser> AcceptForSignedInUserAsync(string token, CancellationToken ct = default)
+    {
+        var invite = await ValidateAndLoadInviteAsync(token, ct);
+        var guardian = await LoadUnlinkedGuardianAsync(invite, ct);
+
+        var callerId = _currentUser.UserId
+            ?? throw new UnauthorizedAccessException("Sign in to accept this invite.");
+
+        var existingAccountId = await _provisioning.FindAdultAccountIdByEmailAsync(guardian.ContactInfo);
+        if (existingAccountId != callerId)
+        {
+            throw new InvalidOperationException(DifferentAccountMessage);
+        }
+
+        var appUser = await _db.AppUsers.SingleAsync(u => u.Id == callerId, ct);
+
+        LinkGuardianAndConsumeInvite(guardian, invite, appUser.Id);
+        await _db.SaveChangesAsync(ct);
+
+        return appUser;
+    }
+
+    /// <summary>
+    /// Called by <see cref="GuardianLinkService"/> after it creates a <see cref="StudentGuardianLink"/>.
+    /// Keeps to one working invite per guardian (STATE.md browser-walk finding, 22/10/2026: linking
+    /// a second child used to send a second invite, which then failed as stale once the first was
+    /// used):
+    /// <list type="bullet">
+    /// <item>Guardian already has an account: no invite; a note that the child was linked goes to
+    /// that account's email.</item>
+    /// <item>No account, and an unused invite that has not expired is outstanding: no new invite; a
+    /// note tells the guardian the child was linked and the earlier invite still works. Accepting
+    /// that one invite links the guardian record, which covers every child linked to it.</item>
+    /// <item>No account and no usable invite (none yet, or the earlier one expired): a new invite via
+    /// <see cref="IssueAsync"/>.</item>
+    /// </list>
+    /// Admin/Teacher only, as <see cref="IssueAsync"/>.
+    /// </summary>
+    public async Task InviteOrNotifyAsync(int studentId, int parentGuardianId, CancellationToken ct = default)
+    {
+        RequireAdminOrTeacher();
+
+        var student = await _db.Students.SingleAsync(s => s.Id == studentId, ct);
+        var guardian = await _db.ParentGuardians.SingleAsync(g => g.Id == parentGuardianId, ct);
+
+        if (guardian.AppUserId is int appUserId)
+        {
+            var account = await _db.AppUsers.SingleAsync(u => u.Id == appUserId, ct);
+            var recipient = string.IsNullOrWhiteSpace(account.Email) ? guardian.ContactInfo : account.Email;
+            var dashboard = PublicBaseUrlOrNull() is { } baseUrl ? $"\n\n{baseUrl}/parent/dashboard" : "";
+            await _notificationService.SendAsync(
+                new NotificationRequest(
+                    recipient, guardian.Name, $"{student.Name} has been linked to your account",
+                    $"Hello {guardian.Name},\n\n{student.Name} has been linked to your Varangians LMS account. " +
+                    "Once an Admin has approved you as a parent, you will see them on your dashboard." + dashboard,
+                    NotificationPriority.Standard),
+                ct);
+            return;
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var unused = await _db.GuardianInvites
+            .Where(i => i.ParentGuardianId == parentGuardianId && i.ConsumedAt == null)
+            .ToListAsync(ct);
+        // Filtered in memory: SQLite can't order or compare DateTimeOffset in SQL, and the list is tiny.
+        var usable = unused.Where(i => i.ExpiresAt > now).OrderByDescending(i => i.ExpiresAt).FirstOrDefault();
+
+        if (usable is null)
+        {
+            _ = await IssueAsync(studentId, parentGuardianId, ct);
+            return;
+        }
+
+        await _notificationService.SendAsync(
+            new NotificationRequest(
+                guardian.ContactInfo, guardian.Name, $"{student.Name} has been added to your invite",
+                $"Hello {guardian.Name},\n\n{student.Name} has also been linked to you in the Varangians LMS. " +
+                $"Use the invite email we sent you on {usable.CreatedAt.UtcDateTime:dd/MM/yyyy} to set up your account " +
+                $"(it is valid until {usable.ExpiresAt.UtcDateTime:dd/MM/yyyy}). One account covers all of your children.",
+                NotificationPriority.Standard),
+            ct);
+    }
+
+    private async Task<ParentGuardian> LoadUnlinkedGuardianAsync(GuardianInvite invite, CancellationToken ct)
+    {
+        var guardian = await _db.ParentGuardians.SingleAsync(g => g.Id == invite.ParentGuardianId, ct);
+
+        // A guardian record already linked to an identity is never re-linked (functional.md FR-004).
+        // Reached by a second invite issued before InviteOrNotifyAsync kept to one per guardian, or
+        // after the guardian accepted another invite.
+        if (guardian.AppUserId is not null)
+        {
+            throw new InvalidOperationException(AlreadyLinkedMessage);
+        }
+
+        return guardian;
+    }
+
+    private void LinkGuardianAndConsumeInvite(ParentGuardian guardian, GuardianInvite invite, int appUserId)
+    {
         _db.Entry(guardian).CurrentValues.SetValues(new ParentGuardian
         {
             Id = guardian.Id,
             Name = guardian.Name,
             ContactInfo = guardian.ContactInfo,
             IsPrimary = guardian.IsPrimary,
-            AppUserId = appUser.Id
+            AppUserId = appUserId
         });
 
         _db.Entry(invite).CurrentValues.SetValues(new GuardianInvite
@@ -169,14 +347,11 @@ public sealed class GuardianInviteService
             CreatedAt = invite.CreatedAt,
             ExpiresAt = invite.ExpiresAt,
             ConsumedAt = DateTimeOffset.UtcNow,
-            ConsumedByAppUserId = appUser.Id
+            ConsumedByAppUserId = appUserId
         });
-
-        await _db.SaveChangesAsync(ct);
-        await transaction.CommitAsync(ct);
-
-        return appUser;
     }
+
+    private string? PublicBaseUrlOrNull() => _configuration["App:PublicBaseUrl"]?.TrimEnd('/');
 
     /// <summary>
     /// Unprotects <paramref name="token"/> (throws <see cref="System.Security.Cryptography.CryptographicException"/>

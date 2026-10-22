@@ -25,6 +25,7 @@ public sealed class GuardianInviteServiceTests : IDisposable
 {
     private readonly SqliteConnection _anchorConnection;
     private readonly string _connectionString;
+    private readonly IDataProtectionProvider _dataProtection = new EphemeralDataProtectionProvider();
 
     public GuardianInviteServiceTests()
     {
@@ -45,6 +46,8 @@ public sealed class GuardianInviteServiceTests : IDisposable
         seed.AppUsers.Add(new AppUser { Id = 1099, DisplayName = "Parent One", Email = "parent1@example.com" });
         seed.ParentGuardians.Add(new ParentGuardian { Id = 1, Name = "Jane Parent", ContactInfo = "jane@example.com", IsPrimary = true });
         seed.ParentGuardians.Add(new ParentGuardian { Id = 2, Name = "Already Registered Parent", ContactInfo = "registered@example.com", IsPrimary = true, AppUserId = 1099 });
+        // A Teacher who is also a parent: the invite's address differs in case from the account's.
+        seed.ParentGuardians.Add(new ParentGuardian { Id = 3, Name = "Tom Teacher", ContactInfo = "Tom.Teacher@Example.com", IsPrimary = true });
         seed.Students.Add(new Student
         {
             Id = 100,
@@ -64,6 +67,7 @@ public sealed class GuardianInviteServiceTests : IDisposable
         public VlmsDbContext Db { get; } = scope.ServiceProvider.GetRequiredService<VlmsDbContext>();
         public GuardianInviteService InviteService { get; } = scope.ServiceProvider.GetRequiredService<GuardianInviteService>();
         public FakeNotificationService Notifications { get; } = scope.ServiceProvider.GetRequiredService<FakeNotificationService>();
+        public AppUserProvisioningService Provisioning { get; } = scope.ServiceProvider.GetRequiredService<AppUserProvisioningService>();
 
         public void Dispose()
         {
@@ -78,7 +82,9 @@ public sealed class GuardianInviteServiceTests : IDisposable
         services.AddLogging();
         services.AddSingleton<ICurrentUserContext>(new FakeCurrentUserContext(userId, roles));
         services.AddDbContext<VlmsDbContext>(options => options.UseSqlite(_connectionString));
-        services.AddSingleton<IDataProtectionProvider, EphemeralDataProtectionProvider>();
+        // One key ring for the whole test class, so a token issued by one caller's fixture can be
+        // accepted through another's (the existing-account tests sign in as different users).
+        services.AddSingleton(_dataProtection);
         services.AddSingleton<IConfiguration>(new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?> { ["App:PublicBaseUrl"] = "https://test.example" })
             .Build());
@@ -252,5 +258,163 @@ public sealed class GuardianInviteServiceTests : IDisposable
 
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => fixture.InviteService.AcceptAsync(token, "Str0ng!Passw0rd"));
+    }
+
+    // --- Invite to an email that already has an account (functional.md FR-004, 22/10/2026):
+    // the invitee signs in to that account to accept; ownership is proved by signing in, never by
+    // the email match alone. ------------------------------------------------------------------------
+
+    /// <summary>Creates an adult account (Identity user + AppUser) holding <paramref name="roles"/>; returns its id.</summary>
+    private async Task<int> CreateAccountAsync(string email, params Role[] roles)
+    {
+        using var fixture = Build(null, null);
+        var (result, _, appUser) = await fixture.Provisioning.CreateAsync(email, "Str0ng!Passw0rd", email, emailConfirmed: true);
+        Assert.True(result.Succeeded);
+        foreach (var role in roles)
+        {
+            fixture.Db.UserRoles.Add(new UserRole { UserId = appUser!.Id, Role = role });
+        }
+
+        await fixture.Db.SaveChangesAsync();
+        return appUser!.Id;
+    }
+
+    private async Task<string> IssueForTomAsync()
+    {
+        using var admin = Build(1000, null, Role.Admin);
+        var (_, token) = await admin.InviteService.IssueAsync(studentId: 100, parentGuardianId: 3);
+        return token;
+    }
+
+    private async Task<(int? AppUserId, int? ConsumedBy)> TomStateAsync()
+    {
+        using var fixture = Build(null, null);
+        var guardian = await fixture.Db.ParentGuardians.AsNoTracking().SingleAsync(g => g.Id == 3);
+        var invite = await fixture.Db.GuardianInvites.AsNoTracking().SingleAsync(i => i.ParentGuardianId == 3);
+        return (guardian.AppUserId, invite.ConsumedByAppUserId);
+    }
+
+    [Fact]
+    public async Task GetAcceptModeAsync_NoAccountForTheEmail_IsCreateAccount()
+    {
+        var token = await IssueForTomAsync();
+        using var anonymous = Build(null, null);
+
+        Assert.Equal(GuardianInviteService.AcceptMode.CreateAccount, await anonymous.InviteService.GetAcceptModeAsync(token));
+    }
+
+    [Fact]
+    public async Task ExistingAccount_NotSignedIn_IsToldToSignIn_AndCanNeitherCreateNorLink()
+    {
+        await CreateAccountAsync("tom.teacher@example.com", Role.Teacher);
+        var token = await IssueForTomAsync();
+        using var anonymous = Build(null, null);
+
+        Assert.Equal(GuardianInviteService.AcceptMode.SignInRequired, await anonymous.InviteService.GetAcceptModeAsync(token));
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => anonymous.InviteService.AcceptAsync(token, "An0ther!Passw0rd"));
+        Assert.Equal(GuardianInviteService.SignInToAcceptMessage, ex.Message);
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => anonymous.InviteService.AcceptForSignedInUserAsync(token));
+
+        Assert.Single(anonymous.Db.Users.Where(u => u.NormalizedEmail == "TOM.TEACHER@EXAMPLE.COM"));
+        Assert.Equal((null, null), await TomStateAsync());
+    }
+
+    [Fact]
+    public async Task ExistingAccount_SignedInAsThatAccount_LinksIt_ConsumesTheInvite_AndKeepsItsRoles()
+    {
+        var tomId = await CreateAccountAsync("tom.teacher@example.com", Role.Teacher);
+        var token = await IssueForTomAsync();
+        using var tom = Build(tomId, null, Role.Teacher);
+
+        Assert.Equal(GuardianInviteService.AcceptMode.ReadyToLink, await tom.InviteService.GetAcceptModeAsync(token));
+        var linked = await tom.InviteService.AcceptForSignedInUserAsync(token);
+
+        Assert.Equal(tomId, linked.Id);
+        Assert.Equal((tomId, tomId), await TomStateAsync());
+        // Accepting grants no role: Parent still comes from an Admin.
+        Assert.Equal([Role.Teacher], tom.Db.UserRoles.Where(r => r.UserId == tomId).Select(r => r.Role).ToList());
+        // Single use, in this path too.
+        var reused = await Assert.ThrowsAsync<InvalidOperationException>(() => tom.InviteService.AcceptForSignedInUserAsync(token));
+        Assert.Contains("already been used", reused.Message);
+    }
+
+    [Fact]
+    public async Task ExistingAccount_SignedInAsADifferentAccount_IsRefused_WithoutNamingTheInvitedAccount()
+    {
+        await CreateAccountAsync("tom.teacher@example.com", Role.Teacher);
+        var otherId = await CreateAccountAsync("someone.else@example.com", Role.Teacher);
+        var token = await IssueForTomAsync();
+        using var other = Build(otherId, null, Role.Teacher);
+
+        Assert.Equal(GuardianInviteService.AcceptMode.SignedInAsDifferentAccount, await other.InviteService.GetAcceptModeAsync(token));
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => other.InviteService.AcceptForSignedInUserAsync(token));
+
+        Assert.Equal(GuardianInviteService.DifferentAccountMessage, ex.Message);
+        Assert.DoesNotContain("tom", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal((null, null), await TomStateAsync());
+    }
+
+    [Fact]
+    public async Task NoAccountForTheEmail_SignedInAsSomeoneElse_CannotLinkTheirOwnAccount()
+    {
+        // Email match is required as well as sign-in: a signed-in user can't claim an invite sent to
+        // an address that has no account by linking their own account to it.
+        var otherId = await CreateAccountAsync("someone.else@example.com", Role.Teacher);
+        var token = await IssueForTomAsync();
+        using var other = Build(otherId, null, Role.Teacher);
+
+        Assert.Equal(GuardianInviteService.AcceptMode.CreateAccount, await other.InviteService.GetAcceptModeAsync(token));
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => other.InviteService.AcceptForSignedInUserAsync(token));
+
+        Assert.Equal(GuardianInviteService.DifferentAccountMessage, ex.Message);
+        Assert.Equal((null, null), await TomStateAsync());
+    }
+
+    [Fact]
+    public async Task ExistingAccount_ExpiredOrTamperedToken_IsRefused()
+    {
+        var tomId = await CreateAccountAsync("tom.teacher@example.com", Role.Teacher);
+        var token = await IssueForTomAsync();
+        using var tom = Build(tomId, null, Role.Teacher);
+
+        var tampered = token[..^1] + (token[^1] == 'A' ? 'B' : 'A');
+        await Assert.ThrowsAsync<CryptographicException>(() => tom.InviteService.GetAcceptModeAsync(tampered));
+        await Assert.ThrowsAsync<CryptographicException>(() => tom.InviteService.AcceptForSignedInUserAsync(tampered));
+
+        var invite = await tom.Db.GuardianInvites.SingleAsync(i => i.ParentGuardianId == 3);
+        tom.Db.Entry(invite).CurrentValues.SetValues(new GuardianInvite
+        {
+            Id = invite.Id, StudentId = invite.StudentId, ParentGuardianId = invite.ParentGuardianId,
+            CreatedByUserId = invite.CreatedByUserId, CreatedAt = invite.CreatedAt,
+            ExpiresAt = DateTimeOffset.UtcNow.AddDays(-1)
+        });
+        await tom.Db.SaveChangesAsync();
+
+        var expired = await Assert.ThrowsAsync<InvalidOperationException>(() => tom.InviteService.AcceptForSignedInUserAsync(token));
+        Assert.Contains("expired", expired.Message);
+        Assert.Equal((null, null), await TomStateAsync());
+    }
+
+    [Fact]
+    public async Task GuardianAlreadyLinked_IsNeverRelinked_EvenBySignedInOwnerOfTheEmail()
+    {
+        // Guardian 2 is already linked to AppUser 1099. An account that owns guardian 2's address
+        // signs in with a still-valid invite: refused, and the link is unchanged.
+        var ownerId = await CreateAccountAsync("registered@example.com");
+        string token;
+        using (var admin = Build(1000, null, Role.Admin))
+        {
+            (_, token) = await admin.InviteService.IssueAsync(studentId: 100, parentGuardianId: 2);
+        }
+
+        using var owner = Build(ownerId, null);
+        var mode = await Assert.ThrowsAsync<InvalidOperationException>(() => owner.InviteService.GetAcceptModeAsync(token));
+        Assert.Equal(GuardianInviteService.AlreadyLinkedMessage, mode.Message);
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => owner.InviteService.AcceptForSignedInUserAsync(token));
+        Assert.Equal(GuardianInviteService.AlreadyLinkedMessage, ex.Message);
+
+        Assert.Equal(1099, (await owner.Db.ParentGuardians.AsNoTracking().SingleAsync(g => g.Id == 2)).AppUserId);
     }
 }

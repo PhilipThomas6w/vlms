@@ -43,6 +43,7 @@ public sealed class GuardianLinkServiceTests : IDisposable
 
         public GuardianLinkService Service { get; } = service;
         public FakeNotificationService Notifications { get; } = notifications;
+        public IServiceProvider Services => scope.ServiceProvider;
 
         public void Dispose()
         {
@@ -314,18 +315,81 @@ public sealed class GuardianLinkServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task CreateLinkAsync_ForAGuardianWhoAlreadyHasAnAccount_DoesNotIssueAnInvite()
+    public async Task CreateLinkAsync_ForAGuardianWhoAlreadyHasAnAccount_SendsALinkedNote_NotAnInvite()
     {
         // ParentGuardian 2 ("Registered Parent") already has AppUserId = 99 — the existing
         // ParentGuardianLinkage join already grants them access to the new link via that account;
         // issuing another invite would be pointless (and unacceptable — GuardianInviteService.AcceptAsync
-        // rejects accepting for an already-registered guardian).
+        // rejects accepting for an already-registered guardian). Since 22/10/2026 (browser-walk
+        // finding) they get a note that the child was linked, sent to the account's own email.
         using var admin = CreateContext(1, Role.Admin);
 
         await admin.Service.CreateLinkAsync(studentId: 100, parentGuardianId: 2, CancellationToken.None);
 
         Assert.Empty(admin.Context.GuardianInvites);
-        Assert.Empty(admin.Notifications.SentRequests);
+        var note = Assert.Single(admin.Notifications.SentRequests);
+        Assert.Equal("parent1@example.com", note.RecipientEmail);
+        Assert.Contains("Alex Student has been linked to your Varangians LMS account", note.Body);
+        Assert.DoesNotContain("accept-invite", note.Body);
+    }
+
+    // --- One working invite per guardian (STATE.md browser-walk finding, 22/10/2026): linking a
+    // second child to a guardian with no account used to send a second invite, which failed as
+    // stale once the first was used. --------------------------------------------------------------
+
+    [Fact]
+    public async Task CreateLinkAsync_SecondChild_WhileAnInviteIsOutstanding_SendsANote_AndTheOneInviteStillWorks()
+    {
+        using var admin = CreateContext(1, Role.Admin);
+        var invites = admin.Services.GetRequiredService<GuardianInviteService>();
+
+        await admin.Service.CreateLinkAsync(studentId: 100, parentGuardianId: 1, CancellationToken.None);
+        var firstEmail = Assert.Single(admin.Notifications.SentRequests);
+        var token = ExtractToken(firstEmail.Body);
+
+        await admin.Service.CreateLinkAsync(studentId: 101, parentGuardianId: 1, CancellationToken.None);
+
+        Assert.Single(admin.Context.GuardianInvites.Where(i => i.ParentGuardianId == 1));
+        Assert.Equal(2, admin.Notifications.SentRequests.Count);
+        var note = admin.Notifications.SentRequests[1];
+        Assert.Equal("jane@example.com", note.RecipientEmail);
+        Assert.Contains("Sam Student has also been linked to you", note.Body);
+        Assert.DoesNotContain("accept-invite", note.Body);
+
+        // The one invite is still valid (not stale), and the guardian record it links carries both
+        // children. (Accepting it is covered by GuardianInviteServiceTests; this fixture's seeded
+        // AppUser ids collide with the Identity store's own ids, so no account is created here.)
+        Assert.Equal(GuardianInviteService.AcceptMode.CreateAccount, await invites.GetAcceptModeAsync(token));
+        Assert.Equal(2, await admin.Context.StudentGuardianLinks.CountAsync(l => l.ParentGuardianId == 1));
+    }
+
+    [Fact]
+    public async Task CreateLinkAsync_SecondChild_AfterTheOnlyInviteExpired_IssuesAFreshInvite()
+    {
+        using var admin = CreateContext(1, Role.Admin);
+        await admin.Service.CreateLinkAsync(studentId: 100, parentGuardianId: 1, CancellationToken.None);
+
+        var first = await admin.Context.GuardianInvites.SingleAsync(i => i.ParentGuardianId == 1);
+        admin.Context.Entry(first).CurrentValues.SetValues(new GuardianInvite
+        {
+            Id = first.Id, StudentId = first.StudentId, ParentGuardianId = first.ParentGuardianId,
+            CreatedByUserId = first.CreatedByUserId, CreatedAt = first.CreatedAt.AddDays(-20),
+            ExpiresAt = DateTimeOffset.UtcNow.AddDays(-1)
+        });
+        await admin.Context.SaveChangesAsync();
+
+        await admin.Service.CreateLinkAsync(studentId: 101, parentGuardianId: 1, CancellationToken.None);
+
+        Assert.Equal(2, await admin.Context.GuardianInvites.CountAsync(i => i.ParentGuardianId == 1));
+        Assert.Contains("accept-invite?token=", admin.Notifications.SentRequests[1].Body);
+    }
+
+    private static string ExtractToken(string body)
+    {
+        const string marker = "accept-invite?token=";
+        var start = body.IndexOf(marker, StringComparison.Ordinal) + marker.Length;
+        var end = body.IndexOfAny(['\n', ' '], start);
+        return Uri.UnescapeDataString(end < 0 ? body[start..] : body[start..end]);
     }
 
     [Fact]
