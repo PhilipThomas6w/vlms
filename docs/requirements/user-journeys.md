@@ -18,9 +18,9 @@ Each step is marked:
 | 3 | Browse the curriculum by rank, in delivery order, with tags | Built | `/lessons` (`LessonLibraryService`), 05dc741. |
 | 4 | Open a lesson's documents and the Teacher's Information to prepare | Built | `GET /lessons/files/{id}`: PDF and images inline, other types downloaded. |
 | 5 | Print or download handouts | Built | Same as step 4. |
-| 6 | See the students in their group, with each student's current rank | Built | `/students` (`StudentRosterService`): all active students, an "assigned to me" filter, rank and progress in rank. Each opens `/students/{id}` (completions, badges, certificates, consent status). Certificate links go to `/certificates/{id}`. |
-| 7 | Record that each student who attended completed the lesson | Built | `/progress/record` calls `CompletionService.MarkCompleteBatchAsync` (certificate, promotion and parent email as before). |
-| 8 | Check that a student with lapsed consent is blocked from completion | Built | FR-003, enforced in `CompletionService`; `/progress/record` shows blocked students with the reason, and reports blocked results after submitting. |
+| 6 | See the students in their group, with each student's current rank | Works (browser walk 22/10/2026) | `/students` (`StudentRosterService`): all active students, an "assigned to me" filter, rank and progress in rank. Each opens `/students/{id}` (completions, badges, certificates, consent status). Certificate links go to `/certificates/{id}`. |
+| 7 | Record that each student who attended completed the lesson | Works (browser walk 22/10/2026) | `/progress/record` calls `CompletionService.MarkCompleteBatchAsync` (certificate, promotion and parent email as before). |
+| 8 | Check that a student with lapsed consent is blocked from completion | Works (browser walk 22/10/2026) | FR-003, enforced in `CompletionService`; `/progress/record` shows blocked students with the reason, and reports blocked results after submitting. |
 | 9 | Correct a mistaken completion | Built | `/progress/completions` (`CompletionReversals.razor`) |
 
 ## J2. Teacher: improve a lesson
@@ -28,7 +28,7 @@ Each step is marked:
 | # | Step | Status | Evidence / gap |
 |---|---|---|---|
 | 1 | Find the lesson and open its current content | Built | `/lessons` and `GET /lessons/files/{id}`. |
-| 2 | Propose an edit: change title, order and tags, and upload new or replacement files | Built | `/curriculum/teacher`: title, order and tags (c8c13f4); files are uploaded with `InputFile` (`LessonUploadService`: 25 MB default limit, extension allow-list, content-type and signature checks), start from the lesson's current files, and can be removed or reordered. Uploads are pending and go live only on approval. |
+| 2 | Propose an edit: change title, order and tags, and upload new or replacement files | Works (browser walk 22/10/2026): edit with an uploaded file; the file reached the library only after approval | `/curriculum/teacher`: title, order and tags (c8c13f4); files are uploaded with `InputFile` (`LessonUploadService`: 25 MB default limit, extension allow-list, content-type and signature checks), start from the lesson's current files, and can be removed or reordered. Uploads are pending and go live only on approval. |
 | 3 | Propose a new lesson or the retirement of one | Built | `/curriculum/teacher` |
 | 4 | See the Approver's decision and comments, then revise and resubmit | Built | `/curriculum/teacher`, "My proposals" |
 
@@ -36,30 +36,30 @@ Each step is marked:
 
 | # | Step | Status | Evidence / gap |
 |---|---|---|---|
-| 1 | See pending proposals | Built | `/curriculum/approver` |
-| 2 | Compare the proposed content with the current lesson, opening the files of both | Built | `/curriculum/approver` shows each proposal as a table of the current lesson against the proposal, differences marked in words (Changed / Added / Removed). Current files open from the library endpoint; proposed (pending) files open from `GET /curriculum/proposals/{id}/files/{index}`, for the proposer and Approvers only. |
-| 3 | Approve, or reject with comments | Built | `/curriculum/approver`. Approval puts the change live (`LessonProposalService.ApproveAsync`). |
+| 1 | See pending proposals | Works (browser walk 22/10/2026) | `/curriculum/approver` |
+| 2 | Compare the proposed content with the current lesson, opening the files of both | Works (browser walk 22/10/2026) | `/curriculum/approver` shows each proposal as a table of the current lesson against the proposal, differences marked in words (Changed / Added / Removed). Current files open from the library endpoint; proposed (pending) files open from `GET /curriculum/proposals/{id}/files/{index}`, for the proposer and Approvers only. |
+| 3 | Approve, or reject with comments | Works (browser walk 22/10/2026) | `/curriculum/approver`. Approval puts the change live (`LessonProposalService.ApproveAsync`). |
 
 ## J4. Student: learn and track progress
 
 | # | Step | Status | Evidence / gap |
 |---|---|---|---|
-| 1 | Get an account and sign in | Built (not yet checked in the running app) | A linked parent creates the username and password at `/parent/student-sign-ins` (linked from `/parent/dashboard`) and can reset it; an Admin can reset at `/administration/student-sign-ins`. The student signs in at `/Account/Login` with the username (FR-011, `adr/0007-student-sign-in-accounts.md`, `StudentAccountService`). Student passwords need only 8 characters; the student stays signed in on their own device for 90 days between visits (`VlmsSignInManager`); a parent's or Admin's reset clears a lockout. An Admin can turn the sign-in off and on again at `/administration/student-sign-ins`: a turned-off sign-in can't log in, open sessions end within 30 minutes, and a parent's reset doesn't turn it back on. Leaving doesn't turn it off. |
-| 2 | Browse all lessons in every rank and open or download them | Built (not yet checked in the running app) | `/lessons` admits the Student role; linked from `/student`. |
-| 3 | See own rank, completed lessons, badges and certificates | Built (not yet checked in the running app) | `/student` (`StudentPageService`): own record only, resolved from the sign-in, no id in the URL. Badge images from `/badges/{rankId}/image`. |
-| 4 | Download own certificates | Built (not yet checked in the running app) | `/student` links View and Download for each certificate to `GET /certificates/{id}` (inline, or `?download=1`). |
+| 1 | Get an account and sign in | Works (browser walk 22/10/2026) | A linked parent creates the username and password at `/parent/student-sign-ins` (linked from `/parent/dashboard`) and can reset it; an Admin can reset at `/administration/student-sign-ins`. The student signs in at `/Account/Login` with the username (FR-011, `adr/0007-student-sign-in-accounts.md`, `StudentAccountService`). Student passwords need only 8 characters; the student stays signed in on their own device for 90 days between visits (`VlmsSignInManager`); a parent's or Admin's reset clears a lockout. An Admin can turn the sign-in off and on again at `/administration/student-sign-ins`: a turned-off sign-in can't log in, open sessions end within 30 minutes, and a parent's reset doesn't turn it back on. Leaving doesn't turn it off. |
+| 2 | Browse all lessons in every rank and open or download them | Works (browser walk 22/10/2026) | `/lessons` admits the Student role; linked from `/student`. |
+| 3 | See own rank, completed lessons, badges and certificates | Works (browser walk 22/10/2026) | `/student` (`StudentPageService`): own record only, resolved from the sign-in, no id in the URL. Badge images from `/badges/{rankId}/image`. |
+| 4 | Download own certificates | Works (browser walk 22/10/2026) | `/student` links View and Download for each certificate to `GET /certificates/{id}` (inline, or `?download=1`). |
 
 ## J5. Parent: follow and support their child
 
 | # | Step | Status | Evidence / gap |
 |---|---|---|---|
-| 1 | Accept an invite, register, and be approved by an Admin as Parent | Built | `/guardianship/accept-invite`, `/administration/user-roles` |
+| 1 | Accept an invite, register, and be approved by an Admin as Parent | Defect (browser walk 22/10/2026): accepting an invite fails when the email already has an account ("Username is already taken"), and each further child sends another invite that fails once the first is used. Queued in STATE.md | `/guardianship/accept-invite`, `/administration/user-roles` |
 | 2 | See each linked child's rank, completions, badges and consent status | Built | `/parent/dashboard` |
 | 3 | Download a child's certificates | Built | `/parent/dashboard` links View and Download for each certificate to `/certificates/{id}`. |
 | 4 | Browse and open all lessons to support learning at home | Built | `/lessons` (Parent role). |
 | 5 | Receive emails on completion, promotion and consent expiry | Built (untested live) | `GuardianNotificationService`. The first real send waits for go-live. |
-| 6 | Submit or renew the annual consent form | Built | `/parent/consent`; Safeguarding Officer or Admin decides on `/safeguarding/consent` (FR-015, ADR-0006), 6f5b5d7. |
-| 7 | Create and reset a sign-in for each of their children | Built (not yet checked in the running app) | One parent account serves every linked child. `/parent/student-sign-ins` lists each linked child with Create sign-in (no sign-in yet) or Reset password (has one), and shows when the school has turned a child's sign-in off (FR-011, `adr/0007`). Tested with a parent of three children. |
+| 6 | Submit or renew the annual consent form | Works (browser walk 22/10/2026): submit, approve, update and re-approve; the approved form stays in force while the update is pending | `/parent/consent`; Safeguarding Officer or Admin decides on `/safeguarding/consent` (FR-015, ADR-0006), 6f5b5d7. |
+| 7 | Create and reset a sign-in for each of their children | Works (browser walk 22/10/2026): one parent, two children, a sign-in each; 8-character rule enforced | One parent account serves every linked child. `/parent/student-sign-ins` lists each linked child with Create sign-in (no sign-in yet) or Reset password (has one), and shows when the school has turned a child's sign-in off (FR-011, `adr/0007`). Tested with a parent of three children. |
 | 8 | Change their own password while signed in | Works (checked in the running app 22/10/2026: parent changed password, wrong current password refused, changed back) | `/Account/Manage/ChangePassword` (linked from the header once signed in): current password, new password, confirmation; the adult password rule applies and the session stays signed in. Together with step 7 this covers Philip's decision (22/10/2026) that a parent can reset both their own password and each child's. The same page serves every adult role (Admin, Teacher, Approver, Safeguarding Officer); a student is told to ask their parent (FR-011, `adr/0007` decision 1, TC-030). |
 
 ## J6. Admin: run the programme
@@ -67,10 +67,10 @@ Each step is marked:
 | # | Step | Status | Evidence / gap |
 |---|---|---|---|
 | 1 | Bootstrap the first Admin, assign roles, approve parents | Built | `Vlms.Jobs bootstrap-admin`, `/administration/user-roles`. A role change takes effect on the user's next action, including in pages already open, and rotates their security stamp (FR-016, `RoleChangeTests`); not yet checked in the running app. |
-| 2 | Register a student and link guardians | Built | `/registration/students`, `/guardianship/links` |
+| 2 | Register a student and link guardians | Works (browser walk 22/10/2026) after fix 1d674e8 (registration failed on PostgreSQL: non-UTC date) | `/registration/students`, `/guardianship/links` |
 | 3 | Edit a student (name, assigned teacher, status) | Built | `/administration/students` (Admin: assigned teacher and status). Name and date of birth come from the approved consent form (FR-013), a28a6ac. |
 | 4 | Load the curriculum (ranks, lessons, files) | Built | `Vlms.Jobs seed-curriculum` (`deploy/README.md` §6b); run against local PostgreSQL 22/10/2026: 10 ranks, 56 lessons, 314 files. |
-| 5 | Set rank badge images | Built (untested live) | `/administration/rank-badges` (`RankBadgeService`). Images are served from `/badges/{rankId}/image` and shown on `/parent/dashboard`. Admin-only upload: PNG, JPEG, WebP or SVG, up to 2 MB. One badge per rank, enforced by a unique index (TC-028). |
+| 5 | Set rank badge images | Works (browser walk 22/10/2026) | `/administration/rank-badges` (`RankBadgeService`). Images are served from `/badges/{rankId}/image` and shown on `/parent/dashboard`. Admin-only upload: PNG, JPEG, WebP or SVG, up to 2 MB. One badge per rank, enforced by a unique index (TC-028). |
 | 6 | View progress reports and at-risk students | Built | `/reporting` |
 | 7 | Handle leavers and retention | Partial | `/retention/mark-as-left` and `/reporting/records-due-for-deletion` exist. Purge waits on decision 2. |
 

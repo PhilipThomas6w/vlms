@@ -79,16 +79,22 @@ Full narrative for Done/Log items to 12/08/2026: `docs/harness/STATE-archive.md`
 - [x] One badge per rank: unique index `IX_rank_badges_rank_id`, migration `UniqueRankBadgePerRank` — 456b3fa (Haiku subagent), merged c8d568b; index confirmed unique on local PostgreSQL; full gate exit 0, 818/818
 - [x] Development email to a folder (`PickupDirectoryEmailSender`; Development only, both hosts; other environments keep Graph) — 315f050, merged 21eea34; full gate exit 0, 823/823 tests. Live check: Development start-up logs the folder; a Forgot password request wrote the reset email to `%USERPROFILE%\.vlms-local\mail`. No real secret on the dev machine (Philip, 22/10/2026).
 - [x] Change password while signed in (`/Account/Manage/ChangePassword`, `PasswordChangeService`; adults only, students refused in page and service; plain `[Authorize]`, no MFA needed to reach it; link in header) — c9d31e2, merged 3533248 (TC renumbered to TC-030; ASVS rows kept from both items); full gate exit 0, 836/836 tests. Live check: parent changed password, wrong current password refused, changed back, signed in again. Completes ADR-0007 decision 1 ("reset both passwords").
+- [x] Browser walk of the interactive journeys (Claude in Chrome, localhost, local PostgreSQL; Philip's permission 22/10/2026). Works: register two students to one new guardian; Admin approves the parent; parent dashboard; consent submit, approve, update, re-approve (approved form stays in force while pending); parent creates a sign-in for each of two children (8-character rule enforced); consent block stops completion for the child without consent; completion records, certificate PDF, parent email; student signs in, sees own progress, opens certificate and library, is refused a staff page; Teacher proposes an edit with a file, the file is absent from the library until the Approver approves; Admin uploads a rank badge. Fixed during the walk: student registration failed on PostgreSQL (non-UTC date; 1d674e8, plus a guard so SQLite tests catch it); development email links pointed at the placeholder domain (appsettings.Development.json). Not walked: correct a completion, reporting, DBS, mark as left. Statuses in `docs/requirements/user-journeys.md`.
 
 ## In progress
-Subagents launched 22/10/2026 from `master` (pushed): none running.
-- **Browser walk of the interactive journeys** — main session, Claude in Chrome on localhost (Philip's permission 22/10/2026).
+Nothing in progress.
 
 ## Next
 Fit-for-purpose build plan (Philip, 22/10/2026; `docs/delivery-plan.md` phase 2, `docs/governance/raid.md` I-001). Acceptance for every item below: tests, gate exits 0, **and** the matching steps in `docs/requirements/user-journeys.md` work in the running app for each named role (checked by running it, not inferred from service tests), with their status updated there.
 
 
 Delegation (Philip, 22/10/2026): each item runs as a subagent in its own worktree, model in brackets. Items in a wave run in parallel; a wave starts when the items it depends on are merged into `master`.
+
+Found in the browser walk (22/10/2026):
+- **Invite for an existing account** (Opus, security) — `GuardianInviteService.AcceptAsync` always creates a new account, so an invite to an email that already has one (a Teacher who is also a parent; Philip's decision that one identity can hold several roles) fails with "Username is already taken". Proposed fix: when the email already has an account, the invite page asks them to sign in, and accepting links the existing identity to the guardian record (proving ownership by sign-in, never by email match alone); Parent is still granted by an Admin. Also: linking a second child to a guardian with no account yet sends a second invite, which fails as stale once the first is used — send one invite per guardian, or make later ones say the account already exists.
+- **Consent review shows differences** (Sonnet) — approving a form copies its name and date of birth onto the student record; the review shows "(on record: …)" but does not highlight a mismatch, so a typo is easy to approve (it happened in the walk). Mark a changed name or date of birth as "Changed", as the curriculum approval page already does.
+- **Plain-English page text** (Haiku) — page introductions show internal references to users (`StudentGuardianLink`, `ConsentRecord/ConsentSensitiveDetails`, `functional.md FR-004`, `STATE.md`). Rewrite for the people using them.
+- **Distinct button and field names** (Haiku, WCAG 2.4.6) — repeated buttons have the same accessible name ("Complete the consent form" per child, "Review" per submission); the sign-in error for one child appears at the top of the page, not beside that child. Name each after its child or submission, and show the error next to the form it belongs to.
 
 
 
@@ -225,3 +231,4 @@ Ordered by go-live critical path.
 - 2026-10-22: Student sign-in rules merged (ec22373), 817/817. Badge index launched
 - 2026-10-22: Badge index merged (c8d568b), 818/818. Only the browser walk remains in progress, blocked on the Claude in Chrome extension
 - 2026-10-22: Philip agreed the ASVS/WCAG countersign is done once before go-live from a Claude-written summary (new go-live item "Human security and accessibility review"); 28 ASVS + 19 WCAG rows pending
+- 2026-10-22: Browser walk done with Claude in Chrome. Fixed student registration on PostgreSQL (1d674e8). Queued four findings: invite for an existing account (security), consent review differences, plain-English page text, distinct button names. Pages are still unstyled (decision 6, branding).
