@@ -106,6 +106,8 @@ $expectedMinimums = @{
     "AccountEmailServiceTests.cs"        = 9
     # FR-013 student administration: assign teacher / change status are Admin-only.
     "StudentAdministrationServiceTests.cs" = 13
+    # FR-010 certificate view/download: owner, linked-parent and staff access, everything else refused.
+    "CertificateAccessServiceTests.cs"  = 8
 }
 
 foreach ($testFileName in $expectedMinimums.Keys) {

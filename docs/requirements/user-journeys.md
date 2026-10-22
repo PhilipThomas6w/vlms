@@ -47,7 +47,7 @@ Each step is marked:
 | 1 | Get an account and sign in | **Partial** | `Student` role and `Student.AppUserId` exist, but there is no student invite or account-linking flow. |
 | 2 | Browse all lessons in every rank and open or download them | **Missing** | Same as J1 step 4. Scope: all ranks (Philip, 22/10/2026). |
 | 3 | See own rank, completed lessons, badges and certificates | **Missing** | No student page exists. `StudentSelfAccessHandler` authorises it, but nothing uses it. |
-| 4 | Download own certificates | **Missing** | Certificate PDFs are written but can't be read back (no read in `IBlobStorage`, no endpoint). |
+| 4 | Download own certificates | **Built (not yet linked from a student page)** | `GET /certificates/{id}` (`CertificateEndpoint`, `CertificateAccessService`): inline, or `?download=1`. The student page (FR-011) will link to it. |
 
 ## J5. Parent: follow and support their child
 
@@ -55,7 +55,7 @@ Each step is marked:
 |---|---|---|---|
 | 1 | Accept an invite, register, and be approved by an Admin as Parent | Built | `/guardianship/accept-invite`, `/administration/user-roles` |
 | 2 | See each linked child's rank, completions, badges and consent status | Built | `/parent/dashboard` |
-| 3 | Download a child's certificates | **Missing** | Certificates are listed as text only. Same read gap as J4 step 4. |
+| 3 | Download a child's certificates | Built | `/parent/dashboard` links View and Download for each certificate to `/certificates/{id}`. |
 | 4 | Browse and open all lessons to support learning at home | **Missing** | Same as J1 step 4. Scope: all ranks (Philip, 22/10/2026). |
 | 5 | Receive emails on completion, promotion and consent expiry | Built (untested live) | `GuardianNotificationService`. The first real send waits for go-live. |
 | 6 | Submit or renew the annual consent form | **Missing** | Consent is entered by an Admin or Safeguarding Officer "on behalf of" the parent (`/safeguarding/consent`). Decided 22/10/2026: parents complete and submit it in the app, and the Safeguarding Officer or Admin approves (FR-015). |

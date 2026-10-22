@@ -164,6 +164,8 @@ var blobRootPath = BlobStorageRoot.Resolve(
 builder.Services.AddScoped<IBlobStorage>(_ => new LocalDiskBlobStorage(blobRootPath));
 builder.Services.AddScoped<PromotionService>();
 builder.Services.AddScoped<CertificateService>();
+// Certificate view/download (FR-010): CertificateEndpoint, with its own role and link checks.
+builder.Services.AddScoped<CertificateAccessService>();
 // Proactive parent emails on completion/promotion (BR-005, GuardianNotificationService's doc comment);
 // CompletionService takes it as an optional dependency. The dashboard link uses App:PublicBaseUrl.
 builder.Services.AddScoped(sp => new GuardianNotificationService(
@@ -207,6 +209,9 @@ builder.Services.AddAuthorization(options =>
 
     // Lesson library (FR-006): any of Teacher/Approver/Admin/Student/Parent, never SafeguardingOfficer alone.
     options.AddLessonLibraryPolicy();
+
+    // Certificate view/download (FR-010): Student/Parent/Teacher/Admin; the service checks ownership or link.
+    options.AddCertificateAccessPolicy();
 
     options.AddPolicy("StudentAccess", policy =>
     {
@@ -303,6 +308,7 @@ app.UseAntiforgery();
 
 app.MapStaticAssets();
 app.MapLessonFileEndpoint();
+app.MapCertificateEndpoint();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 

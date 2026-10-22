@@ -2,6 +2,7 @@
 @attribute [Authorize(Policy = "RequireParent")]
 @rendermode InteractiveServer
 @using Vlms.Infrastructure.Engagement
+@using Vlms.Web
 @inject ParentDashboardService DashboardService
 
 <PageTitle>My dashboard</PageTitle>
@@ -73,7 +74,11 @@ else
                 <ul>
                     @foreach (var certificate in student.Certificates)
                     {
-                        <li>@certificate.LessonTitle — @certificate.GeneratedAt.ToString("d MMMM yyyy")</li>
+                        <li>
+                            @certificate.LessonTitle — @certificate.GeneratedAt.ToString("d MMMM yyyy")
+                            (<a href="@CertificateEndpoint.ViewUrl(certificate.CertificateId)" target="_blank" rel="noopener" aria-label="View certificate for @certificate.LessonTitle (opens in a new tab)" data-enhance-nav="false">View</a>
+                            | <a href="@CertificateEndpoint.DownloadUrl(certificate.CertificateId)" aria-label="Download certificate for @certificate.LessonTitle" data-enhance-nav="false">Download</a>)
+                        </li>
                     }
                 </ul>
             }
