@@ -247,6 +247,17 @@ public sealed class RankBadgeServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task SecondRankBadgeForSameRank_IsRejectedByTheDatabase()
+    {
+        using var admin = CreateCaller(userId: 1, Role.Admin);
+        await admin.Service.SetImageAsync(1, "first.png", PngSignature);
+
+        admin.Context.RankBadges.Add(new RankBadge { Id = 99, RankId = 1, ImageBlobKey = "rank-badges/1-dup.png" });
+
+        await Assert.ThrowsAsync<DbUpdateException>(() => admin.Context.SaveChangesAsync());
+    }
+
+    [Fact]
     public async Task OpenImage_ForRankWithoutBadge_ReturnsNull()
     {
         using var admin = CreateCaller(userId: 1, Role.Admin);
