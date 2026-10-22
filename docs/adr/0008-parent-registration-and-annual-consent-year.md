@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted in principle (Philip, 22/10/2026), from the gap analysis of the earlier build's US-001 "First-Time Student Registration" story (STATE.md). Open questions are listed at the end and must be answered before the registration item is built. Amends `requirements/functional.md` FR-001, FR-003, FR-004 and FR-015, and the `StudentGuardianLink` hard constraint in `VISION.md` and `CLAUDE.md`.
+Accepted (Philip, 22/10/2026), from the gap analysis of the earlier build's US-001 "First-Time Student Registration" story (STATE.md). The open questions were answered the same day (see "Answers"). Amends `requirements/functional.md` FR-001, FR-003, FR-004 and FR-015, and the `StudentGuardianLink` hard constraint in `VISION.md` and `CLAUDE.md`.
 
 ## Context
 
@@ -20,15 +20,24 @@ The built system has staff register a child (Admin or Teacher creates the `Stude
 
 ## Consequences and design direction
 
-- **Duplicates.** There is no natural unique identifier for a child, so a database rule cannot both stop duplicates and allow two genuine children with the same name and date of birth. The control is the Admin's approval: the approval page lists existing students with the same name and date of birth (and same-named siblings), and the Admin must choose "same child" (link the guardian to the existing record; no new student) or "different child" before approving. The one case blocked outright is the same parent submitting the same name and date of birth twice while an earlier application or record exists.
-- **Consent year.** `PeriodEnd`/`ExpiryDate` become the next 31 August on or after submission (subject to open question 2). Expiry reminders and the expiry digest then fall together each August, which concentrates renewal work at the start of the programme year.
+- **Duplicates.** Superseded by answer 6 below.
+- **Consent year.** `PeriodEnd`/`ExpiryDate` become 31 August of the current church year (answer 2). Expiry reminders and the expiry digest then fall together each August, which concentrates renewal work at the start of the programme year.
 - **Schema.** Splitting the transport/off-site flag and the dietary/SEN field needs an EF migration. Dietary and SEN stay in `ConsentSensitiveDetails` (restricted, read-audited). Existing rows: there is no live data (clean start, `VISION.md`), so test data may be migrated simply (both new flags take the old flag's value; the old combined text goes to dietary requirements).
 - **DPIA.** Parents entering children's details before any staff check, and a public sign-up page, are both new processing; the DPIA must cover them.
 
-## Open questions (Philip)
+## Open questions (Philip) — answered 22/10/2026, see "Answers"
 
 1. **Categories.** What are the categories, and which ranks and ages does each cover? There is no age group in the rank data yet (`seed/curriculum.json` lists 10 ranks only). Does the Admin pick a category and the child starts at its first rank, or pick the starting rank directly?
 2. **Late-year forms.** A form submitted in July or August would expire within weeks. Should forms submitted from a cut-off date (for example 1 July) run to 31 August of the following year?
 3. **Parent reminders.** What should they remind about, and how often? Proposed: renewal reminders before 31 August (for example 30, 14, 7 and 1 days before) and a weekly reminder while a child has no approved consent in force or a rejected form is waiting for resubmission.
 4. **Who approves registrations.** Admins only, or Safeguarding Officers too (they already approve consent)? Can Teachers still register a child directly, for example from a paper form?
 5. **Guardian details.** Self-registration needs more than one contact field. Proposed: phone number, relationship to the child, and postal address. Required or optional?
+
+## Answers (Philip, 22/10/2026)
+
+1. **Starting rank.** The Admin assigns the child to a rank at approval. Age groups are not modelled in the app.
+2. **Consent year.** Consent always ends on 31 August of the current church year (1 September to 31 August). A form submitted on 1 July 2027 expires on 31 August 2027; one submitted on 1 September 2027 expires on 31 August 2028. No cut-off.
+3. **Parent reminders.** Renewal emails 30, 14, 7 and 1 days before 31 August, and a weekly email while a child has no consent in force or a rejected form has not been resubmitted.
+4. **Approval flow.** A Safeguarding Officer reviews first and may ask the parent for more information (for example about special educational needs); the parent answers and resubmits. The Safeguarding Officer then approves, and an Admin gives final approval, which creates the `Student` and `StudentGuardianLink` and sets the starting rank. Admins can also register a child directly. Teachers are not Admins: they no longer register children or create guardian links.
+5. **Parent details.** Phone number, relationship to the child and postal address are all required, as is a completed consent form for each child.
+6. **Duplicates.** Every student has a unique identifier (the existing `Student.Id`). A parent never has two children with the same name, so the same name under the same parent is a duplicate and is refused, whether the earlier one is an application or an approved student. Children of different parents with the same name are different children. The one case left to the approving Admin: two parents of the same child (for example separated parents) applying separately; the approval page shows any existing student with the same name and date of birth so the Admin can link the second parent instead of creating a second record.
