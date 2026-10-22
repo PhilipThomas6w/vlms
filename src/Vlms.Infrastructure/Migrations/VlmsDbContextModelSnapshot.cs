@@ -563,7 +563,8 @@ namespace Vlms.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("RankId");
+                    b.HasIndex("RankId")
+                        .IsUnique();
 
                     b.ToTable("rank_badges");
                 });

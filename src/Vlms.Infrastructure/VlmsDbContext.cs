@@ -164,6 +164,7 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
         {
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
+            e.HasIndex(x => x.RankId).IsUnique();
         });
 
         modelBuilder.Entity<StudentBadge>(e =>
