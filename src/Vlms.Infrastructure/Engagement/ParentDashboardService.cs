@@ -8,7 +8,7 @@ namespace Vlms.Infrastructure.Engagement;
 public sealed record ParentDashboardBadge(string RankName, DateTime AwardedAt, int RankId, bool HasImage);
 
 /// <summary>One certificate earned by a student, for display on the parent dashboard.</summary>
-public sealed record ParentDashboardCertificate(string LessonTitle, DateTime GeneratedAt, string BlobKey);
+public sealed record ParentDashboardCertificate(int CertificateId, string LessonTitle, DateTime GeneratedAt, string BlobKey);
 
 /// <summary>
 /// One linked student's summary, per functional.md's "Parent engagement" wording ("view own child's
@@ -113,9 +113,9 @@ public sealed class ParentDashboardService
         // decision recorded the same way this one was.
         var certificates = await _db.Certificates
             .Join(_db.StudentLessonCompletions, c => c.StudentLessonCompletionId, slc => slc.Id,
-                (c, slc) => new { c.GeneratedAt, c.BlobKey, slc.StudentId, slc.LessonId, slc.IsReversed })
+                (c, slc) => new { CertificateId = c.Id, c.GeneratedAt, c.BlobKey, slc.StudentId, slc.LessonId, slc.IsReversed })
             .Where(x => studentIds.Contains(x.StudentId) && !x.IsReversed)
-            .Join(_db.Lessons, x => x.LessonId, l => l.Id, (x, l) => new { x.StudentId, x.GeneratedAt, x.BlobKey, LessonTitle = l.Title })
+            .Join(_db.Lessons, x => x.LessonId, l => l.Id, (x, l) => new { x.StudentId, x.CertificateId, x.GeneratedAt, x.BlobKey, LessonTitle = l.Title })
             .ToListAsync(ct);
 
         var consents = await _db.ConsentRecords
@@ -133,7 +133,7 @@ public sealed class ParentDashboardService
 
             var studentCertificates = certificates
                 .Where(c => c.StudentId == student.Id)
-                .Select(c => new ParentDashboardCertificate(c.LessonTitle, c.GeneratedAt, c.BlobKey))
+                .Select(c => new ParentDashboardCertificate(c.CertificateId, c.LessonTitle, c.GeneratedAt, c.BlobKey))
                 .ToList();
 
             var latestConsent = consents
