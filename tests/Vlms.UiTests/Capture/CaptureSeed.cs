@@ -26,12 +26,14 @@ public static class CaptureSeed
     [
         "Alexander Hughes", "Sophia Hughes", "Nicholas Price", "Helena Shaw", "Theodore Ward", "Irene Barker",
         "Constantine Fox", "Anastasia Reed", "Gabriel Hart", "Zoe Pemberton", "Matthew Lloyd", "Catherine Doyle",
+        "Peter Clarke", "Mary Evans", "Andrew Shaw", "Lydia Morgan", "Simeon Bell", "Thecla Grant",
     ];
 
     // Rank order and lessons completed in it, per student above.
     private static readonly (int Rank, int Done)[] Placement =
     [
         (3, 5), (1, 2), (4, 7), (2, 8 - 1), (5, 3), (1, 0), (6, 1), (2, 4), (7, 6), (3, 0), (4, 2), (1, 7),
+        (3, 4), (3, 6), (3, 5), (3, 2), (2, 3), (4, 1),
     ];
 
     public static async Task<IReadOnlyDictionary<string, CapturePersona>> SeedAsync(UiWebFactory factory)
@@ -117,9 +119,23 @@ public static class CaptureSeed
         var badges = new Dictionary<int, RankBadge>();
         foreach (var rank in ranks.Where(r => lessonsByRank[r.Id].Count > 0))
         {
-            var key = $"badges/capture-{rank.Id}.svg";
-            var svg = $"<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 64 64\"><circle cx=\"32\" cy=\"32\" r=\"30\" fill=\"#334\"/><text x=\"32\" y=\"40\" font-size=\"22\" text-anchor=\"middle\" fill=\"#fff\">{rank.Order}</text></svg>";
-            await blobs.UploadAsync(key, Encoding.UTF8.GetBytes(svg));
+            // VLMS_CAPTURE_BADGES: a local folder of rank-<order>.png images (for example photographs of the
+            // real patches, never committed); otherwise a plain numbered placeholder.
+            var photo = Environment.GetEnvironmentVariable("VLMS_CAPTURE_BADGES") is { Length: > 0 } dir
+                ? Path.Combine(dir, $"rank-{rank.Order}.png")
+                : null;
+            string key;
+            if (photo is not null && File.Exists(photo))
+            {
+                key = $"badges/capture-{rank.Id}.png";
+                await blobs.UploadAsync(key, await File.ReadAllBytesAsync(photo));
+            }
+            else
+            {
+                key = $"badges/capture-{rank.Id}.svg";
+                var svg = $"<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 64 64\"><circle cx=\"32\" cy=\"32\" r=\"30\" fill=\"#334\"/><text x=\"32\" y=\"40\" font-size=\"22\" text-anchor=\"middle\" fill=\"#fff\">{rank.Order}</text></svg>";
+                await blobs.UploadAsync(key, Encoding.UTF8.GetBytes(svg));
+            }
             var badge = new RankBadge { Id = rank.Id, RankId = rank.Id, ImageBlobKey = key };
             badges[rank.Id] = badge;
             db.RankBadges.Add(badge);

@@ -1,34 +1,75 @@
 ﻿@inherits LayoutComponentBase
 
-<header>
-    <AuthorizeView>
-        <Authorized>
-            Signed in as @context.User.Identity?.Name
-            — <a href="/Account/Manage/TwoFactorAuthentication">Two-factor authentication</a>
-            @* Not for a student sign-in (no email claim, adr/0007): its parent sets its password. *@
-            @if (context.User.HasClaim(c => c.Type == System.Security.Claims.ClaimTypes.Email))
-            {
-                <text>— <a href="/Account/Manage/ChangePassword">Change password</a></text>
-            }
-            — <form action="/Account/Logout" method="post" style="display:inline">
-                <AntiforgeryToken />
-                <input type="hidden" name="returnUrl" value="" />
-                <button type="submit">Log out</button>
-            </form>
-        </Authorized>
-        <NotAuthorized>
-            <a href="/Account/Login">Log in</a> | <a href="/Account/Register">Register</a>
-        </NotAuthorized>
-    </AuthorizeView>
-    <NavMenu />
-</header>
+<a class="skip-link" href="#main-content">Skip to main content</a>
 
-<main>
-    @Body
-</main>
+<div class="shell">
+    <header class="shell-bar">
+        <a class="brand" href="/"><BrandMark /><span>Varangians</span></a>
+        <AuthorizeView>
+            <Authorized>
+                <button type="button" class="nav-toggle" aria-expanded="false" aria-controls="site-nav" data-nav-toggle>
+                    <Icon Name="menu" /> Menu
+                </button>
+                <details class="account">
+                    <summary>
+                        <span class="initials" aria-hidden="true">@Initials(context.User.Identity?.Name)</span>
+                        <span class="account-name">@context.User.Identity?.Name</span>
+                        <Icon Name="chevron-down" />
+                    </summary>
+                    <div class="account-menu">
+                        <p>Signed in as @context.User.Identity?.Name</p>
+                        @* Not for a student sign-in (no email claim, adr/0007): its parent sets its password,
+                           and two-factor sign-in is for adults. *@
+                        @if (context.User.HasClaim(c => c.Type == System.Security.Claims.ClaimTypes.Email))
+                        {
+                            <a href="/Account/Manage/TwoFactorAuthentication"><Icon Name="lock" /> Two-factor authentication</a>
+                            <a href="/Account/Manage/ChangePassword"><Icon Name="key" /> Change password</a>
+                        }
+                        <form action="/Account/Logout" method="post">
+                            <AntiforgeryToken />
+                            <input type="hidden" name="returnUrl" value="" />
+                            <button type="submit"><Icon Name="log-out" /> Log out</button>
+                        </form>
+                    </div>
+                </details>
+            </Authorized>
+            <NotAuthorized>
+                <nav class="account-links" aria-label="Account">
+                    <a href="/Account/Login">Log in</a>
+                    <a href="/Account/Register">Register</a>
+                </nav>
+            </NotAuthorized>
+        </AuthorizeView>
+        <Band />
+    </header>
+
+    <div class="shell-body">
+        <AuthorizeView>
+            <Authorized>
+                <NavMenu />
+            </Authorized>
+        </AuthorizeView>
+        <main id="main-content" tabindex="-1">
+            @Body
+        </main>
+    </div>
+</div>
 
 <div id="blazor-error-ui" role="alert" data-nosnippet>
     An unhandled error has occurred.
     <a href="." class="reload">Reload</a>
     <button type="button" class="dismiss" aria-label="Dismiss">🗙</button>
 </div>
+
+@code {
+    // Two letters for the account button: "rachel.hughes" or "parent@capture.test" → "RH" / "PA".
+    private static string Initials(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "?";
+        var local = name.Split('@')[0];
+        var parts = local.Split(['.', ' ', '_', '-'], StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length >= 2
+            ? $"{char.ToUpperInvariant(parts[0][0])}{char.ToUpperInvariant(parts[1][0])}"
+            : local[..Math.Min(2, local.Length)].ToUpperInvariant();
+    }
+}

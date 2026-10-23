@@ -32,7 +32,8 @@
                 <tbody>
                     @foreach (var lesson in rank.Lessons)
                     {
-                        <tr>
+                        @* Anchored by lesson code so the student page can link to a lesson (redesign; lesson pages come later). *@
+                        <tr id="lesson-@lesson.Code">
                             <td>@lesson.Code</td>
                             <td>@lesson.Title</td>
                             <td>@string.Join(", ", lesson.Tags)</td>

@@ -48,4 +48,28 @@ public sealed class StudentPageService
             ? await StudentRosterService.LoadRecordAsync(_db, id, activeOnly: false, ct)
             : null;
     }
+
+    /// <summary>
+    /// The caller's own journey through every rank (the student page's rank journey), or null if no
+    /// student record is linked to their sign-in. Same caller checks as <see cref="GetOwnRecordAsync"/>.
+    /// </summary>
+    public async Task<StudentJourney?> GetOwnJourneyAsync(CancellationToken ct = default)
+    {
+        if (!_currentUser.HasRole(Role.Student))
+        {
+            throw new UnauthorizedAccessException("Caller must hold the Student role to view the student page.");
+        }
+
+        if (_currentUser.UserId is not int userId)
+        {
+            return null;
+        }
+
+        var studentId = await _db.Students
+            .Where(s => s.AppUserId == userId)
+            .Select(s => (int?)s.Id)
+            .SingleOrDefaultAsync(ct);
+
+        return studentId is int id ? await StudentJourney.LoadAsync(_db, id, ct) : null;
+    }
 }

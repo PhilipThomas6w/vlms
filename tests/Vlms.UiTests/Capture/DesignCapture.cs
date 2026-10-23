@@ -84,7 +84,17 @@ public sealed class DesignCapture
                     landed = new Uri(page.Url).PathAndQuery;
                     await page.ScreenshotAsync(new PageScreenshotOptions { Path = Path.Combine(personaDir, $"{slug}-{vpName}.png"), FullPage = true });
                     var wide = await page.EvaluateAsync<bool>("() => document.documentElement.scrollWidth > window.innerWidth + 1");
-                    if (wide) overflow.Add(vpName);
+                    if (wide)
+                    {
+                        // Name the widest offenders: elements whose right edge passes the viewport.
+                        var culprits = await page.EvaluateAsync<string>(@"() => [...document.querySelectorAll('body *')]
+                            .map(e => ({ e, r: e.getBoundingClientRect().right }))
+                            .filter(x => x.r > window.innerWidth + 1)
+                            .sort((a, b) => b.r - a.r).slice(0, 3)
+                            .map(x => x.e.tagName.toLowerCase() + (x.e.className && typeof x.e.className === 'string' ? '.' + x.e.className.trim().split(/\s+/).join('.') : '') + ' ' + Math.round(x.r))
+                            .join('; ')");
+                        overflow.Add($"{vpName} ({culprits})");
+                    }
                     if (vpName == "desktop")
                     {
                         var result = await page.RunAxe(new AxeRunOptions { RunOnly = new RunOnlyOptions { Type = "tag", Values = [.. WcagTags] } });
@@ -107,9 +117,14 @@ public sealed class DesignCapture
         await page.WaitForTimeoutAsync(400);
         if (path.EndsWith("#lesson", StringComparison.Ordinal))
         {
-            var select = page.Locator("#lessonId");
-            await select.SelectOptionAsync(new SelectOptionValue { Index = 17 });
-            await page.WaitForTimeoutAsync(600);
+            // Shield-bearer, its sixth lesson, and the "select everyone ready" shortcut.
+            await page.GetByLabel("Shield-bearer", new PageGetByLabelOptions { Exact = true }).CheckAsync();
+            await page.WaitForTimeoutAsync(300);
+            await page.Locator("input[name=lesson]").Nth(5).CheckAsync();
+            await page.WaitForTimeoutAsync(500);
+            var selectAll = page.Locator("button", new PageLocatorOptions { HasTextString = "Select everyone ready" });
+            if (await selectAll.CountAsync() > 0 && await selectAll.IsEnabledAsync()) await selectAll.ClickAsync();
+            await page.WaitForTimeoutAsync(400);
         }
     }
 

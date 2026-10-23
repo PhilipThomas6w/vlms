@@ -1,14 +1,18 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192" role="img" aria-label="Varangians LMS">
-  <!--
-    Placeholder app icon (design/branding not yet decided — see STATE.md and
-    openwiki/web.md). A single scalable vector icon, referenced from
-    manifest.json with "sizes": "any" so the browser can rasterize it at
-    whatever size it needs (192x192, 512x512, etc.) rather than shipping
-    separate PNGs for a logo that doesn't exist yet. Swap for a real branded
-    icon set (192x192 and 512x512 PNG, plus a maskable variant) once branding
-    is decided; nothing else in this file needs to change to pick that up.
-  -->
-  <rect width="192" height="192" rx="24" fill="#1f2937" />
-  <text x="96" y="118" font-family="Arial, sans-serif" font-size="72" font-weight="700"
-        fill="#ffffff" text-anchor="middle">VL</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- App icon: the budded Golgotha cross of the Varangian Guard patch, gold on lapis (docs/design/redesign-direction.md). -->
+  <rect width="512" height="512" rx="96" fill="#14254F"/>
+  <rect x="24" y="24" width="464" height="464" rx="76" fill="none" stroke="#E2B33C" stroke-width="6" stroke-dasharray="14 10"/>
+  <g fill="#E2B33C" transform="translate(64 56) scale(8)">
+    <rect x="22" y="5" width="4" height="33" rx="1"/>
+    <rect x="18" y="9" width="12" height="3" rx="1"/>
+    <rect x="9" y="16" width="30" height="4" rx="1"/>
+    <circle cx="24" cy="5" r="3"/>
+    <circle cx="9" cy="18" r="3"/>
+    <circle cx="39" cy="18" r="3"/>
+    <circle cx="17" cy="10.5" r="2"/>
+    <circle cx="31" cy="10.5" r="2"/>
+    <rect x="18" y="37" width="12" height="3" rx="0.5"/>
+    <rect x="14" y="40" width="20" height="3" rx="0.5"/>
+    <rect x="10" y="43" width="28" height="3" rx="0.5"/>
+  </g>
 </svg>

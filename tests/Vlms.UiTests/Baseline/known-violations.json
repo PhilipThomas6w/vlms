@@ -1,7 +1,4 @@
 {
-  "axe": {
-    "/not-found": ["document-title"],
-    "/Account/ForgotPassword": ["target-size"]
-  },
+  "axe": {},
   "reflow320": []
 }

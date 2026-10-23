@@ -1,0 +1,18 @@
+@* The standard page heading: one h1, an optional lead sentence, optional actions. *@
+<header class="page-header">
+    <h1 tabindex="-1">@Title</h1>
+    @if (Lead is not null)
+    {
+        <p class="lead">@Lead</p>
+    }
+    @if (Actions is not null)
+    {
+        <div class="actions">@Actions</div>
+    }
+</header>
+
+@code {
+    [Parameter, EditorRequired] public string Title { get; set; } = "";
+    [Parameter] public RenderFragment? Lead { get; set; }
+    [Parameter] public RenderFragment? Actions { get; set; }
+}

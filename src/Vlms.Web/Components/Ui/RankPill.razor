@@ -1,0 +1,7 @@
+@* A student's rank as a small pill in the rank's patch colours; the rank name is the text. *@
+<span class="rank-pill rank-@Order">@Name</span>
+
+@code {
+    [Parameter, EditorRequired] public int Order { get; set; }
+    [Parameter, EditorRequired] public string Name { get; set; } = "";
+}

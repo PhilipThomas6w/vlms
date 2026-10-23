@@ -9,117 +9,169 @@
 @inject ICurrentUserContext CurrentUser
 @inject CompletionService CompletionService
 
-<PageTitle>Record lesson completion</PageTitle>
+@* Recording lesson completions; redesign prototype (docs/design/redesign-direction.md, section 8). Same service call and
+   checks as before: CompletionService decides; consent-blocked students are shown with the reason and
+   can't be selected; nothing here changes who may record what. *@
 
-<h1>Record lesson completion</h1>
+<PageTitle>Record completions – Varangians</PageTitle>
 
-<p>
-    Choose a lesson, tick the students who attended and completed it, then record once. A student
-    whose consent has lapsed cannot be recorded and is shown with the reason. Certificates,
-    promotion and the parent email follow automatically.
-</p>
+<div class="record">
+    <PageHeader Title="Record completions">
+        <Lead>Choose the lesson you taught, tick the students who completed it, then record them together. Certificates, promotions and parent emails follow automatically.</Lead>
+    </PageHeader>
 
-@if (_errorMessage is not null)
-{
-    <p class="error" role="alert">@_errorMessage</p>
-}
+    @if (_errorMessage is not null)
+    {
+        <Notice Kind="danger" Role="alert"><p>@_errorMessage</p></Notice>
+    }
 
-<div>
-    <label for="lessonId">Lesson</label>
-    <select id="lessonId" @bind="_lessonId" @bind:after="OnLessonChangedAsync">
-        <option value="0">Select a lesson</option>
-        @foreach (var group in _lessons.GroupBy(l => l.Rank!).OrderBy(g => g.Key.Order))
-        {
-            <optgroup label="@group.Key.Name">
-                @foreach (var lesson in group.OrderBy(l => l.Order).ThenBy(l => l.Code))
+    @if (_results is not null)
+    {
+        <div class="record__results" tabindex="-1" @ref="_resultsElement">
+            <Notice Kind="@(_results.All(r => r.Outcome == CompletionOutcome.Completed) ? "success" : "warning")" Role="status">
+                <p><strong>@ResultsHeadline()</strong></p>
+                <ul>
+                    @foreach (var result in _results)
+                    {
+                        <li>
+                            @NameOf(result.StudentId):
+                            @switch (result.Outcome)
+                            {
+                                case CompletionOutcome.Completed:
+                                    <text>recorded@(result.Promoted ? $", promoted to {RankOf(result.StudentId)}" : "").</text>
+                                    break;
+                                case CompletionOutcome.AlreadyCompleted:
+                                    <text>already completed.</text>
+                                    break;
+                                default:
+                                    <text>not recorded: @result.Message</text>
+                                    break;
+                            }
+                        </li>
+                    }
+                </ul>
+            </Notice>
+        </div>
+    }
+
+    @* Step 1: the lesson, chosen by rank. *@
+    <section class="record__step" aria-labelledby="step-lesson">
+        <h2 id="step-lesson"><span class="record__num" aria-hidden="true">1</span> Lesson</h2>
+        <fieldset class="rank-choice">
+            <legend>Rank</legend>
+            <div class="rank-choice__options">
+                @foreach (var rank in _ranks)
                 {
-                    <option value="@lesson.Id">@lesson.Order. @lesson.Title (@lesson.Code)</option>
-                }
-            </optgroup>
-        }
-    </select>
-</div>
-
-<div>
-    <input type="checkbox" id="assignedToMe" @bind="_assignedToMeOnly" />
-    <label for="assignedToMe">Only students assigned to me</label>
-</div>
-
-@if (_lessonId != 0)
-{
-    <fieldset>
-        <legend>Students who completed this lesson</legend>
-        @if (VisibleStudents.Count == 0)
-        {
-            <p>No active students to show.</p>
-        }
-        @foreach (var student in VisibleStudents)
-        {
-            var blocked = _consentBlocked.Contains(student.Id);
-            var already = _alreadyCompleted.Contains(student.Id);
-            <div>
-                <input type="checkbox" id="student@(student.Id)"
-                       checked="@_selected.Contains(student.Id)"
-                       disabled="@(blocked || already)"
-                       @onchange="e => Toggle(student.Id, (bool)(e.Value ?? false))" />
-                <label for="student@(student.Id)">@student.Name (@student.CurrentRank?.Name)</label>
-                @if (blocked)
-                {
-                    <span> — consent has lapsed or is missing, so completion cannot be recorded.</span>
-                }
-                else if (already)
-                {
-                    <span> — already completed.</span>
+                    <label class="rank-choice__option rank-@rank.Order">
+                        <input type="radio" name="rank" value="@rank.Id" checked="@(_rankId == rank.Id)" @onchange="() => ChooseRank(rank.Id)" />
+                        <span>@rank.Name</span>
+                    </label>
                 }
             </div>
-        }
-    </fieldset>
+        </fieldset>
 
-    <div>
-        <label for="completionNote">Note (optional)</label>
-        <input type="text" id="completionNote" @bind="_note" />
-    </div>
-
-    <button type="button" @onclick="SubmitAsync" disabled="@(_busy || _selected.Count == 0)">
-        Record completion for @_selected.Count student(s)
-    </button>
-}
-
-@if (_results is not null)
-{
-    <h2>Result</h2>
-    <ul role="status">
-        @foreach (var result in _results)
+        @if (_rankId != 0)
         {
-            <li>
-                @NameOf(result.StudentId):
-                @switch (result.Outcome)
-                {
-                    case CompletionOutcome.Completed:
-                        <text>recorded@(result.Promoted ? " (promoted)" : "").</text>
-                        break;
-                    case CompletionOutcome.AlreadyCompleted:
-                        <text>already completed.</text>
-                        break;
-                    case CompletionOutcome.ConsentBlocked:
-                        <text>blocked — @result.Message</text>
-                        break;
-                    default:
-                        <text>failed — @result.Message</text>
-                        break;
-                }
-            </li>
+            <fieldset class="lesson-choice">
+                <legend>@RankName(_rankId) lesson</legend>
+                <ol class="lesson-choice__list">
+                    @foreach (var lesson in _lessons.Where(l => l.RankId == _rankId).OrderBy(l => l.Order).ThenBy(l => l.Code))
+                    {
+                        <li>
+                            <label class="lesson-choice__option">
+                                <input type="radio" name="lesson" id="lesson@(lesson.Id)" value="@lesson.Id" checked="@(_lessonId == lesson.Id)" @onchange="() => ChooseLessonAsync(lesson.Id)" />
+                                <span class="lesson-choice__order" aria-hidden="true">@lesson.Order</span>
+                                <span class="lesson-choice__title">@lesson.Title</span>
+                                <span class="lesson-choice__code">@lesson.Code</span>
+                            </label>
+                        </li>
+                    }
+                </ol>
+            </fieldset>
         }
-    </ul>
-}
+    </section>
+
+    @* Step 2: the students. *@
+    @if (_lessonId != 0)
+    {
+        var lessonRankId = _lessons.First(l => l.Id == _lessonId).RankId;
+        var atRank = VisibleStudents.Where(s => s.CurrentRankId == lessonRankId).ToList();
+        var others = VisibleStudents.Where(s => s.CurrentRankId != lessonRankId).ToList();
+
+        <section class="record__step" aria-labelledby="step-students">
+            <h2 id="step-students"><span class="record__num" aria-hidden="true">2</span> Students who completed @LessonTitle(_lessonId)</h2>
+
+            <div class="record__tools">
+                <label class="check" for="assignedToMe">
+                    <input type="checkbox" id="assignedToMe" @bind="_assignedToMeOnly" @bind:after="ClearHiddenSelections" />
+                    Only students assigned to me
+                </label>
+                <button type="button" class="btn--secondary" @onclick="() => SelectAllReady(atRank)" disabled="@(!atRank.Any(IsReady))">
+                    Select everyone ready at @RankName(lessonRankId)
+                </button>
+            </div>
+
+            @if (VisibleStudents.Count == 0)
+            {
+                <div class="empty"><p>No active students to show. @(_assignedToMeOnly ? "Untick \"Only students assigned to me\" to see everyone." : "")</p></div>
+            }
+            else
+            {
+                <fieldset class="students">
+                    <legend>@RankName(lessonRankId) students (@atRank.Count)</legend>
+                    @if (atRank.Count == 0)
+                    {
+                        <p class="muted">No students are at @RankName(lessonRankId) at the moment.</p>
+                    }
+                    <ul class="student-rows">
+                        @foreach (var student in atRank) { @StudentRow(student, showRank: false) }
+                    </ul>
+                </fieldset>
+
+                @if (others.Count > 0)
+                {
+                    <details class="others" open="@(others.Any(s => _selected.Contains(s.Id)))">
+                        <summary>Students at other ranks (@others.Count)</summary>
+                        <fieldset class="students">
+                            <legend class="visually-hidden">Students at other ranks</legend>
+                            <ul class="student-rows">
+                                @foreach (var student in others) { @StudentRow(student, showRank: true) }
+                            </ul>
+                        </fieldset>
+                    </details>
+                }
+            }
+        </section>
+
+        <div class="field record__note">
+            <label for="completionNote">Note <span class="muted">(optional)</span></label>
+            <span class="hint" id="completionNote-hint">Saved with each of these completions, for example a word on how the lesson went.</span>
+            <input type="text" id="completionNote" aria-describedby="completionNote-hint" @bind="_note" />
+        </div>
+
+        @* Step 3: record. The bar stays in view while the list scrolls. *@
+        <section class="record__bar" aria-labelledby="step-record">
+            <h2 id="step-record" class="visually-hidden">Record</h2>
+            <p class="record__selected">@(_selected.Count == 0 ? "No students selected" : _selected.Count == 1 ? "1 student selected" : $"{_selected.Count} students selected")</p>
+            <button type="button" @onclick="SubmitAsync" disabled="@(_busy || _selected.Count == 0)">
+                <Icon Name="record" />
+                @(_busy ? "Recording…" : _selected.Count switch { 0 => "Record completions", 1 => "Record 1 completion", var n => $"Record {n} completions" })
+            </button>
+        </section>
+    }
+</div>
 
 @code {
     private List<Lesson> _lessons = new();
+    private List<Rank> _ranks = new();
     private List<Student> _students = new();
     private HashSet<int> _consentBlocked = new();
     private HashSet<int> _alreadyCompleted = new();
     private HashSet<int> _selected = new();
     private IReadOnlyList<StudentCompletionResult>? _results;
+    private ElementReference _resultsElement;
+    private bool _focusResults;
+    private int _rankId;
     private int _lessonId;
     private bool _assignedToMeOnly;
     private bool _busy;
@@ -130,18 +182,75 @@
         .Where(s => !_assignedToMeOnly || (CurrentUser.UserId is not null && s.AssignedTeacherUserId == CurrentUser.UserId))
         .ToList();
 
+    private RenderFragment StudentRow(Student student, bool showRank) => __builder =>
+    {
+        var blocked = _consentBlocked.Contains(student.Id);
+        var already = _alreadyCompleted.Contains(student.Id);
+        <li class="student-row @(blocked ? "is-blocked" : already ? "is-done" : null)">
+            <input type="checkbox" id="student@(student.Id)"
+                   checked="@_selected.Contains(student.Id)"
+                   disabled="@(blocked || already)"
+                   aria-describedby="@(blocked || already ? $"student{student.Id}-state" : null)"
+                   @onchange="e => Toggle(student.Id, (bool)(e.Value ?? false))" />
+            <label for="student@(student.Id)">
+                <span class="student-row__name">@student.Name</span>
+                @if (showRank && student.CurrentRank is { } rank)
+                {
+                    <RankPill Order="rank.Order" Name="@rank.Name" />
+                }
+            </label>
+            @if (blocked)
+            {
+                <span class="student-row__state" id="student@(student.Id)-state">
+                    <span class="pill pill--warning"><Icon Name="alert" /> Consent needed</span>
+                    <span class="student-row__reason">Consent has lapsed or is missing, so completion can't be recorded.</span>
+                </span>
+            }
+            else if (already)
+            {
+                <span class="student-row__state" id="student@(student.Id)-state">
+                    <span class="pill pill--success"><Icon Name="check" /> Already completed</span>
+                </span>
+            }
+        </li>
+    };
+
     protected override async Task OnInitializedAsync()
     {
         _lessons = await Db.Lessons.AsNoTracking()
             .Include(l => l.Rank)
             .Where(l => l.IsActive)
             .ToListAsync();
+        _ranks = _lessons.Select(l => l.Rank!).DistinctBy(r => r.Id).OrderBy(r => r.Order).ToList();
+        await LoadStudentsAsync();
+        await LoadConsentAsync();
+
+        // Start at the rank most of the teacher's own students are at (or most students, if none are assigned).
+        var mine = _students.Where(s => CurrentUser.UserId is not null && s.AssignedTeacherUserId == CurrentUser.UserId).ToList();
+        _rankId = (mine.Count > 0 ? mine : _students)
+            .Where(s => _ranks.Any(r => r.Id == s.CurrentRankId))
+            .GroupBy(s => s.CurrentRankId)
+            .OrderByDescending(g => g.Count())
+            .Select(g => g.Key)
+            .FirstOrDefault();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_focusResults)
+        {
+            _focusResults = false;
+            await _resultsElement.FocusAsync();
+        }
+    }
+
+    private async Task LoadStudentsAsync()
+    {
         _students = await Db.Students.AsNoTracking()
             .Include(s => s.CurrentRank)
             .Where(s => s.Status == StudentStatus.Active)
             .OrderBy(s => s.Name)
             .ToListAsync();
-        await LoadConsentAsync();
     }
 
     private async Task LoadConsentAsync()
@@ -155,8 +264,19 @@
         _consentBlocked = _students.Select(s => s.Id).Except(withConsent).ToHashSet();
     }
 
-    private async Task OnLessonChangedAsync()
+    private void ChooseRank(int rankId)
     {
+        _rankId = rankId;
+        if (_lessonId != 0 && _lessons.First(l => l.Id == _lessonId).RankId != rankId)
+        {
+            _lessonId = 0;
+            _selected.Clear();
+        }
+    }
+
+    private async Task ChooseLessonAsync(int lessonId)
+    {
+        _lessonId = lessonId;
         _results = null;
         _errorMessage = null;
         _selected.Clear();
@@ -173,12 +293,34 @@
                 .ToListAsync()).ToHashSet();
     }
 
+    private bool IsReady(Student student) => !_consentBlocked.Contains(student.Id) && !_alreadyCompleted.Contains(student.Id);
+
+    private void SelectAllReady(IEnumerable<Student> students)
+    {
+        foreach (var student in students.Where(IsReady)) _selected.Add(student.Id);
+    }
+
+    // Hiding students (the "assigned to me" filter) must not leave hidden ones selected.
+    private void ClearHiddenSelections() => _selected.IntersectWith(VisibleStudents.Select(s => s.Id));
+
     private void Toggle(int studentId, bool on)
     {
         if (on) { _selected.Add(studentId); } else { _selected.Remove(studentId); }
     }
 
     private string NameOf(int studentId) => _students.FirstOrDefault(s => s.Id == studentId)?.Name ?? $"Student {studentId}";
+    private string RankOf(int studentId) => _students.FirstOrDefault(s => s.Id == studentId)?.CurrentRank?.Name ?? "the next rank";
+    private string RankName(int rankId) => _ranks.FirstOrDefault(r => r.Id == rankId)?.Name ?? "";
+    private string LessonTitle(int lessonId) => _lessons.FirstOrDefault(l => l.Id == lessonId)?.Title ?? "";
+
+    private string ResultsHeadline()
+    {
+        var recorded = _results!.Count(r => r.Outcome == CompletionOutcome.Completed);
+        var promoted = _results!.Count(r => r.Promoted);
+        var text = recorded == 1 ? "1 completion recorded" : $"{recorded} completions recorded";
+        if (promoted > 0) text += promoted == 1 ? ", 1 promotion" : $", {promoted} promotions";
+        return text + ".";
+    }
 
     private async Task SubmitAsync()
     {
@@ -193,7 +335,11 @@
         {
             _results = await CompletionService.MarkCompleteBatchAsync(_selected.ToList(), _lessonId, _note);
             _selected.Clear();
+            _note = null;
+            // Ranks may have changed (promotion): reload so the list and the result show the new rank.
+            await LoadStudentsAsync();
             await LoadAlreadyCompletedAsync();
+            _focusResults = true;
         }
         catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException)
         {

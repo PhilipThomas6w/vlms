@@ -1,0 +1,35 @@
+@* The product mark: the budded Golgotha cross from the Varangian Guard patch, redrawn for this project
+   (docs/design/redesign-direction.md, section 6). With Letters, the IC XC / NI KA abbreviation
+   ("Jesus Christ conquers") as on the patch; without, for small sizes where the letters can't be read.
+   Decorative: the visible product name beside it is the accessible name. *@
+<svg class="brand-mark" viewBox="0 0 48 48" aria-hidden="true" focusable="false">
+    <g fill="currentColor">
+        @* Shaft and the two bars: the short title board above the main crossbar. *@
+        <rect x="22" y="5" width="4" height="33" rx="1" />
+        <rect x="18" y="9" width="12" height="3" rx="1" />
+        <rect x="9" y="16" width="30" height="4" rx="1" />
+        @* Buds at the arms' ends (cross fleury, as on the patch). *@
+        <circle cx="24" cy="5" r="3" />
+        <circle cx="9" cy="18" r="3" />
+        <circle cx="39" cy="18" r="3" />
+        <circle cx="17" cy="10.5" r="2" />
+        <circle cx="31" cy="10.5" r="2" />
+        @* Golgotha: three steps. *@
+        <rect x="18" y="37" width="12" height="3" rx="0.5" />
+        <rect x="14" y="40" width="20" height="3" rx="0.5" />
+        <rect x="10" y="43" width="28" height="3" rx="0.5" />
+    </g>
+    @if (Letters)
+    {
+        <g fill="currentColor" font-family="Alegreya, Georgia, serif" font-weight="800" font-size="6.5" text-anchor="middle">
+            <text x="14" y="14">IC</text>
+            <text x="34" y="14">XC</text>
+            <text x="14" y="29">NI</text>
+            <text x="34" y="29">KA</text>
+        </g>
+    }
+</svg>
+
+@code {
+    [Parameter] public bool Letters { get; set; }
+}
