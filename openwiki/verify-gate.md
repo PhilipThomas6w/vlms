@@ -1,9 +1,9 @@
 # The `build/verify.ps1` gate
 
 `pwsh -File build/verify.ps1` (full) / `-Fast` (quick). Stages, in order: `build` (`dotnet build
--warnaserror`), `test` (`dotnet test`), `secrets` (`build/check-secrets.ps1` — gitleaks if installed,
+-warnaserror`), `test` (`dotnet test tests/Vlms.Tests`), `secrets` (`build/check-secrets.ps1` — gitleaks if installed,
 else a hardened regex fallback), then — full runs only — `access-control (ASVS 5.0 V8)` and
-`accessibility (WCAG 2.2 AA)`. Every stage is designed to be genuinely falsifiable
+`accessibility (WCAG 2.2 AA)`, `ui-tests (browser WCAG)` (`tests/Vlms.UiTests`: Playwright + axe-core against a Kestrel-hosted app; needs Chromium, see `docs/adr/0009-browser-wcag-checks-in-the-gate.md`). Every stage is designed to be genuinely falsifiable
 (`loop-harness:verify-gate-authoring`'s standard) — none of them print a placeholder and always exit
 0.
 

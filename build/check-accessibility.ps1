@@ -1,17 +1,20 @@
 # WCAG 2.2 AA accessibility check — build/verify.ps1 full-only stage.
 #
-# Verified before building this (not guessed, per CLAUDE.md "verify, don't invent"): there is no
+# Superseded in part by docs/adr/0009-browser-wcag-checks-in-the-gate.md. This script was written when
+# the project judged that a Playwright + browser-install + hosted-app harness inside every full gate
+# run was "a disproportionate amount of new moving parts", and so kept to what is checkable from the
+# markup alone. ADR-0009 reverses that: the full gate now also has an "ui-tests (browser WCAG)" stage
+# (tests/Vlms.UiTests: axe-core and 320 px reflow against a real Kestrel-hosted app), which covers
+# colour contrast (1.4.3/1.4.11) and reflow (1.4.10). The checks below are unchanged and still run.
+#
+# Verified when this was first built (not guessed, per CLAUDE.md "verify, don't invent"): there is no
 # established, genuinely CI-runnable static/build-time accessibility linter for Razor/Blazor markup
 # comparable to eslint-plugin-jsx-a11y for JSX. The real tooling in this space (axe-core, Deque's
-# axe DevTools, Microsoft's Accessibility Insights) all works by inspecting a rendered DOM — it
-# needs a live browser (Playwright/Selenium) driving a running instance of the app. For a
-# Server-interactive Blazor app with no CI pipeline yet and one solo maintainer, standing up a
-# Playwright + browser-install + hosted-app harness inside every `verify.ps1 -Full` run is a
-# disproportionate amount of new moving parts for this project's stage (ADR-0003's "fewest moving
-# parts" reasoning applies equally here) — and it still wouldn't run in -Fast, so it buys nothing
-# for the common case. Decision: automate what's genuinely checkable from the markup alone without a
-# browser, and gate everything else (contrast, focus order, zoom/reflow, screen-reader flow) behind
-# a human-signed checklist, same currency mechanism as check-access-control.ps1.
+# axe DevTools, Microsoft's Accessibility Insights) all works by inspecting a rendered DOM, so it needs
+# a live browser driving a running instance of the app. This script automates what is genuinely
+# checkable from the markup alone, and gates what is neither here nor in the browser tests (focus order
+# judgement, screen-reader flow) behind a human-signed checklist, same currency mechanism as
+# check-access-control.ps1.
 #
 # Automated below (genuinely falsifiable):
 #   1. Every <img> element has an alt attribute (WCAG 1.1.1 Non-text Content).
