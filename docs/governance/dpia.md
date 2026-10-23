@@ -35,7 +35,7 @@ The processing is small in scale (tens of people per role) and is not profiling,
 
 ## 2. The processing
 
-**Controller:** `[TBC – Philip: Shrewsbury Orthodox Church, or its trustees/parish council as the legal entity]`. Varangians is the church's youth club.
+**Controller:** Shrewsbury Orthodox Church, a charitable incorporated organisation (CIO) registered with the Charity Commission for England and Wales, charity no. 1166735 (Safeguarding Policy v4, adopted 14/10/2026). A CIO has its own legal personality, so the CIO is the controller and its trustees act for it ([ICO: what are controllers and processors](https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/controllers-and-processors/controllers-and-processors/what-are-controllers-and-processors/)). Philip Thomas (Secretary and Safeguarding Trustee, web administrator, and a Teacher) is responsible for data protection on the trustees' behalf (Philip, 23/10/2026; Philip stated "I am the data controller", wording to confirm against the CIO position above). Varangians is the church's youth club.
 
 **Purpose:** run the youth programme: track lesson completions and rank progression, issue certificates and badges, manage the curriculum, hold annual parental consent and volunteers' DBS checks, keep parents informed, and report on progress and disengagement.
 
@@ -108,5 +108,5 @@ Likelihood and severity: Remote / Possible / Probable; Minimal / Significant / S
 | Measures approved by | `[TBC – Philip]` | |
 | Residual risks approved by | `[TBC – Philip]` | Medium residuals 7 and 8 need a decision or a fix before go-live |
 | DPO / data-protection advice | `[TBC – Philip]` | whether the church has a DPO or adviser |
-| ICO registration (data protection fee) | `[TBC – Philip]` | open in `STATE.md` Blocked |
+| ICO registration (data protection fee) | Not required (Philip, 23/10/2026) | Not-for-profit exemption; lost if, for example, the church becomes responsible for CCTV or shares personal data commercially ([ICO: fee exemptions](https://ico.org.uk/for-organisations/data-protection-fee/data-protection-fee/exemptions/)) |
 | Review date | `[TBC – Philip]` | suggest annually, or on any change to the data collected |
