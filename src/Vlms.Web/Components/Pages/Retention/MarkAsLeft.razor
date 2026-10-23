@@ -13,10 +13,16 @@
 <h1>Mark as left</h1>
 
 <p>
-    A manual action for Admins only. It is not inferred from disengagement or activity. Marking a Student or Teacher as having left records the
+    A manual action for Admins only. It is not inferred from disengagement or activity. Marking a Student or staff member as having left records the
     date automatically (the moment you click the button, not a backdated date you choose) and feeds
     the <a href="/reporting/records-due-for-deletion">records due for deletion</a> retention report.
     This does not delete anything and does not affect promotions, badges, or certificates.
+</p>
+<p>
+    Students, parents and Approvers who leave keep their sign-in. A Teacher, Admin or Safeguarding Officer
+    marked as left loses all staff access at once. If they are also a parent they can still sign in, but
+    only as a parent of their own children; otherwise they can no longer sign in at all. Their staff
+    roles are kept as a record. You can't mark yourself as left, or the last Admin who hasn't left.
 </p>
 
 @if (_errorMessage is not null)
@@ -56,28 +62,30 @@ else
     </table>
 }
 
-<h2>Teachers</h2>
-@if (_currentTeachers.Count == 0)
+<h2>Staff</h2>
+@if (_currentStaff.Count == 0)
 {
-    <p>No Teachers who have not already been marked as left.</p>
+    <p>No Teachers, Admins or Safeguarding Officers who have not already been marked as left.</p>
 }
 else
 {
     <table>
         <thead>
             <tr>
-                <th>Teacher</th>
+                <th>Name</th>
                 <th>Email</th>
+                <th>Roles</th>
                 <th></th>
             </tr>
         </thead>
         <tbody>
-            @foreach (var teacher in _currentTeachers)
+            @foreach (var member in _currentStaff)
             {
                 <tr>
-                    <td>@teacher.DisplayName</td>
-                    <td>@teacher.Email</td>
-                    <td><button aria-label="@($"Mark {teacher.DisplayName} as left")" @onclick="() => MarkTeacherLeftAsync(teacher.Id)">Mark as left</button></td>
+                    <td>@member.User.DisplayName</td>
+                    <td>@member.User.Email</td>
+                    <td>@string.Join(", ", member.Roles)</td>
+                    <td><button aria-label="@($"Mark {member.User.DisplayName} as left")" @onclick="() => MarkStaffLeftAsync(member.User.Id)">Mark as left</button></td>
                 </tr>
             }
         </tbody>
@@ -86,7 +94,9 @@ else
 
 @code {
     private List<Student> _activeStudents = new();
-    private List<AppUser> _currentTeachers = new();
+    private List<StaffRow> _currentStaff = new();
+
+    private sealed record StaffRow(AppUser User, IReadOnlyList<Role> Roles);
     private string? _errorMessage;
     private string? _statusMessage;
 
@@ -99,16 +109,18 @@ else
             .OrderBy(s => s.Name)
             .ToListAsync();
 
-        var teacherUserIds = await Db.UserRoles
-            .Where(r => r.Role == Role.Teacher)
-            .Select(r => r.UserId)
-            .Distinct()
+        // FR-017: Teachers, Admins and Safeguarding Officers (LeftStaffPolicy.StaffRoles).
+        var staffRoles = await Db.UserRoles
+            .Where(r => r.Role == Role.Teacher || r.Role == Role.Admin || r.Role == Role.SafeguardingOfficer)
             .ToListAsync();
+        var rolesByUser = staffRoles.ToLookup(r => r.UserId, r => r.Role);
+        var staffUserIds = rolesByUser.Select(g => g.Key).ToList();
 
-        _currentTeachers = await Db.AppUsers
-            .Where(u => teacherUserIds.Contains(u.Id) && !u.HasLeft)
+        var users = await Db.AppUsers
+            .Where(u => staffUserIds.Contains(u.Id) && !u.HasLeft)
             .OrderBy(u => u.DisplayName)
             .ToListAsync();
+        _currentStaff = users.Select(u => new StaffRow(u, rolesByUser[u.Id].OrderBy(r => r).ToList())).ToList();
     }
 
     private async Task MarkStudentInactiveAsync(int studentId)
@@ -128,15 +140,15 @@ else
         }
     }
 
-    private async Task MarkTeacherLeftAsync(int teacherUserId)
+    private async Task MarkStaffLeftAsync(int userId)
     {
         _errorMessage = null;
         _statusMessage = null;
 
         try
         {
-            var teacher = await LeavingService.MarkTeacherLeftAsync(teacherUserId);
-            _statusMessage = $"{teacher.DisplayName} marked as left.";
+            var member = await LeavingService.MarkStaffLeftAsync(userId);
+            _statusMessage = $"{member.DisplayName} marked as left. Their staff access has ended.";
             await LoadAsync();
         }
         catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException)

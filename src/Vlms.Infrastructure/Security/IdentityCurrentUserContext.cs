@@ -106,7 +106,13 @@ public sealed class IdentityCurrentUserContext : ICurrentUserContext
         }
     }
 
-    /// <summary>Whether the caller holds <paramref name="role"/> right now. Re-read on every call.</summary>
+    /// <summary>
+    /// Whether the caller holds <paramref name="role"/> right now. Re-read on every call. Once an
+    /// account has left, its Teacher, Admin and Safeguarding Officer rows no longer count
+    /// (<see cref="LeftStaffPolicy"/>, FR-017), so a still-open session loses every staff page,
+    /// staff service and staff route of the sensitive-data query filters the moment the account is
+    /// marked as left; a Parent role it also holds still counts.
+    /// </summary>
     public bool HasRole(Role role)
     {
         if (ClaimedUserId() is not int userId)
@@ -116,7 +122,8 @@ public sealed class IdentityCurrentUserContext : ICurrentUserContext
 
         // UserRole.UserId is a foreign key to AppUser, so a matching row also proves the AppUser exists.
         using var db = NewLookupContext();
-        return db.UserRoles.Any(r => r.UserId == userId && r.Role == role);
+        return db.UserRoles.Any(r => r.UserId == userId && r.Role == role)
+            && (!LeftStaffPolicy.IsStaffRole(role) || LeftStaffPolicy.StaffRoleCounts(db, userId));
     }
 
     /// <summary>Whether the caller has TOTP MFA enabled right now. Re-read on every access.</summary>

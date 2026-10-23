@@ -156,13 +156,43 @@ public sealed class RoleAssignmentServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task RevokeAsync_FromLeaver_IsAllowed()
+    public async Task RevokeAsync_StaffRoleFromLeaver_IsRefused_AndTheRowIsKept()
     {
         using var admin = CreateContext(1, Role.Admin);
 
-        await admin.Service.RevokeAsync(30, Role.Teacher);
+        // FR-017: the row is the record of their staff history and already gives them nothing.
+        await Assert.ThrowsAsync<InvalidOperationException>(() => admin.Service.RevokeAsync(30, Role.Teacher));
 
-        Assert.Empty(await RolesOf(30));
+        Assert.Equal([Role.Teacher], await RolesOf(30));
+    }
+
+    [Fact]
+    public async Task RevokeAsync_NonStaffRoleFromLeaver_IsAllowed()
+    {
+        // An Approver who leaves keeps access (FR-017, 23/10/2026); an Admin can remove the role.
+        using (var seed = CreateContext(1, Role.Admin))
+        {
+            seed.Context.UserRoles.Add(new UserRole { UserId = 30, Role = Role.Approver });
+            await seed.Context.SaveChangesAsync();
+        }
+
+        using var admin = CreateContext(1, Role.Admin);
+        await admin.Service.RevokeAsync(30, Role.Approver);
+
+        Assert.Equal([Role.Teacher], await RolesOf(30));
+    }
+
+    [Fact]
+    public async Task RevokeAsync_LastAdminWhoHasNotLeft_Throws_EvenIfALeaverStillHasAnAdminRow()
+    {
+        using (var seed = CreateContext(1, Role.Admin))
+        {
+            seed.Context.UserRoles.Add(new UserRole { UserId = 30, Role = Role.Admin });
+            await seed.Context.SaveChangesAsync();
+        }
+
+        using var admin = CreateContext(1, Role.Admin);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => admin.Service.RevokeAsync(1, Role.Admin));
     }
 
     [Fact]

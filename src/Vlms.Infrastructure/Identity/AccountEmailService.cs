@@ -21,15 +21,18 @@ public sealed class AccountEmailService
     private readonly UserManager<VlmsIdentityUser> _userManager;
     private readonly INotificationService _notificationService;
     private readonly IConfiguration _configuration;
+    private readonly VlmsDbContext _db;
 
     public AccountEmailService(
         UserManager<VlmsIdentityUser> userManager,
         INotificationService notificationService,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        VlmsDbContext db)
     {
         _userManager = userManager;
         _notificationService = notificationService;
         _configuration = configuration;
+        _db = db;
     }
 
     /// <summary>Sends an email-confirmation link to a newly registered, unconfirmed account.</summary>
@@ -66,11 +69,18 @@ public sealed class AccountEmailService
         return user is not null && (await _userManager.ConfirmEmailAsync(user, code)).Succeeded;
     }
 
-    /// <summary>Sends a password-reset link if <paramref name="email"/> belongs to a confirmed account; otherwise does nothing.</summary>
+    /// <summary>
+    /// Sends a password-reset link if <paramref name="email"/> belongs to a confirmed account;
+    /// otherwise does nothing. A staff member who has left and holds no other role
+    /// (<see cref="LeftStaffPolicy.IsLockedOut"/>, FR-017) gets no link: a new password would not let
+    /// them sign in, and the page says the same thing whether or not a link was sent, so the
+    /// account's state is not revealed. One who is also a parent still gets one.
+    /// </summary>
     public async Task RequestPasswordResetAsync(string email, CancellationToken ct = default)
     {
         var user = await FindAsync(email);
-        if (user is null || !await _userManager.IsEmailConfirmedAsync(user))
+        if (user is null || !await _userManager.IsEmailConfirmedAsync(user)
+            || await LeftStaffPolicy.IsLockedOutAsync(_db, user.Id, ct))
         {
             return;
         }

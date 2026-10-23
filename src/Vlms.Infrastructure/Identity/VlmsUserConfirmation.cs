@@ -16,6 +16,9 @@ namespace Vlms.Infrastructure.Identity;
 /// in the same transaction that creates the account. The parent's act is the confirmation.</item>
 /// <item><b>An account with <see cref="VlmsIdentityUser.SignInDisabled"/> set</b> is never
 /// confirmed: this is how an Admin's disable stops a student signing in (adr/0007).</item>
+/// <item><b>A Teacher, Admin or Safeguarding Officer marked as having left who holds no other role</b>
+/// is never confirmed (<see cref="LeftStaffPolicy.IsLockedOut"/>, FR-017). One who is also a Parent
+/// stays confirmed and signs in as a parent only.</item>
 /// </list>
 /// An emailless account that no student points at (which no code path creates) can never sign in,
 /// and an adult cannot drop their email to skip confirmation: no page edits a user's email.
@@ -35,6 +38,12 @@ public sealed class VlmsUserConfirmation : IUserConfirmation<VlmsIdentityUser>
         ArgumentNullException.ThrowIfNull(user);
 
         if (user.SignInDisabled)
+        {
+            return false;
+        }
+
+        // FR-017: a staff member who has left and holds no other role (such as Parent) can't sign in.
+        if (await LeftStaffPolicy.IsLockedOutAsync(_db, user.Id))
         {
             return false;
         }

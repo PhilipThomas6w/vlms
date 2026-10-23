@@ -1,8 +1,6 @@
-using System.Security.Claims;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Server;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.Extensions.Options;
 using Vlms.Infrastructure.Identity;
 
 namespace Vlms.Web.Components.Account;
@@ -27,8 +25,7 @@ namespace Vlms.Web.Components.Account;
 /// </summary>
 internal sealed class IdentityRevalidatingAuthenticationStateProvider(
         ILoggerFactory loggerFactory,
-        IServiceScopeFactory scopeFactory,
-        IOptions<IdentityOptions> options)
+        IServiceScopeFactory scopeFactory)
     : RevalidatingServerAuthenticationStateProvider(loggerFactory)
 {
     // Same interval as the cookie's SecurityStampValidator (FR-016; VlmsIdentityPolicy's doc comment).
@@ -41,26 +38,12 @@ internal sealed class IdentityRevalidatingAuthenticationStateProvider(
         // UserManager/DbContext rather than a possibly-long-lived one, the same reasoning the
         // official template uses.
         await using var scope = scopeFactory.CreateAsyncScope();
-        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<VlmsIdentityUser>>();
-        return await ValidateSecurityStampAsync(userManager, authenticationState.User);
-    }
-
-    private async Task<bool> ValidateSecurityStampAsync(UserManager<VlmsIdentityUser> userManager, ClaimsPrincipal principal)
-    {
-        var user = await userManager.GetUserAsync(principal);
-        if (user is null)
-        {
-            return false;
-        }
-        else if (!userManager.SupportsUserSecurityStamp)
-        {
-            return true;
-        }
-        else
-        {
-            var principalStamp = principal.FindFirstValue(options.Value.ClaimsIdentity.SecurityStampClaimType);
-            var userStamp = await userManager.GetSecurityStampAsync(user);
-            return principalStamp == userStamp;
-        }
+        // FR-017: the template compares the security stamp here itself. This goes through
+        // VlmsSignInManager instead, the same check the cookie's SecurityStampValidator makes, so a
+        // live circuit is refused by exactly the same rule: a current stamp and an account that may
+        // still sign in (not a staff member who has left, LeftStaffPolicy). That check reads only
+        // UserManager and the database, never the (absent) HttpContext.
+        var signInManager = scope.ServiceProvider.GetRequiredService<SignInManager<VlmsIdentityUser>>();
+        return await signInManager.ValidateSecurityStampAsync(authenticationState.User) is not null;
     }
 }
