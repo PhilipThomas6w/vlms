@@ -1,7 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 16" width="12" height="16">
-  <!-- The mosaic sawtooth turned for upright borders (pillars). Original work. -->
-  <rect width="12" height="16" fill="#E2B33C"/>
-  <polygon points="2,0 11,8 2,16" fill="#1F45A3"/>
-  <polygon points="2,4 6.5,8 2,12" fill="#F7F3E8"/>
-  <rect width="2" height="16" fill="#C2341F"/>
-</svg>

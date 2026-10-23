@@ -93,17 +93,13 @@ else
                         @if (next is not null)
                         {
                             <div class="next-lesson__card rank-@current.Order">
-                                @* An illuminated initial, after insular manuscripts; decorative, the title below is read whole. *@
-                                <span class="next-lesson__initial" aria-hidden="true">@next.Title[..1]</span>
-                                <div class="next-lesson__body">
-                                    <p class="next-lesson__step">Lesson @next.Order of @current.Lessons.Count</p>
-                                    <p class="next-lesson__title">@next.Title</p>
-                                    @if (next.Tags.Count > 0)
-                                    {
-                                        <p class="next-lesson__tags">@string.Join(" and ", next.Tags.Select(TagName))</p>
-                                    }
-                                    <a class="btn" href="/lessons#lesson-@next.Code">Read it in the library</a>
-                                </div>
+                                <p class="next-lesson__step">Lesson @next.Order of @current.Lessons.Count</p>
+                                <p class="next-lesson__title">@next.Title</p>
+                                @if (next.Tags.Count > 0)
+                                {
+                                    <p class="next-lesson__tags">@string.Join(" and ", next.Tags.Select(TagName))</p>
+                                }
+                                <a class="btn" href="/lessons#lesson-@next.Code">Read it in the library</a>
                             </div>
                         }
                         else if (current.Lessons.Count == 0)

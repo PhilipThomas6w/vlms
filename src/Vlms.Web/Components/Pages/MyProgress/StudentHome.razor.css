@@ -3,40 +3,44 @@
 /* ---------- Rank header: the rank's colour field, a mosaic grout texture, and the headpiece frame ---------- */
 .rank-hero {
     position: relative;
-    overflow: hidden;
     margin-top: var(--s-5);
     background-color: var(--rank-field);
+    /* Mosaic grout: faint lines every 14 px, strongest towards the right edge. */
+    background-image:
+        linear-gradient(90deg, var(--rank-field) 35%, transparent 100%),
+        linear-gradient(color-mix(in srgb, var(--rank-on) 9%, transparent) 1px, transparent 1px),
+        linear-gradient(90deg, color-mix(in srgb, var(--rank-on) 9%, transparent) 1px, transparent 1px);
+    background-size: 100% 100%, 14px 14px, 14px 14px;
     color: var(--rank-on);
     border-radius: 14px;
-    padding: var(--s-4) var(--s-4) var(--s-4);
+    padding: var(--s-5) var(--s-4) var(--s-4);
     margin-bottom: var(--s-6);
     --focus-inner: var(--rank-on);
     --focus-outer: var(--rank-accent);
 }
 
-/* The headpiece (after Byzantine manuscript headpieces): a jewelled lintel on two mosaic pillars, open below. */
+/* The headpiece (studied in Byzantine manuscripts): a heavy lintel and two pillars, open below. */
 .rank-hero__frame {
-    position: relative; z-index: 1;
+    position: relative;
     display: flex; align-items: center; gap: var(--s-5);
-    padding: calc(var(--s-5) + 16px) calc(var(--s-5) + 12px) var(--s-3);
-    background:
-        url("../../img/art/jewel-band.svg") left top / auto 16px repeat-x,
-        url("../../img/art/sawtooth-v.svg") left 16px / 12px auto repeat-y,
-        url("../../img/art/sawtooth-v.svg") right 16px / 12px auto repeat-y;
+    border: 2px solid var(--rank-accent);
+    border-top-width: 6px;
+    border-bottom: 0;
+    border-radius: 8px 8px 0 0;
+    padding: var(--s-5) var(--s-5) var(--s-3);
 }
 .rank-hero__frame::before, .rank-hero__frame::after {
-    /* Gold capitals where the lintel meets each pillar. */
-    content: ""; position: absolute; top: -3px;
-    width: 22px; height: 22px; border-radius: 2px;
-    background: var(--gold-500); box-shadow: inset 0 0 0 3px var(--lapis-900), inset 0 0 0 6px var(--gold-500), inset 0 0 0 8px #C2341F;
+    /* Gold capitals at the top of each pillar. */
+    content: ""; position: absolute; top: -10px;
+    width: 14px; height: 14px; border-radius: 2px;
+    background: var(--gold-500); box-shadow: 0 0 0 2px var(--rank-field);
 }
-.rank-hero__frame::before { left: -5px; }
-.rank-hero__frame::after { right: -5px; }
-
+.rank-hero__frame::before { left: -8px; }
+.rank-hero__frame::after { right: -8px; }
 
 /* The double-headed eagle as a crest on the lintel, breaking the line like a crest over an arch. */
 .rank-hero__crest {
-    position: absolute; top: -1.85rem; z-index: 2; left: 50%; transform: translateX(-50%);
+    position: absolute; top: -1.75rem; left: 50%; transform: translateX(-50%);
     display: block; padding: 0 0.625rem; line-height: 0;
     background: var(--rank-field); color: var(--gold-500);
 }
@@ -106,44 +110,18 @@
     .student__body { grid-template-columns: minmax(0, 1fr) 19rem; gap: var(--s-7); align-items: start; }
 }
 .student__main > section + section { margin-top: var(--s-6); }
-.student h2 { font-size: var(--step-2); margin-top: 0; display: flex; align-items: center; gap: var(--s-3); }
-/* A gold mosaic lozenge with a red centre before each section heading. */
-.student h2::before {
-    content: ""; flex: none; width: 0.85rem; height: 0.85rem; margin: 0 0.15rem;
-    transform: rotate(45deg);
-    background: radial-gradient(circle, #C2341F 0 28%, var(--gold-500) 30%);
-    box-shadow: 0 0 0 2px var(--lapis-900);
-}
+.student h2 { font-size: var(--step-2); margin-top: 0; }
 
 /* Next lesson: the one thing to do this week. */
-/* An interlace border down the left edge, as on a manuscript page. */
 .next-lesson__card {
-    position: relative;
     background: var(--surface);
     border: 1px solid var(--line);
+    border-left: 6px solid var(--rank-field);
     border-radius: var(--r-panel);
-    padding: var(--s-5) var(--s-5) var(--s-5) calc(var(--s-5) + 18px);
-    overflow: hidden;
-}
-.next-lesson__card::before {
-    content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 18px;
-    background: url("../../img/art/interlace.svg") left top / 36px 36px repeat-y;
+    padding: var(--s-5);
 }
 .next-lesson__step { margin: 0; color: var(--ink-soft); font-weight: 600; }
 .next-lesson__title { font-family: var(--font-display); font-size: var(--step-3); font-weight: 700; color: var(--lapis-900); line-height: 1.15; margin: var(--s-1) 0 var(--s-2); }
-.next-lesson__card { display: flex; gap: var(--s-5); align-items: flex-start; }
-.next-lesson__body { min-width: 0; }
-/* An illuminated initial, after insular manuscripts: a vermilion letter on gold, in a lapis frame ringed with red dots. */
-.next-lesson__initial {
-    flex: none; display: grid; place-items: center;
-    width: 5.5rem; height: 5.5rem; border-radius: 4px;
-    background: var(--gold-500);
-    box-shadow: inset 0 0 0 4px var(--lapis-900), inset 0 0 0 6px var(--gold-500), inset 0 0 0 7px #C2341F;
-    outline: 3px dotted #C2341F; outline-offset: 3px;
-    font-family: var(--font-display); font-weight: 800; font-size: 3.75rem; line-height: 1; color: #C2341F;
-    text-shadow: 2px 2px 0 var(--lapis-900);
-}
-@media (max-width: 30rem) { .next-lesson__initial { width: 4rem; height: 4rem; font-size: 2.75rem; } }
 .next-lesson__tags { color: var(--ink-soft); margin-bottom: var(--s-4); }
 
 /* This rank's lessons, in teaching order. */
@@ -204,10 +182,9 @@
 @media (min-width: 60rem) { .the-way { position: sticky; top: var(--s-4); } }
 .the-way__list { list-style: none; margin: 0; padding: 0; position: relative; }
 .the-way__list::before {
-    /* The processional path: a mosaic strip through every station's centre. */
-    content: ""; position: absolute; left: calc(1.375rem - 4px); top: 1.5rem; bottom: 1.5rem;
-    width: 8px; border-radius: 2px;
-    background: url("../../img/art/sawtooth-v.svg") center top / 8px auto repeat-y;
+    /* The processional way: one line through every station's centre. */
+    content: ""; position: absolute; left: calc(1.375rem - 1px); top: 1.5rem; bottom: 1.5rem;
+    width: 2px; background: repeating-linear-gradient(to bottom, var(--line-strong) 0 4px, transparent 4px 8px);
 }
 .the-way__movement {
     position: relative;
