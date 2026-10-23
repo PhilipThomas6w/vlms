@@ -21,6 +21,7 @@ Status: in progress
 
 - Student records (including consent, medical/dietary/SEN data): retained **3 years from the student leaving/graduating** the programme.
 - `DbsCheck` records: retained **6 years** after expiry or the teacher leaving.
+- Registration applications (`StudentApplication` and its restricted `StudentApplicationSensitiveDetails`: the consent form, medical/dietary/SEN details, the review exchange, the parent's phone and address): retained **1 year after the decision** (the Admin's final approval or rejection, or the Safeguarding Officer's rejection at stage 1), approved and rejected alike (Philip, 23/10/2026). Applications still under review are not flagged. An approved child's student and consent records follow the student rule above. Flagged on the "records due for deletion" report.
 - Deletion enforcement — interim decision (`design/data-design.md`): manual, Admin-triggered deletion via a "records due for deletion" report, once a record passes its retention period. Full automated purge deferred as an acceptable trade-off at solo-maintainer/tens-of-users scale.
 - Hard delete vs anonymisation — **decided:** hard delete (`design/data-design.md`), to avoid the anonymisation-adequacy question and because nothing in scope needs retained-but-anonymised historical data.
 - `SensitiveDataAccessLog` (the audit trail itself) is retained **6 years** independent of the referenced record's own retention, and is tamper-protected at the database permission level (`UPDATE`/`DELETE` denied), not just an application convention.

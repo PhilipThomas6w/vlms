@@ -9,8 +9,9 @@
 <h1>Records due for deletion</h1>
 
 <p>
-    Student and DBS check records past their UK GDPR retention period
-    (student records 3 years after leaving or graduating; DBS checks 6 years after expiry). This is a flagging report only — deletion itself
+    Student, DBS check and registration application records past their UK GDPR retention period
+    (student records 3 years after leaving or graduating; DBS checks 6 years after expiry;
+    registration applications 1 year after the decision). This is a flagging report only — deletion itself
     stays a manual, Admin-triggered action outside this system; nothing on this page deletes
     anything.
 </p>
@@ -89,6 +90,41 @@ else
                         <td>@flag.ExpiryDate.ToString("d MMMM yyyy")</td>
                         <td>@flag.Reason</td>
                         <td>@flag.AnchorDate.ToString("d MMMM yyyy")</td>
+                        <td>@flag.DaysPastRetention</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+
+    <h2>Registration applications</h2>
+    <p>
+        Parents' registration applications approved or rejected more than 1 year ago. Deleting an
+        application also deletes the medical and other details in it; an approved child's student
+        and consent records are kept under their own rule above.
+    </p>
+    @if (_report.Applications.Count == 0)
+    {
+        <p>No registration applications are currently due for deletion.</p>
+    }
+    else
+    {
+        <table>
+            <thead>
+                <tr>
+                    <th>Child</th>
+                    <th>Outcome</th>
+                    <th>Decided</th>
+                    <th>Days past retention</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var flag in _report.Applications)
+                {
+                    <tr>
+                        <td>@flag.ChildName</td>
+                        <td>@flag.Status</td>
+                        <td>@flag.DecidedAt.ToString("d MMMM yyyy")</td>
                         <td>@flag.DaysPastRetention</td>
                     </tr>
                 }

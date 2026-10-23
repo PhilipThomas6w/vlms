@@ -5,7 +5,8 @@ namespace Vlms.Infrastructure.Reporting;
 /// <summary>Combined "records due for deletion" report — see <see cref="RecordsDueForDeletionService"/>.</summary>
 public sealed record RecordsDueForDeletionReport(
     IReadOnlyList<StudentDueForDeletion> Students,
-    IReadOnlyList<DbsCheckDueForDeletion> DbsChecks);
+    IReadOnlyList<DbsCheckDueForDeletion> DbsChecks,
+    IReadOnlyList<ApplicationDueForDeletion> Applications);
 
 /// <summary>
 /// STATE.md "'Records due for deletion' report" — the interim retention-enforcement mechanism named
@@ -67,7 +68,9 @@ public sealed class RecordsDueForDeletionService
         var students = await RetentionFlagging.GetStudentsDueForDeletionAsync(_db, now, ct);
         var dbsChecks = await RetentionFlagging.GetDbsChecksDueForDeletionAsync(_db, today, ct);
 
-        return new RecordsDueForDeletionReport(students, dbsChecks);
+        var applications = await RetentionFlagging.GetApplicationsDueForDeletionAsync(_db, now, ct);
+
+        return new RecordsDueForDeletionReport(students, dbsChecks, applications);
     }
 
     private void RequireAdmin()

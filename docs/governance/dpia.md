@@ -17,10 +17,10 @@ Status: **draft for Philip's review**, written 13/10/2026 to discharge `governan
 > - **New restricted store.** The data is held in `StudentApplicationSensitiveDetails`. It is visible only to Admins and Safeguarding Officers with MFA and to the applicant, never to Teachers, Approvers or other parents, and every read is audit-logged. The approved details are copied into `ConsentSensitiveDetails`, and the application row is kept as the record of what was reviewed.
 > - **New data about parents:** phone number and postal address (`StudentApplication`), seen by Admins and Safeguarding Officers on the review pages and by the applicant.
 > - **Review exchange.** The Safeguarding Officer's question, the parent's answer and the decision comments are free text and may contain special category data, so they are in the restricted store. They are never emailed, and the emails only say "sign in to read" (registration choice 1 in `STATE.md`). On resubmission the details are overwritten in place, so earlier versions are not kept (choice 4).
-> - **Retention not set.** No retention period is defined yet for approved or rejected applications or their restricted details, and they are not in the "records due for deletion" report. Rejected applications in particular may hold data about children who never joined.
+> - **Retention.** Approved and rejected applications, with their restricted details, are kept 1 year after the decision (Philip, 23/10/2026; `security-compliance.md`) and are then flagged on the "records due for deletion" report. Deletion is manual until the purge exists (risk 7).
 > - **Controls:** nothing is created from an application (no student, link, consent or Parent role) until a Safeguarding Officer approves stage 1 and an Admin approves stage 2. The Safeguarding Officer's alert email carries no sensitive details. Tested in TC-039, TC-040 and TC-041.
 >
-> Points for the review: the lawful basis and Article 9 condition for data entered by an unverified applicant; a retention period for approved and rejected applications (proposed risk 11 below); privacy information on the apply form; whether the applicant should be told when their application is rejected without reasons. Nothing in this note is a sign-off.
+> Points for the review: the lawful basis and Article 9 condition for data entered by an unverified applicant; privacy information on the apply form; whether the applicant should be told when their application is rejected without reasons. Nothing in this note is a sign-off.
 
 ## 1. Screening: is a DPIA needed?
 
@@ -98,7 +98,7 @@ Likelihood and severity: Remote / Possible / Probable; Minimal / Significant / S
 | 8 | A safeguarding alert (expired consent/DBS) goes unnoticed | Possible | Significant | Retries; escalation logged; digest email to Admin/SO | **Medium: alert route undecided** (`operations/monitoring.md` §3) |
 | 9 | Personal data in server logs | Probable | Minimal | Journal retention capped (`operations/monitoring.md` §2) | Low |
 | 10 | Breach not reported in time | Possible | Significant | Incident steps in `operations/runbook.md` §5 | `[TBC – Philip: breach procedure, ICO 72-hour reporting]` |
-| 11 | Applications, including rejected ones about children who never joined, are kept with no retention period | Probable until a rule exists | Significant | Restricted store, read-audited; not emailed | **Medium: retention period for applications not decided** (added 23/10/2026, see the review note above) |
+| 11 | Applications, including rejected ones about children who never joined, are kept longer than needed | Possible | Significant | Kept 1 year after the decision (Philip, 23/10/2026), then flagged on the "records due for deletion" report; restricted store, read-audited; not emailed | Low–medium: deletion is manual until the purge exists (risk 7) |
 | 12 | Someone who is not the child's parent applies and enters a child's special category data | Possible | Significant | Two-stage staff review before anything is linked; applicant sees only their own applications; same child name under one applicant refused | `[TBC – Philip: assess, see the review note above]` |
 
 ## 6. Sign-off

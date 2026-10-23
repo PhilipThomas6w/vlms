@@ -48,6 +48,14 @@ public sealed record DbsCheckDueForDeletion(
     DbsCheckDeletionReason Reason, DateOnly AnchorDate, int DaysPastRetention);
 
 /// <summary>
+/// A parent's registration application (and its restricted details) whose retention period has
+/// passed: 1 year after the decision (Philip, 23/10/2026, <c>docs/governance/security-compliance.md</c>).
+/// <see cref="DecidedAt"/> is the Admin's final decision, or the Safeguarding Officer's stage-1 rejection.
+/// </summary>
+public sealed record ApplicationDueForDeletion(
+    int ApplicationId, string ChildName, StudentApplicationStatus Status, DateTime DecidedAt, int DaysPastRetention);
+
+/// <summary>
 /// The retention-flagging computation behind the "records due for deletion" report
 /// (<c>docs/design/data-design.md</c> "Deletion enforcement — interim decision": "manual,
 /// Admin-triggered deletion once a record passes its retention period (an Admin-facing 'records due
@@ -98,6 +106,33 @@ public static class RetentionFlagging
 
     /// <summary>docs/governance/security-compliance.md: "DbsCheck records... retained 6 years after expiry or the teacher leaving".</summary>
     public const int DbsCheckRetentionYears = 6;
+
+    /// <summary>docs/governance/security-compliance.md: registration applications retained 1 year after the decision (Philip, 23/10/2026).</summary>
+    public const int ApplicationRetentionYears = 1;
+
+    /// <summary>
+    /// Approved and rejected <see cref="StudentApplication"/> rows decided more than
+    /// <see cref="ApplicationRetentionYears"/> ago. Applications still under review are never flagged.
+    /// A projection of the unrestricted application row only: <see cref="StudentApplicationSensitiveDetails"/>
+    /// is not read, so no audit row is written (deleting the application cascades to it).
+    /// </summary>
+    public static async Task<IReadOnlyList<ApplicationDueForDeletion>> GetApplicationsDueForDeletionAsync(
+        VlmsDbContext db, DateTime now, CancellationToken ct = default)
+    {
+        var cutoff = now.AddYears(-ApplicationRetentionYears);
+        var decided = await db.StudentApplications
+            .Where(a => a.Status == StudentApplicationStatus.Approved || a.Status == StudentApplicationStatus.Rejected)
+            .Select(a => new { a.Id, a.ChildName, a.Status, DecidedAt = a.AdminDecidedAt ?? a.SafeguardingReviewedAt })
+            .ToListAsync(ct);
+
+        return decided
+            .Where(a => a.DecidedAt is { } at && at <= cutoff)
+            .OrderBy(a => a.DecidedAt)
+            .Select(a => new ApplicationDueForDeletion(
+                a.Id, a.ChildName, a.Status, a.DecidedAt!.Value,
+                (int)(now - a.DecidedAt!.Value.AddYears(ApplicationRetentionYears)).TotalDays))
+            .ToList();
+    }
 
     /// <summary>
     /// Graduated students (anchor: latest closed <see cref="StudentRankProgress"/> row) and Inactive

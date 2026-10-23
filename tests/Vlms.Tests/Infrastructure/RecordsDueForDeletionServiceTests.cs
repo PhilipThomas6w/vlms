@@ -207,6 +207,62 @@ public sealed class RecordsDueForDeletionServiceTests : IDisposable
         Assert.DoesNotContain(report.DbsChecks, d => d.DbsCheckId == 6); // teacher left within retention, check itself within retention
     }
 
+    private static StudentApplication NewApplication(int id, string child, StudentApplicationStatus status, DateTime submittedAt,
+        DateTime? safeguardingReviewedAt = null, DateTime? adminDecidedAt = null) => new()
+    {
+        Id = id,
+        ApplicantUserId = 50,
+        ParentPhone = "07000 000000",
+        ParentPostalAddress = "1 Church Lane",
+        Relationship = "Mother",
+        ChildName = child,
+        ChildDateOfBirth = new DateOnly(2015, 1, 1),
+        PhotoMediaConsent = false,
+        TransportConsent = false,
+        OffsiteTripConsent = false,
+        DataSharingConsent = false,
+        Status = status,
+        SubmittedAt = submittedAt,
+        LastSubmittedAt = submittedAt,
+        SafeguardingReviewedAt = safeguardingReviewedAt,
+        AdminDecidedAt = adminDecidedAt
+    };
+
+    /// <summary>
+    /// Registration applications are kept 1 year after the decision (Philip, 23/10/2026): the Admin's
+    /// final decision, or the Safeguarding Officer's stage-1 rejection. Applications still under
+    /// review are never flagged, however old.
+    /// </summary>
+    [Fact]
+    public async Task GetReportAsync_ByAdmin_FlagsApplicationsDecidedMoreThanOneYearAgo()
+    {
+        var now = DateTime.UtcNow;
+        using (var seed = CreateContext(SystemCurrentUserContext.Instance))
+        {
+            seed.Context.AppUsers.Add(new AppUser { Id = 50, DisplayName = "Applicant", Email = "applicant@example.com" });
+            seed.Context.StudentApplications.AddRange(
+                NewApplication(1, "Approved Long Ago", StudentApplicationStatus.Approved, now.AddMonths(-15), now.AddMonths(-14), now.AddMonths(-13)),
+                NewApplication(2, "Rejected At Stage One Long Ago", StudentApplicationStatus.Rejected, now.AddMonths(-15), now.AddMonths(-14)),
+                NewApplication(3, "Rejected By Admin Recently", StudentApplicationStatus.Rejected, now.AddMonths(-15), now.AddMonths(-14), now.AddMonths(-11)),
+                NewApplication(4, "Approved Recently", StudentApplicationStatus.Approved, now.AddMonths(-3), now.AddMonths(-2), now.AddMonths(-1)),
+                NewApplication(5, "Still Waiting For Review", StudentApplicationStatus.AwaitingSafeguardingReview, now.AddYears(-2)),
+                NewApplication(6, "Still Waiting For Admin", StudentApplicationStatus.AwaitingAdminApproval, now.AddYears(-2), now.AddYears(-2)));
+            seed.Context.SaveChanges();
+        }
+
+        using var run = CreateContext(SystemCurrentUserContext.Instance);
+        var report = await run.Service(new FakeCurrentUserContext(userId: 1, Role.Admin)).GetReportAsync();
+
+        Assert.Equal([1, 2], report.Applications.Select(a => a.ApplicationId).Order());
+        var approved = Assert.Single(report.Applications, a => a.ApplicationId == 1);
+        Assert.Equal(StudentApplicationStatus.Approved, approved.Status);
+        Assert.Equal(now.AddMonths(-13), approved.DecidedAt, TimeSpan.FromSeconds(1));
+        Assert.True(approved.DaysPastRetention > 0);
+        var rejected = Assert.Single(report.Applications, a => a.ApplicationId == 2);
+        Assert.Equal(now.AddMonths(-14), rejected.DecidedAt, TimeSpan.FromSeconds(1));
+        Assert.Empty(run.Context.SensitiveDataAccessLogs);
+    }
+
     [Theory]
     [InlineData(Role.Teacher)]
     [InlineData(Role.Approver)]
