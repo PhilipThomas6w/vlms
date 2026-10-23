@@ -51,7 +51,7 @@ public sealed class AppUser
 
     /// <summary>
     /// STATE.md "Manual 'leaving' flag..." — set by the Admin-only
-    /// <c>Retention.LeavingService.MarkTeacherLeftAsync</c>, feeding
+    /// <c>Retention.LeavingService.MarkStaffLeftAsync</c>, feeding
     /// <c>Reporting.RetentionFlagging</c>'s "6 years after expiry <i>or the teacher leaving</i>"
     /// <see cref="DbsCheck"/> retention check (docs/governance/security-compliance.md). Mirrors
     /// <see cref="StudentLessonCompletion.IsReversed"/>/<see cref="StudentLessonCompletion.ReversedAt"/>'s
@@ -70,11 +70,12 @@ public sealed class AppUser
     /// for "has this user left" would be inconsistent with that existing shape for no benefit — a
     /// generic field is simpler, and every other role (Admin/Approver/Parent/SafeguardingOfficer)
     /// leaving the organisation is an equally plausible future need this field costs nothing extra to
-    /// also support. What *is* scoped to Teacher is the action itself:
-    /// <c>LeavingService.MarkTeacherLeftAsync</c> validates the target holds <see cref="Role.Teacher"/>
-    /// before setting this (same validation <see cref="DbsCheck"/> recording already does), matching
-    /// STATE.md's item wording exactly; nothing stops the field existing on a non-Teacher row, but
-    /// nothing in this codebase's write paths ever sets it for one either.
+    /// also support. What *is* scoped is the action itself:
+    /// <c>LeavingService.MarkStaffLeftAsync</c> validates the target holds <see cref="Role.Teacher"/>,
+    /// <see cref="Role.Admin"/> or <see cref="Role.SafeguardingOfficer"/> (Teacher only until FR-017
+    /// was amended on 22/10/2026), and locks them out entirely (<c>Identity.LeftStaffPolicy</c>).
+    /// Students and parents who leave keep access (FR-017); no write path sets this field on a
+    /// parent-only or student account.
     /// </summary>
     public bool HasLeft { get; init; }
 

@@ -213,7 +213,8 @@ public sealed class GuardianNotificationService
         var recipients = await _db.StudentGuardianLinks
             .Where(l => l.StudentId == studentId && l.ParentGuardian!.AppUserId != null)
             .Select(l => l.ParentGuardian!.AppUser!)
-            .Where(u => !u.HasLeft && u.Roles.Any(r => r.Role == Role.Parent))
+            // A staff leaver who is also a parent is still a parent (FR-017, LeftStaffPolicy).
+            .Where(u => (!u.HasLeft || u.Roles.Any(r => r.Role == Role.Teacher || r.Role == Role.Admin || r.Role == Role.SafeguardingOfficer)) && u.Roles.Any(r => r.Role == Role.Parent))
             .Select(u => new { u.Email, u.DisplayName })
             .Distinct()
             .ToListAsync(ct);

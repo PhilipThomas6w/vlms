@@ -258,7 +258,7 @@ public sealed class RoleChangeTests : IDisposable
                 scope.ServiceProvider.GetRequiredService<VlmsDbContext>(),
                 scope.ServiceProvider.GetRequiredService<ICurrentUserContext>(),
                 scope.ServiceProvider.GetRequiredService<UserManager<VlmsIdentityUser>>());
-            await service.MarkTeacherLeftAsync(PlainTeacher);
+            await service.MarkStaffLeftAsync(PlainTeacher);
         }
 
         Assert.NotEqual(before, await StampOf(PlainTeacher));

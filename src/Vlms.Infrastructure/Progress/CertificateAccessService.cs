@@ -82,7 +82,8 @@ public sealed class CertificateAccessService
         }
 
         return _currentUser.HasRole(Role.Parent)
-            && await _db.AppUsers.AnyAsync(u => u.Id == userId && !u.HasLeft, ct)
+            // A staff leaver who is also a parent keeps parent access (FR-017, LeftStaffPolicy).
+            && await _db.AppUsers.AnyAsync(u => u.Id == userId && (!u.HasLeft || u.Roles.Any(r => r.Role == Role.Teacher || r.Role == Role.Admin || r.Role == Role.SafeguardingOfficer)), ct)
             && await ParentGuardianLinkage.IsLinkedAsync(_db, studentId, userId, ct);
     }
 }

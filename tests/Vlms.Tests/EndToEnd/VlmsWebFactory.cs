@@ -15,6 +15,7 @@ using Vlms.Domain;
 using Vlms.Infrastructure;
 using Vlms.Infrastructure.Identity;
 using Vlms.Infrastructure.Notifications;
+using Vlms.Infrastructure.Retention;
 using Vlms.Infrastructure.Storage;
 using Vlms.Tests.Infrastructure;
 
@@ -40,6 +41,12 @@ public sealed class VlmsWebFactory : WebApplicationFactory<Vlms.Web.Components.A
     public string TempRoot { get; } = Path.Combine(Path.GetTempPath(), "vlms-e2e-" + Guid.NewGuid().ToString("N"));
     public string BlobRoot => Path.Combine(TempRoot, "blobs");
     public FakeEmailSender Email { get; } = new();
+
+    /// <summary>
+    /// When set before the host starts, replaces Program.cs's 1-minute security-stamp validation
+    /// interval, so a test can see an existing session re-validated on its very next request.
+    /// </summary>
+    public TimeSpan? StampValidationInterval { get; init; }
 
     public VlmsWebFactory()
     {
@@ -84,6 +91,11 @@ public sealed class VlmsWebFactory : WebApplicationFactory<Vlms.Web.Components.A
 
             services.RemoveAll<IEmailSender>();
             services.AddSingleton<IEmailSender>(Email);
+
+            if (StampValidationInterval is { } interval)
+            {
+                services.PostConfigure<SecurityStampValidatorOptions>(o => o.ValidationInterval = interval);
+            }
         });
     }
 
@@ -147,6 +159,24 @@ public sealed class VlmsWebFactory : WebApplicationFactory<Vlms.Web.Components.A
         });
 
         return new SeededUser(user.Id, email, key);
+    }
+
+    /// <summary>
+    /// Runs the real <see cref="LeavingService.MarkStaffLeftAsync"/> against this app's database, as
+    /// the Admin <paramref name="adminUserId"/> (the page that calls it is interactive, so it can't be
+    /// driven by a form post here).
+    /// </summary>
+    public async Task<AppUser> MarkStaffLeftAsync(int adminUserId, int userId)
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddSingleton<ICurrentUserContext>(new FakeCurrentUserContext(adminUserId, Role.Admin));
+        services.AddDbContext<VlmsDbContext>(o => o.UseSqlite(_connectionString));
+        services.AddIdentityCore<VlmsIdentityUser>().AddEntityFrameworkStores<VlmsDbContext>();
+        services.AddScoped<LeavingService>();
+        await using var provider = services.BuildServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+        return await scope.ServiceProvider.GetRequiredService<LeavingService>().MarkStaffLeftAsync(userId);
     }
 
     protected override void Dispose(bool disposing)

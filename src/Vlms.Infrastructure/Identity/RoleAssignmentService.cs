@@ -17,12 +17,16 @@ namespace Vlms.Infrastructure.Identity;
 ///
 /// <b>Guards, each a deliberate lockout/abuse check rather than a UI nicety:</b>
 /// <list type="bullet">
-/// <item>Revoking <see cref="Role.Admin"/> from the last remaining Admin is refused — otherwise the
-/// system can be left with no Admin, recoverable only through <see cref="FirstAdminBootstrapService"/>
-/// on the server.</item>
+/// <item>Revoking <see cref="Role.Admin"/> from the last remaining Admin who hasn't left is refused —
+/// otherwise the system can be left with no Admin, recoverable only through
+/// <see cref="FirstAdminBootstrapService"/> on the server. A staff leaver keeps their role rows,
+/// which no longer count (FR-017, <see cref="LeftStaffPolicy"/>), so they don't count here either.</item>
 /// <item>Granting any role to an <see cref="AppUser"/> marked as having left
 /// (<see cref="AppUser.HasLeft"/>) is refused — a leaver should not regain access through this page.
-/// Revoking from a leaver stays allowed (removing access is always safe).</item>
+/// Revoking a non-staff role (Parent, Approver) from a leaver stays allowed (removing access is
+/// always safe). Revoking a Teacher, Admin or Safeguarding Officer role from a leaver is refused: the
+/// row is the record of their staff history, already gives them nothing, and is what keeps a staff
+/// leaver who is also a parent treated as a parent who hasn't left.</item>
 /// <item>Granting <see cref="Role.Student"/>, or any role to a student sign-in
 /// (<see cref="Student.AppUserId"/>), is refused (FR-011, adr/0007): only
 /// <see cref="StudentAccountService"/> grants Student, when a linked parent creates the sign-in.</item>
@@ -202,7 +206,8 @@ public sealed class RoleAssignmentService
 
     /// <summary>
     /// Revokes <paramref name="role"/> from <paramref name="userId"/>. Admin-only. Throws if the
-    /// user doesn't hold the role, or if it would remove the last remaining Admin.
+    /// user doesn't hold the role, if it is a staff role of a user who has left (FR-017), or if it
+    /// would remove the last remaining Admin who hasn't left.
     /// </summary>
     public async Task RevokeAsync(int userId, Role role, CancellationToken ct = default)
     {
@@ -211,10 +216,22 @@ public sealed class RoleAssignmentService
         var userRole = await _db.UserRoles.SingleOrDefaultAsync(r => r.UserId == userId && r.Role == role, ct)
             ?? throw new InvalidOperationException($"AppUser {userId} does not hold the {role} role.");
 
+        var hasLeft = await _db.AppUsers.AnyAsync(u => u.Id == userId && u.HasLeft, ct);
+
+        // FR-017 (LeftStaffPolicy): a leaver's staff rows are kept as the record, count as not held,
+        // and are what keep a staff leaver who is also a parent treated as a parent who hasn't left.
+        if (hasLeft && LeftStaffPolicy.IsStaffRole(role))
+        {
+            throw new InvalidOperationException(
+                $"AppUser {userId} has left: their {role} role is kept as a record and already gives them nothing.");
+        }
+
+        // Only Admins who haven't left count towards the last-Admin guard.
         if (role == Role.Admin)
         {
-            var adminCount = await _db.UserRoles.CountAsync(r => r.Role == Role.Admin, ct);
-            if (adminCount <= 1)
+            var otherWorkingAdmin = await _db.AppUsers.AnyAsync(
+                u => u.Id != userId && !u.HasLeft && u.Roles.Any(r => r.Role == Role.Admin), ct);
+            if (!otherWorkingAdmin)
             {
                 throw new InvalidOperationException(
                     "Cannot revoke the Admin role from the last remaining Admin — grant Admin to another user first.");

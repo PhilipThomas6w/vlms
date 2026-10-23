@@ -72,7 +72,7 @@ Each step is marked:
 | 4 | Load the curriculum (ranks, lessons, files) | Built | `Vlms.Jobs seed-curriculum` (`deploy/README.md` §6b); run against local PostgreSQL 22/10/2026: 10 ranks, 56 lessons, 314 files. |
 | 5 | Set rank badge images | Works (browser walk 22/10/2026) | `/administration/rank-badges` (`RankBadgeService`). Images are served from `/badges/{rankId}/image` and shown on `/parent/dashboard`. Admin-only upload: PNG, JPEG, WebP or SVG, up to 2 MB. One badge per rank, enforced by a unique index (TC-028). |
 | 6 | View progress reports and at-risk students | Built | `/reporting` |
-| 7 | Handle leavers and retention | Partial | `/retention/mark-as-left` and `/reporting/records-due-for-deletion` exist. Purge waits on decision 2. |
+| 7 | Handle leavers and retention | Partial | `/retention/mark-as-left` and `/reporting/records-due-for-deletion` exist. Marking a Teacher, Admin or Safeguarding Officer as left ends their staff access at once (open sessions included); with no other role they can no longer sign in, and a staff member who is also a parent keeps parent access only (FR-017, `LeftStaffPolicy`; automated, not yet walked in the browser). An Admin can't mark themselves, or the last Admin who hasn't left. Purge waits on decision 2. |
 
 ## J7. Safeguarding Officer: keep consent and DBS current
 

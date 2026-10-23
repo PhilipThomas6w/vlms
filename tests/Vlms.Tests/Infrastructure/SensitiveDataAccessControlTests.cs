@@ -1,8 +1,11 @@
+using System.Security.Claims;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Vlms.Domain;
 using Vlms.Infrastructure;
+using Vlms.Infrastructure.Identity;
+using Vlms.Infrastructure.Security;
 using Xunit;
 
 namespace Vlms.Tests.Infrastructure;
@@ -563,5 +566,106 @@ public sealed class SensitiveDataAccessControlTests : IDisposable
 
         Assert.Equal(3, logEntry.UserId);
         Assert.Equal(2, logEntry.EntityId);
+    }
+
+    // --- FR-017 (clarified 23/10/2026): a staff leaver's staff roles stop counting, through the
+    // real IdentityCurrentUserContext the app uses, so the Teacher/Admin/SO routes of the
+    // query filters refuse them; a staff leaver who is also a parent keeps the parent route. ---
+
+    /// <summary>A caller resolved by the real <see cref="IdentityCurrentUserContext"/> from a principal.</summary>
+    private CallerContext CreateRealContextForUser(int userId)
+    {
+        var options = new DbContextOptionsBuilder<VlmsDbContext>().UseSqlite(_connectionString).Options;
+        var principal = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, userId.ToString())], "TestAuth"));
+        var services = new ServiceCollection();
+        services.AddSingleton<ICurrentUserContext>(new IdentityCurrentUserContext(principal, options));
+        services.AddDbContext<VlmsDbContext>(o => o.UseSqlite(_connectionString));
+
+        var provider = services.BuildServiceProvider();
+        var scope = provider.CreateScope();
+        return new CallerContext(provider, scope, scope.ServiceProvider.GetRequiredService<VlmsDbContext>());
+    }
+
+    /// <summary>AppUser 1 (Parent One, guardian of student 1) is also a Teacher, Admin and SO here, all with MFA.</summary>
+    private void SeedStaffParent()
+    {
+        SeedTwoFamilies();
+        using var admin = CreateContext(Role.Admin);
+        admin.Context.Users.Add(new VlmsIdentityUser { Id = 1, UserName = "parent1@example.com", Email = "parent1@example.com", TwoFactorEnabled = true });
+        admin.Context.Users.Add(new VlmsIdentityUser { Id = 10, UserName = "teacher1@example.com", Email = "teacher1@example.com", TwoFactorEnabled = true });
+        foreach (var role in new[] { Role.Parent, Role.Teacher, Role.Admin, Role.SafeguardingOfficer })
+        {
+            admin.Context.UserRoles.Add(new UserRole { UserId = 1, Role = role });
+        }
+
+        admin.Context.UserRoles.Add(new UserRole { UserId = 10, Role = Role.Teacher });
+        admin.Context.SaveChanges();
+    }
+
+    private void MarkLeft(int userId)
+    {
+        using var admin = CreateContext(Role.Admin);
+        var user = admin.Context.AppUsers.Single(u => u.Id == userId);
+        admin.Context.Entry(user).CurrentValues[nameof(AppUser.HasLeft)] = true;
+        admin.Context.Entry(user).CurrentValues[nameof(AppUser.LeftAt)] = DateTime.UtcNow;
+        admin.Context.SaveChanges();
+    }
+
+    [Fact]
+    public void StaffParent_BeforeLeaving_ReadsEveryFamilysDetailsAndDbs_ThroughTheStaffRoutes()
+    {
+        SeedStaffParent();
+
+        using var caller = CreateRealContextForUser(1);
+
+        Assert.Equal(2, caller.Context.ConsentSensitiveDetails.Count());
+        Assert.Single(caller.Context.DbsChecks.ToList());
+    }
+
+    [Fact]
+    public void StaffParentWhoHasLeft_ReadsOnlyTheirOwnChildsDetails_AndNoDbs()
+    {
+        SeedStaffParent();
+        MarkLeft(1);
+
+        using var caller = CreateRealContextForUser(1);
+
+        var details = caller.Context.ConsentSensitiveDetails.ToList();
+        Assert.Equal("Family One", Assert.Single(details).EmergencyContact);
+        Assert.Empty(caller.Context.DbsChecks.ToList());
+    }
+
+    [Fact]
+    public void TeacherWhoHasLeft_ReadsNoConsentDetails_ThroughTheTeacherRoute()
+    {
+        SeedStaffParent();
+        using (var before = CreateRealContextForUser(10))
+        {
+            Assert.Equal(2, before.Context.ConsentSensitiveDetails.Count());
+        }
+
+        MarkLeft(10);
+
+        using var caller = CreateRealContextForUser(10);
+        Assert.Empty(caller.Context.ConsentSensitiveDetails.ToList());
+    }
+
+    [Fact]
+    public void StaffParentWhoHasLeft_HoldsParentButNoStaffRole()
+    {
+        SeedStaffParent();
+        MarkLeft(1);
+        var options = new DbContextOptionsBuilder<VlmsDbContext>().UseSqlite(_connectionString).Options;
+        var principal = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, "1")], "TestAuth"));
+
+        var sut = new IdentityCurrentUserContext(principal, options);
+
+        Assert.True(sut.HasRole(Role.Parent));
+        Assert.False(sut.HasRole(Role.Teacher));
+        Assert.False(sut.HasRole(Role.Admin));
+        Assert.False(sut.HasRole(Role.SafeguardingOfficer));
+        using var db = new VlmsDbContext(options, NullCurrentUserContext.Instance);
+        Assert.False(LeftStaffPolicy.IsLockedOut(db, 1));
+        Assert.False(LeftStaffPolicy.StaffRoleCounts(db, 1));
     }
 }

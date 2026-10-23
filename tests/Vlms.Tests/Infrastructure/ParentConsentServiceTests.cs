@@ -303,6 +303,24 @@ public sealed class ParentConsentServiceTests : IDisposable
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => parent.Parent.SubmitAsync(StudentOneId, Form()));
     }
 
+    [Fact]
+    public async Task StaffLeaverWhoIsAlsoAParent_StillUsesTheParentForm()
+    {
+        // FR-017 clarified 23/10/2026: their HasLeft records leaving the staff, so parent access stays.
+        using (var admin = CreateContext(AdminUserId, Role.Admin))
+        {
+            admin.Context.UserRoles.Add(new UserRole { UserId = ParentOneUserId, Role = Role.Teacher });
+            var user = await admin.Context.AppUsers.SingleAsync(u => u.Id == ParentOneUserId);
+            admin.Context.Entry(user).CurrentValues[nameof(AppUser.HasLeft)] = true;
+            await admin.Context.SaveChangesAsync();
+        }
+
+        using var parent = CreateContext(ParentOneUserId, Role.Parent);
+        var children = await parent.Parent.GetMyChildrenAsync();
+        Assert.Contains(children, c => c.StudentId == StudentOneId);
+        await parent.Parent.SubmitAsync(StudentOneId, Form());
+    }
+
     // --- Other roles: no parent write path; teacher reads only ------------------------------------
 
     [Theory]

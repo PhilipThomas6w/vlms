@@ -253,7 +253,10 @@ public sealed class ParentConsentService
             throw new UnauthorizedAccessException("Caller must hold the Parent role to use the consent form.");
         }
 
-        var hasLeft = await _db.AppUsers.Where(u => u.Id == userId).Select(u => (bool?)u.HasLeft).SingleOrDefaultAsync(ct);
+        // A staff leaver who is also a parent keeps parent access (FR-017, LeftStaffPolicy).
+        var hasLeft = await _db.AppUsers.Where(u => u.Id == userId)
+            .Select(u => (bool?)(u.HasLeft && !u.Roles.Any(r => r.Role == Role.Teacher || r.Role == Role.Admin || r.Role == Role.SafeguardingOfficer)))
+            .SingleOrDefaultAsync(ct);
         if (hasLeft is not false)
         {
             throw new UnauthorizedAccessException("Caller's account is not an active user.");
