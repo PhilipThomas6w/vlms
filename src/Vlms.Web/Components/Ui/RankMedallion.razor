@@ -7,6 +7,11 @@
     {
         <img src="/badges/@RankId/image" alt="@(Alt ?? RankName + " badge")" class="@(Earned ? null : Current ? "in-progress" : "unearned")" />
     }
+    else if (Order == 10)
+    {
+        @* Akolouthos has no patch yet: the double-headed eagle, as the commander of the Guard stood beside the Emperor. *@
+        <Eagle Class="medallion__eagle" />
+    }
     else
     {
         <span aria-hidden="true">@Order</span>

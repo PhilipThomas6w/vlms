@@ -3,6 +3,7 @@
 /* ---------- Rank header: the rank's colour field, a mosaic grout texture, and the headpiece frame ---------- */
 .rank-hero {
     position: relative;
+    margin-top: var(--s-5);
     background-color: var(--rank-field);
     /* Mosaic grout: faint lines every 14 px, strongest towards the right edge. */
     background-image:
@@ -37,6 +38,14 @@
 .rank-hero__frame::before { left: -8px; }
 .rank-hero__frame::after { right: -8px; }
 
+/* The double-headed eagle as a crest on the lintel, breaking the line like a crest over an arch. */
+.rank-hero__crest {
+    position: absolute; top: -1.75rem; left: 50%; transform: translateX(-50%);
+    display: block; padding: 0 0.625rem; line-height: 0;
+    background: var(--rank-field); color: var(--gold-500);
+}
+.rank-hero__crest ::deep .eagle { width: 4.75rem; }
+.rank-hero.rank-1 .rank-hero__crest { color: var(--rank-accent); }
 .rank-hero__text { min-width: 0; flex: 1; }
 /* The next rank, faded: what this rank leads to. */
 .rank-hero__next {

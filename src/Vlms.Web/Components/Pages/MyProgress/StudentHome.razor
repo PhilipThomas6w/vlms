@@ -37,6 +37,7 @@ else
         @* The rank header: the headpiece frame on the rank's colour, the medallion, and progress as tesserae. *@
         <section class="rank-hero rank-@(current?.Order ?? 10)" aria-labelledby="rank-title">
             <div class="rank-hero__frame">
+                <span class="rank-hero__crest"><Eagle /></span>
                 @if (current is not null)
                 {
                     <RankMedallion RankId="current.RankId" Order="current.Order" RankName="@current.Name" HasBadgeImage="current.HasBadgeImage" Earned="@(current.BadgeAwardedAt is not null)" Current="true" Size="lg" Alt="" />
@@ -251,8 +252,11 @@ else
     private static string StationText(JourneyRank rank) => rank.State switch
     {
         JourneyRankState.Past => rank.BadgeAwardedAt is { } earned ? $"Earned {earned:d MMMM yyyy}" : "Earned",
+        JourneyRankState.Current when rank.Order == 10 => "Your rank now: leadership and a wider programme",
         JourneyRankState.Current when rank.Lessons.Count == 0 => "Your rank now. Lessons being written",
         JourneyRankState.Current => $"Your rank now: {rank.CompletedCount} of {rank.Lessons.Count} lessons",
+        // Akolouthos is not a badge level: after Christ-bearer, a leadership role and a wider programme (syllabus scheme).
+        _ when rank.Order == 10 => "After Christ-bearer: leadership and a wider programme",
         _ when rank.Lessons.Count == 0 => "Lessons being written",
         _ => $"{rank.Lessons.Count} lessons",
     };

@@ -132,6 +132,7 @@
                 {
                     <details class="others" open="@(others.Any(s => _selected.Contains(s.Id)))">
                         <summary>Students at other ranks (@others.Count)</summary>
+                        <p class="muted others__hint">For example, a student who joined at a higher rank and is catching up on this lesson.</p>
                         <fieldset class="students">
                             <legend class="visually-hidden">Students at other ranks</legend>
                             <ul class="student-rows">

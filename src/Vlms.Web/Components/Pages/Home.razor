@@ -3,14 +3,22 @@
 
 <PageTitle>Home</PageTitle>
 
-<h1>Varangians LMS</h1>
 
 <AuthorizeView>
     <NotAuthorized>
-        <p>Welcome to the Varangians learning management system. Sign in to see your lessons and tasks.</p>
-        <p><a href="/Account/Login">Log in</a></p>
+        @* The public welcome: the double-headed eagle, emblem of the Orthodox Church, over the group's name. *@
+        <section class="welcome" aria-labelledby="welcome-title">
+            <Eagle Class="welcome__eagle" />
+            <h1 id="welcome-title">Varangians</h1>
+            <p class="welcome__lead">The youth club of Shrewsbury Orthodox Church. Lessons, ranks and progress for our young people, their families and their teachers.</p>
+            <div class="welcome__actions">
+                <a class="btn" href="/Account/Login">Log in</a>
+                <a class="btn btn--secondary" href="/Account/Register">Create an account</a>
+            </div>
+        </section>
     </NotAuthorized>
     <Authorized>
+        <h1>Home</h1>
         <h2>What to do next</h2>
 
         <PendingWorkNotices />
