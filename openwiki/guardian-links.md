@@ -10,7 +10,7 @@ Design source: `docs/requirements/functional.md` FR-004, `docs/design/data-desig
 
 ## `GuardianLinkService`
 
-Role-checked inside the service itself (defense in depth, same pattern as `LessonProposalService`/`CompletionService`) — **Admin or Teacher only**. This is a hard constraint (CLAUDE.md Project Law; FR-004; data-design.md): a `StudentGuardianLink` must never be created by parent self-service. There is no code path anywhere in this codebase — service method or page — that lets a Parent create their own link.
+Role-checked inside the service itself (defense in depth, same pattern as `LessonProposalService`/`CompletionService`) — **Admin only since 22/10/2026** (`adr/0008` answer 4; Admin or Teacher before). `GuardianInviteService.IssueAsync`/`InviteOrNotifyAsync` likewise. Parents' own applications to register a child are approved by an Admin through `StudentApplicationService`, which creates the link itself (see [student-registration.md](student-registration.md)). This is a hard constraint (CLAUDE.md Project Law; FR-004; data-design.md): a `StudentGuardianLink` must never be created by parent self-service. There is no code path anywhere in this codebase — service method or page — that lets a Parent create their own link.
 
 Two entry points, matching data-design.md's "the Admin/Teacher enters the guardian's details" wording:
 
@@ -48,7 +48,7 @@ The guardian-links page needs "Admin OR Teacher", which the existing single-role
 
 ## Page
 
-`src/Vlms.Web/Components/Pages/Guardianship/GuardianLinks.razor` (`/guardianship/links`), gated by `[Authorize(Policy = "RequireAdminOrTeacher")]` — no ad hoc role checks at the page level, same convention as the curriculum pages. Lists existing links, and a form to either link an existing guardian or register a new one, matching the service's two entry points. Linked from `Home.razor` via `<AuthorizeView Policy="RequireAdminOrTeacher">`.
+`src/Vlms.Web/Components/Pages/Guardianship/GuardianLinks.razor` (`/guardianship/links`), gated by `[Authorize(Policy = "RequireAdmin")]` since 22/10/2026 (was `RequireAdminOrTeacher`) — no ad hoc role checks at the page level, same convention as the curriculum pages. Lists existing links, and a form to either link an existing guardian or register a new one, matching the service's two entry points. Linked from `Home.razor` via `<AuthorizeView Policy="RequireAdminOrTeacher">`.
 
 ## Scope note (deliberate, at the time this page was built)
 
@@ -56,7 +56,7 @@ This service/page implemented only the guardian-link creation flow FR-004 asks f
 
 ## Tests
 
-`tests/Vlms.Tests/Infrastructure/GuardianLinkServiceTests.cs` (SQLite-in-memory-via-DI pattern, same as `LessonProposalServiceTests`): both entry points, by Admin and by Teacher; denial for Parent and Approver (with a dedicated assertion that a Parent's attempt creates no row — the hard "never parent self-service" constraint); duplicate-link rejection; the same guardian linking to two different students (not a duplicate — composite key is per-student); unknown-student/unknown-guardian rejection; blank guardian name rejection; invite-issuance-failure atomicity for both entry points (the "Atomicity" section above).
+`tests/Vlms.Tests/Infrastructure/GuardianLinkServiceTests.cs` (SQLite-in-memory-via-DI pattern, same as `LessonProposalServiceTests`): both entry points by Admin, and refused for Teacher since 22/10/2026; denial for Parent and Approver (with a dedicated assertion that a Parent's attempt creates no row — the hard "never parent self-service" constraint); duplicate-link rejection; the same guardian linking to two different students (not a duplicate — composite key is per-student); unknown-student/unknown-guardian rejection; blank guardian name rejection; invite-issuance-failure atomicity for both entry points (the "Atomicity" section above).
 
 `tests/Vlms.Tests/Authorization/AnyRoleAuthorizationHandlerTests.cs`: succeeds on either listed role, fails when the caller holds neither, and a constructor guard against an empty role list.
 

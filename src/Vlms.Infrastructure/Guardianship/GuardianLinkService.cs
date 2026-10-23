@@ -12,7 +12,7 @@ namespace Vlms.Infrastructure.Guardianship;
 ///
 /// Authorization: role-checked inside the service itself (defense in depth, same pattern as
 /// <see cref="Vlms.Infrastructure.Curriculum.LessonProposalService"/>/
-/// <see cref="Vlms.Infrastructure.Progress.CompletionService"/>) — restricted to Admin or Teacher.
+/// <see cref="Vlms.Infrastructure.Progress.CompletionService"/>) — restricted to Admin (Teachers too until 22/10/2026, adr/0008 answer 4).
 /// This is a hard constraint (CLAUDE.md Project Law; functional.md FR-004; data-design.md
 /// "Guardian link verification"): a <see cref="StudentGuardianLink"/> must never be created by
 /// parent self-service. There is deliberately no code path anywhere in this codebase — service
@@ -106,7 +106,7 @@ public sealed class GuardianLinkService
     public async Task<StudentGuardianLink> CreateLinkAsync(
         int studentId, int parentGuardianId, CancellationToken ct = default)
     {
-        RequireAdminOrTeacher();
+        RequireAdmin();
         var createdByUserId = RequireResolvedUserId();
 
         _ = await _db.Students.SingleAsync(s => s.Id == studentId, ct);
@@ -150,12 +150,12 @@ public sealed class GuardianLinkService
     /// <summary>
     /// Creates a new <see cref="ParentGuardian"/> from the details entered by the Admin/Teacher,
     /// then links it to the Student — the common path at a new student's registration, where no
-    /// ParentGuardian record exists yet. Admin/Teacher only.
+    /// ParentGuardian record exists yet. Admin only (Teachers lost this on 22/10/2026, adr/0008 answer 4).
     /// </summary>
     public async Task<(ParentGuardian Guardian, StudentGuardianLink Link)> RegisterGuardianAndLinkAsync(
         int studentId, string guardianName, string contactInfo, bool isPrimary, CancellationToken ct = default)
     {
-        RequireAdminOrTeacher();
+        RequireAdmin();
         var createdByUserId = RequireResolvedUserId();
         ArgumentException.ThrowIfNullOrWhiteSpace(guardianName);
         ArgumentException.ThrowIfNullOrWhiteSpace(contactInfo);
@@ -231,12 +231,17 @@ public sealed class GuardianLinkService
         }
     }
 
-    private void RequireAdminOrTeacher()
+    /// <summary>
+    /// Admin only since 22/10/2026 (adr/0008 answer 4, functional.md FR-004): Teachers no longer
+    /// register children or create guardian links. Parents apply instead
+    /// (<see cref="Vlms.Infrastructure.Registration.StudentApplicationService"/>).
+    /// </summary>
+    private void RequireAdmin()
     {
-        if (!_currentUser.HasRole(Role.Admin) && !_currentUser.HasRole(Role.Teacher))
+        if (!_currentUser.HasRole(Role.Admin))
         {
             throw new UnauthorizedAccessException(
-                "Caller must hold the Admin or Teacher role to create a guardian link.");
+                "Caller must hold the Admin role to create a guardian link.");
         }
     }
 

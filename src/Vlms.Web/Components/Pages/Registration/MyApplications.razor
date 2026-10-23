@@ -1,0 +1,234 @@
+@page "/registration/my-applications"
+@attribute [Authorize(Policy = "RequireSignedIn")]
+@using System.Globalization
+@using Vlms.Domain
+@using Vlms.Infrastructure.Registration
+@inject StudentApplicationService Applications
+
+@* Static SSR, like Apply.razor. The applicant's own applications only (the service filters by the
+   signed-in account, and the restricted details pass the query filter for the applicant alone).
+   ?edit={id} opens the answer-and-resubmit form for an application waiting for more information. *@
+
+<PageTitle>My applications</PageTitle>
+
+<h1>My applications</h1>
+
+@if (_errorMessage is not null)
+{
+    <p class="error" role="alert">@_errorMessage</p>
+}
+@if (_statusMessage is not null)
+{
+    <p role="status">@_statusMessage</p>
+}
+
+@if (_editing is { } editing)
+{
+    <section aria-labelledby="resubmitHeading">
+        <h2 id="resubmitHeading">Answer and resubmit: @editing.ChildName</h2>
+        <p>The Safeguarding Officer asked:</p>
+        <blockquote class="preserve-lines">@editing.Details?.InformationRequest</blockquote>
+        <p>Answer the question below and correct anything else on the application, then resubmit it.</p>
+
+        <EditForm Model="Input" method="post" OnSubmit="ResubmitAsync" FormName="resubmit-application">
+            <div>
+                <label for="response">Your answer</label>
+                <InputTextArea id="response" rows="5" maxlength="4000" @bind-Value="Input.Response" aria-required="true" />
+            </div>
+
+            <h3>Your details</h3>
+            <div>
+                <label for="phone">Your phone number</label>
+                <InputText id="phone" type="tel" autocomplete="tel" @bind-Value="Input.Phone" aria-required="true" />
+            </div>
+            <div>
+                <label for="postalAddress">Your postal address</label>
+                <InputTextArea id="postalAddress" rows="4" autocomplete="street-address" @bind-Value="Input.PostalAddress" aria-required="true" />
+            </div>
+
+            <h3>About the child</h3>
+            <div>
+                <label for="childName">Child's full name</label>
+                <InputText id="childName" @bind-Value="Input.Name" autocomplete="off" aria-required="true" />
+            </div>
+            <div>
+                <label for="childDateOfBirth">Child's date of birth</label>
+                <InputText id="childDateOfBirth" type="date" @bind-Value="Input.DateOfBirth" aria-required="true" />
+            </div>
+            <div>
+                <label for="relationship">Your relationship to the child</label>
+                <InputText id="relationship" @bind-Value="Input.Relationship" aria-required="true" />
+            </div>
+
+            <h3>Consent</h3>
+            <div>
+                <InputCheckbox id="photo" @bind-Value="Input.PhotoMediaConsent" />
+                <label for="photo">I consent to photos and media of my child</label>
+            </div>
+            <div>
+                <InputCheckbox id="transport" @bind-Value="Input.TransportConsent" />
+                <label for="transport">I consent to my child being transported between our sites (this can be a short trip)</label>
+            </div>
+            <div>
+                <InputCheckbox id="offsite" @bind-Value="Input.OffsiteTripConsent" />
+                <label for="offsite">I consent to my child going on off-site trips and outings</label>
+            </div>
+            <div>
+                <InputCheckbox id="dataSharing" @bind-Value="Input.DataSharingConsent" />
+                <label for="dataSharing">I consent to data sharing</label>
+            </div>
+
+            <h3>Medical, dietary and emergency details</h3>
+            <div>
+                <label for="emergencyContact">Emergency contact (name and phone number)</label>
+                <InputText id="emergencyContact" @bind-Value="Input.EmergencyContact" aria-required="true" />
+            </div>
+            <div>
+                <label for="medical">Emergency medical information (optional)</label>
+                <InputTextArea id="medical" rows="3" maxlength="4000" @bind-Value="Input.EmergencyMedicalInfo" />
+            </div>
+            <div>
+                <label for="dietary">Dietary requirements, including allergies (optional)</label>
+                <InputTextArea id="dietary" rows="4" maxlength="4000" @bind-Value="Input.DietaryRequirements" />
+            </div>
+            <div>
+                <label for="sen">Special educational needs (optional)</label>
+                <InputTextArea id="sen" rows="4" maxlength="4000" @bind-Value="Input.SpecialEducationalNeeds" />
+            </div>
+
+            <button type="submit">Resubmit application</button>
+            <a href="/registration/my-applications">Cancel</a>
+        </EditForm>
+    </section>
+}
+
+@if (_applications.Count == 0 && _errorMessage is null)
+{
+    <p>You have not applied to register a child yet. <a href="/registration/apply">Register a child</a>.</p>
+}
+
+@foreach (var application in _applications)
+{
+    <section aria-labelledby="application@(application.Id)">
+        <h2 id="application@(application.Id)">@application.ChildName</h2>
+        @if (application.Status == StudentApplicationStatus.MoreInformationRequested && _editing?.Id != application.Id)
+        {
+            <p><strong>We need more information from you.</strong> <a href="/registration/my-applications?edit=@application.Id" aria-label="Answer and resubmit the application for @application.ChildName">Answer and resubmit</a></p>
+        }
+        @if (application.Status == StudentApplicationStatus.Approved)
+        {
+            <p>@application.ChildName is registered. See <a href="/parent/dashboard">your dashboard</a>.</p>
+        }
+        <ApplicationSummary Application="application" />
+    </section>
+}
+
+<p><a href="/registration/apply">Register another child</a></p>
+
+@code {
+    [SupplyParameterFromQuery(Name = "edit")]
+    private int? Edit { get; set; }
+
+    // No property initializer (BL0008): see Login.razor's identical comment.
+    [SupplyParameterFromForm(FormName = "resubmit-application")]
+    private ResubmitInput Input { get; set; } = default!;
+
+    private List<ApplicationView> _applications = new();
+    private ApplicationView? _editing;
+    private string? _errorMessage;
+    private string? _statusMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+        if (Input is null && _editing is { } editing)
+        {
+            // First view of the form: start from what the application holds now.
+            Input = new ResubmitInput
+            {
+                Phone = editing.ParentPhone,
+                PostalAddress = editing.ParentPostalAddress,
+                Name = editing.ChildName,
+                DateOfBirth = editing.ChildDateOfBirth.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                Relationship = editing.Relationship,
+                PhotoMediaConsent = editing.PhotoMediaConsent,
+                TransportConsent = editing.TransportConsent,
+                OffsiteTripConsent = editing.OffsiteTripConsent,
+                DataSharingConsent = editing.DataSharingConsent,
+                EmergencyContact = editing.Details?.EmergencyContact,
+                EmergencyMedicalInfo = editing.Details?.EmergencyMedicalInfo,
+                DietaryRequirements = editing.Details?.DietaryRequirements,
+                SpecialEducationalNeeds = editing.Details?.SpecialEducationalNeeds
+            };
+        }
+
+        Input ??= new();
+    }
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            _applications = (await Applications.GetMyApplicationsAsync()).ToList();
+            _editing = Edit is int id
+                ? _applications.FirstOrDefault(a => a.Id == id && a.Status == StudentApplicationStatus.MoreInformationRequested)
+                : null;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+
+    private async Task ResubmitAsync()
+    {
+        if (_editing is not { } editing)
+        {
+            _errorMessage = "This application is not waiting for more information from you.";
+            return;
+        }
+
+        if (!DateOnly.TryParseExact(Input.DateOfBirth, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var dateOfBirth))
+        {
+            _errorMessage = "Enter the child's date of birth.";
+            return;
+        }
+
+        try
+        {
+            await Applications.ResubmitAsync(
+                editing.Id,
+                new ApplicantDetails(Input.Phone ?? "", Input.PostalAddress ?? ""),
+                new ChildApplicationForm(
+                    Input.Name ?? "", dateOfBirth, Input.Relationship ?? "", Input.PhotoMediaConsent, Input.TransportConsent,
+                    Input.OffsiteTripConsent, Input.DataSharingConsent, Input.EmergencyContact ?? "", Input.EmergencyMedicalInfo,
+                    Input.DietaryRequirements, Input.SpecialEducationalNeeds),
+                Input.Response ?? "");
+            _statusMessage = "Thank you. Your application has been resubmitted for review.";
+            Edit = null;
+            await LoadAsync();
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or UnauthorizedAccessException)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+
+    private sealed class ResubmitInput
+    {
+        public string? Response { get; set; }
+        public string? Phone { get; set; }
+        public string? PostalAddress { get; set; }
+        public string? Name { get; set; }
+        public string? DateOfBirth { get; set; }
+        public string? Relationship { get; set; }
+        public bool PhotoMediaConsent { get; set; }
+        public bool TransportConsent { get; set; }
+        public bool OffsiteTripConsent { get; set; }
+        public bool DataSharingConsent { get; set; }
+        public string? EmergencyContact { get; set; }
+        public string? EmergencyMedicalInfo { get; set; }
+        public string? DietaryRequirements { get; set; }
+        public string? SpecialEducationalNeeds { get; set; }
+    }
+}

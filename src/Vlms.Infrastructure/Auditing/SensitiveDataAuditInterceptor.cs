@@ -6,9 +6,10 @@ using Vlms.Domain;
 namespace Vlms.Infrastructure.Auditing;
 
 /// <summary>
-/// Writes a <see cref="SensitiveDataAccessLog"/> row for every <see cref="DbsCheck"/> or
-/// <see cref="ConsentSensitiveDetails"/> instance EF Core materializes, per
-/// adr/0004-sensitive-data-access-control.md.
+/// Writes a <see cref="SensitiveDataAccessLog"/> row for every <see cref="DbsCheck"/>,
+/// <see cref="ConsentSensitiveDetails"/> or <see cref="StudentApplicationSensitiveDetails"/> instance
+/// EF Core materializes, per adr/0004-sensitive-data-access-control.md (the third added 22/10/2026
+/// for parent registration applications, adr/0008).
 ///
 /// <see cref="IMaterializationInterceptor"/> is registered as a singleton shared across
 /// <see cref="VlmsDbContext"/> instances, so the current-user context is resolved per call via
@@ -34,6 +35,7 @@ public sealed class SensitiveDataAuditInterceptor : IMaterializationInterceptor
         {
             DbsCheck dbsCheck => (nameof(DbsCheck), (int?)dbsCheck.Id),
             ConsentSensitiveDetails details => (nameof(ConsentSensitiveDetails), (int?)details.Id),
+            StudentApplicationSensitiveDetails applicationDetails => (nameof(StudentApplicationSensitiveDetails), (int?)applicationDetails.Id),
             _ => (null, null)
         };
 

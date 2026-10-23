@@ -117,6 +117,7 @@ $expectedMinimums = @{
     # FR-016 role changes take effect immediately: multi-role unions, mid-scope grant/revoke/MFA
     # change, security-stamp rotation.
     "RoleChangeTests.cs"                = 13
+    "StudentApplicationServiceTests.cs" = 38
 }
 
 foreach ($testFileName in $expectedMinimums.Keys) {
@@ -139,6 +140,7 @@ $endToEndRoot = Join-Path $repoRoot "tests/Vlms.Tests/EndToEnd"
 $endToEndMinimums = @{
     "AccessEndToEndTests.cs"     = 8
     "RoleMatrixEndToEndTests.cs" = 5
+    "ParentRegistrationEndToEndTests.cs" = 3
 }
 foreach ($testFileName in $endToEndMinimums.Keys) {
     $testFilePath = Join-Path $endToEndRoot $testFileName
@@ -178,6 +180,7 @@ $hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Web/Components/Account/I
 $hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Infrastructure/Identity/StudentSignInPolicy.cs")
 $hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Infrastructure/Identity/VlmsIdentityUser.cs")
 $hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Web/Components/Account/VlmsSignInManager.cs")
+$hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Infrastructure/Registration/StudentApplicationService.cs")
 $hashedFiles += $pageFiles
 
 if ($PrintHash) {

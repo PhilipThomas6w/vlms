@@ -19,7 +19,7 @@ public sealed class SensitiveDataAccessLog
     /// <summary>Null when the accessing caller's identity could not be resolved (e.g. a background job).</summary>
     public int? UserId { get; init; }
 
-    /// <summary>The entity type accessed — "DbsCheck" or "ConsentSensitiveDetails".</summary>
+    /// <summary>The entity type accessed — "DbsCheck", "ConsentSensitiveDetails" or "StudentApplicationSensitiveDetails".</summary>
     public required string Entity { get; init; }
 
     public required int EntityId { get; init; }

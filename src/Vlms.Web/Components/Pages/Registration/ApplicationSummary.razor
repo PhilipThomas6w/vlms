@@ -1,0 +1,92 @@
+@using Vlms.Infrastructure.Registration
+
+@* One registration application, read-only: shared by the applicant's, the Safeguarding Officer's and
+   the Admin's pages. The restricted details appear only when the service returned them (the
+   caller passed the query filter, and the read was audited). *@
+
+<dl>
+    <dt>Child</dt>
+    <dd>@Application.ChildName, born @Application.ChildDateOfBirth.ToString("d MMMM yyyy")</dd>
+    @if (ShowApplicant)
+    {
+        <dt>Parent</dt>
+        <dd>@Application.ApplicantName (@Application.ApplicantEmail)</dd>
+    }
+    <dt>Relationship to the child</dt>
+    <dd>@Application.Relationship</dd>
+    <dt>Phone</dt>
+    <dd>@Application.ParentPhone</dd>
+    <dt>Postal address</dt>
+    <dd class="preserve-lines">@Application.ParentPostalAddress</dd>
+    <dt>Photos and media</dt>
+    <dd>@YesNo(Application.PhotoMediaConsent)</dd>
+    <dt>Transport between sites</dt>
+    <dd>@YesNo(Application.TransportConsent)</dd>
+    <dt>Off-site trips and outings</dt>
+    <dd>@YesNo(Application.OffsiteTripConsent)</dd>
+    <dt>Data sharing</dt>
+    <dd>@YesNo(Application.DataSharingConsent)</dd>
+    @if (Application.Details is { } details)
+    {
+        <dt>Emergency contact</dt>
+        <dd>@details.EmergencyContact</dd>
+        <dt>Emergency medical information</dt>
+        <dd class="preserve-lines">@(details.EmergencyMedicalInfo ?? "None given")</dd>
+        <dt>Dietary requirements</dt>
+        <dd class="preserve-lines">@(details.DietaryRequirements ?? "None given")</dd>
+        <dt>Special educational needs</dt>
+        <dd class="preserve-lines">@(details.SpecialEducationalNeeds ?? "None given")</dd>
+        @if (details.InformationRequest is not null)
+        {
+            <dt>Information requested by the Safeguarding Officer</dt>
+            <dd class="preserve-lines">@details.InformationRequest</dd>
+        }
+        @if (details.ParentResponse is not null)
+        {
+            <dt>Parent's answer</dt>
+            <dd class="preserve-lines">@details.ParentResponse</dd>
+        }
+        @if (details.DecisionComments is not null)
+        {
+            <dt>Reviewer's comments</dt>
+            <dd class="preserve-lines">@details.DecisionComments</dd>
+        }
+    }
+    <dt>Status</dt>
+    <dd>@StatusText(Application.Status)</dd>
+    <dt>Submitted</dt>
+    <dd>
+        @Application.SubmittedAt.ToString("d MMMM yyyy")
+        @if (Application.LastSubmittedAt != Application.SubmittedAt)
+        {
+            <span>, resubmitted @Application.LastSubmittedAt.ToString("d MMMM yyyy")</span>
+        }
+    </dd>
+    @if (ShowApplicant && Application.SafeguardingReviewerName is not null)
+    {
+        <dt>Safeguarding review</dt>
+        <dd>@Application.SafeguardingReviewerName, @Application.SafeguardingReviewedAt?.ToString("d MMMM yyyy")</dd>
+    }
+    @if (ShowApplicant && Application.AdminDeciderName is not null)
+    {
+        <dt>Final decision</dt>
+        <dd>@Application.AdminDeciderName, @Application.AdminDecidedAt?.ToString("d MMMM yyyy")</dd>
+    }
+</dl>
+
+@code {
+    [Parameter, EditorRequired]
+    public ApplicationView Application { get; set; } = default!;
+
+    /// <summary>Staff pages show who applied and who decided each stage.</summary>
+    [Parameter]
+    public bool ShowApplicant { get; set; }
+
+    private static string YesNo(bool value) => value ? "Yes, consent given" : "No consent";
+
+    public static string StatusText(Vlms.Domain.StudentApplicationStatus status)
+    {
+        var text = StudentApplicationService.Describe(status);
+        return char.ToUpperInvariant(text[0]) + text[1..];
+    }
+}

@@ -55,6 +55,8 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
     public DbSet<AppUser> AppUsers => Set<AppUser>();
     public DbSet<UserRole> UserRoles => Set<UserRole>();
     public DbSet<GuardianInvite> GuardianInvites => Set<GuardianInvite>();
+    public DbSet<StudentApplication> StudentApplications => Set<StudentApplication>();
+    public DbSet<StudentApplicationSensitiveDetails> StudentApplicationSensitiveDetails => Set<StudentApplicationSensitiveDetails>();
     public DbSet<SensitiveDataAccessLog> SensitiveDataAccessLogs => Set<SensitiveDataAccessLog>();
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
@@ -300,6 +302,49 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
             e.HasOne(x => x.ParentGuardian).WithMany().HasForeignKey(x => x.ParentGuardianId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x => x.CreatedByUser).WithMany().HasForeignKey(x => x.CreatedByUserId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(x => x.ConsumedByAppUser).WithMany().HasForeignKey(x => x.ConsumedByAppUserId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // Parent registration applications (functional.md FR-004 as amended 22/10/2026, adr/0008
+        // answers 1, 4, 5, 6). Nothing here creates a Student, link or role; see
+        // Registration/StudentApplicationService.
+        modelBuilder.Entity<StudentApplication>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.HasOne(x => x.ApplicantUser).WithMany().HasForeignKey(x => x.ApplicantUserId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.SafeguardingReviewedByUser).WithMany().HasForeignKey(x => x.SafeguardingReviewedByUserId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.AdminDecidedByUser).WithMany().HasForeignKey(x => x.AdminDecidedByUserId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.Student).WithMany().HasForeignKey(x => x.StudentId).OnDelete(DeleteBehavior.SetNull);
+            e.HasOne(x => x.ConsentRecord).WithMany().HasForeignKey(x => x.ConsentRecordId).OnDelete(DeleteBehavior.SetNull);
+            e.HasOne(x => x.SensitiveDetails).WithOne(x => x.StudentApplication)
+                .HasForeignKey<StudentApplicationSensitiveDetails>(x => x.StudentApplicationId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => new { x.ApplicantUserId, x.Status });
+            e.HasIndex(x => x.Status);
+        });
+
+        // StudentApplicationSensitiveDetails: same whole-entity restriction and read audit as
+        // ConsentSensitiveDetails (adr/0004 as amended by adr/0006), with a narrower audience. A row
+        // is visible to
+        //   1. Admin/SafeguardingOfficer with MFA enabled (the two review stages); and
+        //   2. the applicant themself (their own application only), so they can see and answer a
+        //      request for more information. The UserId != null conjunct has the same purpose as in
+        //      the ConsentSensitiveDetails parent arm: without it EF Core's null semantics would turn
+        //      ApplicantUserId == UserId into a match on nothing useful, and an unresolved caller must
+        //      match no row.
+        // Teachers, Approvers and Parents (other than the applicant) match no arm: until approval
+        // there is no student for a Teacher to teach. Writes are not governed by a query filter;
+        // StudentApplicationService checks the applicant itself before changing a row.
+        modelBuilder.Entity<StudentApplicationSensitiveDetails>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.HasIndex(x => x.StudentApplicationId).IsUnique();
+            e.HasQueryFilter(x =>
+                ((_currentUser.HasRole(Role.Admin) || _currentUser.HasRole(Role.SafeguardingOfficer))
+                    && _currentUser.HasMfaEnabled)
+                || (_currentUser.UserId != null
+                    && StudentApplications.Any(a =>
+                        a.Id == x.StudentApplicationId && a.ApplicantUserId == _currentUser.UserId)));
         });
 
         // Applied last, after every table/property above has its (PascalCase-default) name —

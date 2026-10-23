@@ -33,6 +33,8 @@ public sealed class RoleMatrixEndToEndTests(RoleMatrixEndToEndTests.Sessions ses
         ["RequireAdminOrTeacher"] = [Role.Admin, Role.Teacher],
         ["RequireAdminOrSafeguardingOfficer"] = [Role.Admin, Role.SafeguardingOfficer],
         ["RequireLessonLibrary"] = [Role.Teacher, Role.Approver, Role.Admin, Role.Student, Role.Parent],
+        // Any signed-in user, with no role requirement at all (parent registration, adr/0008 answer 1).
+        ["RequireSignedIn"] = Enum.GetValues<Role>(),
     };
 
     public static TheoryData<string> Profiles => new()
@@ -110,6 +112,14 @@ public sealed class RoleMatrixEndToEndTests(RoleMatrixEndToEndTests.Sessions ses
             var policy = await provider.GetPolicyAsync(name);
             Assert.True(policy is not null, $"Policy {name} is not registered in Program.cs.");
             Assert.Contains(policy!.Requirements, r => r is MfaRequirement);
+
+            if (name == "RequireSignedIn")
+            {
+                // No role requirement: authenticated users only, plus the MFA rule.
+                Assert.Contains(policy.Requirements, r => r is Microsoft.AspNetCore.Authorization.Infrastructure.DenyAnonymousAuthorizationRequirement);
+                Assert.DoesNotContain(policy.Requirements, r => r is AnyRoleRequirement or RoleRequirement);
+                continue;
+            }
 
             var actual = policy.Requirements.SelectMany(r => r switch
             {

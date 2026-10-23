@@ -522,6 +522,14 @@ namespace Vlms.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("name");
 
+                    b.Property<string>("Phone")
+                        .HasColumnType("text")
+                        .HasColumnName("phone");
+
+                    b.Property<string>("PostalAddress")
+                        .HasColumnType("text")
+                        .HasColumnName("postal_address");
+
                     b.HasKey("Id");
 
                     b.HasIndex("AppUserId");
@@ -662,6 +670,160 @@ namespace Vlms.Infrastructure.Migrations
                     b.ToTable("students");
                 });
 
+            modelBuilder.Entity("Vlms.Domain.StudentApplication", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime?>("AdminDecidedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("admin_decided_at");
+
+                    b.Property<int?>("AdminDecidedByUserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("admin_decided_by_user_id");
+
+                    b.Property<int>("ApplicantUserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("applicant_user_id");
+
+                    b.Property<DateOnly>("ChildDateOfBirth")
+                        .HasColumnType("date")
+                        .HasColumnName("child_date_of_birth");
+
+                    b.Property<string>("ChildName")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("child_name");
+
+                    b.Property<int?>("ConsentRecordId")
+                        .HasColumnType("integer")
+                        .HasColumnName("consent_record_id");
+
+                    b.Property<bool>("DataSharingConsent")
+                        .HasColumnType("boolean")
+                        .HasColumnName("data_sharing_consent");
+
+                    b.Property<DateTime>("LastSubmittedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_submitted_at");
+
+                    b.Property<bool>("LinkedToExistingStudent")
+                        .HasColumnType("boolean")
+                        .HasColumnName("linked_to_existing_student");
+
+                    b.Property<bool>("OffsiteTripConsent")
+                        .HasColumnType("boolean")
+                        .HasColumnName("offsite_trip_consent");
+
+                    b.Property<string>("ParentPhone")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("parent_phone");
+
+                    b.Property<string>("ParentPostalAddress")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("parent_postal_address");
+
+                    b.Property<bool>("PhotoMediaConsent")
+                        .HasColumnType("boolean")
+                        .HasColumnName("photo_media_consent");
+
+                    b.Property<string>("Relationship")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("relationship");
+
+                    b.Property<DateTime?>("SafeguardingReviewedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("safeguarding_reviewed_at");
+
+                    b.Property<int?>("SafeguardingReviewedByUserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("safeguarding_reviewed_by_user_id");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer")
+                        .HasColumnName("status");
+
+                    b.Property<int?>("StudentId")
+                        .HasColumnType("integer")
+                        .HasColumnName("student_id");
+
+                    b.Property<DateTime>("SubmittedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("submitted_at");
+
+                    b.Property<bool>("TransportConsent")
+                        .HasColumnType("boolean")
+                        .HasColumnName("transport_consent");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AdminDecidedByUserId");
+
+                    b.HasIndex("ConsentRecordId");
+
+                    b.HasIndex("SafeguardingReviewedByUserId");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("StudentId");
+
+                    b.HasIndex("ApplicantUserId", "Status");
+
+                    b.ToTable("student_applications");
+                });
+
+            modelBuilder.Entity("Vlms.Domain.StudentApplicationSensitiveDetails", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    b.Property<string>("DecisionComments")
+                        .HasColumnType("text")
+                        .HasColumnName("decision_comments");
+
+                    b.Property<string>("DietaryRequirements")
+                        .HasColumnType("text")
+                        .HasColumnName("dietary_requirements");
+
+                    b.Property<string>("EmergencyContact")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("emergency_contact");
+
+                    b.Property<string>("EmergencyMedicalInfo")
+                        .HasColumnType("text")
+                        .HasColumnName("emergency_medical_info");
+
+                    b.Property<string>("InformationRequest")
+                        .HasColumnType("text")
+                        .HasColumnName("information_request");
+
+                    b.Property<string>("ParentResponse")
+                        .HasColumnType("text")
+                        .HasColumnName("parent_response");
+
+                    b.Property<string>("SpecialEducationalNeeds")
+                        .HasColumnType("text")
+                        .HasColumnName("special_educational_needs");
+
+                    b.Property<int>("StudentApplicationId")
+                        .HasColumnType("integer")
+                        .HasColumnName("student_application_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StudentApplicationId")
+                        .IsUnique();
+
+                    b.ToTable("student_application_sensitive_details");
+                });
+
             modelBuilder.Entity("Vlms.Domain.StudentBadge", b =>
                 {
                     b.Property<int>("Id")
@@ -702,6 +864,10 @@ namespace Vlms.Infrastructure.Migrations
                     b.Property<int>("CreatedByUserId")
                         .HasColumnType("integer")
                         .HasColumnName("created_by_user_id");
+
+                    b.Property<string>("Relationship")
+                        .HasColumnType("text")
+                        .HasColumnName("relationship");
 
                     b.HasKey("StudentId", "ParentGuardianId");
 
@@ -1127,6 +1293,56 @@ namespace Vlms.Infrastructure.Migrations
                     b.Navigation("CurrentRank");
                 });
 
+            modelBuilder.Entity("Vlms.Domain.StudentApplication", b =>
+                {
+                    b.HasOne("Vlms.Domain.AppUser", "AdminDecidedByUser")
+                        .WithMany()
+                        .HasForeignKey("AdminDecidedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Vlms.Domain.AppUser", "ApplicantUser")
+                        .WithMany()
+                        .HasForeignKey("ApplicantUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Vlms.Domain.ConsentRecord", "ConsentRecord")
+                        .WithMany()
+                        .HasForeignKey("ConsentRecordId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Vlms.Domain.AppUser", "SafeguardingReviewedByUser")
+                        .WithMany()
+                        .HasForeignKey("SafeguardingReviewedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Vlms.Domain.Student", "Student")
+                        .WithMany()
+                        .HasForeignKey("StudentId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("AdminDecidedByUser");
+
+                    b.Navigation("ApplicantUser");
+
+                    b.Navigation("ConsentRecord");
+
+                    b.Navigation("SafeguardingReviewedByUser");
+
+                    b.Navigation("Student");
+                });
+
+            modelBuilder.Entity("Vlms.Domain.StudentApplicationSensitiveDetails", b =>
+                {
+                    b.HasOne("Vlms.Domain.StudentApplication", "StudentApplication")
+                        .WithOne("SensitiveDetails")
+                        .HasForeignKey("Vlms.Domain.StudentApplicationSensitiveDetails", "StudentApplicationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("StudentApplication");
+                });
+
             modelBuilder.Entity("Vlms.Domain.StudentBadge", b =>
                 {
                     b.HasOne("Vlms.Domain.RankBadge", "RankBadge")
@@ -1281,6 +1497,11 @@ namespace Vlms.Infrastructure.Migrations
                     b.Navigation("GuardianLinks");
 
                     b.Navigation("RankProgressHistory");
+                });
+
+            modelBuilder.Entity("Vlms.Domain.StudentApplication", b =>
+                {
+                    b.Navigation("SensitiveDetails");
                 });
 
             modelBuilder.Entity("Vlms.Domain.StudentLessonCompletion", b =>

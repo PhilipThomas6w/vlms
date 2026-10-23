@@ -1,0 +1,153 @@
+@page "/registration/review"
+@attribute [Authorize(Policy = "RequireSafeguardingOfficer")]
+@using Vlms.Domain
+@using Vlms.Infrastructure.Registration
+@inject StudentApplicationService Applications
+
+@* Stage 1 of a parent's registration application (adr/0008 answer 4): Safeguarding Officer only,
+   with MFA (the policy, the service and the restricted-data query filter all require it). Static SSR
+   like the applicant's pages. ?id={id} opens one application with its restricted details; opening
+   it is a read of those details and is audited. *@
+
+<PageTitle>Review registrations</PageTitle>
+
+<h1>Review registration applications</h1>
+
+<p>
+    Parents' applications to register a child. Check the consent form and the medical, dietary and
+    special educational needs details. Approve to pass the application to an Admin for final
+    approval, ask the parent for more information, or reject it with comments for the parent.
+</p>
+
+@if (_errorMessage is not null)
+{
+    <p class="error" role="alert">@_errorMessage</p>
+}
+@if (_statusMessage is not null)
+{
+    <p role="status">@_statusMessage</p>
+}
+
+@if (_selected is { } selected)
+{
+    <section aria-labelledby="reviewHeading">
+        <h2 id="reviewHeading">Application to register @selected.ChildName</h2>
+        <ApplicationSummary Application="selected" ShowApplicant="true" />
+
+        @if (selected.Status == StudentApplicationStatus.AwaitingSafeguardingReview)
+        {
+            <EditForm Model="Input" method="post" OnSubmit="DecideAsync" FormName="safeguarding-review">
+                <div>
+                    <label for="message">Comments, or the information you need from the parent (required to reject or to ask for more information)</label>
+                    <InputTextArea id="message" rows="5" maxlength="4000" @bind-Value="Input.Message" />
+                </div>
+                <button type="submit" name="Input.Action" value="approve">Approve and pass to an Admin</button>
+                <button type="submit" name="Input.Action" value="more-information">Ask the parent for more information</button>
+                <button type="submit" name="Input.Action" value="reject">Reject</button>
+            </EditForm>
+        }
+        <p><a href="/registration/review">Back to the list</a></p>
+    </section>
+}
+
+<h2>Waiting</h2>
+@if (_applications.Count == 0)
+{
+    <p>No applications are waiting for safeguarding review.</p>
+}
+else
+{
+    <table>
+        <thead>
+            <tr><th scope="col">Child</th><th scope="col">Parent</th><th scope="col">Submitted</th><th scope="col">Status</th><th scope="col"><span class="visually-hidden">Action</span></th></tr>
+        </thead>
+        <tbody>
+            @foreach (var application in _applications)
+            {
+                <tr>
+                    <td>@application.ChildName</td>
+                    <td>@application.ApplicantName</td>
+                    <td>@application.LastSubmittedAt.ToString("d MMMM yyyy")</td>
+                    <td>@ApplicationSummary.StatusText(application.Status)</td>
+                    <td><a href="/registration/review?id=@application.Id" aria-label="Review the application for @application.ChildName">Review</a></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    [SupplyParameterFromQuery(Name = "id")]
+    private int? Id { get; set; }
+
+    // No property initializer (BL0008): see Login.razor's identical comment.
+    [SupplyParameterFromForm(FormName = "safeguarding-review")]
+    private ReviewInput Input { get; set; } = default!;
+
+    private List<ApplicationView> _applications = new();
+    private ApplicationView? _selected;
+    private string? _errorMessage;
+    private string? _statusMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Input ??= new();
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            _applications = (await Applications.ListForSafeguardingAsync()).ToList();
+            _selected = Id is int id ? await Applications.GetForSafeguardingReviewAsync(id) : null;
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or InvalidOperationException)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+
+    private async Task DecideAsync()
+    {
+        if (_selected is not { } selected)
+        {
+            return;
+        }
+
+        try
+        {
+            switch (Input.Action)
+            {
+                case "approve":
+                    await Applications.SafeguardingApproveAsync(selected.Id, Input.Message);
+                    _statusMessage = $"Approved. The application for {selected.ChildName} is now waiting for an Admin's final approval.";
+                    break;
+                case "more-information":
+                    await Applications.RequestMoreInformationAsync(selected.Id, Input.Message ?? "");
+                    _statusMessage = $"Sent. The parent has been asked for more information about {selected.ChildName}.";
+                    break;
+                case "reject":
+                    await Applications.SafeguardingRejectAsync(selected.Id, Input.Message ?? "");
+                    _statusMessage = $"Rejected. The parent has been told about the application for {selected.ChildName}.";
+                    break;
+                default:
+                    _errorMessage = "Choose approve, ask for more information or reject.";
+                    return;
+            }
+
+            Input = new();
+            await LoadAsync();
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or UnauthorizedAccessException)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+
+    private sealed class ReviewInput
+    {
+        public string? Message { get; set; }
+        public string? Action { get; set; }
+    }
+}

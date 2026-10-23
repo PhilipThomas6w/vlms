@@ -138,17 +138,18 @@ public sealed class GuardianLinkServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task CreateLinkAsync_ByTeacher_LinksExistingGuardian()
+    public async Task CreateLinkAsync_ByTeacher_IsRefused_AndCreatesNoLink()
     {
+        // Teachers lost guardian-link creation on 22/10/2026 (adr/0008 answer 4): Admin only.
         using var teacher = CreateContext(10, Role.Teacher);
         var sut = teacher.Service;
 
-        var link = await sut.CreateLinkAsync(studentId: 100, parentGuardianId: 1, CancellationToken.None);
-
-        Assert.Equal(10, link.CreatedByUserId);
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(
+            () => sut.CreateLinkAsync(studentId: 100, parentGuardianId: 1, CancellationToken.None));
 
         using var verify = CreateContext(1, Role.Admin);
-        Assert.Single(verify.Context.StudentGuardianLinks.Where(l => l.StudentId == 100 && l.ParentGuardianId == 1));
+        Assert.Empty(verify.Context.StudentGuardianLinks.Where(l => l.StudentId == 100 && l.ParentGuardianId == 1));
+        Assert.Empty(verify.Context.GuardianInvites);
     }
 
     [Fact]
@@ -248,18 +249,19 @@ public sealed class GuardianLinkServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task RegisterGuardianAndLinkAsync_ByTeacher_CreatesGuardianAndLink()
+    public async Task RegisterGuardianAndLinkAsync_ByTeacher_IsRefused_AndCreatesNoGuardianOrLink()
     {
+        // Teachers lost guardian-link creation on 22/10/2026 (adr/0008 answer 4): Admin only.
         using var teacher = CreateContext(10, Role.Teacher);
         var sut = teacher.Service;
 
-        var (guardian, link) = await sut.RegisterGuardianAndLinkAsync(
-            studentId: 100, guardianName: "Another Parent", contactInfo: "another@example.com", isPrimary: false, CancellationToken.None);
-
-        Assert.Equal(10, link.CreatedByUserId);
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(
+            () => sut.RegisterGuardianAndLinkAsync(
+                studentId: 100, guardianName: "Another Parent", contactInfo: "another@example.com", isPrimary: false, CancellationToken.None));
 
         using var verify = CreateContext(1, Role.Admin);
-        Assert.Single(verify.Context.ParentGuardians.Where(g => g.Id == guardian.Id));
+        Assert.Empty(verify.Context.ParentGuardians.Where(g => g.Name == "Another Parent"));
+        Assert.Empty(verify.Context.StudentGuardianLinks.Where(l => l.StudentId == 100));
     }
 
     [Fact]

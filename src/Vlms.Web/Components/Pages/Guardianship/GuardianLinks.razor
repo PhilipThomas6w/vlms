@@ -1,5 +1,5 @@
 @page "/guardianship/links"
-@attribute [Authorize(Policy = "RequireAdminOrTeacher")]
+@attribute [Authorize(Policy = "RequireAdmin")]
 @rendermode InteractiveServer
 @using System.ComponentModel.DataAnnotations
 @using Microsoft.EntityFrameworkCore
@@ -15,8 +15,8 @@
 <h1>Guardian links</h1>
 
 <p>
-    A guardian link is created only by an Admin or Teacher, when a student is registered. Parents
-    cannot create links themselves. A parent can see a child's progress and consent information
+    A guardian link is created only by an Admin: when a student is registered, here, or by approving
+    a parent's application to register their child. Parents cannot create links themselves. A parent can see a child's progress and consent information
     only through a link like this.
 </p>
 

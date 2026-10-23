@@ -114,3 +114,4 @@ date_utc,session,actor,model,head,head_advanced,input,cache_write,cache_read,out
 2026-10-22T22:18:59Z,1f44dd67-f923-4e2c-b9c6-c978aaed232c,main,claude-opus-5-5,5917812,true,6,4464,411371,1061,0.1392,pass
 2026-10-23T01:04:29Z,1f44dd67-f923-4e2c-b9c6-c978aaed232c,main,<synthetic>,8d53e75,true,0,0,0,0,,pass
 2026-10-23T01:04:29Z,1f44dd67-f923-4e2c-b9c6-c978aaed232c,main,claude-opus-5-5,8d53e75,false,14,187285,1093922,3800,1.7931,pass
+2026-10-23T01:16:56Z,1f44dd67-f923-4e2c-b9c6-c978aaed232c,main,claude-opus-5-5,7ff4165,true,16,9887,1558274,4195,0.4747,skipped
