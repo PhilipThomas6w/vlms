@@ -54,9 +54,12 @@ itself (no self-service path for a Student/Teacher to mark themselves inactive/l
   the Admin explicitly enables", not a date-entry form; flagged as revisitable if backdating is ever
   wanted. Throws if the student is not currently Active (an already-Inactive or Graduated student has
   no "leaving" transition to make).
-- **`MarkTeacherLeftAsync(teacherUserId, ct)`** — sets `AppUser.HasLeft = true`/`AppUser.LeftAt = DateTime.UtcNow`
-  on the target `AppUser` (same auto-captured-timestamp reasoning). Validates the target holds
-  `Role.Teacher` first (the same check `Safeguarding.DbsCheckService.RecordAsync` already applies).
+- **`MarkStaffLeftAsync(userId, ct)`** (was `MarkTeacherLeftAsync` until FR-017 was amended,
+  22/10/2026) — sets `AppUser.HasLeft = true`/`AppUser.LeftAt = DateTime.UtcNow` on the target
+  `AppUser` (same auto-captured-timestamp reasoning) and rotates the security stamp. Validates the
+  target holds Teacher, Admin or Safeguarding Officer; refuses the caller themselves and the last
+  Admin who hasn't left. The leaver's staff access ends at once and, with no other role, they can't
+  sign in; see [authentication-authorization.md](authentication-authorization.md) "Staff who leave".
   `AppUser.HasLeft`/`LeftAt` are schema-generic to any `AppUser` row, not a new Teacher-specific
   entity — see [domain.md](domain.md)'s entity notes for the full "why generic field, Teacher-scoped
   action" reasoning.
