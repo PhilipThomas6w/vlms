@@ -84,8 +84,19 @@ else
                 <tr>
                     <td>@member.User.DisplayName</td>
                     <td>@member.User.Email</td>
-                    <td>@string.Join(", ", member.Roles)</td>
-                    <td><button aria-label="@($"Mark {member.User.DisplayName} as left")" @onclick="() => MarkStaffLeftAsync(member.User.Id)">Mark as left</button></td>
+                    <td>@string.Join(", ", member.Roles.Select(r => r.DisplayName()))</td>
+                    <td>
+                        @if (_confirmingUserId == member.User.Id)
+                        {
+                            <p role="alert">Mark @member.User.DisplayName as left? They lose all staff access at once, and you cannot undo this in the app.</p>
+                            <button aria-label="@($"Confirm: mark {member.User.DisplayName} as left")" @onclick="() => MarkStaffLeftAsync(member.User.Id)">Confirm</button>
+                            <button aria-label="@($"Cancel marking {member.User.DisplayName} as left")" @onclick="CancelConfirm">Cancel</button>
+                        }
+                        else
+                        {
+                            <button aria-label="@($"Mark {member.User.DisplayName} as left")" @onclick="() => AskToConfirm(member.User.Id)">Mark as left</button>
+                        }
+                    </td>
                 </tr>
             }
         </tbody>
@@ -99,6 +110,16 @@ else
     private sealed record StaffRow(AppUser User, IReadOnlyList<Role> Roles);
     private string? _errorMessage;
     private string? _statusMessage;
+    private int? _confirmingUserId;
+
+    private void AskToConfirm(int userId)
+    {
+        _errorMessage = null;
+        _statusMessage = null;
+        _confirmingUserId = userId;
+    }
+
+    private void CancelConfirm() => _confirmingUserId = null;
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
 
@@ -142,6 +163,7 @@ else
 
     private async Task MarkStaffLeftAsync(int userId)
     {
+        _confirmingUserId = null;
         _errorMessage = null;
         _statusMessage = null;
 

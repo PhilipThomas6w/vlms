@@ -43,3 +43,8 @@ h1:focus {
 .preserve-lines { white-space: pre-line; }
 /* Text for screen readers only (for example an otherwise empty table header). */
 .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+/* Form errors: summary box and per-field message; the dark red passes 4.5:1 on white and the border is not colour-only (it has text). */
+.field-error { color: #a4262c; margin: 0.25rem 0 0; font-weight: 600; }
+#error-summary { border: 3px solid #a4262c; padding: 0.5rem 1rem; margin-bottom: 1rem; }
+#error-summary h2 { margin-top: 0; }
+[aria-invalid="true"] { border: 2px solid #a4262c; }

@@ -43,7 +43,7 @@
         <InputText id="password" type="password" @bind-Value="Input.Password" autocomplete="current-password" aria-required="true" />
     </div>
     <div>
-        <label><InputCheckbox @bind-Value="Input.RememberMe" /> Remember me</label>
+        <label for="rememberMe"><InputCheckbox id="rememberMe" @bind-Value="Input.RememberMe" /> Remember me</label>
     </div>
     @* Students always stay signed in on their own device (VlmsSignInManager, adr/0007). *@
     <p>Students stay signed in on this device for up to 90 days between visits. On a shared device, log out when you finish.</p>

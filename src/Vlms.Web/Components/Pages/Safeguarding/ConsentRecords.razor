@@ -161,7 +161,7 @@ else
                 <td>@_studentNames.GetValueOrDefault(record.StudentId)</td>
                 <td>@record.PeriodStart - @record.PeriodEnd</td>
                 <td>@record.ExpiryDate</td>
-                <td>@record.Status</td>
+                <td>@ConsentReviewComparison.StatusLabel(record, _records, DateOnly.FromDateTime(DateTime.UtcNow))</td>
                 <td>@(_sensitiveDetailsByRecordId.GetValueOrDefault(record.Id)?.EmergencyContact)</td>
                 <td>@record.DecisionComments</td>
             </tr>
@@ -206,7 +206,7 @@ else
         <InputDate id="expiryDate" @bind-Value="_form.ExpiryDate" />
     </div>
     <div>
-        <label><InputCheckbox @bind-Value="_form.PhotoMediaConsent" /> Photo/media consent</label>
+        <label for="photoMediaConsent"><InputCheckbox id="photoMediaConsent" @bind-Value="_form.PhotoMediaConsent" /> Photo/media consent</label>
     </div>
     <div>
         <label for="transportConsent"><InputCheckbox id="transportConsent" @bind-Value="_form.TransportConsent" /> Transport between our sites</label>
@@ -215,7 +215,7 @@ else
         <label for="offsiteTripConsent"><InputCheckbox id="offsiteTripConsent" @bind-Value="_form.OffsiteTripConsent" /> Off-site trips and outings</label>
     </div>
     <div>
-        <label><InputCheckbox @bind-Value="_form.DataSharingConsent" /> Data-sharing consent</label>
+        <label for="dataSharingConsent"><InputCheckbox id="dataSharingConsent" @bind-Value="_form.DataSharingConsent" /> Data-sharing consent</label>
     </div>
     <div>
         <label for="emergencyContact">Emergency contact</label>

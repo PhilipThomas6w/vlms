@@ -10,7 +10,10 @@
    application until a Safeguarding Officer and then an Admin approve it.
 
    Children are rendered in a loop with native inputs named "Input.Children[n].Field", which the
-   form binding maps back onto the list; ids end in the child's number so each label matches. *@
+   form binding maps back onto the list; ids end in the child's number so each label matches.
+
+   Every problem is found before anything is sent: an error summary lists them all at the top and each
+   field carries its own message (aria-invalid / aria-describedby), keeping what was typed (WCAG 3.3.1, 3.3.3). *@
 
 <PageTitle>Register a child</PageTitle>
 
@@ -22,6 +25,8 @@
     more information; an Admin then gives final approval. Until then your child is not registered.
     You can follow your applications on <a href="/registration/my-applications">My applications</a>.
 </p>
+
+<FormErrorSummary Errors="_errors" />
 
 @if (_errorMessage is not null)
 {
@@ -41,32 +46,56 @@ else
     <h2>Your details</h2>
     <div>
         <label for="phone">Your phone number</label>
-        <InputText id="phone" type="tel" autocomplete="tel" @bind-Value="Input.Phone" aria-required="true" />
+        <input id="phone" type="tel" autocomplete="tel" name="Input.Phone" value="@Input.Phone" aria-required="true" aria-invalid="@_errors.Invalid("phone")" aria-describedby="@_errors.DescribedBy("phone")" />
+        @if (_errors.For("phone") is { } phoneError)
+        {
+            <p class="field-error" id="phone-error">@phoneError</p>
+        }
     </div>
     <div>
         <label for="postalAddress">Your postal address</label>
-        <InputTextArea id="postalAddress" rows="4" autocomplete="street-address" @bind-Value="Input.PostalAddress" aria-required="true" />
+        <textarea id="postalAddress" rows="4" autocomplete="street-address" name="Input.PostalAddress" aria-required="true" aria-invalid="@_errors.Invalid("postalAddress")" aria-describedby="@_errors.DescribedBy("postalAddress")">@Input.PostalAddress</textarea>
+        @if (_errors.For("postalAddress") is { } addressError)
+        {
+            <p class="field-error" id="postalAddress-error">@addressError</p>
+        }
     </div>
 
     @for (var i = 0; i < Input.Children.Count; i++)
     {
         var n = i;
         var child = Input.Children[n];
+        var nameId = $"childName{n}";
+        var dobId = $"childDateOfBirth{n}";
+        var relationshipId = $"relationship{n}";
+        var emergencyId = $"emergencyContact{n}";
         <fieldset>
             <legend>Child @(n + 1)</legend>
 
             <h3>About the child</h3>
             <div>
                 <label for="childName@(n)">Child's full name</label>
-                <input id="childName@(n)" name="Input.Children[@(n)].Name" value="@child.Name" autocomplete="off" aria-required="true" />
+                <input id="childName@(n)" name="Input.Children[@(n)].Name" value="@child.Name" autocomplete="off" aria-required="true" aria-invalid="@_errors.Invalid(nameId)" aria-describedby="@_errors.DescribedBy(nameId)" />
+                @if (_errors.For(nameId) is { } nameError)
+                {
+                    <p class="field-error" id="childName@(n)-error">@nameError</p>
+                }
             </div>
             <div>
                 <label for="childDateOfBirth@(n)">Child's date of birth</label>
-                <input id="childDateOfBirth@(n)" type="date" name="Input.Children[@(n)].DateOfBirth" value="@child.DateOfBirth" aria-required="true" />
+                <input id="childDateOfBirth@(n)" type="date" name="Input.Children[@(n)].DateOfBirth" value="@child.DateOfBirth" aria-required="true" aria-invalid="@_errors.Invalid(dobId)" aria-describedby="@_errors.DescribedBy(dobId)" />
+                @if (_errors.For(dobId) is { } dobError)
+                {
+                    <p class="field-error" id="childDateOfBirth@(n)-error">@dobError</p>
+                }
             </div>
             <div>
                 <label for="relationship@(n)">Your relationship to the child (for example mother, father, grandparent, carer)</label>
-                <input id="relationship@(n)" name="Input.Children[@(n)].Relationship" value="@child.Relationship" aria-required="true" />
+                <input id="relationship@(n)" name="Input.Children[@(n)].Relationship" value="@child.Relationship" aria-required="true" aria-invalid="@_errors.Invalid(relationshipId)" aria-describedby="@_errors.DescribedBy(relationshipId)" />
+                @if (_errors.For(relationshipId) is { } relationshipError)
+                {
+                    <p class="field-error" id="relationship@(n)-error">@relationshipError</p>
+                }
             </div>
 
             <h3>Consent</h3>
@@ -90,19 +119,35 @@ else
             <h3>Medical, dietary and emergency details</h3>
             <div>
                 <label for="emergencyContact@(n)">Emergency contact (name and phone number)</label>
-                <input id="emergencyContact@(n)" name="Input.Children[@(n)].EmergencyContact" value="@child.EmergencyContact" aria-required="true" />
+                <input id="emergencyContact@(n)" name="Input.Children[@(n)].EmergencyContact" value="@child.EmergencyContact" aria-required="true" aria-invalid="@_errors.Invalid(emergencyId)" aria-describedby="@_errors.DescribedBy(emergencyId)" />
+                @if (_errors.For(emergencyId) is { } emergencyError)
+                {
+                    <p class="field-error" id="emergencyContact@(n)-error">@emergencyError</p>
+                }
             </div>
             <div>
                 <label for="medical@(n)">Emergency medical information (optional)</label>
-                <textarea id="medical@(n)" name="Input.Children[@(n)].EmergencyMedicalInfo" rows="3" maxlength="4000">@child.EmergencyMedicalInfo</textarea>
+                <textarea id="medical@(n)" name="Input.Children[@(n)].EmergencyMedicalInfo" rows="3" maxlength="4000" aria-invalid="@_errors.Invalid($"medical{n}")" aria-describedby="@_errors.DescribedBy($"medical{n}")">@child.EmergencyMedicalInfo</textarea>
+                @if (_errors.For($"medical{n}") is { } medicalError)
+                {
+                    <p class="field-error" id="medical@(n)-error">@medicalError</p>
+                }
             </div>
             <div>
                 <label for="dietary@(n)">Dietary requirements, including allergies (optional)</label>
-                <textarea id="dietary@(n)" name="Input.Children[@(n)].DietaryRequirements" rows="4" maxlength="4000">@child.DietaryRequirements</textarea>
+                <textarea id="dietary@(n)" name="Input.Children[@(n)].DietaryRequirements" rows="4" maxlength="4000" aria-invalid="@_errors.Invalid($"dietary{n}")" aria-describedby="@_errors.DescribedBy($"dietary{n}")">@child.DietaryRequirements</textarea>
+                @if (_errors.For($"dietary{n}") is { } dietaryError)
+                {
+                    <p class="field-error" id="dietary@(n)-error">@dietaryError</p>
+                }
             </div>
             <div>
                 <label for="sen@(n)">Special educational needs (optional)</label>
-                <textarea id="sen@(n)" name="Input.Children[@(n)].SpecialEducationalNeeds" rows="4" maxlength="4000">@child.SpecialEducationalNeeds</textarea>
+                <textarea id="sen@(n)" name="Input.Children[@(n)].SpecialEducationalNeeds" rows="4" maxlength="4000" aria-invalid="@_errors.Invalid($"sen{n}")" aria-describedby="@_errors.DescribedBy($"sen{n}")">@child.SpecialEducationalNeeds</textarea>
+                @if (_errors.For($"sen{n}") is { } senError)
+                {
+                    <p class="field-error" id="sen@(n)-error">@senError</p>
+                }
             </div>
         </fieldset>
     }
@@ -123,6 +168,7 @@ else
     [SupplyParameterFromForm]
     private ApplicationInput Input { get; set; } = default!;
 
+    private readonly FormErrors _errors = new();
     private string? _errorMessage;
     private int _submittedCount;
 
@@ -148,19 +194,28 @@ else
                 return;
         }
 
+        // Find every problem at once, then stop if there are any.
+        _errors.CheckApplicant(Input.Phone, Input.PostalAddress);
         var forms = new List<ChildApplicationForm>();
-        foreach (var child in Input.Children)
+        for (var n = 0; n < Input.Children.Count; n++)
         {
-            if (!DateOnly.TryParseExact(child.DateOfBirth, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var dateOfBirth))
+            var child = Input.Children[n];
+            var who = Input.Children.Count == 1 ? "" : $"child {n + 1}";
+            var dateOfBirth = _errors.CheckChild(
+                n.ToString(CultureInfo.InvariantCulture), who, child.Name, child.DateOfBirth, child.Relationship,
+                child.EmergencyContact, child.EmergencyMedicalInfo, child.DietaryRequirements, child.SpecialEducationalNeeds);
+            if (dateOfBirth is { } dob)
             {
-                _errorMessage = $"Enter the date of birth for {(string.IsNullOrWhiteSpace(child.Name) ? "each child" : child.Name.Trim())}.";
-                return;
+                forms.Add(new ChildApplicationForm(
+                    child.Name ?? "", dob, child.Relationship ?? "", child.PhotoMediaConsent, child.TransportConsent,
+                    child.OffsiteTripConsent, child.DataSharingConsent, child.EmergencyContact ?? "", child.EmergencyMedicalInfo,
+                    child.DietaryRequirements, child.SpecialEducationalNeeds));
             }
+        }
 
-            forms.Add(new ChildApplicationForm(
-                child.Name ?? "", dateOfBirth, child.Relationship ?? "", child.PhotoMediaConsent, child.TransportConsent,
-                child.OffsiteTripConsent, child.DataSharingConsent, child.EmergencyContact ?? "", child.EmergencyMedicalInfo,
-                child.DietaryRequirements, child.SpecialEducationalNeeds));
+        if (_errors.Any)
+        {
+            return;
         }
 
         try

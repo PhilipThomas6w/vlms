@@ -75,5 +75,26 @@ public static class ConsentReviewComparison
             .OrderByDescending(r => r.DecidedAt ?? DateTime.MinValue).ThenByDescending(r => r.Id)
             .FirstOrDefault();
 
+    /// <summary>
+    /// Status text for the all-records list. An approved record is "Approved (in force)" when it is the one
+    /// <see cref="FindInForce"/> picks, "Approved (replaced)" when a later approved record is in force instead,
+    /// and "Approved (expired)" when it has expired with nothing else in force. Other statuses print as they are.
+    /// </summary>
+    public static string StatusLabel(ConsentRecord record, IEnumerable<ConsentRecord> records, DateOnly today)
+    {
+        if (record.Status != ConsentStatus.Approved)
+        {
+            return record.Status.ToString();
+        }
+
+        var inForce = FindInForce(records, record.StudentId, today);
+        if (inForce is not null)
+        {
+            return inForce.Id == record.Id ? "Approved (in force)" : "Approved (replaced)";
+        }
+
+        return "Approved (expired)";
+    }
+
     private static string FormatDate(DateOnly date) => date.ToString("d MMMM yyyy");
 }

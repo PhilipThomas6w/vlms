@@ -13,6 +13,8 @@
 
 <h1>My applications</h1>
 
+<FormErrorSummary Errors="_errors" />
+
 @if (_errorMessage is not null)
 {
     <p class="error" role="alert">@_errorMessage</p>
@@ -33,31 +35,55 @@
         <EditForm Model="Input" method="post" OnSubmit="ResubmitAsync" FormName="resubmit-application">
             <div>
                 <label for="response">Your answer</label>
-                <InputTextArea id="response" rows="5" maxlength="4000" @bind-Value="Input.Response" aria-required="true" />
+                <textarea id="response" rows="5" maxlength="4000" name="Input.Response" aria-required="true" aria-invalid="@_errors.Invalid("response")" aria-describedby="@_errors.DescribedBy("response")">@Input.Response</textarea>
+                @if (_errors.For("response") is { } responseError)
+                {
+                    <p class="field-error" id="response-error">@responseError</p>
+                }
             </div>
 
             <h3>Your details</h3>
             <div>
                 <label for="phone">Your phone number</label>
-                <InputText id="phone" type="tel" autocomplete="tel" @bind-Value="Input.Phone" aria-required="true" />
+                <input id="phone" type="tel" autocomplete="tel" name="Input.Phone" value="@Input.Phone" aria-required="true" aria-invalid="@_errors.Invalid("phone")" aria-describedby="@_errors.DescribedBy("phone")" />
+                @if (_errors.For("phone") is { } phoneError)
+                {
+                    <p class="field-error" id="phone-error">@phoneError</p>
+                }
             </div>
             <div>
                 <label for="postalAddress">Your postal address</label>
-                <InputTextArea id="postalAddress" rows="4" autocomplete="street-address" @bind-Value="Input.PostalAddress" aria-required="true" />
+                <textarea id="postalAddress" rows="4" autocomplete="street-address" name="Input.PostalAddress" aria-required="true" aria-invalid="@_errors.Invalid("postalAddress")" aria-describedby="@_errors.DescribedBy("postalAddress")">@Input.PostalAddress</textarea>
+                @if (_errors.For("postalAddress") is { } postalAddressError)
+                {
+                    <p class="field-error" id="postalAddress-error">@postalAddressError</p>
+                }
             </div>
 
             <h3>About the child</h3>
             <div>
                 <label for="childName">Child's full name</label>
-                <InputText id="childName" @bind-Value="Input.Name" autocomplete="off" aria-required="true" />
+                <input id="childName" name="Input.Name" value="@Input.Name" autocomplete="off" aria-required="true" aria-invalid="@_errors.Invalid("childName")" aria-describedby="@_errors.DescribedBy("childName")" />
+                @if (_errors.For("childName") is { } childNameError)
+                {
+                    <p class="field-error" id="childName-error">@childNameError</p>
+                }
             </div>
             <div>
                 <label for="childDateOfBirth">Child's date of birth</label>
-                <InputText id="childDateOfBirth" type="date" @bind-Value="Input.DateOfBirth" aria-required="true" />
+                <input id="childDateOfBirth" type="date" name="Input.DateOfBirth" value="@Input.DateOfBirth" aria-required="true" aria-invalid="@_errors.Invalid("childDateOfBirth")" aria-describedby="@_errors.DescribedBy("childDateOfBirth")" />
+                @if (_errors.For("childDateOfBirth") is { } childDateOfBirthError)
+                {
+                    <p class="field-error" id="childDateOfBirth-error">@childDateOfBirthError</p>
+                }
             </div>
             <div>
                 <label for="relationship">Your relationship to the child</label>
-                <InputText id="relationship" @bind-Value="Input.Relationship" aria-required="true" />
+                <input id="relationship" name="Input.Relationship" value="@Input.Relationship" aria-required="true" aria-invalid="@_errors.Invalid("relationship")" aria-describedby="@_errors.DescribedBy("relationship")" />
+                @if (_errors.For("relationship") is { } relationshipError)
+                {
+                    <p class="field-error" id="relationship-error">@relationshipError</p>
+                }
             </div>
 
             <h3>Consent</h3>
@@ -81,19 +107,35 @@
             <h3>Medical, dietary and emergency details</h3>
             <div>
                 <label for="emergencyContact">Emergency contact (name and phone number)</label>
-                <InputText id="emergencyContact" @bind-Value="Input.EmergencyContact" aria-required="true" />
+                <input id="emergencyContact" name="Input.EmergencyContact" value="@Input.EmergencyContact" aria-required="true" aria-invalid="@_errors.Invalid("emergencyContact")" aria-describedby="@_errors.DescribedBy("emergencyContact")" />
+                @if (_errors.For("emergencyContact") is { } emergencyContactError)
+                {
+                    <p class="field-error" id="emergencyContact-error">@emergencyContactError</p>
+                }
             </div>
             <div>
                 <label for="medical">Emergency medical information (optional)</label>
-                <InputTextArea id="medical" rows="3" maxlength="4000" @bind-Value="Input.EmergencyMedicalInfo" />
+                <textarea id="medical" rows="3" maxlength="4000" name="Input.EmergencyMedicalInfo" aria-invalid="@_errors.Invalid("medical")" aria-describedby="@_errors.DescribedBy("medical")">@Input.EmergencyMedicalInfo</textarea>
+                @if (_errors.For("medical") is { } medicalError)
+                {
+                    <p class="field-error" id="medical-error">@medicalError</p>
+                }
             </div>
             <div>
                 <label for="dietary">Dietary requirements, including allergies (optional)</label>
-                <InputTextArea id="dietary" rows="4" maxlength="4000" @bind-Value="Input.DietaryRequirements" />
+                <textarea id="dietary" rows="4" maxlength="4000" name="Input.DietaryRequirements" aria-invalid="@_errors.Invalid("dietary")" aria-describedby="@_errors.DescribedBy("dietary")">@Input.DietaryRequirements</textarea>
+                @if (_errors.For("dietary") is { } dietaryError)
+                {
+                    <p class="field-error" id="dietary-error">@dietaryError</p>
+                }
             </div>
             <div>
                 <label for="sen">Special educational needs (optional)</label>
-                <InputTextArea id="sen" rows="4" maxlength="4000" @bind-Value="Input.SpecialEducationalNeeds" />
+                <textarea id="sen" rows="4" maxlength="4000" name="Input.SpecialEducationalNeeds" aria-invalid="@_errors.Invalid("sen")" aria-describedby="@_errors.DescribedBy("sen")">@Input.SpecialEducationalNeeds</textarea>
+                @if (_errors.For("sen") is { } senError)
+                {
+                    <p class="field-error" id="sen-error">@senError</p>
+                }
             </div>
 
             <button type="submit">Resubmit application</button>
@@ -135,6 +177,7 @@
 
     private List<ApplicationView> _applications = new();
     private ApplicationView? _editing;
+    private readonly FormErrors _errors = new();
     private string? _errorMessage;
     private string? _statusMessage;
 
@@ -188,9 +231,15 @@
             return;
         }
 
-        if (!DateOnly.TryParseExact(Input.DateOfBirth, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var dateOfBirth))
+        // Find every problem at once, then stop if there are any.
+        _errors.RequireText("response", Input.Response, ConsentSensitiveDetails.MaxTextLength, "Answer the question before resubmitting.",
+            $"Your answer must be {ConsentSensitiveDetails.MaxTextLength} characters or fewer.");
+        _errors.CheckApplicant(Input.Phone, Input.PostalAddress);
+        var checkedDateOfBirth = _errors.CheckChild(
+            "", "", Input.Name, Input.DateOfBirth, Input.Relationship, Input.EmergencyContact,
+            Input.EmergencyMedicalInfo, Input.DietaryRequirements, Input.SpecialEducationalNeeds);
+        if (_errors.Any || checkedDateOfBirth is not { } dateOfBirth)
         {
-            _errorMessage = "Enter the child's date of birth.";
             return;
         }
 

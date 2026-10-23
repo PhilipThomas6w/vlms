@@ -144,6 +144,61 @@ public sealed class ParentRegistrationEndToEndTests : IDisposable
     }
 
     [Fact]
+    public async Task An_incomplete_application_lists_every_problem_marks_each_field_and_keeps_what_was_typed()
+    {
+        var parentUser = await _factory.SeedUserAsync("errors.parent@test.example", withTotp: false);
+        var parent = await Browser.SignInAsync(_factory, parentUser);
+
+        // Phone, address, one child's date of birth and emergency contact, and the second child's name,
+        // date of birth and relationship are all missing.
+        var response = await PostFormAsync(parent, "/registration/apply", "apply-registration",
+        [
+            ("Input.Phone", ""),
+            ("Input.PostalAddress", ""),
+            ("Input.Command", "submit"),
+            ("Input.Children[0].Name", "Chris Child"),
+            ("Input.Children[0].DateOfBirth", ""),
+            ("Input.Children[0].Relationship", "Mother"),
+            ("Input.Children[0].EmergencyContact", ""),
+            ("Input.Children[0].DietaryRequirements", "No nuts"),
+            ("Input.Children[1].Name", ""),
+            ("Input.Children[1].DateOfBirth", ""),
+            ("Input.Children[1].Relationship", ""),
+            ("Input.Children[1].EmergencyContact", "Gran 07000 111222"),
+        ]);
+        var html = await response.Content.ReadAsStringAsync();
+
+        // The summary lists all of them, each linking to its field.
+        Assert.Contains("There is a problem", html);
+        foreach (var expected in new[]
+        {
+            "Enter your phone number.", "Enter your postal address.",
+            "Enter the child&#x27;s date of birth for child 1.", "Enter an emergency contact (name and phone number) for child 1.",
+            "Enter the child&#x27;s full name for child 2.", "Enter the child&#x27;s date of birth for child 2.",
+            "Enter your relationship to the child (child 2).",
+        })
+        {
+            Assert.Equal(2, html.Split(expected).Length - 1); // once in the summary, once beside the field
+        }
+
+        foreach (var id in new[] { "phone", "postalAddress", "childDateOfBirth0", "emergencyContact0", "childName1", "childDateOfBirth1", "relationship1" })
+        {
+            Assert.Contains($"href=\"#{id}\"", html);
+            Assert.Contains($"id=\"{id}-error\"", html);
+            var tag = System.Text.RegularExpressions.Regex.Match(html, $"<(?:input|textarea)[^>]*\\bid=\"{id}\"[^>]*>").Value;
+            Assert.Contains("aria-invalid=\"true\"", tag);
+            Assert.Contains($"aria-describedby=\"{id}-error\"", tag);
+        }
+
+        // Fields that are fine are not marked, and what was typed is still there.
+        Assert.DoesNotContain("id=\"childName0-error\"", html);
+        Assert.DoesNotContain("id=\"relationship0-error\"", html);
+        Assert.Contains("value=\"Chris Child\"", html);
+        Assert.Contains("No nuts", html);
+        await _factory.WithDbAsync(async db => Assert.Empty(await db.StudentApplications.ToListAsync()));
+    }
+
+    [Fact]
     public async Task A_duplicate_child_name_from_the_same_parent_is_refused_on_the_page()
     {
         var parentUser = await _factory.SeedUserAsync("dup.parent@test.example", withTotp: false);

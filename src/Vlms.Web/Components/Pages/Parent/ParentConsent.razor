@@ -13,7 +13,7 @@
 <p>
     Complete the annual consent form for each child linked to your account.
     A Safeguarding Officer or Admin reviews each form. Until a new form is approved, the last
-    approved one stays in place. Your child's teachers can see the medical, dietary/SEN and
+    approved one stays in place. Your child's teachers can see the medical, dietary, special educational needs and
     emergency contact details on the approved form.
 </p>
 
@@ -99,7 +99,7 @@
 
             <h3>Consent</h3>
             <div>
-                <label><InputCheckbox @bind-Value="_form.PhotoMediaConsent" /> I consent to photos and media of my child</label>
+                <label for="photoMediaConsent"><InputCheckbox id="photoMediaConsent" @bind-Value="_form.PhotoMediaConsent" /> I consent to photos and media of my child</label>
             </div>
             <div>
                 <label for="transportConsent"><InputCheckbox id="transportConsent" @bind-Value="_form.TransportConsent" /> I consent to my child being transported between our sites (this can be a short trip)</label>
@@ -108,7 +108,7 @@
                 <label for="offsiteTripConsent"><InputCheckbox id="offsiteTripConsent" @bind-Value="_form.OffsiteTripConsent" /> I consent to my child going on off-site trips and outings</label>
             </div>
             <div>
-                <label><InputCheckbox @bind-Value="_form.DataSharingConsent" /> I consent to data sharing</label>
+                <label for="dataSharingConsent"><InputCheckbox id="dataSharingConsent" @bind-Value="_form.DataSharingConsent" /> I consent to data sharing</label>
             </div>
 
             <h3>Medical, dietary and emergency details</h3>

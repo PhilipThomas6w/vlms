@@ -56,7 +56,7 @@ else
                     <td>@waiting.Email</td>
                     <td>@(waiting.FromGuardianInvite ? "Guardian invite" : "Self-registration")</td>
                     <td>@(waiting.LinkedStudentNames.Count == 0 ? "None" : string.Join(", ", waiting.LinkedStudentNames))</td>
-                    <td>@(waiting.CurrentRoles.Count == 0 ? "None" : string.Join(", ", waiting.CurrentRoles))</td>
+                    <td>@(waiting.CurrentRoles.Count == 0 ? "None" : string.Join(", ", waiting.CurrentRoles.Select(r => r.DisplayName())))</td>
                     <td>
                         @if (waiting.FromGuardianInvite)
                         {
@@ -101,8 +101,8 @@ else
                         @foreach (var role in user.Roles)
                         {
                             <span>
-                                @role
-                                <button type="button" aria-label="@($"Revoke {role} from {user.DisplayName}")"
+                                @role.DisplayName()
+                                <button type="button" aria-label="@($"Revoke {role.DisplayName()} from {user.DisplayName}")"
                                         @onclick="() => RevokeAsync(user, role)">Revoke</button>
                             </span>
                         }
@@ -118,7 +118,7 @@ else
                                 <select id="@selectId" @bind="_selectedRoles[user.UserId]">
                                     @foreach (var role in available)
                                     {
-                                        <option value="@role">@role</option>
+                                        <option value="@role">@role.DisplayName()</option>
                                     }
                                 </select>
                                 <button type="button" aria-label="@($"Grant selected role to {user.DisplayName}")"
