@@ -3,9 +3,9 @@ namespace Vlms.Web.Components.Ui;
 /// <summary>
 /// A line of Scripture for each rank, shown under the rank's name on the student page
 /// (docs/design/redesign-direction.md, sections 1 and 9). The Guard ranks follow Ephesians 6, the
-/// armour of God; the later ranks follow their role in the procession and at the altar.
-/// DRAFT wording (NKJV, as in the Orthodox Study Bible; Psalm numbered as in the Septuagint): to be
-/// checked against the text and confirmed by Philip or the clergy before release.
+/// armour of God; the later ranks follow their role in the procession; Akolouthos means follower.
+/// NKJV wording, as in the Orthodox Study Bible; the Psalm is numbered as in the Septuagint. Approved by
+/// Philip, 23/10/2026.
 /// </summary>
 public static class RankWords
 {

@@ -200,8 +200,11 @@
         --focus-inner: var(--gold-500);
         --focus-outer: var(--lapis-950);
     }
-    /* The one ornament the whole app shares: an interlace band under the bar (Band.razor). */
-    .shell-bar .band { position: absolute; left: 0; right: 0; bottom: -6px; height: 6px; }
+    /* The one ornament every page shares: a jewelled band (red and green gems between pearls) under the bar. */
+    .shell-band {
+        position: absolute; left: 0; right: 0; bottom: -14px; height: 14px; z-index: 2;
+        background: url("img/art/jewel-band.svg") left center / auto 14px repeat-x;
+    }
 
     .brand {
         display: inline-flex; align-items: center; gap: var(--s-2);
@@ -266,12 +269,12 @@
     .account-links a + a { border: 1px solid rgb(255 255 255 / 0.45); }
 
     .shell-body { display: grid; grid-template-columns: minmax(0, 1fr); }
-    main { padding: var(--s-6) var(--s-4) var(--s-8); min-width: 0; }
+    main { padding: calc(var(--s-6) + 14px) var(--s-4) var(--s-8); min-width: 0; }
     main > * { max-width: var(--content-max); margin-inline: auto; }
 
     /* Navigation: one element. Phone and tablet: a drawer opened by the menu button.
        Desktop: inline under the bar for people with few destinations, a sidebar for staff. */
-    .site-nav { display: none; background: var(--surface); border-bottom: 1px solid var(--line); padding: calc(var(--s-3) + 6px) var(--s-4) var(--s-5); }
+    .site-nav { display: none; background: var(--surface); border-bottom: 1px solid var(--line); padding: calc(var(--s-3) + 14px) var(--s-4) var(--s-5); }
     :root[data-nav-open] .site-nav { display: block; }
     .nav-group { margin: 0 0 var(--s-3); }
     .nav-group-label {
@@ -295,7 +298,7 @@
         .nav-toggle { display: none !important; }
         .site-nav { display: block; }
         /* Few destinations (students, parents, approvers): one row under the bar. */
-        .shell:not(:has(.nav-group--staff)) .site-nav { padding: calc(var(--s-2) + 6px) var(--s-4) var(--s-2); }
+        .shell:not(:has(.nav-group--staff)) .site-nav { padding: calc(var(--s-2) + 14px) var(--s-4) var(--s-2); }
         .shell:not(:has(.nav-group--staff)) .nav-groups { display: flex; flex-wrap: wrap; gap: var(--s-1); max-width: var(--content-max); margin-inline: auto; }
         .shell:not(:has(.nav-group--staff)) .nav-group { margin: 0; }
         .shell:not(:has(.nav-group--staff)) .nav-group-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
@@ -303,17 +306,19 @@
         .shell:not(:has(.nav-group--staff)) .nav-list a[aria-current="page"] { box-shadow: inset 0 -3px 0 var(--lapis-700); }
         /* Staff: sidebar. */
         .shell:has(.nav-group--staff) .shell-body { grid-template-columns: 16rem minmax(0, 1fr); }
-        .shell:has(.nav-group--staff) .site-nav { border-bottom: 0; border-right: 1px solid var(--line); padding: calc(var(--s-4) + 6px) var(--s-3) var(--s-6); }
+        .shell:has(.nav-group--staff) .site-nav { border-bottom: 0; border-right: 1px solid var(--line); padding: calc(var(--s-4) + 14px) var(--s-3) var(--s-6); }
         .shell:has(.nav-group--staff) .nav-groups { position: sticky; top: var(--s-4); max-height: calc(100vh - 2 * var(--s-4)); overflow-y: auto; overscroll-behavior: contain; }
     }
 
     /* Footer: the double-headed eagle, emblem of the Orthodox Church, on every page. */
     .shell-foot {
         display: flex; flex-direction: column; align-items: center; gap: var(--s-2);
-        padding: var(--s-6) var(--s-4) var(--s-7);
-        border-top: 1px solid var(--line);
+        position: relative;
+        padding: calc(var(--s-6) + 14px) var(--s-4) var(--s-7);
+        background: var(--surface);
         color: var(--ink-soft); text-align: center; font-size: var(--step--1);
     }
+    .shell-foot::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 14px; background: url("img/art/jewel-band.svg") left center / auto 14px repeat-x; }
     .shell-foot .eagle { width: 4.5rem; color: var(--gold-700); }
     .shell-foot p { margin: 0; }
     .shell:has(.nav-group--staff) .shell-foot { grid-column: 1 / -1; }
@@ -333,6 +338,10 @@
     /* Page header: title, optional lead and actions. */
     .page-header { margin-bottom: var(--s-6); }
     .page-header h1 { margin-bottom: var(--s-2); }
+    .page-header h1::after {
+        content: ""; display: block; width: 5rem; height: 8px; margin-top: var(--s-2);
+        background: url("img/art/sawtooth.svg") left center / auto 8px repeat-x; border-radius: 1px;
+    }
     .page-header .lead { font-size: var(--step-1); color: var(--ink-soft); margin: 0; }
     .page-header .actions { display: flex; flex-wrap: wrap; gap: var(--s-3); margin-top: var(--s-4); }
 
@@ -453,8 +462,6 @@
     .medallion .medallion__eagle { width: 70%; color: var(--gold-500); position: relative; z-index: 1; }
     .medallion--ahead .medallion__eagle { color: var(--rank-field); opacity: 0.55; }
 
-    /* The interlace band (Band.razor): an Anglo-Saxon two-strand twist, drawn for this project. */
-    .band { display: block; width: 100%; height: 12px; color: var(--gold-500); --band-ground: var(--lapis-900); }
 
     /* Empty states: say what will appear and what to do. */
     .empty { padding: var(--s-5); border: 1px dashed var(--line-strong); border-radius: var(--r-panel); color: var(--ink-soft); background: var(--surface); }
@@ -492,11 +499,26 @@
 
 @layer pages {
     /* Public welcome (Home, signed out). */
-    .welcome { text-align: center; max-width: 40rem; margin: var(--s-6) auto; }
-    .welcome__eagle { width: min(16rem, 60vw); color: var(--gold-700); margin-bottom: var(--s-4); }
-    .welcome h1 { font-size: var(--step-5); margin-bottom: var(--s-3); }
-    .welcome__lead { font-size: var(--step-1); color: var(--ink-soft); margin: 0 auto var(--s-5); }
-    .welcome__actions { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--s-3); }
+    /* Mosaic gold ground (the gold of Byzantine church mosaics) with the skyline of Constantinople. */
+    .welcome {
+        text-align: center; position: relative; overflow: hidden;
+        margin: 0 auto; padding: var(--s-7) var(--s-4) 0;
+        border-radius: 14px;
+        background-color: var(--gold-500);
+        background-image:
+            linear-gradient(rgb(138 100 16 / 0.18) 1px, transparent 1px),
+            linear-gradient(90deg, rgb(138 100 16 / 0.18) 1px, transparent 1px);
+        background-size: 12px 12px;
+        box-shadow: inset 0 0 0 4px var(--lapis-900), inset 0 0 0 7px var(--gold-500), inset 0 0 0 9px var(--lapis-900);
+        color: var(--ink);
+        --focus-inner: var(--lapis-900); --focus-outer: var(--surface);
+    }
+    .welcome__eagle { width: min(15rem, 56vw); color: var(--lapis-900); margin-bottom: var(--s-3); }
+    .welcome h1 { font-size: var(--step-5); margin-bottom: var(--s-3); color: var(--lapis-900); }
+    .welcome__lead { font-size: var(--step-1); color: var(--ink); margin: 0 auto var(--s-5); max-width: 36rem; }
+    .welcome__actions { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--s-3); margin-bottom: var(--s-6); }
+    .welcome__actions .btn--secondary { background: var(--surface); }
+    .welcome__skyline { display: block; width: calc(100% + 2 * var(--s-4)); max-width: none; margin: 0 calc(-1 * var(--s-4)); height: auto; }
 }
 
 @layer utilities {
