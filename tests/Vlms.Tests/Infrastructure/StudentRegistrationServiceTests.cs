@@ -47,6 +47,7 @@ public sealed class StudentRegistrationServiceTests : IDisposable
 
     private sealed class CallerContext(ServiceProvider provider, IServiceScope scope, VlmsDbContext context, ICurrentUserContext currentUser, GuardianLinkService guardianLinks) : IDisposable
     {
+        public IServiceProvider Services => scope.ServiceProvider;
         public VlmsDbContext Context { get; } = context;
         public ICurrentUserContext CurrentUser { get; } = currentUser;
 
@@ -349,5 +350,31 @@ public sealed class StudentRegistrationServiceTests : IDisposable
 
         var openProgress = await verify.Context.StudentRankProgresses.SingleAsync(p => p.StudentId == studentId && p.RankId == 2);
         Assert.Null(openProgress.CompletedAt);
+    }
+
+    [Theory]
+    [InlineData("taken@example.com")]
+    [InlineData("Taken@EXAMPLE.com")]
+    public async Task RegisterStudentWithNewGuardianAsync_EmailWithAnExistingAccount_RefusesTheWholeRegistration(string email)
+    {
+        // FR-019 / TC-040: nothing is created, not even the student.
+        using var admin = CreateContext(1, Role.Admin);
+        var userManager = admin.Services.GetRequiredService<Microsoft.AspNetCore.Identity.UserManager<Vlms.Infrastructure.Identity.VlmsIdentityUser>>();
+        var created = await userManager.CreateAsync(
+            new Vlms.Infrastructure.Identity.VlmsIdentityUser { Id = 500, UserName = "taken@example.com", Email = "taken@example.com", EmailConfirmed = true });
+        Assert.True(created.Succeeded);
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => admin.Service.RegisterStudentWithNewGuardianAsync(
+                "Dup Student", new DateOnly(2012, 1, 1), new DateOnly(2024, 1, 1), assignedTeacherUserId: null,
+                "Dup Parent", email, guardianIsPrimary: true, CancellationToken.None));
+
+        Assert.Equal(GuardianInviteService.AccountExistsForNewGuardianMessage, ex.Message);
+        using var verify = CreateContext(1, Role.Admin);
+        Assert.Empty(verify.Context.Students.Where(s => s.Name == "Dup Student"));
+        Assert.Empty(verify.Context.StudentRankProgresses);
+        Assert.Empty(verify.Context.ParentGuardians.Where(g => g.Name == "Dup Parent"));
+        Assert.Empty(verify.Context.StudentGuardianLinks);
+        Assert.Empty(verify.Context.GuardianInvites);
     }
 }

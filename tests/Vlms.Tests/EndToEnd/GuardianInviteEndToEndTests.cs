@@ -57,7 +57,10 @@ public sealed class GuardianInviteEndToEndTests : IDisposable
 
         var accept = await PostAcceptAsync(browser, url);
         Assert.Equal(HttpStatusCode.OK, accept.StatusCode);
-        Assert.Contains("Invite accepted", await accept.Content.ReadAsStringAsync());
+        var acceptedPage = await accept.Content.ReadAsStringAsync();
+        Assert.Contains("Invite accepted", acceptedPage);
+        // No Parent role yet: the original wording.
+        Assert.Contains("Once an Admin has approved you as a parent", acceptedPage);
 
         await _factory.WithDbAsync(async db =>
         {
@@ -70,6 +73,22 @@ public sealed class GuardianInviteEndToEndTests : IDisposable
         // Single use.
         var again = await browser.GetStringAsync(url);
         Assert.Contains("already been used", again);
+    }
+
+    [Fact]
+    public async Task Accepting_as_someone_who_already_holds_Parent_says_the_child_now_appears_on_the_dashboard()
+    {
+        var parent = await _factory.SeedUserAsync("existing.parent@test.example", withTotp: false, Role.Parent);
+        var url = await SeedInviteAsync("existing.parent@test.example");
+
+        var browser = await Browser.SignInAsync(_factory, parent);
+        var accept = await PostAcceptAsync(browser, url);
+        Assert.Equal(HttpStatusCode.OK, accept.StatusCode);
+        var page = await accept.Content.ReadAsStringAsync();
+        Assert.Contains("Invite accepted", page);
+        Assert.Contains("the child now appears on", page);
+        Assert.Contains("href=\"parent/dashboard\"", page);
+        Assert.DoesNotContain("Once an Admin has approved you as a parent", page);
     }
 
     [Fact]

@@ -162,6 +162,10 @@ public sealed class GuardianLinkService
 
         _ = await _db.Students.SingleAsync(s => s.Id == studentId, ct);
 
+        // FR-019: an email that already has an account is linked as an existing guardian, never
+        // registered again. Nothing has been written yet; Register student's transaction rolls back.
+        await _guardianInvites.RequireNoAccountForNewGuardianAsync(contactInfo);
+
         var guardian = new ParentGuardian
         {
             Id = await NextId(_db.ParentGuardians, ct),

@@ -444,4 +444,47 @@ public sealed class GuardianLinkServiceTests : IDisposable
         Assert.Empty(verify.Context.StudentGuardianLinks.Where(l => l.StudentId == 100));
         Assert.Empty(verify.Context.GuardianInvites);
     }
+
+    // --- FR-019 / TC-040: a new guardian whose email already has an account is refused. ---
+
+    [Theory]
+    [InlineData("taken@example.com")]
+    [InlineData("TAKEN@Example.COM")]
+    public async Task RegisterGuardianAndLinkAsync_EmailWithAnExistingAccount_IsRefused_AndWritesNothing(string email)
+    {
+        using var admin = CreateContext(1, Role.Admin);
+        await CreateIdentityAccountAsync(admin.Services, "taken@example.com");
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => admin.Service.RegisterGuardianAndLinkAsync(100, "Duplicate Person", email, isPrimary: true));
+
+        Assert.Equal(GuardianInviteService.AccountExistsForNewGuardianMessage, ex.Message);
+        Assert.Contains("Link an existing guardian", ex.Message);
+        using var verify = CreateContext(1, Role.Admin);
+        Assert.Empty(verify.Context.ParentGuardians.Where(g => g.Name == "Duplicate Person"));
+        Assert.Empty(verify.Context.StudentGuardianLinks.Where(l => l.StudentId == 100));
+        Assert.Empty(verify.Context.GuardianInvites);
+        Assert.Empty(admin.Notifications.SentRequests);
+    }
+
+    [Fact]
+    public async Task RegisterGuardianAndLinkAsync_EmailWithNoAccount_StillWorks()
+    {
+        using var admin = CreateContext(1, Role.Admin);
+        await CreateIdentityAccountAsync(admin.Services, "someone.else@example.com");
+
+        var (guardian, link) = await admin.Service.RegisterGuardianAndLinkAsync(100, "Fresh Person", "fresh@example.com", isPrimary: true);
+
+        Assert.Equal(guardian.Id, link.ParentGuardianId);
+        Assert.Single(admin.Notifications.SentRequests);
+    }
+
+    /// <summary>An Identity account for <paramref name="email"/> (id 500, clear of the seeded AppUser ids).</summary>
+    private static async Task CreateIdentityAccountAsync(IServiceProvider services, string email)
+    {
+        var userManager = services.GetRequiredService<Microsoft.AspNetCore.Identity.UserManager<Vlms.Infrastructure.Identity.VlmsIdentityUser>>();
+        var result = await userManager.CreateAsync(
+            new Vlms.Infrastructure.Identity.VlmsIdentityUser { Id = 500, UserName = email, Email = email, EmailConfirmed = true });
+        Assert.True(result.Succeeded);
+    }
 }

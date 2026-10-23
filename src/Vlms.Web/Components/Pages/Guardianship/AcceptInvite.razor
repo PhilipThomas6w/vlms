@@ -11,6 +11,7 @@
 @inject GuardianInviteService InviteService
 @inject SignInManager<VlmsIdentityUser> SignInManager
 @inject IdentityRedirectManager RedirectManager
+@inject Vlms.Domain.ICurrentUserContext CurrentUser
 
 @* Static SSR, not interactive — same reasoning as Login.razor/Register.razor: signing the new
    guardian in writes the auth cookie, which needs a normal HTTP request/response, not a live
@@ -29,7 +30,14 @@
 }
 else if (_accepted)
 {
-    <p role="status">Invite accepted. Your account is now linked to the guardian record. Once an Admin has approved you as a parent, your children appear on <a href="parent/dashboard">your dashboard</a>.</p>
+    @if (_alreadyParent)
+    {
+        <p role="status">Invite accepted. Your account is now linked to the guardian record, and the child now appears on <a href="parent/dashboard">your dashboard</a>.</p>
+    }
+    else
+    {
+        <p role="status">Invite accepted. Your account is now linked to the guardian record. Once an Admin has approved you as a parent, your children appear on <a href="parent/dashboard">your dashboard</a>.</p>
+    }
 }
 else if (_mode == GuardianInviteService.AcceptMode.SignInRequired)
 {
@@ -81,6 +89,7 @@ else
 
     private string? _errorMessage;
     private bool _accepted;
+    private bool _alreadyParent;
     private GuardianInviteService.AcceptMode _mode = GuardianInviteService.AcceptMode.CreateAccount;
 
     // Back to this page, token and all, after sign-in (including the TOTP step: Login.razor passes
@@ -123,6 +132,7 @@ else
         try
         {
             await InviteService.AcceptForSignedInUserAsync(Token);
+            _alreadyParent = CurrentUser.HasRole(Vlms.Domain.Role.Parent);
             _accepted = true;
         }
         catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException)

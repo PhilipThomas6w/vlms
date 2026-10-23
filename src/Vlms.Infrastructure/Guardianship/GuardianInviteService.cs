@@ -474,20 +474,42 @@ public sealed class GuardianInviteService
             ?? throw new InvalidOperationException("App:PublicBaseUrl is not configured.");
         var acceptUrl = $"{baseUrl}/guardianship/accept-invite?token={Uri.EscapeDataString(token)}";
 
+        // The invited email can already belong to an account at send time (an account created after
+        // the guardian record, then a resend): say "sign in to accept", as the accept page does.
+        var hasAccount = await _provisioning.FindAdultAccountIdByEmailAsync(guardian.ContactInfo) is not null;
+        var action = hasAccount
+            ? "An account already exists for this email address. To accept, sign in to that account and follow the link below "
+            : "To set up your account and access your dashboard, click the link below ";
+        var subject = hasAccount ? "Sign in to accept your Varangians LMS invite" : "Set up your Varangians LMS account";
+
         var body =
             $"Hello {guardian.Name},\n\n" +
             $"You've been added as a guardian for {student.Name} in the Varangians LMS. " +
-            "To set up your account and access your dashboard, click the link below " +
+            action +
             $"(valid for {_inviteLifetime.Days} days):\n\n{acceptUrl}\n\n" +
             "If you weren't expecting this, you can ignore this email.";
 
-        // Standard priority, not SafeguardingCritical — a guardian-invite email is routine account
-        // setup, not one of low-level-design.md's named safeguarding-critical categories (expired
-        // consent, expired DBS — see ConsentExpiryNotifier's own scope-decision doc comment for that
-        // exact distinction).
+        // Standard priority, not SafeguardingCritical: a guardian-invite email is routine account
+        // setup, not one of low-level-design.md's named safeguarding-critical categories.
         await _notificationService.SendAsync(
-            new NotificationRequest(guardian.ContactInfo, guardian.Name, "Set up your Varangians LMS account", body, NotificationPriority.Standard),
+            new NotificationRequest(guardian.ContactInfo, guardian.Name, subject, body, NotificationPriority.Standard),
             ct);
+    }
+
+    public const string AccountExistsForNewGuardianMessage =
+        "An account already exists for that email address. Use \"Link an existing guardian\" instead of registering a new guardian.";
+
+    /// <summary>
+    /// FR-019: refuses registering a new guardian whose email already belongs to an account (any
+    /// account; matched the way Identity normalises emails, so case-insensitively). Called by
+    /// <see cref="GuardianLinkService.RegisterGuardianAndLinkAsync"/> before anything is written.
+    /// </summary>
+    public async Task RequireNoAccountForNewGuardianAsync(string email)
+    {
+        if (await _provisioning.FindAdultAccountIdByEmailAsync(email) is not null)
+        {
+            throw new InvalidOperationException(AccountExistsForNewGuardianMessage);
+        }
     }
 
     /// <summary>
