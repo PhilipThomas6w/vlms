@@ -304,7 +304,7 @@
         /* Staff: sidebar. */
         .shell:has(.nav-group--staff) .shell-body { grid-template-columns: 16rem minmax(0, 1fr); }
         .shell:has(.nav-group--staff) .site-nav { border-bottom: 0; border-right: 1px solid var(--line); padding: calc(var(--s-4) + 6px) var(--s-3) var(--s-6); }
-        .shell:has(.nav-group--staff) .nav-groups { position: sticky; top: var(--s-4); }
+        .shell:has(.nav-group--staff) .nav-groups { position: sticky; top: var(--s-4); max-height: calc(100vh - 2 * var(--s-4)); overflow-y: auto; overscroll-behavior: contain; }
     }
 
     #blazor-error-ui {
