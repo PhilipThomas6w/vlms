@@ -39,9 +39,10 @@ namespace Vlms.Infrastructure.Registration;
 ///
 /// Authorization: role-checked inside this service itself (defense in depth, same pattern as
 /// <see cref="GuardianLinkService"/>/<see cref="Vlms.Infrastructure.Curriculum.LessonProposalService"/>)
-/// — Admin or Teacher only. This is a hard constraint (CLAUDE.md Project Law: "the Student record
+/// — Admin only since 22/10/2026 (adr/0008 answer 4; previously Admin or Teacher). This is a hard constraint (CLAUDE.md Project Law: "the Student record
 /// that anchors [a StudentGuardianLink]" is subject to the same "never parent self-service" rule as
-/// the link itself) — a Student record is never created by anyone other than Admin/Teacher.
+/// the link itself) — a Student record is never created by anyone other than an Admin (directly here,
+/// or by approving a parent's application in StudentApplicationService).
 /// <see cref="GuardianLinkService"/>'s own entry points independently role-check too, so a caller
 /// reaching either service directly is denied at both layers, not just one.
 ///
@@ -68,14 +69,14 @@ public sealed class StudentRegistrationService
 
     /// <summary>
     /// Registers a new Student and, in the same operation, registers a brand-new
-    /// <see cref="ParentGuardian"/> and links it. Admin/Teacher only.
+    /// <see cref="ParentGuardian"/> and links it. Admin only (Teachers lost this on 22/10/2026, adr/0008 answer 4).
     /// </summary>
     public async Task<(Student Student, StudentRankProgress Progress, ParentGuardian Guardian, StudentGuardianLink Link)>
         RegisterStudentWithNewGuardianAsync(
             string name, DateOnly dateOfBirth, DateOnly enrolmentDate, int? assignedTeacherUserId,
             string guardianName, string guardianContactInfo, bool guardianIsPrimary, CancellationToken ct = default)
     {
-        RequireAdminOrTeacher();
+        RequireAdmin();
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
         // Atomicity: Student+StudentRankProgress and the guardian link are two separate
@@ -101,14 +102,14 @@ public sealed class StudentRegistrationService
 
     /// <summary>
     /// Registers a new Student and links an existing <see cref="ParentGuardian"/> to them (e.g. a
-    /// second child of a family already known to the programme). Admin/Teacher only.
+    /// second child of a family already known to the programme). Admin only (Teachers lost this on 22/10/2026, adr/0008 answer 4).
     /// </summary>
     public async Task<(Student Student, StudentRankProgress Progress, StudentGuardianLink Link)>
         RegisterStudentWithExistingGuardianAsync(
             string name, DateOnly dateOfBirth, DateOnly enrolmentDate, int? assignedTeacherUserId,
             int parentGuardianId, CancellationToken ct = default)
     {
-        RequireAdminOrTeacher();
+        RequireAdmin();
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
         // Same atomicity reasoning as RegisterStudentWithNewGuardianAsync above: an unknown
@@ -160,12 +161,17 @@ public sealed class StudentRegistrationService
         return (student, progress);
     }
 
-    private void RequireAdminOrTeacher()
+    /// <summary>
+    /// Admin only since 22/10/2026 (adr/0008 answer 4, functional.md FR-004): Teachers no longer
+    /// register children or create guardian links. Parents apply instead
+    /// (<see cref="Vlms.Infrastructure.Registration.StudentApplicationService"/>).
+    /// </summary>
+    private void RequireAdmin()
     {
-        if (!_currentUser.HasRole(Role.Admin) && !_currentUser.HasRole(Role.Teacher))
+        if (!_currentUser.HasRole(Role.Admin))
         {
             throw new UnauthorizedAccessException(
-                "Caller must hold the Admin or Teacher role to register a student.");
+                "Caller must hold the Admin role to register a student.");
         }
     }
 

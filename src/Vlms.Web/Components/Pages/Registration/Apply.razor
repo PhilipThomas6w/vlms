@@ -1,0 +1,199 @@
+@page "/registration/apply"
+@attribute [Authorize(Policy = "RequireSignedIn")]
+@using System.Globalization
+@using Vlms.Infrastructure.Registration
+@inject StudentApplicationService Applications
+
+@* Static SSR (no @rendermode), so the form posts as a normal HTTP request; this is also what the
+   request-level end-to-end test drives. Any signed-in adult can apply, holding no role yet
+   (adr/0008 answer 1); the service refuses student sign-ins and leavers. Nothing is created but the
+   application until a Safeguarding Officer and then an Admin approve it.
+
+   Children are rendered in a loop with native inputs named "Input.Children[n].Field", which the
+   form binding maps back onto the list; ids end in the child's number so each label matches. *@
+
+<PageTitle>Register a child</PageTitle>
+
+<h1>Register a child</h1>
+
+<p>
+    Apply to register one or more of your children with the Varangians. Fill in your details, then a
+    consent form for each child. A Safeguarding Officer reviews the application and may ask you for
+    more information; an Admin then gives final approval. Until then your child is not registered.
+    You can follow your applications on <a href="/registration/my-applications">My applications</a>.
+</p>
+
+@if (_errorMessage is not null)
+{
+    <p class="error" role="alert">@_errorMessage</p>
+}
+
+@if (_submittedCount > 0)
+{
+    <p role="status">
+        Thank you. Your application@(_submittedCount == 1 ? " has" : "s have") been sent for review.
+        We will email you when there is news. You can see the progress on <a href="/registration/my-applications">My applications</a>.
+    </p>
+}
+else
+{
+<EditForm Model="Input" method="post" OnSubmit="HandleAsync" FormName="apply-registration">
+    <h2>Your details</h2>
+    <div>
+        <label for="phone">Your phone number</label>
+        <InputText id="phone" type="tel" autocomplete="tel" @bind-Value="Input.Phone" aria-required="true" />
+    </div>
+    <div>
+        <label for="postalAddress">Your postal address</label>
+        <InputTextArea id="postalAddress" rows="4" autocomplete="street-address" @bind-Value="Input.PostalAddress" aria-required="true" />
+    </div>
+
+    @for (var i = 0; i < Input.Children.Count; i++)
+    {
+        var n = i;
+        var child = Input.Children[n];
+        <fieldset>
+            <legend>Child @(n + 1)</legend>
+
+            <h3>About the child</h3>
+            <div>
+                <label for="childName@(n)">Child's full name</label>
+                <input id="childName@(n)" name="Input.Children[@(n)].Name" value="@child.Name" autocomplete="off" aria-required="true" />
+            </div>
+            <div>
+                <label for="childDateOfBirth@(n)">Child's date of birth</label>
+                <input id="childDateOfBirth@(n)" type="date" name="Input.Children[@(n)].DateOfBirth" value="@child.DateOfBirth" aria-required="true" />
+            </div>
+            <div>
+                <label for="relationship@(n)">Your relationship to the child (for example mother, father, grandparent, carer)</label>
+                <input id="relationship@(n)" name="Input.Children[@(n)].Relationship" value="@child.Relationship" aria-required="true" />
+            </div>
+
+            <h3>Consent</h3>
+            <div>
+                <input id="photo@(n)" type="checkbox" name="Input.Children[@(n)].PhotoMediaConsent" value="true" checked="@child.PhotoMediaConsent" />
+                <label for="photo@(n)">I consent to photos and media of my child</label>
+            </div>
+            <div>
+                <input id="transport@(n)" type="checkbox" name="Input.Children[@(n)].TransportConsent" value="true" checked="@child.TransportConsent" />
+                <label for="transport@(n)">I consent to my child being transported between our sites (this can be a short trip)</label>
+            </div>
+            <div>
+                <input id="offsite@(n)" type="checkbox" name="Input.Children[@(n)].OffsiteTripConsent" value="true" checked="@child.OffsiteTripConsent" />
+                <label for="offsite@(n)">I consent to my child going on off-site trips and outings</label>
+            </div>
+            <div>
+                <input id="dataSharing@(n)" type="checkbox" name="Input.Children[@(n)].DataSharingConsent" value="true" checked="@child.DataSharingConsent" />
+                <label for="dataSharing@(n)">I consent to data sharing</label>
+            </div>
+
+            <h3>Medical, dietary and emergency details</h3>
+            <div>
+                <label for="emergencyContact@(n)">Emergency contact (name and phone number)</label>
+                <input id="emergencyContact@(n)" name="Input.Children[@(n)].EmergencyContact" value="@child.EmergencyContact" aria-required="true" />
+            </div>
+            <div>
+                <label for="medical@(n)">Emergency medical information (optional)</label>
+                <textarea id="medical@(n)" name="Input.Children[@(n)].EmergencyMedicalInfo" rows="3" maxlength="4000">@child.EmergencyMedicalInfo</textarea>
+            </div>
+            <div>
+                <label for="dietary@(n)">Dietary requirements, including allergies (optional)</label>
+                <textarea id="dietary@(n)" name="Input.Children[@(n)].DietaryRequirements" rows="4" maxlength="4000">@child.DietaryRequirements</textarea>
+            </div>
+            <div>
+                <label for="sen@(n)">Special educational needs (optional)</label>
+                <textarea id="sen@(n)" name="Input.Children[@(n)].SpecialEducationalNeeds" rows="4" maxlength="4000">@child.SpecialEducationalNeeds</textarea>
+            </div>
+        </fieldset>
+    }
+
+    <p>
+        <button type="submit" name="Input.Command" value="add">Add another child</button>
+        @if (Input.Children.Count > 1)
+        {
+            <button type="submit" name="Input.Command" value="remove" aria-label="Remove child @(Input.Children.Count)">Remove the last child</button>
+        }
+    </p>
+    <button type="submit" name="Input.Command" value="submit">Send application</button>
+</EditForm>
+}
+
+@code {
+    // No property initializer (BL0008): see Login.razor's identical comment.
+    [SupplyParameterFromForm]
+    private ApplicationInput Input { get; set; } = default!;
+
+    private string? _errorMessage;
+    private int _submittedCount;
+
+    protected override void OnInitialized()
+    {
+        Input ??= new();
+        if (Input.Children.Count == 0)
+        {
+            Input.Children.Add(new ChildInput());
+        }
+    }
+
+    private async Task HandleAsync()
+    {
+        _errorMessage = null;
+        switch (Input.Command)
+        {
+            case "add":
+                Input.Children.Add(new ChildInput());
+                return;
+            case "remove" when Input.Children.Count > 1:
+                Input.Children.RemoveAt(Input.Children.Count - 1);
+                return;
+        }
+
+        var forms = new List<ChildApplicationForm>();
+        foreach (var child in Input.Children)
+        {
+            if (!DateOnly.TryParseExact(child.DateOfBirth, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var dateOfBirth))
+            {
+                _errorMessage = $"Enter the date of birth for {(string.IsNullOrWhiteSpace(child.Name) ? "each child" : child.Name.Trim())}.";
+                return;
+            }
+
+            forms.Add(new ChildApplicationForm(
+                child.Name ?? "", dateOfBirth, child.Relationship ?? "", child.PhotoMediaConsent, child.TransportConsent,
+                child.OffsiteTripConsent, child.DataSharingConsent, child.EmergencyContact ?? "", child.EmergencyMedicalInfo,
+                child.DietaryRequirements, child.SpecialEducationalNeeds));
+        }
+
+        try
+        {
+            var created = await Applications.SubmitAsync(new ApplicantDetails(Input.Phone ?? "", Input.PostalAddress ?? ""), forms);
+            _submittedCount = created.Count;
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or UnauthorizedAccessException)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+
+    private sealed class ApplicationInput
+    {
+        public string? Phone { get; set; }
+        public string? PostalAddress { get; set; }
+        public List<ChildInput> Children { get; set; } = new();
+        public string? Command { get; set; }
+    }
+
+    private sealed class ChildInput
+    {
+        public string? Name { get; set; }
+        public string? DateOfBirth { get; set; }
+        public string? Relationship { get; set; }
+        public bool PhotoMediaConsent { get; set; }
+        public bool TransportConsent { get; set; }
+        public bool OffsiteTripConsent { get; set; }
+        public bool DataSharingConsent { get; set; }
+        public string? EmergencyContact { get; set; }
+        public string? EmergencyMedicalInfo { get; set; }
+        public string? DietaryRequirements { get; set; }
+        public string? SpecialEducationalNeeds { get; set; }
+    }
+}

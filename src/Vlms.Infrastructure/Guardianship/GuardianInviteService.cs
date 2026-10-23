@@ -84,7 +84,7 @@ public sealed class GuardianInviteService
 
     /// <summary>
     /// Creates a <see cref="GuardianInvite"/> row scoped to <paramref name="studentId"/>/
-    /// <paramref name="parentGuardianId"/> and emails the accept link. Admin/Teacher only — same
+    /// <paramref name="parentGuardianId"/> and emails the accept link. Admin only (adr/0008 answer 4) — same
     /// defense-in-depth role check as every other independently-callable service in this codebase
     /// (`GuardianLinkService`/`StudentRegistrationService`), even though the only current caller
     /// (<see cref="GuardianLinkService"/>) has already checked.
@@ -92,7 +92,7 @@ public sealed class GuardianInviteService
     public async Task<(GuardianInvite Invite, string Token)> IssueAsync(
         int studentId, int parentGuardianId, CancellationToken ct = default)
     {
-        RequireAdminOrTeacher();
+        RequireAdmin();
         var createdByUserId = RequireResolvedUserId();
 
         var student = await _db.Students.SingleAsync(s => s.Id == studentId, ct);
@@ -265,11 +265,11 @@ public sealed class GuardianInviteService
     /// <item>No account and no usable invite (none yet, or the earlier one expired): a new invite via
     /// <see cref="IssueAsync"/>.</item>
     /// </list>
-    /// Admin/Teacher only, as <see cref="IssueAsync"/>.
+    /// Admin only, as <see cref="IssueAsync"/>.
     /// </summary>
     public async Task InviteOrNotifyAsync(int studentId, int parentGuardianId, CancellationToken ct = default)
     {
-        RequireAdminOrTeacher();
+        RequireAdmin();
 
         var student = await _db.Students.SingleAsync(s => s.Id == studentId, ct);
         var guardian = await _db.ParentGuardians.SingleAsync(g => g.Id == parentGuardianId, ct);
@@ -490,11 +490,17 @@ public sealed class GuardianInviteService
             ct);
     }
 
-    private void RequireAdminOrTeacher()
+    /// <summary>
+    /// Admin only since 22/10/2026 (adr/0008 answer 4, functional.md FR-004): Teachers no longer
+    /// register children or create guardian links. Parents apply instead
+    /// (<see cref="Vlms.Infrastructure.Registration.StudentApplicationService"/>).
+    /// </summary>
+    private void RequireAdmin()
     {
-        if (!_currentUser.HasRole(Role.Admin) && !_currentUser.HasRole(Role.Teacher))
+        if (!_currentUser.HasRole(Role.Admin))
         {
-            throw new UnauthorizedAccessException("Caller must hold the Admin or Teacher role to issue a guardian invite.");
+            throw new UnauthorizedAccessException(
+                "Caller must hold the Admin role to issue a guardian invite.");
         }
     }
 

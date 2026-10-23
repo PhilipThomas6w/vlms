@@ -1,5 +1,5 @@
 @page "/registration/students"
-@attribute [Authorize(Policy = "RequireAdminOrTeacher")]
+@attribute [Authorize(Policy = "RequireAdmin")]
 @rendermode InteractiveServer
 @using System.ComponentModel.DataAnnotations
 @using Microsoft.EntityFrameworkCore
@@ -15,8 +15,9 @@
 
 <p>
     Registering a student creates their record, starts their progress at the first rank, and links
-    them to at least one guardian. Only an Admin or Teacher can create this link; parents cannot
-    link themselves to a student.
+    them to at least one guardian. Only an Admin can register a student here. Parents apply to
+    register their own children, and an Admin approves the application after a Safeguarding
+    Officer has reviewed it (<a href="/registration/approve">applications waiting for approval</a>).
 </p>
 
 @if (_errorMessage is not null)

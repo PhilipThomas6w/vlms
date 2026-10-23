@@ -1,0 +1,198 @@
+@page "/registration/approve"
+@attribute [Authorize(Policy = "RequireAdmin")]
+@using Vlms.Domain
+@using Vlms.Infrastructure.Registration
+@inject StudentApplicationService Applications
+
+@* Stage 2 of a parent's registration application (adr/0008 answers 1, 4, 6): Admin only, with MFA.
+   Static SSR. Approval is the only way an application creates anything: the student (at the rank
+   the Admin chooses), or a link to an existing student with the same name and date of birth (a
+   second parent of the same child); the guardian record, link, approved consent and Parent role. *@
+
+<PageTitle>Approve registrations</PageTitle>
+
+<h1>Approve registration applications</h1>
+
+<p>
+    Applications that a Safeguarding Officer has approved. Choose the rank the child starts at and
+    approve, or reject with comments for the parent. If the child may already be registered (for
+    example by another parent), the matching students are listed and you can link this parent to
+    that student instead of creating a second record.
+</p>
+
+@if (_errorMessage is not null)
+{
+    <p class="error" role="alert">@_errorMessage</p>
+}
+@if (_statusMessage is not null)
+{
+    <p role="status">@_statusMessage</p>
+}
+
+@if (_selected is { } selected)
+{
+    var application = selected.Application;
+    <section aria-labelledby="approveHeading">
+        <h2 id="approveHeading">Application to register @application.ChildName</h2>
+        <ApplicationSummary Application="application" ShowApplicant="true" />
+
+        @if (application.Status == StudentApplicationStatus.AwaitingAdminApproval)
+        {
+            <EditForm Model="Input" method="post" OnSubmit="DecideAsync" FormName="admin-approval">
+                @if (selected.SameNameAndDateOfBirth.Count > 0)
+                {
+                    <fieldset>
+                        <legend>Existing students with the same name and date of birth</legend>
+                        <p>Children of different families can share a name and date of birth. Link only if this is the same child.</p>
+                        <div>
+                            <input id="createNew" type="radio" name="Input.ExistingStudentId" value="" checked="@(Input.ExistingStudentId is null)" />
+                            <label for="createNew">Create a new student record</label>
+                        </div>
+                        @foreach (var match in selected.SameNameAndDateOfBirth)
+                        {
+                            var studentId = match.StudentId;
+                            <div>
+                                <input id="existing@(studentId)" type="radio" name="Input.ExistingStudentId" value="@studentId" checked="@(Input.ExistingStudentId == studentId)" />
+                                <label for="existing@(studentId)">
+                                    Link to @match.Name (student @studentId, born @match.DateOfBirth.ToString("d MMMM yyyy"), @match.CurrentRankName, @match.Status;
+                                    guardians: @(match.GuardianNames.Count == 0 ? "none" : string.Join(", ", match.GuardianNames)))
+                                </label>
+                            </div>
+                        }
+                    </fieldset>
+                }
+                <div>
+                    <label for="startingRank">Starting rank (for a new student record)</label>
+                    <select id="startingRank" name="Input.StartingRankId">
+                        <option value="">Choose a rank</option>
+                        @foreach (var rank in selected.Ranks)
+                        {
+                            <option value="@rank.Id" selected="@(Input.StartingRankId == rank.Id)">@rank.Order. @rank.Name</option>
+                        }
+                    </select>
+                </div>
+                <div>
+                    <label for="comments">Comments (required to reject; shown to the parent)</label>
+                    <InputTextArea id="comments" rows="4" maxlength="4000" @bind-Value="Input.Comments" />
+                </div>
+                <button type="submit" name="Input.Action" value="approve">Approve and register</button>
+                <button type="submit" name="Input.Action" value="reject">Reject</button>
+            </EditForm>
+        }
+        <p><a href="/registration/approve">Back to the list</a></p>
+    </section>
+}
+
+<h2>Waiting for final approval</h2>
+@if (_applications.Count == 0)
+{
+    <p>No applications are waiting for final approval.</p>
+}
+else
+{
+    <table>
+        <thead>
+            <tr><th scope="col">Child</th><th scope="col">Parent</th><th scope="col">Safeguarding review</th><th scope="col"><span class="visually-hidden">Action</span></th></tr>
+        </thead>
+        <tbody>
+            @foreach (var application in _applications)
+            {
+                <tr>
+                    <td>@application.ChildName</td>
+                    <td>@application.ApplicantName</td>
+                    <td>@application.SafeguardingReviewerName, @application.SafeguardingReviewedAt?.ToString("d MMMM yyyy")</td>
+                    <td><a href="/registration/approve?id=@application.Id" aria-label="Open the application for @application.ChildName">Open</a></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    [SupplyParameterFromQuery(Name = "id")]
+    private int? Id { get; set; }
+
+    // No property initializer (BL0008): see Login.razor's identical comment.
+    [SupplyParameterFromForm(FormName = "admin-approval")]
+    private ApprovalInput Input { get; set; } = default!;
+
+    private List<ApplicationView> _applications = new();
+    private ApplicationForApproval? _selected;
+    private string? _errorMessage;
+    private string? _statusMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Input ??= new();
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            _applications = (await Applications.ListForAdminAsync()).ToList();
+            _selected = Id is int id ? await Applications.GetForApprovalAsync(id) : null;
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or InvalidOperationException)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+
+    private async Task DecideAsync()
+    {
+        if (_selected is not { } selected)
+        {
+            return;
+        }
+
+        var childName = selected.Application.ChildName;
+        try
+        {
+            switch (Input.Action)
+            {
+                case "approve":
+                    if (Input.ExistingStudentId is int existingId)
+                    {
+                        await Applications.ApproveAsync(selected.Application.Id, startingRankId: null, existingStudentId: existingId);
+                        _statusMessage = $"Approved. The parent is now linked to the existing record for {childName}.";
+                    }
+                    else if (Input.StartingRankId is int rankId)
+                    {
+                        await Applications.ApproveAsync(selected.Application.Id, rankId);
+                        _statusMessage = $"Approved. {childName} is registered.";
+                    }
+                    else
+                    {
+                        _errorMessage = "Choose the starting rank, or an existing student to link to.";
+                        return;
+                    }
+
+                    break;
+                case "reject":
+                    await Applications.AdminRejectAsync(selected.Application.Id, Input.Comments ?? "");
+                    _statusMessage = $"Rejected. The parent has been told about the application for {childName}.";
+                    break;
+                default:
+                    _errorMessage = "Choose approve or reject.";
+                    return;
+            }
+
+            Input = new();
+            await LoadAsync();
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or UnauthorizedAccessException)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+
+    private sealed class ApprovalInput
+    {
+        public int? StartingRankId { get; set; }
+        public int? ExistingStudentId { get; set; }
+        public string? Comments { get; set; }
+        public string? Action { get; set; }
+    }
+}

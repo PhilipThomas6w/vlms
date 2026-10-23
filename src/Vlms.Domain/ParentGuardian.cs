@@ -7,6 +7,12 @@ public sealed class ParentGuardian
     public required string ContactInfo { get; init; }
     public required bool IsPrimary { get; init; }
 
+    /// <summary>Phone number given in a parent's own registration application (adr/0008 answer 5). Null for guardians entered by staff.</summary>
+    public string? Phone { get; init; }
+
+    /// <summary>Postal address given in a parent's own registration application (adr/0008 answer 5). Null for guardians entered by staff.</summary>
+    public string? PostalAddress { get; init; }
+
     /// <summary>
     /// The AppUser this ParentGuardian is the parent-login identity for (added during
     /// implementation to support self/parent login — see STATE.md and data-design.md). Null

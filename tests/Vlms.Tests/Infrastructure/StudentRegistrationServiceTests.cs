@@ -119,19 +119,34 @@ public sealed class StudentRegistrationServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task RegisterStudentWithNewGuardianAsync_ByTeacher_Succeeds()
+    public async Task RegisterStudentWithNewGuardianAsync_ByTeacher_IsRefused_AndCreatesNoRows()
     {
+        // Teachers lost direct registration on 22/10/2026 (adr/0008 answer 4): Admin only.
         using var teacher = CreateContext(10, Role.Teacher);
         var sut = teacher.Service;
 
-        var (student, _, _, link) = await sut.RegisterStudentWithNewGuardianAsync(
-            "Sam Student", new DateOnly(2013, 1, 1), new DateOnly(2024, 2, 1), assignedTeacherUserId: 10,
-            "Another Parent", "another@example.com", guardianIsPrimary: false, CancellationToken.None);
-
-        Assert.Equal(10, link.CreatedByUserId);
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(
+            () => sut.RegisterStudentWithNewGuardianAsync(
+                "Sam Student", new DateOnly(2013, 1, 1), new DateOnly(2024, 2, 1), assignedTeacherUserId: 10,
+                "Another Parent", "another@example.com", guardianIsPrimary: false, CancellationToken.None));
 
         using var verify = CreateContext(1, Role.Admin);
-        Assert.Single(verify.Context.Students.Where(s => s.Id == student.Id));
+        Assert.Empty(verify.Context.Students.Where(s => s.Name == "Sam Student"));
+        Assert.Empty(verify.Context.ParentGuardians.Where(g => g.Name == "Another Parent"));
+    }
+
+    [Fact]
+    public async Task RegisterStudentWithExistingGuardianAsync_ByTeacher_IsRefused()
+    {
+        using var teacher = CreateContext(10, Role.Teacher);
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(
+            () => teacher.Service.RegisterStudentWithExistingGuardianAsync(
+                "Sam Student", new DateOnly(2013, 1, 1), new DateOnly(2024, 2, 1), assignedTeacherUserId: null,
+                parentGuardianId: 1, CancellationToken.None));
+
+        using var verify = CreateContext(1, Role.Admin);
+        Assert.Empty(verify.Context.Students.Where(s => s.Name == "Sam Student"));
     }
 
     [Fact]

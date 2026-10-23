@@ -4,6 +4,10 @@
 <nav aria-label="Main">
     <ul class="nav-list">
         <li><a href="/" aria-current="@Current("/")">Home</a></li>
+        <AuthorizeView Policy="RequireSignedIn">
+            <li><a href="/registration/apply" aria-current="@Current("/registration/apply")">Register a child</a></li>
+            <li><a href="/registration/my-applications" aria-current="@Current("/registration/my-applications")">My applications</a></li>
+        </AuthorizeView>
         <AuthorizeView Policy="RequireLessonLibrary">
             <li><a href="/lessons" aria-current="@Current("/lessons")">Lesson library</a></li>
         </AuthorizeView>
@@ -17,8 +21,6 @@
         </AuthorizeView>
         <AuthorizeView Policy="RequireAdminOrTeacher">
             <li><a href="/students" aria-current="@Current("/students")">Students</a></li>
-            <li><a href="/registration/students" aria-current="@Current("/registration/students")">Register student</a></li>
-            <li><a href="/guardianship/links" aria-current="@Current("/guardianship/links")">Guardian links</a></li>
         </AuthorizeView>
         <AuthorizeView Policy="RequireTeacher">
             <li><a href="/students/consent" aria-current="@Current("/students/consent")">Student consent</a></li>
@@ -33,7 +35,13 @@
             <li><a href="/safeguarding/consent" aria-current="@Current("/safeguarding/consent")">Consent records</a></li>
             <li><a href="/safeguarding/dbs" aria-current="@Current("/safeguarding/dbs")">DBS checks</a></li>
         </AuthorizeView>
+        <AuthorizeView Policy="RequireSafeguardingOfficer">
+            <li><a href="/registration/review" aria-current="@Current("/registration/review")">Review registrations</a></li>
+        </AuthorizeView>
         <AuthorizeView Policy="RequireAdmin">
+            <li><a href="/registration/approve" aria-current="@Current("/registration/approve")">Approve registrations</a></li>
+            <li><a href="/registration/students" aria-current="@Current("/registration/students")">Register student</a></li>
+            <li><a href="/guardianship/links" aria-current="@Current("/guardianship/links")">Guardian links</a></li>
             <li><a href="/administration/students" aria-current="@Current("/administration/students")">Manage students</a></li>
             <li><a href="/administration/user-roles" aria-current="@Current("/administration/user-roles")">User roles</a></li>
             <li><a href="/administration/student-sign-ins" aria-current="@Current("/administration/student-sign-ins")">Student sign-ins</a></li>

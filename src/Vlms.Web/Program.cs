@@ -117,6 +117,15 @@ builder.Services.AddScoped<GuardianLinkService>();
 // GuardianLinkService above (reused, not duplicated).
 builder.Services.AddScoped<StudentRegistrationService>();
 
+// --- Parent registration applications with two-stage approval (functional.md FR-004 as amended
+// 22/10/2026, adr/0008 answers 1, 4, 5, 6): any signed-in adult applies; a Safeguarding Officer
+// reviews (stage 1), an Admin approves (stage 2), which alone creates the Student, link, consent and
+// Parent role. Emails after each save, never throwing.
+builder.Services.AddScoped(sp => new RegistrationNotificationService(
+    sp.GetRequiredService<VlmsDbContext>(), sp.GetRequiredService<INotificationService>(),
+    sp.GetRequiredService<ILogger<RegistrationNotificationService>>(), builder.Configuration["App:PublicBaseUrl"]));
+builder.Services.AddScoped<StudentApplicationService>();
+
 // --- Consent/DBS management UI (STATE.md, functional.md FR-001/FR-002, data-design.md
 // ConsentRecord/ConsentSensitiveDetails/DbsCheck) — Admin/SafeguardingOfficer only, never the
 // Approver role (curriculum-only, CLAUDE.md Project Law).
@@ -252,7 +261,17 @@ builder.Services.AddAuthorization(options =>
         policy.Requirements.Add(new MfaRequirement());
     });
 
-    // Guardian-link creation page (FR-004): Admin or Teacher, never Parent self-service.
+    // Any signed-in user, with the same MFA rule as every other policy (Admin, Safeguarding Officer
+    // and Teacher must have MFA). Used by the parent registration application pages, which an adult
+    // with no role yet must reach (adr/0008 answer 1); the service refuses student sign-ins and leavers.
+    options.AddPolicy("RequireSignedIn", policy =>
+    {
+        policy.RequireAuthenticatedUser();
+        policy.Requirements.Add(new MfaRequirement());
+    });
+
+    // The teacher's student list (FR-009): Admin or Teacher. Registering students and creating
+    // guardian links are Admin only since 22/10/2026 (adr/0008 answer 4) and use RequireAdmin.
     options.AddPolicy("RequireAdminOrTeacher", policy =>
     {
         policy.Requirements.Add(new AnyRoleRequirement(Role.Admin, Role.Teacher));

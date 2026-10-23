@@ -27,13 +27,16 @@ This is not incidental — it's the property a checker round-trip found missing 
 
 Proven, not just asserted: two dedicated tests (`StudentRegistrationServiceTests`) drive each failure mode — a blank guardian name, and an unknown `parentGuardianId` — and each asserts the `Students`, `StudentRankProgresses`, `StudentGuardianLinks`, and `ParentGuardians` tables are all empty afterward, not merely that the throw itself happened. Treat "wraps guardian-link creation" (above) and "atomic across both steps, zero partial rows on any failure" as one and the same guarantee when changing this service — don't reintroduce two independent `SaveChangesAsync` calls without re-establishing the transaction around them.
 
-## Authorization: Admin/Teacher only, checked at both layers
+## Authorization: Admin only (Teacher removed 22/10/2026), checked at both layers
+
+**Changed 22/10/2026 (`adr/0008` answer 4):** `StudentRegistrationService`, `GuardianLinkService` and `GuardianInviteService` now require Admin; `/registration/students` and `/guardianship/links` use `RequireAdmin`. The text below describes the earlier Admin-or-Teacher rule.
+
 
 Role-checked inside `StudentRegistrationService` itself (defense in depth, same pattern as `GuardianLinkService`/`LessonProposalService`/`CompletionService`) — Admin or Teacher only. This is the same hard constraint that governs `StudentGuardianLink` (CLAUDE.md Project Law): the `Student` record that anchors a guardian link is never created by parent self-service either. Because `GuardianLinkService`'s own entry points also independently role-check, a caller reaching either service directly by any path is denied at both layers, not just one.
 
 ## Page
 
-`src/Vlms.Web/Components/Pages/Registration/RegisterStudent.razor` (`/registration/students`), gated by `[Authorize(Policy = "RequireAdminOrTeacher")]` — no ad hoc role checks, same convention as `GuardianLinks.razor`. Reuses the same "link existing guardian vs register a new one" form shape as `GuardianLinks.razor`. Linked from `Home.razor` via `<AuthorizeView Policy="RequireAdminOrTeacher">`, above the existing guardian-links link.
+`src/Vlms.Web/Components/Pages/Registration/RegisterStudent.razor` (`/registration/students`), gated by `[Authorize(Policy = "RequireAdmin")]` (was `RequireAdminOrTeacher` until 22/10/2026) — no ad hoc role checks, same convention as `GuardianLinks.razor`. Reuses the same "link existing guardian vs register a new one" form shape as `GuardianLinks.razor`. Linked from `Home.razor` via `<AuthorizeView Policy="RequireAdminOrTeacher">`, above the existing guardian-links link.
 
 ## Tests
 
@@ -42,3 +45,15 @@ Role-checked inside `StudentRegistrationService` itself (defense in depth, same 
 ## Scope note
 
 Does not build a `Student` edit/deactivation flow, duplicate-matching on Name+DOB (data-design.md names this as a registration hypothesis to confirm at build time — not addressed here, carried forward if it turns out to matter), or an `AssignedTeacherUserId` picker in the page (the service accepts it; the page currently always passes `null`, leaving that assignment as a later Admin action rather than blocking this item's scope).
+
+## Parent registration applications (22/10/2026, `adr/0008` answers 1, 4, 5, 6, 7)
+
+`StudentApplicationService` (`src/Vlms.Infrastructure/Registration/StudentApplicationService.cs`) is the parent-led path; `StudentRegistrationService` above stays as the Admin's direct path.
+
+- **Entities:** `StudentApplication` (one per child; parent phone, postal address, relationship, child name and date of birth, the four consent flags, status, who decided each stage) and `StudentApplicationSensitiveDetails` (1:1; emergency contact, medical, dietary, SEN, plus the Safeguarding Officer's information request, the parent's answer and the decision comments). The second has its own query filter in `VlmsDbContext` (Admin/Safeguarding Officer with MFA, or the applicant) and is audited by `SensitiveDataAuditInterceptor`. Migration `AddStudentApplications` also adds `ParentGuardian.Phone`/`PostalAddress` and `StudentGuardianLink.Relationship`.
+- **Flow:** `SubmitAsync` (any signed-in adult; refuses student sign-ins and leavers) → `AwaitingSafeguardingReview` → stage 1 (`SafeguardingApproveAsync`, `RequestMoreInformationAsync` → `MoreInformationRequested` → applicant `ResubmitAsync` → back to stage 1, `SafeguardingRejectAsync`), Safeguarding Officer with MFA only → `AwaitingAdminApproval` → stage 2 (`ApproveAsync(id, startingRankId)` or `ApproveAsync(id, null, existingStudentId)`, `AdminRejectAsync`), Admin with MFA only. One person with both roles may do both stages.
+- **Approval** runs in one transaction: student and open `StudentRankProgress` (or the existing same-name-and-date-of-birth student), the applicant's own `ParentGuardian` (found by `AppUserId`, else created linked to the account; an unlinked record with the same email is never adopted), the link, an Approved `ConsentRecord` plus `ConsentSensitiveDetails` copied from the application, and the Parent role with a security-stamp rotation. Consent expiry goes through `ConsentPeriodEndFor`, a marked seam to be pointed at `ConsentYear.EndFor` at merge.
+- **Duplicates:** `NormaliseName` (whitespace collapsed, upper-cased) against the applicant's non-rejected applications and linked students, at submit, resubmit and approval.
+- **Emails:** `RegistrationNotificationService`, after the save, never throwing; never reads the restricted entity.
+- **Pages** (static SSR, so they post as plain HTTP forms and the end-to-end test drives them): `/registration/apply` and `/registration/my-applications` (`RequireSignedIn`, a new policy: authenticated plus the MFA rule), `/registration/review` (`RequireSafeguardingOfficer`), `/registration/approve` (`RequireAdmin`); shared `ApplicationSummary.razor`. The apply page's children are native inputs named `Input.Children[n].Field`.
+- **Tests:** `StudentApplicationServiceTests`, `EndToEnd/ParentRegistrationEndToEndTests` (TC-037).

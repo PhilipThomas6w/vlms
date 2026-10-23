@@ -39,3 +39,7 @@ h1:focus {
 /* Approver proposal review (FR-007): a change is marked by text ("Changed", "Added", "Removed") as well as by this background, so colour is never the only cue. */
 .review-changed { background: #fff3bf; color: #000; }
 .review-removed { text-decoration: line-through; }
+/* Registration applications: keep the line breaks a parent typed (address, needs, answers). */
+.preserve-lines { white-space: pre-line; }
+/* Text for screen readers only (for example an otherwise empty table header). */
+.visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }

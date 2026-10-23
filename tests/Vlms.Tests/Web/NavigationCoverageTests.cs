@@ -23,6 +23,8 @@ public class NavigationCoverageTests
         ["RequireAdminOrTeacher"] = ["Admin", "Teacher"],
         ["RequireAdminOrSafeguardingOfficer"] = ["Admin", "SafeguardingOfficer"],
         ["RequireLessonLibrary"] = ["Teacher", "Approver", "Admin", "Student", "Parent"],
+        // Any signed-in user, including one with no role yet (parent registration, adr/0008).
+        ["RequireSignedIn"] = ["Admin", "Teacher", "Approver", "Parent", "Student", "SafeguardingOfficer"],
     };
 
     // Account, error and not-found pages are not navigation targets; AcceptInvite is reached from an emailed link.
