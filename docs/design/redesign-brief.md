@@ -46,6 +46,10 @@ Lead product designer, design-systems architect, accessibility specialist and Bl
 
 ## Sacred imagery
 
+**Terminology (Philip, 23/10/2026):** an icon is a specific liturgical art form, written (not painted) in a prescribed way and venerated. A picture of Christ or a saint is not automatically an icon. The Christ-bearer patch shows Christ and is a badge, not an icon: a badge is never venerated. Existing non-icon images of Christ, such as Orthodox Arts Journal drawings, may be used if coloured. The rules below about icons apply to liturgical icons.
+
+**The double-headed eagle (Philip, 23/10/2026)** is the emblem of the Eastern Orthodox Church and is to feature in the interface. The group's existing logo (a cross with IC XC NI KA and "Varangians", `seed/admin/GraphicDesign/Logo*.png`) is the product mark.
+
 - Authentic Orthodox icons may appear where contextually appropriate, not only in lesson content.
 - **"Never generate pseudo-Orthodox sacred iconography using AI"**: no generated Christ, Theotokos, saints, angels or sacred scenes. Source authentic Orthodox iconography.
 - Icons never become reward badges, buttons, loading indicators, achievement graphics or decorative gimmicks. Treat with reverence.

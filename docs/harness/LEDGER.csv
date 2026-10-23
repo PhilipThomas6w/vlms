@@ -144,3 +144,4 @@ date_utc,session,actor,model,head,head_advanced,input,cache_write,cache_read,out
 2026-10-23T19:16:35Z,0b5ccb5c-7ff5-4b08-a733-29d7067443e2,general-purpose,claude-sonnet-5-5,144f3ff,true,62,154492,2974782,27748,1.2588,pass
 2026-10-23T19:17:07Z,0b5ccb5c-7ff5-4b08-a733-29d7067443e2,main,claude-opus-5-5,144f3ff,false,10,6165,990155,1844,0.2843,pass
 2026-10-23T20:07:58Z,0b5ccb5c-7ff5-4b08-a733-29d7067443e2,main,claude-opus-5-5,14bc9ce,true,4,1736,505102,1054,0.1360,pass
+2026-10-23T20:57:14Z,0b5ccb5c-7ff5-4b08-a733-29d7067443e2,main,claude-opus-5-5,d30340b,true,228,276788,45478016,183429,14.9794,skipped

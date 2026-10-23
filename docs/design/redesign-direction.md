@@ -11,7 +11,7 @@ The rank ladder already tells a story. Read in order, the ten ranks move from **
 | The Guard | Recruit, Guardsman, Shield-bearer, Sword-bearer | Joining and being equipped. Ephesians 6 gives the Orthodox reading: the shield of faith, the sword of the Spirit, which is the word of God. |
 | The Herald | Herald | Turning outward: announcing what has been learnt. |
 | The Procession | Torch-bearer, Standard-bearer, Cross-bearer | The servers' roles in a liturgical procession: candle, banner, cross. |
-| The Sanctuary | Christ-bearer, Akolouthos | Bearing Christ, and serving at the altar (*akolouthos*, follower, the Byzantine title for an attendant). |
+| The Sanctuary | Christ-bearer, Akolouthos | Bearing Christ. **Corrected 23/10/2026:** *akolouthos* ("follower") was the title of the commander of the Varangian Guard, who stood closest to the Emperor; in the group's syllabus it is not a badge level but the senior status after Christ-bearer, with a leadership role and a wider programme. The movement names are under review with Philip. |
 
 The Varangian Guard escorted the Emperor, defender of the Faith, in procession to the Great Church. So the identity's spine is a **procession**: the student moves from the palace gate into the Church's service. This keeps the order the brief sets: Orthodox purpose first, Varangian story as the frame, with no militarism. Weapons appear only where the rank names them, and then as Ephesians 6 does.
 
@@ -23,7 +23,7 @@ Alternatives considered and set aside:
 
 ## 2. Influences: what each contributes to the design language
 
-- **Orthodox (primary):** the Golgotha cross with IC XC NIKA, already the group's emblem on its Varangian Guard patch, becomes the product mark. Sacred imagery appears only as authentic icons, in lesson content and devotional contexts, never as badges, buttons or progress. Feasts, Scripture and prayer are presented with typographic dignity (quotation and Scripture blocks), not decoration.
+- **Orthodox (primary):** the product mark is the group's existing logo, the cross with IC XC NI KA (`seed/admin/GraphicDesign`), redrawn as a vector (replacing the budded cross first proposed, 23/10/2026). The double-headed eagle, emblem of the Orthodox Church, features in the interface: the public welcome, a crest on the student's rank header, the footer of every page, and the Akolouthos emblem (Philip, 23/10/2026). Sacred imagery appears only as authentic icons, in lesson content and devotional contexts, never as badges, buttons or progress. Feasts, Scripture and prayer are presented with typographic dignity (quotation and Scripture blocks), not decoration.
 - **Byzantine:** the **tessera**. Progress is shown as small square tiles, one per lesson, that fill with the rank's colour and a gold edge: progress without points. Lapis and gold grounds, from mosaic, for the shell and the summit rank. The Π-shaped manuscript **headpiece** (studied in the Orthodox Illustration Project) becomes the frame of the student's rank header: a simple architectural frame with an open title slot, drawn by us.
 - **Anglo-Saxon:** **embroidery and interlace**. English embroidery was famous across Europe (*opus anglicanum*; the Bayeux embroidery is widely thought to be English work), and the group's ranks are embroidered patches the children wear. Rank medallions therefore have a **stitched rim**, a dashed inner ring echoing the patches' merrowed edge. A simple interlace band, drawn by us, is the one divider ornament.
 - **Varangian:** the procession, the rank names, the patches' colours, and the language of belonging ("Your rank", "The way ahead") in the student experience only. Staff and legal language stays plain.
@@ -91,7 +91,7 @@ Semantic: success `#1B6E46`, warning text `#7A4D00` on `#FFF4D6`, danger `#A4262
 ## 6. Ornament and imagery
 
 - **Ornament:** two original SVGs, drawn for this project and non-sacred: the interlace band and the headpiece frame. Plus the stitched rim (CSS). Nothing else. Never behind text or controls; absent on Safeguarding and Admin pages.
-- **Product mark:** the Golgotha cross with IC XC NIKA from the Varangian Guard patch, redrawn as a clean vector. The double-headed eagle is reserved as a secondary motif (for example, on certificates and the about page), drawn properly later; it is not forced into the interface, and no internet image is used.
+- **Product mark:** the group's existing logo, cross with IC XC NI KA, redrawn as a vector. **Double-headed eagle:** in the interface (see section 2), from a public-domain vector (`docs/design/asset-register.md` on the redesign branch), recoloured by CSS.
 - **Rank badges:** the Admin-uploaded badge images (FR-014) appear inside the rank medallion; photographs or scans of the real patches would suit. Without an upload, the medallion shows the rank's number in its colours.
 - **Sacred imagery:** authentic, public-domain icons only, credited in an asset register, in lesson content and devotional contexts. Never generated, never a reward or control.
 
@@ -118,6 +118,6 @@ Same service call, same checks and the same consent block; nothing about who may
 
 ## 9. Open questions for Philip (at the approval gate)
 
-1. May a student be recorded for a lesson outside their current rank? The service allows it today; the design puts other ranks second, but keeps it possible.
-2. The Christ-bearer patch is an icon of St Christopher. The brief rules out icons as reward badges. Keep the existing patch as that rank's uploaded badge, or design a non-iconographic Christ-bearer emblem?
+1. ~~Lessons outside the student's rank~~: answered 23/10/2026, allowed, for catching up (`functional.md` FR-008).
+2. ~~Christ-bearer patch~~: answered 23/10/2026, the patch shows Christ and is a badge, not an icon; it stays.
 3. Rank meaning lines (Ephesians 6 for the Guard ranks, procession roles after) are Claude's draft: clergy or Philip to confirm the wording.
