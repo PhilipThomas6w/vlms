@@ -505,10 +505,6 @@
         margin: 0 auto; padding: var(--s-7) var(--s-4) 0;
         border-radius: 14px;
         background-color: var(--gold-500);
-        background-image:
-            linear-gradient(rgb(138 100 16 / 0.18) 1px, transparent 1px),
-            linear-gradient(90deg, rgb(138 100 16 / 0.18) 1px, transparent 1px);
-        background-size: 12px 12px;
         box-shadow: inset 0 0 0 4px var(--lapis-900), inset 0 0 0 7px var(--gold-500), inset 0 0 0 9px var(--lapis-900);
         color: var(--ink);
         --focus-inner: var(--lapis-900); --focus-outer: var(--surface);
@@ -518,7 +514,7 @@
     .welcome__lead { font-size: var(--step-1); color: var(--ink); margin: 0 auto var(--s-5); max-width: 36rem; }
     .welcome__actions { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--s-3); margin-bottom: var(--s-6); }
     .welcome__actions .btn--secondary { background: var(--surface); }
-    .welcome__skyline { display: block; width: calc(100% + 2 * var(--s-4)); max-width: none; margin: 0 calc(-1 * var(--s-4)); height: auto; }
+
 }
 
 @layer utilities {

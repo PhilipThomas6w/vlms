@@ -6,12 +6,6 @@
     overflow: hidden;
     margin-top: var(--s-5);
     background-color: var(--rank-field);
-    /* Mosaic grout: faint lines every 14 px, strongest towards the right edge. */
-    background-image:
-        linear-gradient(90deg, var(--rank-field) 35%, transparent 100%),
-        linear-gradient(color-mix(in srgb, var(--rank-on) 9%, transparent) 1px, transparent 1px),
-        linear-gradient(90deg, color-mix(in srgb, var(--rank-on) 9%, transparent) 1px, transparent 1px);
-    background-size: 100% 100%, 14px 14px, 14px 14px;
     color: var(--rank-on);
     border-radius: 14px;
     padding: var(--s-4) var(--s-4) var(--s-4);
@@ -39,15 +33,6 @@
 .rank-hero__frame::before { left: -5px; }
 .rank-hero__frame::after { right: -5px; }
 
-/* Constantinople on the horizon, in a deeper shade of the rank's own colour. */
-.rank-hero__skyline {
-    position: absolute; right: 0; bottom: 0; width: min(100%, 52rem); aspect-ratio: 5 / 1;
-    background-color: color-mix(in srgb, var(--rank-field) 62%, #000);
-    -webkit-mask: url("../../img/art/skyline-mask.svg") right bottom / 100% auto no-repeat;
-    mask: url("../../img/art/skyline-mask.svg") right bottom / 100% auto no-repeat;
-    pointer-events: none;
-}
-.rank-hero.rank-1 .rank-hero__skyline { background-color: color-mix(in srgb, var(--rank-field) 70%, #7A3B1F); }
 
 /* The double-headed eagle as a crest on the lintel, breaking the line like a crest over an arch. */
 .rank-hero__crest {

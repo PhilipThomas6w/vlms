@@ -36,7 +36,6 @@ else
     <div class="student">
         @* The rank header: the headpiece frame on the rank's colour, the medallion, and progress as tesserae. *@
         <section class="rank-hero rank-@(current?.Order ?? 10)" aria-labelledby="rank-title">
-            <span class="rank-hero__skyline" aria-hidden="true"></span>
             <div class="rank-hero__frame">
                 <span class="rank-hero__crest"><Eagle /></span>
                 @if (current is not null)
