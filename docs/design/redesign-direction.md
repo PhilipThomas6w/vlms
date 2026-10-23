@@ -120,4 +120,6 @@ Same service call, same checks and the same consent block; nothing about who may
 
 1. ~~Lessons outside the student's rank~~: answered 23/10/2026, allowed, for catching up (`functional.md` FR-008).
 2. ~~Christ-bearer patch~~: answered 23/10/2026, the patch shows Christ and is a badge, not an icon; it stays.
-3. Rank meaning lines (Ephesians 6 for the Guard ranks, procession roles after) are Claude's draft: clergy or Philip to confirm the wording.
+3. ~~Rank Scripture lines~~: approved by Philip, 23/10/2026.
+4. **Terminology (Philip, 23/10/2026):** never call the rank list "The Way": "the Way" is the Orthodox name for the faith itself ("the Way of Life", as in the Didache) and a self-description of Christ. The procession through the ranks is kept; the list is headed "Through the ranks", with stage labels Joining the Guard, Proclaiming, In the procession, Bearing Christ, Leading (Claude's option A, not objected to). Akolouthos patch: gold double-headed eagle on lapis with AKOLOUTHOS around a stitched gold rim (agreed).
+5. **Artwork (Philip, 23/10/2026):** the prototypes were too clean, "almost sterile", with no visible Anglo-Saxon or Byzantine artwork; "vibrant" and "colourful" were not met. An art layer is required: original ornament and illustration after Byzantine mosaic and Anglo-Saxon manuscript art, in full colour, informed by the Orthodox Illustration Project's drawings.
