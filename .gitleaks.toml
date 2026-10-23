@@ -1,0 +1,10 @@
+# gitleaks configuration, read by build/check-secrets.ps1 (`gitleaks dir` loads .gitleaks.toml from the scanned root).
+# Default rules stay in force; the only allowlist is Microsoft.Playwright's bundled Node driver, copied into
+# test build output (bin/<config>/<tfm>/.playwright/). Its minified third-party JavaScript trips the
+# generic-api-key rule. It is build output (bin/ is gitignored), never committed.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Microsoft.Playwright bundled driver in build output"
+paths = ['''(^|[\\/])bin[\\/][^\\/]+[\\/][^\\/]+[\\/]\.playwright[\\/]''']

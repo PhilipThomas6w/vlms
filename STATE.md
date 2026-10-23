@@ -102,6 +102,8 @@ Fit-for-purpose build plan (Philip, 22/10/2026; `docs/delivery-plan.md` phase 2,
 
 Delegation (Philip, 22/10/2026): each item runs as a subagent in its own worktree, model in brackets. Items in a wave run in parallel; a wave starts when the items it depends on are merged into `master`.
 
+- **Browser UI tests in the gate** (redesign toolchain decision 5, approved 23/10/2026; `docs/ui-ux-redesign-toolchain.md`) [Sonnet]. Already done (main session): `tests/Vlms.UiTests` (xunit, `Microsoft.Playwright` 1.64.1, `Deque.AxeCore.Playwright` 4.13.0) in `Vlms.slnx`, Chromium installed, `.gitleaks.toml` allowlist for Playwright's bundled driver; `Verify.Xunit`/`Verify.Playwright` under the OpenSource exemption (Philip, 23/10/2026; `Verify_SponsorshipExemptionUntil` 2027-10 in the csproj, renew before then or the build fails). To do: (1) ADR-0009, which reverses the "Playwright disproportionate" rationale in `build/check-accessibility.ps1`'s header; (2) a Kestrel-backed factory (`WebApplicationFactory.UseKestrel(0)`, SQLite in memory as `VlmsWebFactory` does) shared with or copied from `Vlms.Tests`; (3) first tests: axe with `wcag2a`/`wcag2aa`/`wcag21aa`/`wcag22aa` tags on the public pages, plus a reflow check at 320 px; existing failures recorded as the starting point, not hidden; (4) a full-only gate stage for `Vlms.UiTests`, with `-Fast` skipping it (and `dotnet test` in both modes running only `Vlms.Tests`). No EF migration.
+
 
 
 

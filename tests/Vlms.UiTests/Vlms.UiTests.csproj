@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <!-- Verify's maintenance-fee check (SponsorCheck SC021). VLMS is an open-source project with no revenue
+       (public repo, church youth group), so it claims the OpenSource exemption (Philip, 23/10/2026).
+       Time-bounded by the package, at most 12 months out: renew before it lapses or the build fails. -->
+  <PropertyGroup>
+    <Verify_SponsorshipExemption>OpenSource</Verify_SponsorshipExemption>
+    <Verify_SponsorshipExemptionUntil>2027-10</Verify_SponsorshipExemptionUntil>
+  </PropertyGroup>
+
+  <!-- Browser-driven UI tests (docs/ui-ux-redesign-toolchain.md). Kept apart from Vlms.Tests so
+       build/verify.ps1 -Fast can skip them; they need a Playwright browser installed per machine
+       (pwsh bin/Debug/net10.0/playwright.ps1 install chromium). -->
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="6.0.4" />
+    <PackageReference Include="Deque.AxeCore.Playwright" Version="4.13.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="Microsoft.Playwright" Version="1.64.1" />
+    <PackageReference Include="Verify.Playwright" Version="3.1.2" />
+    <PackageReference Include="Verify.Xunit" Version="31.12.5" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+</Project>
