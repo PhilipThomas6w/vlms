@@ -8,7 +8,7 @@ Status: **complete**, 23/10/2026. Phase 1 (discovery) and phase 2 (audit) of `do
 ### Browser capture results (baseline, before any redesign)
 
 - **Axe:** the only violation found is `target-size` (WCAG 2.5.8), on every home page (4 to 26 links), the lesson library (36), student detail (21), Forgot password, DBS checks and two-factor settings. No contrast violations: browser-default black on white and default link blue pass.
-- **Overflow at 375 px** on 11 pages: lesson library, correct a completion, propose lesson changes, consent records, and every Admin table page (students, user roles, student sign-ins, rank badges, mark as left).
+- **Overflow at 375 px** on 9 pages: lesson library, correct a completion, propose lesson changes, consent records, and every Admin table page (students, user roles, student sign-ins, rank badges, mark as left).
 - **Tablet and desktop:** no overflow, but text runs the full window width (lines well over 100 characters at 1280 px).
 
 ## What the application is today

@@ -30,7 +30,7 @@ Alternatives considered and set aside:
 
 ## 3. Colour
 
-Built from the patches the children actually wear, then tuned for WCAG 2.2 AA (ratios computed, `docs/design/redesign-direction.md` §8).
+Built from the patches the children actually wear, then tuned for WCAG 2.2 AA (ratios computed and listed below).
 
 **Keep blue and gold, deliberately.** They are on almost every patch's rim, and they are the mosaic ground of Byzantine churches. In the rank ladder they are the **destination**: Akolouthos, the last rank, is lapis and gold. A child's journey ends in the group's own colours.
 
