@@ -1,13 +1,15 @@
 # UI/UX redesign: discovery and audit
 
-Status: **in progress**, 23/10/2026. Phase 1 (discovery) and the first part of phase 2 (audit) of `docs/design/redesign-brief.md`.
+Status: **complete**, 23/10/2026. Phase 1 (discovery) and phase 2 (audit) of `docs/design/redesign-brief.md`.
 
-- **Done:** source-level review of every routable page, the layout, navigation and CSS. Browser inspection of the public pages at 1280 px and 375 px.
-- **Not yet done:** browser inspection of signed-in pages under each role. Blocked on test-account access; see "Blocker" below.
+- **Source review** of every routable page, the layout, navigation and CSS.
+- **Browser review:** every page as each role (anonymous, student, parent, teacher, approver, Safeguarding Officer, Admin, and a combined Admin+Teacher+Safeguarding Officer+Parent account) at 375, 768 and 1280 px, with axe-core (WCAG 2.0–2.2 A/AA tags) and a horizontal-overflow check. Tool: `tests/Vlms.UiTests/Capture/DesignCapture.cs` on the `redesign` branch (opt-in, `VLMS_CAPTURE=1`; synthetic data in the test host's in-memory database, built after Philip chose this route on 23/10/2026). Output in `artifacts/ui/capture/<timestamp>/` (not committed).
 
-## Blocker: signed-in pages
+### Browser capture results (baseline, before any redesign)
 
-Signed-in pages need a working account per role, and Teacher, Admin and Safeguarding Officer also need two-factor codes. The local test accounts (`*@vlms.test`, `alex.walk`, `sam.walk`) have no recorded passwords. Claude's attempts to set known passwords in the local database, and to reuse the end-to-end test host's throwaway accounts for screenshots, were refused by the session's permission classifier as credential handling. Options are for Philip to choose.
+- **Axe:** the only violation found is `target-size` (WCAG 2.5.8), on every home page (4 to 26 links), the lesson library (36), student detail (21), Forgot password, DBS checks and two-factor settings. No contrast violations: browser-default black on white and default link blue pass.
+- **Overflow at 375 px** on 11 pages: lesson library, correct a completion, propose lesson changes, consent records, and every Admin table page (students, user roles, student sign-ins, rank badges, mark as left).
+- **Tablet and desktop:** no overflow, but text runs the full window width (lines well over 100 characters at 1280 px).
 
 ## What the application is today
 
@@ -74,6 +76,15 @@ Severity: **High** (blocks the brief's goals or fails users), **Medium** (notice
 15. **Medium: the parent dashboard shows no progress within the rank and no completed lessons**, which is the main thing a parent wants to see.
 16. **Medium: the consent and apply forms are very long single pages** with no sections or progress cue, filled in on phones.
 
+### Found in the browser review
+
+24. **High: one-click Admin grant and unconfirmed revokes** (`/administration/user-roles`). Each user's "Grant a role" select defaults to the first role, usually **Admin**, so one click on Grant makes someone an Admin; Revoke acts immediately with no confirmation. A design problem with a security consequence: the select should start empty with a required choice, and both actions should confirm, naming the person and role.
+25. **High: Record completions lists every active student alphabetically, whatever the lesson's rank.** For a Shield-bearer lesson the list mixes Recruits to Heralds, with "already completed" and "consent lapsed" rows interleaved and disabled. The service does not restrict completions to the student's rank (`CompletionService`), so this is presentation only: students at the lesson's rank should come first, others collapsed. Whether a student may complete a lesson from another rank is a question for Philip.
+26. **Medium: the student and parent pages list one certificate per lesson** (22 rows for a Shield-bearer), each with View | Download links, longer than everything else on the page. Certificates belong with the lesson they certify, inside the rank journey, not as a separate ledger.
+27. **Medium: "Signed in as alex.hughes"** shows a child their username, and "Two-factor authentication" is offered to students, who can't use it meaningfully.
+28. **Medium: on a phone the navigation takes the whole first screen** for staff (8 rows for an Admin+Teacher before the page title).
+29. **Low: native disabled checkboxes** carry the blocked and already-completed state, low contrast grey text in some browsers; the reason text wraps under the name.
+
 ### Accessibility (WCAG 2.2 AA)
 
 Already good, and to keep: skip link, labelled controls, `aria-current` in navigation, error summary with per-field errors, `role="status"` results, unique accessible names on repeated buttons, captions on library tables.
@@ -99,5 +110,4 @@ Already good, and to keep: skip link, labelled controls, `aria-current` in navig
 
 ## Next steps
 
-1. Resolve the blocker, then inspect every role's pages at 375, 768 and 1280 px and complete this audit.
-2. Phase 3 design direction, informed by the external research (Orthodox Illustration Project terms, Khan Academy, BBC GEL, typefaces).
+Phase 3 design direction (`docs/design/redesign-direction.md`), informed by `docs/design/redesign-research.md`.
