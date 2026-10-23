@@ -79,11 +79,14 @@ public sealed class ParentRegistrationEndToEndTests : IDisposable
 
         // 2. The Safeguarding Officer reads the details and asks for more information.
         var so = await Browser.SignInAsync(_factory, safeguarding);
+        Assert.Contains("2 registration applications are waiting for review", await so.GetStringAsync("/"));
+        Assert.DoesNotContain("waiting for review", await parent.GetStringAsync("/"));
         var review = await so.GetStringAsync($"/registration/review?id={chrisId}");
         Assert.Contains("Dyslexia", review);
         var ask = await PostFormAsync(so, $"/registration/review?id={chrisId}", "safeguarding-review",
             [("Input.Message", "What reading support helps?"), ("Input.Action", "more-information")]);
         Assert.Contains("asked for more information", await ask.Content.ReadAsStringAsync());
+        Assert.Contains("1 registration application is waiting for review", await so.GetStringAsync("/"));
 
         // 3. The parent sees the question, answers and resubmits.
         var mine = await parent.GetStringAsync("/registration/my-applications");
@@ -110,6 +113,7 @@ public sealed class ParentRegistrationEndToEndTests : IDisposable
 
         // 5. The Admin approves at the second rank.
         var adminBrowser = await Browser.SignInAsync(_factory, admin);
+        Assert.Contains("1 registration application is waiting for final approval", await adminBrowser.GetStringAsync("/"));
         var approvePage = await adminBrowser.GetStringAsync($"/registration/approve?id={chrisId}");
         Assert.Contains("Starting rank", approvePage);
         var approve = await PostFormAsync(adminBrowser, $"/registration/approve?id={chrisId}", "admin-approval",

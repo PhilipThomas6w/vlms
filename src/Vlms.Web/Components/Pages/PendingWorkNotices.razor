@@ -1,0 +1,60 @@
+@using Vlms.Infrastructure.Registration
+@using Vlms.Infrastructure.Safeguarding
+@inject IAuthorizationService Authorization
+@inject ConsentRecordService ConsentService
+@inject StudentApplicationService Applications
+
+@if (_consent > 0)
+{
+    <p role="status" id="pending-consent-notice">
+        <a href="/safeguarding/consent">@_consent consent @(_consent == 1 ? "form is" : "forms are") waiting for review</a>
+    </p>
+}
+@if (_review > 0)
+{
+    <p role="status" id="pending-review-notice">
+        <a href="/registration/review">@_review registration @(_review == 1 ? "application is" : "applications are") waiting for review</a>
+    </p>
+}
+@if (_approval > 0)
+{
+    <p role="status" id="pending-approval-notice">
+        <a href="/registration/approve">@_approval registration @(_approval == 1 ? "application is" : "applications are") waiting for final approval</a>
+    </p>
+}
+
+@code {
+    // One component, counted one after another: the services share the circuit's DbContext, which
+    // can't run two queries at once, and sibling components' OnInitializedAsync calls overlap.
+    [CascadingParameter] private Task<AuthenticationState> AuthenticationState { get; set; } = default!;
+
+    private int _consent;
+    private int _review;
+    private int _approval;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var user = (await AuthenticationState).User;
+        if (await AllowedAsync(user, "RequireAdminOrSafeguardingOfficer"))
+            _consent = await CountAsync(() => ConsentService.CountPendingAsync());
+        if (await AllowedAsync(user, "RequireSafeguardingOfficer"))
+            _review = await CountAsync(() => Applications.CountAwaitingSafeguardingReviewAsync());
+        if (await AllowedAsync(user, "RequireAdmin"))
+            _approval = await CountAsync(() => Applications.CountAwaitingAdminApprovalAsync());
+    }
+
+    private async Task<bool> AllowedAsync(System.Security.Claims.ClaimsPrincipal user, string policy) =>
+        (await Authorization.AuthorizeAsync(user, policy)).Succeeded;
+
+    private static async Task<int> CountAsync(Func<Task<int>> count)
+    {
+        try
+        {
+            return await count();
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return 0; // The home page must still load; the linked page shows the same list.
+        }
+    }
+}
