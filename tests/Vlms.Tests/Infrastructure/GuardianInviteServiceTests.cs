@@ -511,4 +511,37 @@ public sealed class GuardianInviteServiceTests : IDisposable
         Assert.Single(fixture.Notifications.SentRequests);
         Assert.Equal(2, await fixture.Db.GuardianInvites.CountAsync());
     }
+
+    // --- Invite wording depends on whether the email has an account at send time (TC-040 / FR-019 follow-up). ---
+
+    [Fact]
+    public async Task InviteEmail_ForAnEmailWithNoAccount_SaysSetUpYourAccount()
+    {
+        using var fixture = Build(1000, null, Role.Admin);
+
+        await fixture.InviteService.IssueAsync(studentId: 100, parentGuardianId: 1);
+
+        var sent = Assert.Single(fixture.Notifications.SentRequests);
+        Assert.Equal("Set up your Varangians LMS account", sent.Subject);
+        Assert.Contains("To set up your account", sent.Body);
+        Assert.DoesNotContain("sign in", sent.Body, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task ResendAsync_WhenAnAccountNowExistsForTheEmail_SendsTheSignInToAcceptWording_WithTheTokenLink()
+    {
+        using var fixture = Build(1000, null, Role.Admin);
+        var (_, firstToken) = await fixture.InviteService.IssueAsync(studentId: 100, parentGuardianId: 1);
+        await CreateAccountAsync("Jane@Example.com");
+        fixture.Notifications.SentRequests.Clear();
+
+        await fixture.InviteService.ResendAsync(1);
+
+        var sent = Assert.Single(fixture.Notifications.SentRequests);
+        Assert.Equal("Sign in to accept your Varangians LMS invite", sent.Subject);
+        Assert.Contains("An account already exists for this email address", sent.Body);
+        Assert.Contains("sign in to that account", sent.Body);
+        Assert.DoesNotContain("To set up your account", sent.Body);
+        Assert.Contains("https://test.example/guardianship/accept-invite?token=", sent.Body);
+    }
 }
