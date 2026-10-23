@@ -20,11 +20,19 @@ try {
 try {
   function Stage($n,$b){ Write-Host "== $n ==" ; & $b ; if($LASTEXITCODE -ne 0){ Write-Error "$n failed"; exit 1 } }
   Stage "build"  { dotnet build -warnaserror }
-  Stage "test"   { dotnet test --nologo }
+  Stage "test"   { dotnet test tests/Vlms.Tests --nologo }
   Stage "secrets"{ & "$PSScriptRoot/check-secrets.ps1" }
   if(-not $Fast){
     Stage "access-control (ASVS 5.0 V8)" { & "$PSScriptRoot/check-access-control.ps1" }
     Stage "accessibility (WCAG 2.2 AA)"  { & "$PSScriptRoot/check-accessibility.ps1" }
+    # Browser WCAG checks (docs/adr/0009): axe-core and 320 px reflow against a real Kestrel-hosted app.
+    # Needs Chromium installed for Playwright; a missing browser fails the stage, it never skips it.
+    Stage "ui-tests (browser WCAG)" {
+      dotnet test tests/Vlms.UiTests --nologo
+      if($LASTEXITCODE -ne 0){
+        Write-Host "If the failure says the Playwright browser is not installed, run: pwsh tests/Vlms.UiTests/bin/Debug/net10.0/playwright.ps1 install chromium" -ForegroundColor Yellow
+      }
+    }
   }
   Write-Host "verify OK"
 }

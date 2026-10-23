@@ -34,6 +34,7 @@ deploy/
   README.md                end-to-end VPS setup narrative tying the above together — see
                            openwiki/web.md's "Deployment (self-hosted VPS)" section
 tests/
+  Vlms.UiTests/             Playwright + axe-core browser tests against a Kestrel-hosted app (full gate only, ADR-0009)
   Vlms.Tests/               xUnit, SQLite-in-memory (depends on Vlms.Domain; references Infrastructure types via project ref)
 build/
   verify.ps1                the gate: dotnet build -warnaserror, dotnet test, secrets scan, and
