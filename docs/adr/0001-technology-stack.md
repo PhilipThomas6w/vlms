@@ -2,7 +2,7 @@
 
 ## Status
 
-Partially superseded by `adr/0005-hosting-pivot-self-hosted-vps-postgresql.md` (Hosting, Database, Identity, File storage, Email rows). Client (Blazor Web App) and PDF generation (QuestPDF) rows remain in effect.
+Partially superseded by `adr/0005-hosting-pivot-self-hosted-vps-postgresql.md` (Hosting, Database, Identity, File storage, Email rows). Client (Blazor Web App) and PDF generation (QuestPDF) rows remain in effect. The client row holds for the MVP only: dr/0011-offline-access-and-native-app.md records the unrecorded offline access requirement and reopens the rejected .NET MAUI option for a later stage.
 
 ## Context
 

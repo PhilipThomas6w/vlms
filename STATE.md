@@ -109,6 +109,9 @@ Full narrative for Done/Log items to 12/08/2026: `docs/harness/STATE-archive.md`
 Fit-for-purpose build plan (Philip, 22/10/2026; `docs/delivery-plan.md` phase 2, `docs/governance/raid.md` I-001). Acceptance for every item below: tests, gate exits 0, **and** the matching steps in `docs/requirements/user-journeys.md` work in the running app for each named role (checked by running it, not inferred from service tests), with their status updated there.
 
 
+- **Calendar: list or grid view** (FR-022 follow-up; Philip, 25/10/2026). A switch between the current list and a month grid, remembered per person. Draft to confirm: on phones the grid shows day numbers with a dot for an event and the fast as a text pill under the number, and tapping a day opens it below the grid; the list stays the default on phones and the grid on wider screens. Must keep WCAG 2.2 AA (a real table with day headers, no colour-only meaning, no overflow at 375 px).
+- **Lessons saved for offline use** (FR-023; decisions (1) to (6) confirmed by Philip 25/10/2026) [Sonnet]. Service worker: save a chosen lesson's files (`/lessons/files/{id}`) to Cache Storage with `navigator.storage.persist()`; navigation with no connection falls back to a cached static "No internet connection" page listing saved lessons; refresh saved lessons when online. One button per lesson in the library. Also bump the static cache name per build: today it is fixed at `vlms-static-v1`, cache-first, so any unversioned asset can be served stale for ever. ASVS row (authorised content held on the device), WCAG row, browser test of save, go offline, open.
+
 Delegation (Philip, 22/10/2026): each item runs as a subagent in its own worktree, model in brackets. Items in a wave run in parallel; a wave starts when the items it depends on are merged into `master`.
 
 
@@ -262,3 +265,5 @@ Ordered by go-live critical path.
 - 2026-10-24: Redesign (version 7, phase 6) merged into master dba434d; Philip confirmed the phase 6 judgement calls; journey tracker queued; worktrees redesign-phase6 and chapters removed; full gate on master exit 0, 1101 + 14
 - 2026-10-24: Through the ranks added to the staff student record and the parent dashboard (52d1022); full gate exit 0, 1113 + 14. Next build item: attendance register (FR-020)
 - 2026-10-24: Attendance register (FR-020) built (2caa671); full gate exit 0, 1139 + 15 (browser journey included). Assumptions put to Philip.
+- 2026-10-25: Calendar first-render fix (`ArgumentOutOfRangeException`; month set before the first await); full gate exit 0, 1188 + 15. Offline access found never recorded: MVP stays the online-only PWA; .NET MAUI Blazor Hybrid app on the new `docs/roadmap.md` (Philip; `adr/0011`)
+- 2026-10-25: "Saints and readings" did nothing for Philip once, then worked; likely the page's connection dropped when the app was restarted. Not reproduced; `CalendarJourneyTests` (parent, teacher, combined roles) added as a guard. Offline scope: lessons only, PWA workaround now (FR-023), MAUI kept on the roadmap (Philip)

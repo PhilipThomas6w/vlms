@@ -20,7 +20,7 @@ Status: initial (design gate) — light-touch, proportionate to a solo-delivered
    Then: the purge, branding/contrast and go-live items already in `STATE.md`.
    Original phase 2 description: implementation via `loop-harness` `/work-next` cycles (one item at a time, in-session, gated by `build/verify.ps1`) against `STATE.md`, not a fixed Gantt schedule (solo delivery, no hard deadline — `requirements/constraints.md`). Scope: curriculum management (propose/approve/resubmit), progress tracking (completion, auto-promotion, certificates, badges), safeguarding/consent/DBS management including the corrected access-control model (`adr/0004`), parent dashboard + notifications, core reporting + at-risk flagging.
 3. **Delivery gate** — full test results, RTM completion, security/DPIA sign-off (`raid.md` D-003), operations readiness (runbook, monitoring — to be scoped at that gate, not over-specified now).
-4. **Deferred (post-MVP):** at-home learning encouragement beyond lesson content access (`requirements/business-requirements.md`). Lesson content access itself is MVP and a go-live blocker (Philip, 22/10/2026).
+4. **Deferred (post-MVP):** order and stages in `roadmap.md`, including the offline-capable .NET MAUI app (`adr/0011`). at-home learning encouragement beyond lesson content access (`requirements/business-requirements.md`). Lesson content access itself is MVP and a go-live blocker (Philip, 22/10/2026).
 
 ## Delivery approach
 

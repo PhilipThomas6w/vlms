@@ -13,6 +13,7 @@ Status: in progress
 - Lesson content access: teachers, students and parents open and download lesson content in the app, and teachers upload it through Approver-approved proposals (`functional.md`). This is the app's core purpose and was wrongly recorded as deferred "at-home learning" at discovery (Philip, 22/10/2026).
 
 **Deferred (not MVP):**
+- **Offline access (Philip, 25/10/2026; `adr/0011`):** the app works without a connection. Part of the brief from the outset but never recorded until now. Not met by the MVP: the PWA is online only. Planned as a .NET MAUI Blazor Hybrid app (`roadmap.md`, Later). Scope (Philip, 25/10/2026): **lesson content only.** A person can choose to make lessons available offline, which downloads them to the device; everything else may need a connection. Approach (Philip, 25/10/2026): met now in the PWA as an interim workaround (`functional.md` FR-023), with the .NET MAUI app kept on the roadmap. Many users, teachers included, have very poor technical skills; any added complexity is a serious barrier to use.
 - **Merchandise shop (Philip, 24/10/2026):** branded merchandise, including items carrying a parish's own name, sold through the app, once the brand design is settled. Not designed yet; when it is, payment should go through a hosted checkout so card details never touch VLMS.
 - At-home learning encouragement beyond lesson content access, such as assignments set for between sessions. Access to the lesson material itself is now Must have (above).
 
