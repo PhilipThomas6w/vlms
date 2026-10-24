@@ -276,4 +276,55 @@ public sealed class ParentDashboardServiceTests : IDisposable
 
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => run.Service(caller).GetDashboardAsync());
     }
+
+    [Fact]
+    public async Task GetJourneysAsync_ParentA_GetsAlexsJourneyOnly_LeavingOutReversedCompletions()
+    {
+        var parentA = new FakeCurrentUserContext(userId: 1, Role.Parent);
+        using var run = CreateContext(parentA);
+
+        var journeys = await run.Service(parentA).GetJourneysAsync();
+
+        var (studentId, journey) = Assert.Single(journeys);
+        Assert.Equal(100, studentId);
+        var recruit = Assert.Single(journey.Ranks);
+        Assert.Equal(JourneyRankState.Current, recruit.State);
+        Assert.Equal(1, recruit.CompletedCount);
+        Assert.Equal(2, recruit.Lessons.Count);
+        Assert.NotNull(recruit.BadgeAwardedAt);
+    }
+
+    [Fact]
+    public async Task GetJourneysAsync_ParentB_NeverGetsAlex()
+    {
+        var parentB = new FakeCurrentUserContext(userId: 2, Role.Parent);
+        using var run = CreateContext(parentB);
+
+        var journeys = await run.Service(parentB).GetJourneysAsync();
+
+        Assert.Equal([200], journeys.Keys);
+    }
+
+    [Fact]
+    public async Task GetJourneysAsync_ParentWithNoLinkedStudents_ReturnsEmpty()
+    {
+        var parentC = new FakeCurrentUserContext(userId: 3, Role.Parent);
+        using var run = CreateContext(parentC);
+
+        Assert.Empty(await run.Service(parentC).GetJourneysAsync());
+    }
+
+    [Theory]
+    [InlineData(Role.Teacher)]
+    [InlineData(Role.Admin)]
+    [InlineData(Role.Approver)]
+    [InlineData(Role.SafeguardingOfficer)]
+    [InlineData(Role.Student)]
+    public async Task GetJourneysAsync_ByNonParentRole_Throws(Role role)
+    {
+        var caller = new FakeCurrentUserContext(userId: 1, role);
+        using var run = CreateContext(caller);
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => run.Service(caller).GetJourneysAsync());
+    }
 }

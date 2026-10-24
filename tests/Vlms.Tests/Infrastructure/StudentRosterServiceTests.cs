@@ -124,6 +124,7 @@ public sealed class StudentRosterServiceTests : IDisposable
 
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => Run(user, s => s.ListActiveStudentsAsync()));
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => Run(user, s => s.GetRecordAsync(100)));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => Run(user, s => s.GetJourneyAsync(100)));
     }
 
     [Fact]
@@ -152,5 +153,31 @@ public sealed class StudentRosterServiceTests : IDisposable
         var teacher = new FakeCurrentUserContext(10, Role.Teacher);
 
         Assert.Null(await Run(teacher, s => s.GetRecordAsync(studentId)));
+    }
+
+    [Fact]
+    public async Task Journey_ShowsEveryRank_WithTheCurrentOne_AndLeavesOutReversedCompletions()
+    {
+        var teacher = new FakeCurrentUserContext(10, Role.Teacher);
+        var journey = await Run(teacher, s => s.GetJourneyAsync(100));
+
+        Assert.NotNull(journey);
+        Assert.Equal(["Recruit", "Squire"], journey.Ranks.Select(r => r.Name));
+        Assert.Equal([JourneyRankState.Current, JourneyRankState.Ahead], journey.Ranks.Select(r => r.State));
+        var current = journey.Current!;
+        Assert.Equal(1, current.CompletedCount);
+        Assert.Equal(3, current.Lessons.Count);
+        Assert.Equal(T, current.BadgeAwardedAt);
+    }
+
+    [Theory]
+    [InlineData(300)]
+    [InlineData(400)]
+    [InlineData(999)]
+    public async Task Journey_NotActiveOrUnknown_ReturnsNull(int studentId)
+    {
+        var admin = new FakeCurrentUserContext(1, Role.Admin);
+
+        Assert.Null(await Run(admin, s => s.GetJourneyAsync(studentId)));
     }
 }

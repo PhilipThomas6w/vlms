@@ -115,6 +115,17 @@ public sealed class StudentRosterService
     }
 
     /// <summary>
+    /// One active student's journey through every rank (the student page's "Through the ranks", shown
+    /// to staff on the student record), or null if unknown or not active.
+    /// </summary>
+    public async Task<StudentJourney?> GetJourneyAsync(int studentId, CancellationToken ct = default)
+    {
+        RequireStaff();
+        var active = await _db.Students.AnyAsync(s => s.Id == studentId && s.Status == StudentStatus.Active, ct);
+        return active ? await StudentJourney.LoadAsync(_db, studentId, ct) : null;
+    }
+
+    /// <summary>
     /// Builds one student's record with no caller check of its own. Shared with
     /// <see cref="StudentPageService"/> (FR-011), which resolves the caller's own student id first;
     /// every caller must do its own authorization before calling this.

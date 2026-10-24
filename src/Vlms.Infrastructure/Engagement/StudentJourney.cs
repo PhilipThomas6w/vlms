@@ -52,7 +52,8 @@ public sealed record StudentJourney(
 
     /// <summary>
     /// Builds a journey with no caller check of its own: every caller must authorize first (as
-    /// <see cref="StudentPageService"/> does by resolving the caller's own student).
+    /// <see cref="StudentPageService"/> does by resolving the caller's own student, the roster and the
+    /// parent dashboard by their own role and scope checks).
     /// </summary>
     internal static async Task<StudentJourney?> LoadAsync(VlmsDbContext db, int studentId, CancellationToken ct)
     {

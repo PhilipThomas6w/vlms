@@ -189,30 +189,7 @@ else
                 }
             </div>
 
-            @* Through the ranks: all ten as a procession. (Never "The Way": that is the name of the faith itself.) *@
-            <aside class="the-way" aria-labelledby="way-title">
-                <h2 id="way-title">Through the ranks</h2>
-                <ol class="the-way__list">
-                    @foreach (var rank in _journey.Ranks)
-                    {
-                        var movement = Movement(rank.Order);
-                        if (movement is not null)
-                        {
-                            <li class="the-way__movement" aria-hidden="true">@movement</li>
-                        }
-                        <li class="the-way__station is-@rank.State.ToString().ToLowerInvariant() rank-@rank.Order"
-                            aria-current="@(rank.State == JourneyRankState.Current ? "step" : null)">
-                            <RankMedallion RankId="rank.RankId" Order="rank.Order" RankName="@rank.Name"
-                                           HasBadgeImage="rank.HasBadgeImage" Earned="@(rank.BadgeAwardedAt is not null)"
-                                           Ahead="@(rank.State == JourneyRankState.Ahead)" Size="sm" Alt="" />
-                            <div class="the-way__text">
-                                <span class="the-way__name">@rank.Name</span>
-                                <span class="the-way__meta">@StationText(rank)</span>
-                            </div>
-                        </li>
-                    }
-                </ol>
-            </aside>
+            <RankProcession Ranks="_journey.Ranks" Sidebar="true" />
         </div>
     </div>
 }
@@ -239,29 +216,6 @@ else
     private static string FirstName(string name) => name.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? name;
 
     private static string Article(string word) => "AEIOU".Contains(char.ToUpperInvariant(word[0])) ? "an" : "a";
-
-    // The stages of the procession through the ranks (direction doc, section 9), shown as labels between stations.
-    private static string? Movement(int order) => order switch
-    {
-        1 => "Joining the Guard",
-        5 => "Proclaiming",
-        6 => "In the procession",
-        9 => "Bearing Christ",
-        10 => "Leading",
-        _ => null,
-    };
-
-    private static string StationText(JourneyRank rank) => rank.State switch
-    {
-        JourneyRankState.Past => rank.BadgeAwardedAt is { } earned ? $"Earned {earned:d MMMM yyyy}" : "Earned",
-        JourneyRankState.Current when rank.Order == 10 => "Your rank now: leadership and a wider programme",
-        JourneyRankState.Current when rank.Lessons.Count == 0 => "Your rank now. Lessons being written",
-        JourneyRankState.Current => $"Your rank now: {rank.CompletedCount} of {rank.Lessons.Count} lessons",
-        // Akolouthos is not a badge level: after Christ-bearer, a leadership role and a wider programme (syllabus scheme).
-        _ when rank.Order == 10 => "After Christ-bearer: leadership and a wider programme",
-        _ when rank.Lessons.Count == 0 => "Lessons being written",
-        _ => $"{rank.Lessons.Count} lessons",
-    };
 
     private static string TagName(LessonTag tag) => tag switch
     {

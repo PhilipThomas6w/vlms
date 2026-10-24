@@ -46,16 +46,16 @@
     .student__main { display: contents; }
     .next-lesson { order: 1; }
     .rank-lessons { order: 2; }
-    .the-way { order: 3; }
+    .student__body ::deep .the-way { order: 3; }
     .earlier { order: 4; }
 }
 @media (min-width: 60rem) {
     .student__body { grid-template-columns: minmax(0, 1fr) 19rem; gap: var(--s-7); align-items: start; }
 }
 .student__main > section + section { margin-top: var(--s-6); }
-.student h2 { font-size: var(--step-2); margin-top: 0; display: flex; align-items: center; gap: var(--s-2); }
+.student ::deep h2 { font-size: var(--step-2); margin-top: 0; display: flex; align-items: center; gap: var(--s-2); }
 /* Gould's Byzantine cross (Orthodox Arts Journal) in gold before each section heading. */
-.student h2::before {
+.student ::deep h2::before {
     content: ""; flex: none; width: 1.1rem; height: 1.1rem; background: var(--gold-700);
     -webkit-mask: url("img/oaj/byzantine-cross.svg") center / contain no-repeat;
     mask: url("img/oaj/byzantine-cross.svg") center / contain no-repeat;
@@ -121,40 +121,3 @@
 .earlier__list { list-style: none; margin: 0 0 var(--s-3); padding: 0 0 0 3.75rem; }
 .earlier__list li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s-2); border-top: 1px dashed var(--line); }
 
-/* ---------- The way: the ten ranks as a procession ---------- */
-.the-way {
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: var(--r-panel);
-    padding: var(--s-5) var(--s-4);
-}
-@media (min-width: 60rem) { .the-way { position: sticky; top: var(--s-4); } }
-.the-way__list { list-style: none; margin: 0; padding: 0; position: relative; }
-.the-way__list::before {
-    /* The processional way: one line through every station's centre. */
-    content: ""; position: absolute; left: calc(1.375rem - 1px); top: 1.5rem; bottom: 1.5rem;
-    width: 2px; background: repeating-linear-gradient(to bottom, var(--line-strong) 0 4px, transparent 4px 8px);
-}
-.the-way__movement {
-    position: relative;
-    font-family: var(--font-display); font-style: italic; font-weight: 600;
-    color: var(--gold-700); font-size: var(--step-0);
-    padding: var(--s-3) 0 var(--s-1) 3.75rem;
-}
-.the-way__station {
-    position: relative;
-    display: flex; align-items: center; gap: var(--s-3);
-    padding: var(--s-2) var(--s-2) var(--s-2) 0;
-    border-radius: var(--r-control);
-}
-.the-way__text { display: flex; flex-direction: column; min-width: 0; }
-.the-way__name { font-weight: 700; line-height: 1.25; }
-.the-way__meta { color: var(--ink-soft); font-size: var(--step--1); }
-.the-way__station.is-ahead .the-way__name { color: var(--ink-soft); font-weight: 600; }
-.the-way__station.is-current {
-    background: var(--rank-tint);
-    margin-left: -0.5rem; padding-left: 0.5rem;
-    box-shadow: inset 4px 0 0 var(--rank-field);
-}
-.the-way__station.is-current .the-way__name { font-family: var(--font-display); font-size: var(--step-1); color: var(--lapis-900); }
-.the-way__station.is-current .the-way__meta { color: var(--ink); font-weight: 600; }

@@ -58,6 +58,11 @@ else
                 }
             </p>
 
+            @if (_journeys.GetValueOrDefault(student.StudentId) is { } journey)
+            {
+                <RankProcession Ranks="journey.Ranks" CurrentLabel="Current rank" HeadingLevel="3" HeadingId="@($"way-{student.StudentId}")" />
+            }
+
             <h3>Badges</h3>
             @if (student.Badges.Count == 0)
             {
@@ -106,6 +111,7 @@ else
 
 @code {
     private List<ParentDashboardStudent> _students = new();
+    private IReadOnlyDictionary<int, StudentJourney> _journeys = new Dictionary<int, StudentJourney>();
     private string? _errorMessage;
 
     private static string ConsentPill(Vlms.Domain.ConsentStatus status) => status switch
@@ -120,6 +126,7 @@ else
         try
         {
             _students = (await DashboardService.GetDashboardAsync()).ToList();
+            _journeys = await DashboardService.GetJourneysAsync();
         }
         catch (UnauthorizedAccessException ex)
         {

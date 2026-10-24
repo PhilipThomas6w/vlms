@@ -170,4 +170,33 @@ public sealed class ParentDashboardService
 
         return result;
     }
+
+    /// <summary>
+    /// Each linked student's journey through every rank (the dashboard's "Through the ranks"), keyed by
+    /// student id. Same caller checks and linked-students scope as <see cref="GetDashboardAsync"/>.
+    /// </summary>
+    public async Task<IReadOnlyDictionary<int, StudentJourney>> GetJourneysAsync(CancellationToken ct = default)
+    {
+        if (!_currentUser.HasRole(Role.Parent))
+        {
+            throw new UnauthorizedAccessException("Caller must hold the Parent role to view the parent dashboard.");
+        }
+
+        if (_currentUser.UserId is not int userId)
+        {
+            return new Dictionary<int, StudentJourney>();
+        }
+
+        var studentIds = await ParentGuardianLinkage.LinkedStudentIds(_db, userId).ToListAsync(ct);
+        var journeys = new Dictionary<int, StudentJourney>();
+        foreach (var studentId in studentIds.Distinct())
+        {
+            if (await StudentJourney.LoadAsync(_db, studentId, ct) is { } journey)
+            {
+                journeys[studentId] = journey;
+            }
+        }
+
+        return journeys;
+    }
 }

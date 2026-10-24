@@ -44,6 +44,11 @@ else
         </dd>
     </dl>
 
+    @if (_journey is not null)
+    {
+        <RankProcession Ranks="_journey.Ranks" CurrentLabel="Current rank" />
+    }
+
     <h2>Completions</h2>
     @if (_record.Completions.Count == 0)
     {
@@ -107,6 +112,7 @@ else
     [Parameter] public int StudentId { get; set; }
 
     private StudentRecord? _record;
+    private StudentJourney? _journey;
     private string? _errorMessage;
 
     protected override async Task OnParametersSetAsync()
@@ -114,6 +120,7 @@ else
         try
         {
             _record = await Roster.GetRecordAsync(StudentId);
+            _journey = _record is null ? null : await Roster.GetJourneyAsync(StudentId);
         }
         catch (UnauthorizedAccessException ex)
         {
