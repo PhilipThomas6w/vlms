@@ -1,0 +1,223 @@
+@page "/administration/chapters"
+@attribute [Authorize(Policy = "RequireNationalAdministrator")]
+@rendermode InteractiveServer
+@using Vlms.Domain
+@using Vlms.Infrastructure.Chapters
+@inject ChapterService ChapterService
+
+@* National Administrator only (FR-021, docs/adr/0010-chapters.md): chapters, each chapter's
+   Admins, and the national roles. Shows names and emails of role holders only; no chapter's
+   children, consent, DBS or application records are read here. *@
+
+<PageTitle>Chapters</PageTitle>
+
+<h1>Chapters</h1>
+
+<p>
+    Set up chapters, appoint and remove each chapter's Admins, and manage the national roles. A
+    chapter's Admins then appoint its Safeguarding Officers, Teachers and other Admins. Being a
+    National Administrator does not open any chapter's records: to work in a chapter you need a role
+    there. Someone must register and confirm their email address before they can be given a role.
+</p>
+
+@if (_errorMessage is not null)
+{
+    <p class="error" role="alert">@_errorMessage</p>
+}
+<p role="status">@_statusMessage</p>
+
+<h2>Add a chapter</h2>
+<form @onsubmit="CreateAsync" @onsubmit:preventDefault>
+    <div>
+        <label for="new-name">Chapter name (usually the parish's name)</label>
+        <input id="new-name" maxlength="@Chapter.MaxNameLength" @bind="_newName" aria-required="true" />
+    </div>
+    <div>
+        <label for="new-place">Place (town or city)</label>
+        <input id="new-place" maxlength="@Chapter.MaxNameLength" @bind="_newPlace" aria-required="true" />
+    </div>
+    <button type="submit">Add chapter</button>
+</form>
+
+<h2>All chapters</h2>
+@foreach (var chapter in _chapters)
+{
+    var edit = _edits[chapter.Id];
+    <section aria-labelledby="chapter-@chapter.Id-heading">
+        <h3 id="chapter-@chapter.Id-heading">@chapter.Name@(chapter.IsActive ? "" : " (closed)")</h3>
+        <p>Created @chapter.CreatedAt.ToString("dd/MM/yyyy")</p>
+        <form @onsubmit="() => UpdateAsync(chapter.Id)" @onsubmit:preventDefault>
+            <div>
+                <label for="name-@chapter.Id">Name of @chapter.Name</label>
+                <input id="name-@chapter.Id" maxlength="@Chapter.MaxNameLength" @bind="edit.Name" />
+            </div>
+            <div>
+                <label for="place-@chapter.Id">Place of @chapter.Name</label>
+                <input id="place-@chapter.Id" maxlength="@Chapter.MaxNameLength" @bind="edit.Place" />
+            </div>
+            <div>
+                <input id="open-@chapter.Id" type="checkbox" @bind="edit.IsActive" />
+                <label for="open-@chapter.Id">@chapter.Name is open to new registrations</label>
+            </div>
+            <button type="submit" aria-label="@($"Save changes to {chapter.Name}")">Save changes</button>
+        </form>
+
+        <h4>Admins</h4>
+        @if (_admins[chapter.Id].Count == 0)
+        {
+            <p>No Admins yet.</p>
+        }
+        else
+        {
+            <ul>
+                @foreach (var admin in _admins[chapter.Id])
+                {
+                    <li>
+                        @admin.DisplayName (@admin.Email)@(admin.HasLeft ? " (left)" : "")
+                        <button type="button" aria-label="@($"Remove {admin.DisplayName} as Admin of {chapter.Name}")"
+                                @onclick="() => RemoveAdminAsync(chapter, admin)">Remove</button>
+                    </li>
+                }
+            </ul>
+        }
+        <form @onsubmit="() => AppointAdminAsync(chapter)" @onsubmit:preventDefault>
+            <label for="admin-email-@chapter.Id">Email address of a new Admin for @chapter.Name</label>
+            <input id="admin-email-@chapter.Id" type="email" autocomplete="off" @bind="edit.AdminEmail" />
+            <button type="submit" aria-label="@($"Appoint Admin of {chapter.Name}")">Appoint Admin</button>
+        </form>
+    </section>
+}
+
+<h2>National roles</h2>
+@foreach (var role in NationalRoles)
+{
+    <section aria-labelledby="role-@role-heading">
+        <h3 id="role-@role-heading">@role.DisplayName()</h3>
+        @if (role == Role.Approver)
+        {
+            <p>Approves lesson changes for the whole curriculum. It gives no access to any child's records.</p>
+        }
+        else
+        {
+            <p>Runs the platform as described above. It gives no access to any child's records.</p>
+        }
+        @if (_holders[role].Count == 0)
+        {
+            <p>Nobody holds this role.</p>
+        }
+        else
+        {
+            <ul>
+                @foreach (var holder in _holders[role])
+                {
+                    <li>
+                        @holder.DisplayName (@holder.Email)
+                        <button type="button" aria-label="@($"Remove {role.DisplayName()} from {holder.DisplayName}")"
+                                @onclick="() => RevokeNationalAsync(role, holder)">Remove</button>
+                    </li>
+                }
+            </ul>
+        }
+        <form @onsubmit="() => GrantNationalAsync(role)" @onsubmit:preventDefault>
+            <label for="grant-@role">Email address of a new @role.DisplayName()</label>
+            <input id="grant-@role" type="email" autocomplete="off" @bind="_nationalEmails[role]" />
+            <button type="submit" aria-label="@($"Grant {role.DisplayName()}")">Grant</button>
+        </form>
+    </section>
+}
+
+@code {
+    private static readonly Role[] NationalRoles = [Role.Approver, Role.NationalAdministrator];
+
+    private IReadOnlyList<ChapterSummary> _chapters = [];
+    private readonly Dictionary<int, ChapterEdit> _edits = new();
+    private readonly Dictionary<int, IReadOnlyList<RoleHolder>> _admins = new();
+    private readonly Dictionary<Role, IReadOnlyList<RoleHolder>> _holders = new();
+    private readonly Dictionary<Role, string?> _nationalEmails = new() { [Role.Approver] = null, [Role.NationalAdministrator] = null };
+    private string? _newName;
+    private string? _newPlace;
+    private string? _errorMessage;
+    private string? _statusMessage;
+
+    private sealed class ChapterEdit
+    {
+        public string Name { get; set; } = "";
+        public string Place { get; set; } = "";
+        public bool IsActive { get; set; }
+        public string? AdminEmail { get; set; }
+    }
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _chapters = await ChapterService.ListAllAsync();
+        _edits.Clear();
+        _admins.Clear();
+        foreach (var chapter in _chapters)
+        {
+            _edits[chapter.Id] = new ChapterEdit { Name = chapter.Name, Place = chapter.Place, IsActive = chapter.IsActive };
+            _admins[chapter.Id] = await ChapterService.ListAdminsAsync(chapter.Id);
+        }
+
+        foreach (var role in NationalRoles)
+        {
+            _holders[role] = await ChapterService.ListNationalRoleHoldersAsync(role);
+        }
+    }
+
+    private Task CreateAsync() => RunAsync(async () =>
+    {
+        var created = await ChapterService.CreateAsync(_newName ?? "", _newPlace ?? "");
+        _newName = null;
+        _newPlace = null;
+        return $"{created.Name} added.";
+    });
+
+    private Task UpdateAsync(int chapterId) => RunAsync(async () =>
+    {
+        var edit = _edits[chapterId];
+        await ChapterService.UpdateAsync(chapterId, edit.Name, edit.Place, edit.IsActive);
+        return $"{edit.Name} saved.";
+    });
+
+    private Task AppointAdminAsync(ChapterSummary chapter) => RunAsync(async () =>
+    {
+        await ChapterService.AppointAdminAsync(chapter.Id, _edits[chapter.Id].AdminEmail ?? "");
+        return $"Admin appointed for {chapter.Name}.";
+    });
+
+    private Task RemoveAdminAsync(ChapterSummary chapter, RoleHolder admin) => RunAsync(async () =>
+    {
+        await ChapterService.RemoveAdminAsync(chapter.Id, admin.UserId);
+        return $"{admin.DisplayName} is no longer an Admin of {chapter.Name}.";
+    });
+
+    private Task GrantNationalAsync(Role role) => RunAsync(async () =>
+    {
+        await ChapterService.GrantNationalRoleAsync(role, _nationalEmails[role] ?? "");
+        _nationalEmails[role] = null;
+        return $"{role.DisplayName()} granted.";
+    });
+
+    private Task RevokeNationalAsync(Role role, RoleHolder holder) => RunAsync(async () =>
+    {
+        await ChapterService.RevokeNationalRoleAsync(role, holder.UserId);
+        return $"{role.DisplayName()} removed from {holder.DisplayName}.";
+    });
+
+    private async Task RunAsync(Func<Task<string>> action)
+    {
+        _errorMessage = null;
+        _statusMessage = null;
+        try
+        {
+            _statusMessage = await action();
+            await LoadAsync();
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or UnauthorizedAccessException)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+}

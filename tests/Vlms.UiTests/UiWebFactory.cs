@@ -105,5 +105,7 @@ public sealed class UiWebFactory : WebApplicationFactory<Vlms.Web.Components.App
         public int? UserId => 1;
         public bool HasRole(Role role) => role == Role.Admin;
         public bool HasMfaEnabled => true;
+        public int? ActiveChapterId => Chapter.ShrewsburyId;
+        public bool SeesAllChapters => false;
     }
 }

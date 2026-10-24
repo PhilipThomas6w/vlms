@@ -28,7 +28,7 @@ public sealed class StudentPageServiceTests : IDisposable
         _anchorConnection = new SqliteConnection(_connectionString);
         _anchorConnection.Open();
 
-        using var db = NewContext(NullCurrentUserContext.Instance);
+        using var db = NewContext(TestSeedUserContext.Instance);
         db.Database.EnsureCreated();
 
         db.Ranks.Add(new Rank { Id = 1, Order = 1, Code = "R1", Name = "Recruit" });
@@ -193,7 +193,7 @@ public sealed class StudentPageServiceTests : IDisposable
     [Fact]
     public async Task Journey_NextLesson_IsTheFirstIncompleteLessonOfTheCurrentRank()
     {
-        using (var db = NewContext(NullCurrentUserContext.Instance))
+        using (var db = NewContext(TestSeedUserContext.Instance))
         {
             var sam = db.Students.Single(s => s.Id == 200);
             db.Entry(sam).Property(s => s.CurrentRankId).CurrentValue = 2;

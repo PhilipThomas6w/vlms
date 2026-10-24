@@ -36,8 +36,11 @@ namespace Vlms.Domain;
 /// (built-in expiry) and again here as a defence-in-depth belt-and-braces check, in case a future
 /// caller ever unprotects a token without going through <c>GuardianInviteService</c>.
 /// </summary>
-public sealed class GuardianInvite
+public sealed class GuardianInvite : IChapterOwned
 {
+    /// <summary>The chapter this record belongs to (docs/adr/0010-chapters.md): always its parent row's. Left at 0, it is copied from the parent on save.</summary>
+    public int ChapterId { get; init; }
+
     public required int Id { get; init; }
     public required int StudentId { get; init; }
     public required int ParentGuardianId { get; init; }

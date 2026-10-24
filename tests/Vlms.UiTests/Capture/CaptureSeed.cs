@@ -62,7 +62,7 @@ public static class CaptureSeed
             }
 
             db.AppUsers.Add(new AppUser { Id = id, DisplayName = display, Email = email ?? userName });
-            foreach (var role in roles) db.UserRoles.Add(new UserRole { UserId = id, Role = role });
+            foreach (var role in roles) db.UserRoles.Add(new UserRole { UserId = id, Role = role, ChapterId = RoleScope.IsChapterRole(role) ? Chapter.ShrewsburyId : null });
             await db.SaveChangesAsync();
             var persona = new CapturePersona(key, userName, authenticatorKey, id);
             personas[key] = persona;
@@ -282,5 +282,7 @@ public static class CaptureSeed
         public int? UserId => 101;
         public bool HasRole(Role role) => role == Role.Admin;
         public bool HasMfaEnabled => true;
+        public int? ActiveChapterId => Chapter.ShrewsburyId;
+        public bool SeesAllChapters => true;
     }
 }

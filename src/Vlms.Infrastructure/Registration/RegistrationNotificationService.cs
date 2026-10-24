@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Vlms.Domain;
+using Vlms.Infrastructure.Chapters;
 
 namespace Vlms.Infrastructure.Registration;
 
@@ -18,8 +19,9 @@ namespace Vlms.Infrastructure.Registration;
 /// dietary, special educational needs or emergency details, and not the reviewer's request or
 /// comments, which may themselves describe a child's needs. The parent reads those after signing in.
 ///
-/// <b>Recipients.</b> Staff: holders of the role who have not left. Applicant: their own account, if
-/// it has not left.
+/// <b>Recipients.</b> Staff: holders of the role in the application's chapter who have not left
+/// (FR-021, docs/adr/0010-chapters.md: another chapter's staff hear nothing). Applicant: their own
+/// account, if it has not left.
 ///
 /// <b>Failure isolation.</b> Callers invoke these after their save. They never throw (cancellation
 /// aside): a failure is logged and the submission or decision stands.
@@ -48,28 +50,20 @@ public sealed class RegistrationNotificationService
     {
         try
         {
-            var names = await _db.StudentApplications
+            var rows = await _db.StudentApplications
                 .Where(a => applicationIds.Contains(a.Id))
                 .OrderBy(a => a.Id)
-                .Select(a => a.ChildName)
+                .Select(a => new { a.ChildName, a.ChapterId })
                 .ToListAsync(ct);
-            if (names.Count == 0)
+            if (rows.Count == 0)
             {
                 return;
             }
 
-            var list = string.Join(", ", names);
-            var subject = resubmitted
-                ? $"VLMS: registration application updated ({list})"
-                : $"VLMS: new registration application ({list})";
-            var body = (resubmitted
-                    ? $"A parent has answered your request and resubmitted the application to register {list}. It is waiting for safeguarding review."
-                    : $"A parent has applied to register {list}. The application is waiting for safeguarding review.")
-                + Link("Review it here", "/registration/review");
-
-            foreach (var recipient in await StaffAsync(Role.SafeguardingOfficer, ct))
+            // One submission is for one chapter; each chapter's officers hear only of its own children.
+            foreach (var chapter in rows.GroupBy(r => r.ChapterId))
             {
-                await SendAsync(recipient, subject, body, ct);
+                await NotifySubmittedToChapterAsync(chapter.Key, chapter.Select(r => r.ChildName).ToList(), resubmitted, ct);
             }
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -78,15 +72,36 @@ public sealed class RegistrationNotificationService
         }
     }
 
-    /// <summary>Tells every active Admin that an application passed safeguarding review.</summary>
+    private async Task NotifySubmittedToChapterAsync(int chapterId, IReadOnlyList<string> names, bool resubmitted, CancellationToken ct)
+    {
+        var list = string.Join(", ", names);
+        var subject = resubmitted
+            ? $"VLMS: registration application updated ({list})"
+            : $"VLMS: new registration application ({list})";
+        var body = (resubmitted
+                ? $"A parent has answered your request and resubmitted the application to register {list}. It is waiting for safeguarding review."
+                : $"A parent has applied to register {list}. The application is waiting for safeguarding review.")
+            + Link("Review it here", "/registration/review");
+
+        foreach (var recipient in await StaffAsync(chapterId, Role.SafeguardingOfficer, ct))
+        {
+            await SendAsync(recipient, subject, body, ct);
+        }
+    }
+
+    /// <summary>Tells every active Admin of the application's chapter that it passed safeguarding review.</summary>
     public async Task NotifyPassedSafeguardingAsync(int applicationId, CancellationToken ct = default)
     {
         try
         {
-            var childName = await ChildNameAsync(applicationId, ct);
+            var application = await _db.StudentApplications
+                .Where(a => a.Id == applicationId)
+                .Select(a => new { a.ChildName, a.ChapterId })
+                .SingleAsync(ct);
+            var childName = application.ChildName;
             var body = $"The application to register {childName} has passed safeguarding review and is waiting for final approval."
                 + Link("Approve it here", "/registration/approve");
-            foreach (var recipient in await StaffAsync(Role.Admin, ct))
+            foreach (var recipient in await StaffAsync(application.ChapterId, Role.Admin, ct))
             {
                 await SendAsync(recipient, $"VLMS: registration waiting for approval ({childName})", body, ct);
             }
@@ -147,15 +162,11 @@ public sealed class RegistrationNotificationService
 
     private sealed record Recipient(string Email, string DisplayName);
 
-    private Task<List<Recipient>> StaffAsync(Role role, CancellationToken ct) =>
-        _db.AppUsers
-            .Where(u => !u.HasLeft && u.Roles.Any(r => r.Role == role))
+    private Task<List<Recipient>> StaffAsync(int chapterId, Role role, CancellationToken ct) =>
+        ChapterMembership.StaffIn(_db, chapterId, role)
             .OrderBy(u => u.Id)
             .Select(u => new Recipient(u.Email, u.DisplayName))
             .ToListAsync(ct);
-
-    private Task<string> ChildNameAsync(int applicationId, CancellationToken ct) =>
-        _db.StudentApplications.Where(a => a.Id == applicationId).Select(a => a.ChildName).SingleAsync(ct);
 
     private string Link(string text, string path) =>
         _publicBaseUrl is null ? "" : $"\n\n{text}: {_publicBaseUrl}{path}";

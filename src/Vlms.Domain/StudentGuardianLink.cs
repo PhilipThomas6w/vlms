@@ -7,8 +7,11 @@ namespace Vlms.Domain;
 /// self-service and, since 22/10/2026, never by a Teacher (adr/0008 answer 4; data-design.md
 /// "Guardian link verification").
 /// </summary>
-public sealed class StudentGuardianLink
+public sealed class StudentGuardianLink : IChapterOwned
 {
+    /// <summary>The chapter this record belongs to (docs/adr/0010-chapters.md): always its parent row's. Left at 0, it is copied from the parent on save.</summary>
+    public int ChapterId { get; init; }
+
     public required int StudentId { get; init; }
     public required int ParentGuardianId { get; init; }
     public required int CreatedByUserId { get; init; }

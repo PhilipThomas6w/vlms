@@ -15,7 +15,11 @@ Three things worth knowing that aren't obvious from `data-design.md` alone:
 
 All entity primary keys are application-assigned (`ValueGeneratedNever` in `VlmsDbContext`), except `SensitiveDataAccessLog.Id` and `VlmsIdentityUser.Id` (`Vlms.Infrastructure/Identity/`, ASP.NET Core Identity's own store row, not a `Vlms.Domain` entity — see [authentication-authorization.md](authentication-authorization.md)), both database-generated (`ValueGeneratedOnAdd`) — see [data-access.md](data-access.md) for why. `AppUser.Id` stays `ValueGeneratedNever`, but its *value* is always copied from the paired `VlmsIdentityUser.Id` immediately after that row is inserted, not computed independently.
 
+**Chapters (adr/0010):** new `Chapter`, `ActiveChapterChoice` and the `IChapterOwned` interface (13 entities, listed in [chapters.md](chapters.md)); `UserRole` gains `Id` and nullable `ChapterId`.
+
 ## `Role` (`src/Vlms.Domain/Role.cs`)
+
+`NationalAdministrator` was appended (adr/0010); `RoleScope` says which roles are per chapter (Admin, Teacher, Parent, Student, Safeguarding Officer) and which national (Approver, National Administrator).
 
 Enum: `Admin`, `Teacher`, `Approver`, `Parent`, `Student`, `SafeguardingOfficer`. A single `AppUser` may hold more than one `UserRole` row (e.g. Teacher + Approver). **The `Approver` role is curriculum-approval only** — it has no consent/DBS/safeguarding privileges; do not add any authorization check that grants `Approver` access to `ConsentSensitiveDetails`, `DbsCheck`, or consent approval. This was an explicit discovery-phase correction (`docs/requirements/stakeholders.md`), not an oversight if you're tempted to "simplify" it.
 
@@ -29,6 +33,8 @@ public interface ICurrentUserContext
     bool HasMfaEnabled { get; }
 }
 ```
+
+Since chapters it also has `int? ActiveChapterId` and `bool SeesAllChapters`, and `HasRole` for a chapter role means "in the active chapter" (adr/0010, [chapters.md](chapters.md)).
 
 `HasMfaEnabled` is new (STATE.md "Identity" item 4) — whether the caller has TOTP MFA enabled on their ASP.NET Core Identity credential row. Consulted by `MfaRequirementHandler` and by `VlmsDbContext`'s `DbsCheck`/`ConsentSensitiveDetails` query filters, which now require it in addition to role — see [authentication-authorization.md](authentication-authorization.md)'s MFA section for the full "enforced for Admin/SafeguardingOfficer, offered to everyone" scope decision.
 

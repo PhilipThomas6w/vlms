@@ -7,8 +7,11 @@ public enum StudentStatus
     Graduated
 }
 
-public sealed class Student
+public sealed class Student : IChapterOwned
 {
+    /// <summary>The chapter this record belongs to (docs/adr/0010-chapters.md). Left at 0, it is set on save to the caller's active chapter.</summary>
+    public int ChapterId { get; init; }
+
     public required int Id { get; init; }
     public required string Name { get; init; }
     public required DateOnly DateOfBirth { get; init; }

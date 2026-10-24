@@ -2,6 +2,8 @@
 
 Read `docs/adr/0004-sensitive-data-access-control.md` first — it went through 4 design-review rounds because two earlier mechanisms were tried and found broken. This page is what actually got built, and the two footguns to know about before touching this code.
 
+**Chapters (24/10/2026, adr/0010):** the filters below are now *named* (`"SensitiveData"`), and every person-level entity, including all three restricted ones, also carries a second named filter, `"Chapter"`; EF Core applies both. `HasRole` for Admin, Safeguarding Officer and Teacher now means "in the caller's active chapter". See [chapters.md](chapters.md). The snippets below show the sensitive-data filter only.
+
 ## The mechanism, as built
 
 1. **Whole-entity query filters**, in `src/Vlms.Infrastructure/VlmsDbContext.cs` `OnModelCreating`:

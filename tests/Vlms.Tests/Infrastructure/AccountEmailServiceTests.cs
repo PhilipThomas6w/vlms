@@ -29,7 +29,7 @@ public sealed class AccountEmailServiceTests : IDisposable
 
         using var schemaContext = new VlmsDbContext(
             new DbContextOptionsBuilder<VlmsDbContext>().UseSqlite(_connectionString).Options,
-            NullCurrentUserContext.Instance);
+            TestSeedUserContext.Instance);
         schemaContext.Database.EnsureCreated();
     }
 

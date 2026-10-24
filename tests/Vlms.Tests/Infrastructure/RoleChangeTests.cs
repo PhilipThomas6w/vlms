@@ -209,7 +209,7 @@ public sealed class RoleChangeTests : IDisposable
     {
         var before = await StampOf(PlainTeacher);
 
-        await AsAdminAsync(service => service.GrantAsync(PlainTeacher, Role.Approver));
+        await AsAdminAsync(service => service.GrantAsync(PlainTeacher, Role.SafeguardingOfficer));
 
         Assert.NotEqual(before, await StampOf(PlainTeacher));
     }
@@ -410,7 +410,7 @@ public sealed class RoleChangeTests : IDisposable
 
     private VlmsDbContext NewContext() => new(
         new DbContextOptionsBuilder<VlmsDbContext>().UseSqlite(_connectionString).Options,
-        NullCurrentUserContext.Instance);
+        TestSeedUserContext.Instance);
 
     private static void AddUser(VlmsDbContext db, int id, bool mfa, params Role[] roles)
     {

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Vlms.Domain;
+using Vlms.Infrastructure.Chapters;
 
 namespace Vlms.Infrastructure.Safeguarding;
 
@@ -14,9 +15,10 @@ namespace Vlms.Infrastructure.Safeguarding;
 /// sent (adr/0004, adr/0006). The one free-text item is the reviewer's rejection comment, which is
 /// shown to the parent anyway on their consent page.
 ///
-/// <b>Recipients.</b> Staff: users holding Admin or SafeguardingOfficer who have not left (the same
-/// rule as <see cref="ConsentExpiryNotifier"/>, plus the left check). Parent: the
-/// <see cref="ParentGuardian"/> on the record, only if their account holds Parent and has not left;
+/// <b>Recipients.</b> Staff: users holding Admin or SafeguardingOfficer in the student's chapter
+/// (FR-021, docs/adr/0010-chapters.md) who have not left (the same rule as
+/// <see cref="ConsentExpiryNotifier"/>, plus the left check). Parent: the
+/// <see cref="ParentGuardian"/> on the record, only if their account holds Parent in that chapter and has not left;
 /// a paper form recorded by staff for a guardian with no account sends the parent nothing.
 ///
 /// <b>Failure isolation.</b> Callers invoke these after their save. Both methods never throw
@@ -49,8 +51,7 @@ public sealed class ConsentNotificationService
         {
             var info = await LoadAsync(consentRecordId, ct);
 
-            var staff = await _db.AppUsers
-                .Where(u => !u.HasLeft && u.Roles.Any(r => r.Role == Role.Admin || r.Role == Role.SafeguardingOfficer))
+            var staff = await ChapterMembership.StaffIn(_db, info.ChapterId, Role.Admin, Role.SafeguardingOfficer)
                 .Select(u => new Recipient(u.Email, u.DisplayName))
                 .ToListAsync(ct);
             var staffBody = $"A consent form for {info.StudentName} has been submitted and is waiting for review."
@@ -106,7 +107,7 @@ public sealed class ConsentNotificationService
     private sealed record Recipient(string Email, string DisplayName);
 
     private sealed record RecordInfo(
-        string StudentName, ConsentStatus Status, DateOnly ExpiryDate, string? DecisionComments, Recipient? Parent);
+        string StudentName, int ChapterId, ConsentStatus Status, DateOnly ExpiryDate, string? DecisionComments, Recipient? Parent);
 
     private async Task<RecordInfo> LoadAsync(int consentRecordId, CancellationToken ct)
     {
@@ -118,7 +119,8 @@ public sealed class ConsentNotificationService
                 c.Status,
                 c.ExpiryDate,
                 c.DecisionComments,
-                c.SubmittedByParentId
+                c.SubmittedByParentId,
+                c.ChapterId
             })
             .SingleAsync(ct);
 
@@ -126,11 +128,11 @@ public sealed class ConsentNotificationService
             .Where(p => p.Id == row.SubmittedByParentId && p.AppUserId != null)
             .Select(p => p.AppUser!)
             // A staff leaver who is also a parent is still a parent (FR-017, LeftStaffPolicy).
-            .Where(u => (!u.HasLeft || u.Roles.Any(r => r.Role == Role.Teacher || r.Role == Role.Admin || r.Role == Role.SafeguardingOfficer)) && u.Roles.Any(r => r.Role == Role.Parent))
+            .Where(u => (!u.HasLeft || u.Roles.Any(r => r.Role == Role.Teacher || r.Role == Role.Admin || r.Role == Role.SafeguardingOfficer)) && u.Roles.Any(r => r.Role == Role.Parent && r.ChapterId == row.ChapterId))
             .Select(u => new Recipient(u.Email, u.DisplayName))
             .FirstOrDefaultAsync(ct);
 
-        return new RecordInfo(row.StudentName, row.Status, row.ExpiryDate, row.DecisionComments, parent);
+        return new RecordInfo(row.StudentName, row.ChapterId, row.Status, row.ExpiryDate, row.DecisionComments, parent);
     }
 
     private string Link(string text, string path) =>

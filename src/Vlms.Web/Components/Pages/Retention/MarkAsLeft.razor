@@ -7,6 +7,7 @@
 @using Vlms.Infrastructure.Retention
 @inject VlmsDbContext Db
 @inject LeavingService LeavingService
+@inject ICurrentUserContext CurrentUser
 
 <PageTitle>Mark as left</PageTitle>
 
@@ -131,8 +132,10 @@ else
             .ToListAsync();
 
         // FR-017: Teachers, Admins and Safeguarding Officers (LeftStaffPolicy.StaffRoles).
+        // This chapter's staff only (docs/adr/0010-chapters.md).
         var staffRoles = await Db.UserRoles
-            .Where(r => r.Role == Role.Teacher || r.Role == Role.Admin || r.Role == Role.SafeguardingOfficer)
+            .Where(r => (r.Role == Role.Teacher || r.Role == Role.Admin || r.Role == Role.SafeguardingOfficer)
+                && r.ChapterId == CurrentUser.ActiveChapterId)
             .ToListAsync();
         var rolesByUser = staffRoles.ToLookup(r => r.UserId, r => r.Role);
         var staffUserIds = rolesByUser.Select(g => g.Key).ToList();

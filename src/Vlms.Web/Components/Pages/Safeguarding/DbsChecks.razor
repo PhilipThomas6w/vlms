@@ -8,6 +8,7 @@
 @using Vlms.Infrastructure.Safeguarding
 @inject VlmsDbContext Db
 @inject DbsCheckService DbsService
+@inject ICurrentUserContext CurrentUser
 
 <PageTitle>DBS checks</PageTitle>
 
@@ -113,8 +114,9 @@
 
     private async Task LoadAsync()
     {
+        // This chapter's teachers only (docs/adr/0010-chapters.md).
         var teacherUserIds = await Db.UserRoles
-            .Where(r => r.Role == Role.Teacher)
+            .Where(r => r.Role == Role.Teacher && r.ChapterId == CurrentUser.ActiveChapterId)
             .Select(r => r.UserId)
             .Distinct()
             .ToListAsync();

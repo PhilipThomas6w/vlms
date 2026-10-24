@@ -3,18 +3,12 @@
 <a class="skip-link" href="#main-content">Skip to main content</a>
 
 <div class="shell">
-    @* The banner is the Greek Foliate Header (Orthodox Arts Journal), lengthened by repeating its roundels either side
-       of the cross; the name and the account controls sit in its opening, between IC XC and NIKA. *@
     <header class="shell-bar">
-        <span class="frieze frieze--left" aria-hidden="true"></span>
-        <span class="frieze frieze--band" aria-hidden="true"><span class="frieze__fill frieze__fill--left"></span><span class="frieze__centre"></span><span class="frieze__fill frieze__fill--right"></span></span>
-        <span class="frieze frieze--right" aria-hidden="true"></span>
-        <div class="shell-bar__opening">
-        <a class="brand" href="/"><BrandMark Letters="true" /><span class="brand__name">Varangians</span></a>
+        <a class="brand" href="/"><BrandMark Letters="true" /><span>Varangians</span></a>
         <AuthorizeView>
             <Authorized>
                 <button type="button" class="nav-toggle" aria-expanded="false" aria-controls="site-nav" data-nav-toggle>
-                    <Icon Name="menu" /> <span class="nav-toggle__label">Menu</span>
+                    <Icon Name="menu" /> Menu
                 </button>
                 <details class="account">
                     <summary>
@@ -46,8 +40,12 @@
                 </nav>
             </NotAuthorized>
         </AuthorizeView>
-        </div>
     </header>
+    <AuthorizeView>
+        <Authorized>
+            <ChapterBar />
+        </Authorized>
+    </AuthorizeView>
 
     <div class="shell-body">
         <AuthorizeView>
@@ -63,7 +61,6 @@
     <footer class="shell-foot">
         <Eagle />
         <p>Varangians: Orthodox formation for young people</p>
-        <p class="shell-foot__credit">The banner's foliate header is from the Orthodox Illustration Project of the <a href="https://orthodoxartsjournal.org/orthodox-illustration-project/">Orthodox Arts Journal</a>.</p>
     </footer>
 </div>
 

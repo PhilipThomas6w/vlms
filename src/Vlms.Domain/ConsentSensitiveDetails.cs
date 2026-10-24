@@ -10,8 +10,11 @@ namespace Vlms.Domain;
 /// adr/0006-parent-consent-and-teacher-read-access.md (functional.md FR-015). Every materialized row
 /// is still read-audited.
 /// </summary>
-public sealed class ConsentSensitiveDetails
+public sealed class ConsentSensitiveDetails : IChapterOwned
 {
+    /// <summary>The chapter this record belongs to (docs/adr/0010-chapters.md): always its parent row's. Left at 0, it is copied from the parent on save.</summary>
+    public int ChapterId { get; init; }
+
     /// <summary>Longest allowed <see cref="DietaryRequirements"/> or <see cref="SpecialEducationalNeeds"/>; the columns are unbounded text, so this is enforced in the services and on the inputs.</summary>
     public const int MaxTextLength = 4000;
 

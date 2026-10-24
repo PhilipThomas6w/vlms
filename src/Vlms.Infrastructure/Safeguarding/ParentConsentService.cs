@@ -187,7 +187,7 @@ public sealed class ParentConsentService
         }
 
         var periodEnd = ConsentYear.EndFor(today);
-        var recordId = (await _db.ConsentRecords.Select(x => (int?)x.Id).MaxAsync(ct) ?? 0) + 1;
+        var recordId = await _db.NextIdAsync<ConsentRecord>(ct);
         var record = new ConsentRecord
         {
             Id = recordId,

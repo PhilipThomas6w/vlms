@@ -15,8 +15,11 @@ namespace Vlms.Domain;
 /// copied into a new <see cref="ConsentSensitiveDetails"/> row; this row is kept as the record of
 /// what was reviewed.
 /// </summary>
-public sealed class StudentApplicationSensitiveDetails
+public sealed class StudentApplicationSensitiveDetails : IChapterOwned
 {
+    /// <summary>The chapter this record belongs to (docs/adr/0010-chapters.md): always its parent row's. Left at 0, it is copied from the parent on save.</summary>
+    public int ChapterId { get; init; }
+
     public required int Id { get; init; }
     public required int StudentApplicationId { get; init; }
 

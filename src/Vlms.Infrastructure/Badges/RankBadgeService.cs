@@ -172,9 +172,11 @@ public sealed class RankBadgeService
 
     private void RequireAdmin()
     {
-        if (!_currentUser.HasRole(Role.Admin))
+        // Rank badges are national (FR-021, docs/adr/0010-chapters.md): a chapter Admin may not change
+        // every chapter's artwork, so only a National Administrator manages them.
+        if (!_currentUser.HasRole(Role.NationalAdministrator))
         {
-            throw new UnauthorizedAccessException("Caller must hold the Admin role to manage rank badge images.");
+            throw new UnauthorizedAccessException("Caller must be a National Administrator to manage rank badge images.");
         }
     }
 }

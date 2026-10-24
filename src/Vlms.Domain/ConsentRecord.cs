@@ -18,8 +18,11 @@ public enum ConsentStatus
 /// a parent's update after approval, or a resubmission after rejection, is a new Pending row, never
 /// an overwrite of an earlier one, so the history of what was consented to and decided is kept.
 /// </summary>
-public sealed class ConsentRecord
+public sealed class ConsentRecord : IChapterOwned
 {
+    /// <summary>The chapter this record belongs to (docs/adr/0010-chapters.md): always its parent row's. Left at 0, it is copied from the parent on save.</summary>
+    public int ChapterId { get; init; }
+
     public required int Id { get; init; }
     public required int StudentId { get; init; }
     public required DateOnly PeriodStart { get; init; }

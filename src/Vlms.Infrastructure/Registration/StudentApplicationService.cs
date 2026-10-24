@@ -133,14 +133,21 @@ public sealed class StudentApplicationService
     /// <summary>
     /// Submits an application for each child, in one save. Refuses a child whose name the caller
     /// already has as an open or approved application or as a linked student, or appears twice in
-    /// the same submission.
+    /// the same submission. <paramref name="chapterId"/> is the chapter the parent chose (FR-021,
+    /// docs/adr/0010-chapters.md): it must be an open chapter, and that chapter's Safeguarding
+    /// Officer reviews the application and its Admin approves it.
     /// </summary>
     public async Task<IReadOnlyList<StudentApplication>> SubmitAsync(
-        ApplicantDetails applicant, IReadOnlyList<ChildApplicationForm> children, CancellationToken ct = default)
+        int chapterId, ApplicantDetails applicant, IReadOnlyList<ChildApplicationForm> children, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(applicant);
         ArgumentNullException.ThrowIfNull(children);
         var userId = await RequireApplicantAsync(ct);
+
+        if (!await _db.Chapters.AnyAsync(c => c.Id == chapterId && c.IsActive, ct))
+        {
+            throw new ArgumentException("Choose the chapter at your parish.");
+        }
 
         if (children.Count == 0)
         {
@@ -165,7 +172,7 @@ public sealed class StudentApplicationService
         }
 
         var now = DateTime.UtcNow;
-        var nextId = (await _db.StudentApplications.Select(a => (int?)a.Id).MaxAsync(ct) ?? 0) + 1;
+        var nextId = await _db.NextIdAsync<StudentApplication>(ct);
         var created = new List<StudentApplication>();
         foreach (var child in children)
         {
@@ -174,6 +181,7 @@ public sealed class StudentApplicationService
             {
                 Id = id,
                 ApplicantUserId = userId,
+                ChapterId = chapterId,
                 ParentPhone = applicant.Phone.Trim(),
                 ParentPostalAddress = applicant.PostalAddress.Trim(),
                 Relationship = child.Relationship.Trim(),
@@ -196,6 +204,7 @@ public sealed class StudentApplicationService
             {
                 Id = id,
                 StudentApplicationId = id,
+                ChapterId = chapterId,
                 EmergencyContact = child.EmergencyContact.Trim(),
                 EmergencyMedicalInfo = OrNull(child.EmergencyMedicalInfo),
                 DietaryRequirements = OrNull(child.DietaryRequirements),
@@ -304,7 +313,7 @@ public sealed class StudentApplicationService
     public async Task<IReadOnlyList<ApplicationView>> ListForSafeguardingAsync(CancellationToken ct = default)
     {
         RequireSafeguardingOfficer();
-        var ids = await _db.StudentApplications
+        var ids = await StaffApplications
             .Where(a => a.Status == StudentApplicationStatus.AwaitingSafeguardingReview
                 || a.Status == StudentApplicationStatus.MoreInformationRequested)
             .Select(a => a.Id)
@@ -316,13 +325,14 @@ public sealed class StudentApplicationService
     public async Task<int> CountAwaitingSafeguardingReviewAsync(CancellationToken ct = default)
     {
         RequireSafeguardingOfficer();
-        return await _db.StudentApplications.CountAsync(a => a.Status == StudentApplicationStatus.AwaitingSafeguardingReview, ct);
+        return await StaffApplications.CountAsync(a => a.Status == StudentApplicationStatus.AwaitingSafeguardingReview, ct);
     }
 
     /// <summary>One application with its restricted details (audited), for the Safeguarding Officer.</summary>
     public async Task<ApplicationView> GetForSafeguardingReviewAsync(int applicationId, CancellationToken ct = default)
     {
         RequireSafeguardingOfficer();
+        await RequireInActiveChapterAsync(applicationId, ct);
         return await LoadViewAsync(applicationId, ct);
     }
 
@@ -397,7 +407,7 @@ public sealed class StudentApplicationService
     public async Task<IReadOnlyList<ApplicationView>> ListForAdminAsync(CancellationToken ct = default)
     {
         RequireAdmin();
-        var ids = await _db.StudentApplications
+        var ids = await StaffApplications
             .Where(a => a.Status == StudentApplicationStatus.AwaitingAdminApproval)
             .Select(a => a.Id)
             .ToListAsync(ct);
@@ -408,13 +418,14 @@ public sealed class StudentApplicationService
     public async Task<int> CountAwaitingAdminApprovalAsync(CancellationToken ct = default)
     {
         RequireAdmin();
-        return await _db.StudentApplications.CountAsync(a => a.Status == StudentApplicationStatus.AwaitingAdminApproval, ct);
+        return await StaffApplications.CountAsync(a => a.Status == StudentApplicationStatus.AwaitingAdminApproval, ct);
     }
 
     /// <summary>One application (with restricted details, audited), the existing students with the same name and date of birth, and the ranks.</summary>
     public async Task<ApplicationForApproval> GetForApprovalAsync(int applicationId, CancellationToken ct = default)
     {
         RequireAdmin();
+        await RequireInActiveChapterAsync(applicationId, ct);
         var view = await LoadViewAsync(applicationId, ct);
         var matches = await FindSameNameAndDateOfBirthAsync(view.ChildName, view.ChildDateOfBirth, ct);
         var ranks = await _db.Ranks.OrderBy(r => r.Order).Select(r => new RankOption(r.Id, r.Order, r.Name)).ToListAsync(ct);
@@ -482,7 +493,7 @@ public sealed class StudentApplicationService
                 ?? throw new InvalidOperationException($"Rank {startingRankId} does not exist.");
             student = new Student
             {
-                Id = (await _db.Students.Select(s => (int?)s.Id).MaxAsync(ct) ?? 0) + 1,
+                Id = await _db.NextIdAsync<Student>(ct),
                 Name = application.ChildName,
                 DateOfBirth = application.ChildDateOfBirth,
                 CurrentRankId = rank.Id,
@@ -492,7 +503,7 @@ public sealed class StudentApplicationService
             _db.Students.Add(student);
             _db.StudentRankProgresses.Add(new StudentRankProgress
             {
-                Id = (await _db.StudentRankProgresses.Select(p => (int?)p.Id).MaxAsync(ct) ?? 0) + 1,
+                Id = await _db.NextIdAsync<StudentRankProgress>(ct),
                 StudentId = student.Id,
                 RankId = rank.Id,
                 StartedAt = today.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc),
@@ -508,7 +519,7 @@ public sealed class StudentApplicationService
         {
             guardian = new ParentGuardian
             {
-                Id = (await _db.ParentGuardians.Select(g => (int?)g.Id).MaxAsync(ct) ?? 0) + 1,
+                Id = await _db.NextIdAsync<ParentGuardian>(ct),
                 Name = applicant.DisplayName,
                 ContactInfo = applicant.Email,
                 IsPrimary = true,
@@ -543,7 +554,7 @@ public sealed class StudentApplicationService
         // ApprovedByUserId is the Safeguarding Officer who reviewed it (consent sign-off is theirs,
         // never the Approver's); DecidedAt is the final approval.
         var periodEnd = ConsentPeriodEndFor(today);
-        var consentId = (await _db.ConsentRecords.Select(c => (int?)c.Id).MaxAsync(ct) ?? 0) + 1;
+        var consentId = await _db.NextIdAsync<ConsentRecord>(ct);
         _db.ConsentRecords.Add(new ConsentRecord
         {
             Id = consentId,
@@ -575,10 +586,13 @@ public sealed class StudentApplicationService
             SpecialEducationalNeeds = details.SpecialEducationalNeeds
         });
 
-        var grantParent = !await _db.UserRoles.AnyAsync(r => r.UserId == applicant.Id && r.Role == Role.Parent, ct);
+        // Parent in the application's chapter (docs/adr/0010-chapters.md): a Parent role in another
+        // chapter does not count here.
+        var grantParent = !await _db.UserRoles.AnyAsync(
+            r => r.UserId == applicant.Id && r.Role == Role.Parent && r.ChapterId == application.ChapterId, ct);
         if (grantParent)
         {
-            _db.UserRoles.Add(new UserRole { UserId = applicant.Id, Role = Role.Parent });
+            _db.UserRoles.Add(new UserRole { UserId = applicant.Id, Role = Role.Parent, ChapterId = application.ChapterId });
         }
 
         var values = _db.Entry(application).CurrentValues;
@@ -717,7 +731,7 @@ public sealed class StudentApplicationService
 
     private async Task<StudentApplication> LoadAtStatusAsync(int applicationId, StudentApplicationStatus expected, CancellationToken ct)
     {
-        var application = await _db.StudentApplications.SingleOrDefaultAsync(a => a.Id == applicationId, ct)
+        var application = await StaffApplications.SingleOrDefaultAsync(a => a.Id == applicationId, ct)
             ?? throw new InvalidOperationException($"Application {applicationId} does not exist.");
         if (application.Status != expected)
         {
@@ -726,6 +740,23 @@ public sealed class StudentApplicationService
         }
 
         return application;
+    }
+
+    /// <summary>
+    /// The applications a reviewing Safeguarding Officer or Admin works on: their active chapter's
+    /// only (FR-021, docs/adr/0010-chapters.md). The chapter query filter also lets an applicant see
+    /// their own applications in any chapter, so a member of staff who has applied elsewhere would
+    /// otherwise find their own application in their review lists.
+    /// </summary>
+    private IQueryable<StudentApplication> StaffApplications =>
+        _db.StudentApplications.Where(a => a.ChapterId == _currentUser.ActiveChapterId);
+
+    private async Task RequireInActiveChapterAsync(int applicationId, CancellationToken ct)
+    {
+        if (!await StaffApplications.AnyAsync(a => a.Id == applicationId, ct))
+        {
+            throw new InvalidOperationException($"Application {applicationId} does not exist.");
+        }
     }
 
     /// <summary>Reads the restricted row through the query filter (audited). Null means the caller may not read it.</summary>

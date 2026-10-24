@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Vlms.Domain;
 using Vlms.Infrastructure.Auditing;
+using Vlms.Infrastructure.Chapters;
 using Vlms.Infrastructure.Identity;
 using Vlms.Infrastructure.Naming;
 
@@ -58,10 +60,51 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
     public DbSet<StudentApplication> StudentApplications => Set<StudentApplication>();
     public DbSet<StudentApplicationSensitiveDetails> StudentApplicationSensitiveDetails => Set<StudentApplicationSensitiveDetails>();
     public DbSet<SensitiveDataAccessLog> SensitiveDataAccessLogs => Set<SensitiveDataAccessLog>();
+    public DbSet<Chapter> Chapters => Set<Chapter>();
+    public DbSet<ActiveChapterChoice> ActiveChapterChoices => Set<ActiveChapterChoice>();
+
+    /// <summary>The name of the query filter every <see cref="IChapterOwned"/> entity carries (docs/adr/0010-chapters.md).</summary>
+    public const string ChapterFilter = "Chapter";
+
+    /// <summary>The name of the adr/0004 whole-entity restriction on the three sensitive entities.</summary>
+    public const string SensitiveDataFilter = "SensitiveData";
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
         optionsBuilder.AddInterceptors(SensitiveDataAuditInterceptor.Instance, UtcDateTimeGuardInterceptor.Instance);
+    }
+
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        ChapterWriteRules.Apply(this, _currentUser);
+        return base.SaveChanges(acceptAllChangesOnSuccess);
+    }
+
+    public override async Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    {
+        ChapterWriteRules.Apply(this, _currentUser);
+        return await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+    }
+
+    /// <summary>
+    /// The next application-assigned id for <typeparamref name="T"/>: one more than the largest id
+    /// in the whole table. Read with a fixed aggregate SQL statement rather than
+    /// <c>Set&lt;T&gt;().Max(x =&gt; x.Id)</c>, because that MAX runs through the chapter query filter
+    /// (docs/adr/0010-chapters.md) and would hand out an id another chapter already uses. It returns
+    /// one number and nothing about any row; the table and column names come from the model, never
+    /// from input. Same race as the <c>MAX(id)+1</c> it replaces (no worse): two concurrent inserts
+    /// collide on the primary key and the second fails.
+    /// </summary>
+    public async Task<int> NextIdAsync<T>(CancellationToken ct = default) where T : class
+    {
+        var entityType = Model.FindEntityType(typeof(T))
+            ?? throw new InvalidOperationException($"{typeof(T).Name} is not part of the model.");
+        var table = entityType.GetTableName()!;
+        var column = entityType.FindProperty("Id")!.GetColumnName(StoreObjectIdentifier.Table(table, entityType.GetSchema()))!;
+        // Identifiers from the model, not input: nothing here can carry a caller's text.
+        var sql = "SELECT COALESCE(MAX(" + column + "), 0) AS \"Value\" FROM " + table;
+        var max = await Database.SqlQueryRaw<int>(sql).SingleAsync(ct);
+        return max + 1;
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -230,7 +273,7 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
             e.HasIndex(x => x.ConsentRecordId).IsUnique();
-            e.HasQueryFilter(x =>
+            e.HasQueryFilter(SensitiveDataFilter, x =>
                 ((_currentUser.HasRole(Role.Admin) || _currentUser.HasRole(Role.SafeguardingOfficer))
                     && _currentUser.HasMfaEnabled)
                 || (_currentUser.HasRole(Role.Teacher) && _currentUser.HasMfaEnabled)
@@ -249,7 +292,7 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
             e.HasOne(x => x.TeacherUser).WithMany().HasForeignKey(x => x.TeacherUserId).OnDelete(DeleteBehavior.Restrict);
-            e.HasQueryFilter(x =>
+            e.HasQueryFilter(SensitiveDataFilter, x =>
                 (_currentUser.HasRole(Role.Admin) || _currentUser.HasRole(Role.SafeguardingOfficer))
                 && _currentUser.HasMfaEnabled);
         });
@@ -280,10 +323,50 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
             e.Property(x => x.Id).ValueGeneratedNever();
         });
 
+        // Roles per chapter (docs/adr/0010-chapters.md): a chapter role carries its chapter, a
+        // national role has none. A surrogate key, because a primary key cannot include the nullable
+        // ChapterId; uniqueness is two partial indexes instead, since a plain unique index over a
+        // nullable column treats every NULL as distinct (both PostgreSQL and SQLite) and would allow
+        // a national role twice. UserRole carries no query filter: identity checks (sign-in, leaver
+        // lockout, IdentityCurrentUserContext) must see all of a person's roles. Services that list
+        // or count role holders scope to the caller's chapter explicitly (ChapterStaff).
         modelBuilder.Entity<UserRole>(e =>
         {
-            e.HasKey(x => new { x.UserId, x.Role });
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedOnAdd();
             e.HasOne(x => x.User).WithMany(x => x.Roles).HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<Chapter>().WithMany().HasForeignKey(x => x.ChapterId).OnDelete(DeleteBehavior.Restrict);
+            e.HasIndex(x => new { x.UserId, x.Role, x.ChapterId }).IsUnique().HasFilter("chapter_id IS NOT NULL")
+                .HasDatabaseName("IX_user_roles_user_id_role_chapter_id");
+            e.HasIndex(x => new { x.UserId, x.Role }).IsUnique().HasFilter("chapter_id IS NULL")
+                .HasDatabaseName("IX_user_roles_user_id_role_national");
+            e.HasIndex(x => new { x.ChapterId, x.Role });
+        });
+
+        modelBuilder.Entity<Chapter>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Name).HasMaxLength(Chapter.MaxNameLength);
+            e.Property(x => x.Place).HasMaxLength(Chapter.MaxNameLength);
+            e.HasIndex(x => x.Name).IsUnique();
+            // Every record that existed before chapters belongs to Shrewsbury: the migration adding
+            // chapters inserts this row and gives every existing chapter-owned row chapter_id 1.
+            e.HasData(new Chapter
+            {
+                Id = Chapter.ShrewsburyId,
+                Name = "Shrewsbury Orthodox Church",
+                Place = "Shrewsbury",
+                CreatedAt = new DateTime(2026, 10, 24, 0, 0, 0, DateTimeKind.Utc),
+                IsActive = true
+            });
+        });
+
+        modelBuilder.Entity<ActiveChapterChoice>(e =>
+        {
+            e.HasKey(x => x.UserId);
+            e.HasOne<AppUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<Chapter>().WithMany().HasForeignKey(x => x.ChapterId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<SensitiveDataAccessLog>(e =>
@@ -339,7 +422,7 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
             e.HasIndex(x => x.StudentApplicationId).IsUnique();
-            e.HasQueryFilter(x =>
+            e.HasQueryFilter(SensitiveDataFilter, x =>
                 ((_currentUser.HasRole(Role.Admin) || _currentUser.HasRole(Role.SafeguardingOfficer))
                     && _currentUser.HasMfaEnabled)
                 || (_currentUser.UserId != null
@@ -347,10 +430,202 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
                         a.Id == x.StudentApplicationId && a.ApplicantUserId == _currentUser.UserId)));
         });
 
+        ConfigureChapters(modelBuilder);
+
         // Applied last, after every table/property above has its (PascalCase-default) name —
         // renames every table and column to PostgreSQL's own idiomatic snake_case convention. See
         // SnakeCaseNamingConvention's doc comment for the scope decision (tables/columns only, not
         // constraint/index names) and why this is hand-rolled rather than a third-party package.
         SnakeCaseNamingConvention.Apply(modelBuilder);
+    }
+
+    /// <summary>
+    /// Chapter separation (functional.md FR-021, docs/adr/0010-chapters.md): every
+    /// <see cref="IChapterOwned"/> entity gets a foreign key to <see cref="Chapter"/> and the named
+    /// "Chapter" query filter, the same mechanism as adr/0004, so a query cannot return another
+    /// chapter's rows whichever page or service runs it. It is a separate named filter, ANDed by
+    /// EF Core with the "SensitiveData" filter on the three restricted entities, so neither weakens
+    /// the other: a row must pass both.
+    ///
+    /// Each filter has the same three arms:
+    ///   1. the system principal of the scheduled job, which sweeps every chapter
+    ///      (<see cref="ICurrentUserContext.SeesAllChapters"/>; never a signed-in person);
+    ///   2. the row is in the caller's active chapter (null when the caller holds no chapter role,
+    ///      so it matches nothing); and
+    ///   3. the row belongs to the caller themself: their own children by guardian link, their own
+    ///      student record, their own guardian rows, their own registration applications. A parent
+    ///      keeps their own children whichever chapter they are working in (Philip, 24/10/2026).
+    ///      For everything but applications this arm applies only while the caller holds no staff
+    ///      role (Teacher, Admin, Safeguarding Officer) in their active chapter
+    ///      (<see cref="OwnRecordsArmApplies"/>): a Teacher in one chapter whose child is in another
+    ///      must not find that child in their staff lists, or record completions for them, there.
+    ///      They switch to the child's chapter, where they hold Parent. Their own applications stay
+    ///      visible anywhere (an applicant holds no role in the chapter yet, so cannot switch to it);
+    ///      the staff application lists scope to the active chapter themselves.
+    ///      As in the adr/0004/0006 filters, each such arm requires UserId != null, because EF Core's
+    ///      null semantics would otherwise turn "AppUserId == UserId" into "AppUserId IS NULL".
+    /// Arm 3 is written out on each entity (not left to a nested filter on Student) so each filter
+    /// can be read on its own, and none refers back to an entity whose filter refers to it: no cycle.
+    /// The national administrator matches arm 2 only in a chapter where they hold a role
+    /// (least privilege: running the platform is not a safeguarding role).
+    /// </summary>
+    private void ConfigureChapters(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<Student>(e =>
+        {
+            ChapterKey(e);
+            e.HasQueryFilter(ChapterFilter, x =>
+                _currentUser.SeesAllChapters
+                || (_currentUser.ActiveChapterId != null && x.ChapterId == _currentUser.ActiveChapterId)
+                || (OwnRecordsArmApplies
+                    && (x.AppUserId == _currentUser.UserId
+                        || StudentGuardianLinks.Any(l => l.StudentId == x.Id && l.ParentGuardian!.AppUserId == _currentUser.UserId))));
+        });
+
+        modelBuilder.Entity<ParentGuardian>(e =>
+        {
+            ChapterKey(e);
+            e.HasQueryFilter(ChapterFilter, x =>
+                _currentUser.SeesAllChapters
+                || (_currentUser.ActiveChapterId != null && x.ChapterId == _currentUser.ActiveChapterId)
+                || (OwnRecordsArmApplies && x.AppUserId == _currentUser.UserId));
+        });
+
+        modelBuilder.Entity<StudentGuardianLink>(e =>
+        {
+            ChapterKey(e);
+            e.HasQueryFilter(ChapterFilter, x =>
+                _currentUser.SeesAllChapters
+                || (_currentUser.ActiveChapterId != null && x.ChapterId == _currentUser.ActiveChapterId)
+                || (OwnRecordsArmApplies && x.ParentGuardian!.AppUserId == _currentUser.UserId));
+        });
+
+        modelBuilder.Entity<StudentLessonCompletion>(e =>
+        {
+            ChapterKey(e);
+            e.HasQueryFilter(ChapterFilter, x =>
+                _currentUser.SeesAllChapters
+                || (_currentUser.ActiveChapterId != null && x.ChapterId == _currentUser.ActiveChapterId)
+                || (OwnRecordsArmApplies
+                    && (StudentGuardianLinks.Any(l => l.StudentId == x.StudentId && l.ParentGuardian!.AppUserId == _currentUser.UserId)
+                        || Students.Any(s => s.Id == x.StudentId && s.AppUserId == _currentUser.UserId))));
+        });
+
+        modelBuilder.Entity<StudentRankProgress>(e =>
+        {
+            ChapterKey(e);
+            e.HasQueryFilter(ChapterFilter, x =>
+                _currentUser.SeesAllChapters
+                || (_currentUser.ActiveChapterId != null && x.ChapterId == _currentUser.ActiveChapterId)
+                || (OwnRecordsArmApplies
+                    && (StudentGuardianLinks.Any(l => l.StudentId == x.StudentId && l.ParentGuardian!.AppUserId == _currentUser.UserId)
+                        || Students.Any(s => s.Id == x.StudentId && s.AppUserId == _currentUser.UserId))));
+        });
+
+        modelBuilder.Entity<StudentBadge>(e =>
+        {
+            ChapterKey(e);
+            e.HasQueryFilter(ChapterFilter, x =>
+                _currentUser.SeesAllChapters
+                || (_currentUser.ActiveChapterId != null && x.ChapterId == _currentUser.ActiveChapterId)
+                || (OwnRecordsArmApplies
+                    && (StudentGuardianLinks.Any(l => l.StudentId == x.StudentId && l.ParentGuardian!.AppUserId == _currentUser.UserId)
+                        || Students.Any(s => s.Id == x.StudentId && s.AppUserId == _currentUser.UserId))));
+        });
+
+        modelBuilder.Entity<Certificate>(e =>
+        {
+            ChapterKey(e);
+            e.HasQueryFilter(ChapterFilter, x =>
+                _currentUser.SeesAllChapters
+                || (_currentUser.ActiveChapterId != null && x.ChapterId == _currentUser.ActiveChapterId)
+                || (OwnRecordsArmApplies
+                    && StudentLessonCompletions.Any(c => c.Id == x.StudentLessonCompletionId
+                        && (StudentGuardianLinks.Any(l => l.StudentId == c.StudentId && l.ParentGuardian!.AppUserId == _currentUser.UserId)
+                            || Students.Any(s => s.Id == c.StudentId && s.AppUserId == _currentUser.UserId)))));
+        });
+
+        modelBuilder.Entity<ConsentRecord>(e =>
+        {
+            ChapterKey(e);
+            e.HasQueryFilter(ChapterFilter, x =>
+                _currentUser.SeesAllChapters
+                || (_currentUser.ActiveChapterId != null && x.ChapterId == _currentUser.ActiveChapterId)
+                || (OwnRecordsArmApplies
+                    && (StudentGuardianLinks.Any(l => l.StudentId == x.StudentId && l.ParentGuardian!.AppUserId == _currentUser.UserId)
+                        || Students.Any(s => s.Id == x.StudentId && s.AppUserId == _currentUser.UserId))));
+        });
+
+        // Arm 3 is the linked parent only: a student never reads consent details (the SensitiveData
+        // filter refuses them anyway).
+        modelBuilder.Entity<ConsentSensitiveDetails>(e =>
+        {
+            ChapterKey(e);
+            e.HasQueryFilter(ChapterFilter, x =>
+                _currentUser.SeesAllChapters
+                || (_currentUser.ActiveChapterId != null && x.ChapterId == _currentUser.ActiveChapterId)
+                || (OwnRecordsArmApplies
+                    && ConsentRecords.Any(c => c.Id == x.ConsentRecordId
+                        && StudentGuardianLinks.Any(l => l.StudentId == c.StudentId && l.ParentGuardian!.AppUserId == _currentUser.UserId))));
+        });
+
+        // No arm 3: a DBS check is seen only by its chapter's Admins and Safeguarding Officers (the
+        // SensitiveData filter), never by the teacher it is about.
+        modelBuilder.Entity<DbsCheck>(e =>
+        {
+            ChapterKey(e);
+            e.HasQueryFilter(ChapterFilter, x =>
+                _currentUser.SeesAllChapters
+                || (_currentUser.ActiveChapterId != null && x.ChapterId == _currentUser.ActiveChapterId));
+        });
+
+        // No arm 3: an invite is read by its chapter's Admins, and by the person accepting it only
+        // inside GuardianInviteService's token-checked ChapterScopeOverride.
+        modelBuilder.Entity<GuardianInvite>(e =>
+        {
+            ChapterKey(e);
+            e.HasQueryFilter(ChapterFilter, x =>
+                _currentUser.SeesAllChapters
+                || (_currentUser.ActiveChapterId != null && x.ChapterId == _currentUser.ActiveChapterId));
+        });
+
+        modelBuilder.Entity<StudentApplication>(e =>
+        {
+            ChapterKey(e);
+            e.HasQueryFilter(ChapterFilter, x =>
+                _currentUser.SeesAllChapters
+                || (_currentUser.ActiveChapterId != null && x.ChapterId == _currentUser.ActiveChapterId)
+                || (_currentUser.UserId != null && x.ApplicantUserId == _currentUser.UserId));
+        });
+
+        modelBuilder.Entity<StudentApplicationSensitiveDetails>(e =>
+        {
+            ChapterKey(e);
+            e.HasQueryFilter(ChapterFilter, x =>
+                _currentUser.SeesAllChapters
+                || (_currentUser.ActiveChapterId != null && x.ChapterId == _currentUser.ActiveChapterId)
+                || (_currentUser.UserId != null
+                    && StudentApplications.Any(a => a.Id == x.StudentApplicationId && a.ApplicantUserId == _currentUser.UserId)));
+        });
+    }
+
+    /// <summary>
+    /// Whether arm 3 of the chapter filters (the caller's own children, student record and guardian
+    /// rows) applies: a resolved caller who holds no staff role in their active chapter. Read by EF
+    /// Core as a query parameter on every execution, like the <see cref="ICurrentUserContext"/>
+    /// members it calls.
+    /// </summary>
+    private bool OwnRecordsArmApplies =>
+        _currentUser.UserId != null
+        && !_currentUser.HasRole(Role.Teacher)
+        && !_currentUser.HasRole(Role.Admin)
+        && !_currentUser.HasRole(Role.SafeguardingOfficer);
+
+    private static void ChapterKey<T>(Microsoft.EntityFrameworkCore.Metadata.Builders.EntityTypeBuilder<T> e)
+        where T : class, IChapterOwned
+    {
+        // By name: a lambda over the interface-constrained T compiles to a converted member access.
+        e.HasOne<Chapter>().WithMany().HasForeignKey(nameof(IChapterOwned.ChapterId)).OnDelete(DeleteBehavior.Restrict);
+        e.HasIndex(nameof(IChapterOwned.ChapterId));
     }
 }

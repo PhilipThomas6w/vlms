@@ -188,66 +188,39 @@
     }
     .skip-link:focus { top: var(--s-2); }
 
-    .shell { min-height: 100vh; display: grid; grid-template-rows: auto 1fr auto; grid-template-columns: minmax(0, 1fr); }
+    .shell { min-height: 100vh; display: flex; flex-direction: column; }
 
-    /* The banner: the Greek Foliate Header, illumination on white. --frieze is the drawing's scale (source pixels to CSS pixels). */
     .shell-bar {
-        --frieze: 0.16;
-        display: grid;
-        grid-template-columns: calc(345px * var(--frieze)) minmax(0, 1fr) calc(345px * var(--frieze));
-        grid-template-rows: calc(292px * var(--frieze)) calc(283px * var(--frieze));
-        padding: var(--s-2) var(--s-2) var(--s-1);
-        background: var(--surface);
-        border-bottom: 1px solid var(--line);
-        color: var(--ink);
+        position: relative;
+        display: flex; align-items: center; gap: var(--s-4);
+        padding: var(--s-2) var(--s-4);
+        min-height: 3.75rem;
+        background: var(--lapis-900);
+        color: #FFFFFF;
+        --focus-inner: var(--gold-500);
+        --focus-outer: var(--lapis-950);
     }
-    @media (min-width: 40rem) { .shell-bar { --frieze: 0.2; padding-inline: var(--s-4); } }
-    @media (min-width: 64rem) { .shell-bar { --frieze: 0.25; } }
-    .frieze { display: block; }
-    .frieze--left { grid-area: 1 / 1 / 3 / 2; background: url("img/oaj/banner-left.webp") 0 0 / 100% 100% no-repeat; }
-    .frieze--right { grid-area: 1 / 3 / 3 / 4; background: url("img/oaj/banner-right.webp") 0 0 / 100% 100% no-repeat; }
-    .frieze--band { grid-area: 1 / 2 / 2 / 3; display: flex; min-width: 0; }
-    /* The roundels repeat a whole number of times ("round"), so every join is one the artist drew. */
-    .frieze__fill { flex: 1 1 0; min-width: 0; background-size: auto 100%; background-repeat: round no-repeat; }
-    .frieze__fill--left { background-image: url("img/oaj/banner-tile-l.webp"); }
-    .frieze__fill--right { background-image: url("img/oaj/banner-tile-r.webp"); }
-    .frieze__centre { flex: none; width: calc(380px * var(--frieze)); background: url("img/oaj/banner-centre.webp") 0 0 / 100% 100% no-repeat; }
-
-    .shell-bar__opening {
-        grid-area: 2 / 2 / 3 / 3; min-width: 0;
-        display: flex; align-items: center; gap: var(--s-2);
-        padding-inline: var(--s-2);
-    }
-    @media (min-width: 40rem) { .shell-bar__opening { gap: var(--s-4); padding-inline: var(--s-4); } }
 
     .brand {
         display: inline-flex; align-items: center; gap: var(--s-2);
-        color: var(--lapis-900); text-decoration: none;
+        color: #FFFFFF; text-decoration: none;
         font-family: var(--font-display); font-weight: 800; font-size: var(--step-1);
         letter-spacing: 0.01em;
         min-height: var(--target);
     }
-    .brand svg { width: 2.25rem; height: 2.25rem; flex: none; color: var(--gold-700); }
-    @media (min-width: 64rem) { .brand { font-size: var(--step-2); } .brand svg { width: 2.75rem; height: 2.75rem; } }
+    .brand svg { width: 2.5rem; height: 2.5rem; flex: none; color: var(--gold-500); }
 
     .shell-bar svg.icon { width: 1.25rem; height: 1.25rem; flex: none; }
+    @media (max-width: 40rem) {
+        .shell-bar { gap: var(--s-2); padding-inline: var(--s-3); }
+        .account > summary { padding-inline: var(--s-2); }
+    }
     .shell-bar .nav-toggle {
         margin-left: auto;
-        background: transparent; color: var(--ink); border-color: var(--line-strong);
+        background: transparent; border-color: rgb(255 255 255 / 0.45);
         padding-inline: var(--s-3);
     }
-    .shell-bar .nav-toggle:hover { background: var(--lapis-50); }
-    @media (max-width: 40rem) {
-        .brand { gap: var(--s-1); font-size: 1rem; }
-        .brand svg { width: 1.75rem; height: 1.75rem; }
-        .shell-bar .nav-toggle { padding-inline: var(--s-2); min-width: var(--target); justify-content: center; }
-        .nav-toggle__label, .account > summary > .icon { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-        .account > summary { padding-inline: var(--s-1); }
-    }
-    @media (max-width: 23rem) {
-        /* 320 px: the name is read from the link but not shown; the logo stays. */
-        .brand__name { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-    }
+    .shell-bar .nav-toggle:hover { background: var(--lapis-800); }
 
     .account { position: relative; margin-left: auto; }
     @media (max-width: 63.99rem) { .nav-toggle + .account { margin-left: 0; } }
@@ -256,14 +229,14 @@
         display: inline-flex; align-items: center; gap: var(--s-2);
         min-height: var(--target); padding: var(--s-1) var(--s-3);
         border-radius: var(--r-control);
-        color: var(--ink); font-weight: 600;
+        color: #FFFFFF; font-weight: 600;
     }
     .account > summary::-webkit-details-marker { display: none; }
-    .account > summary:hover { background: var(--lapis-50); }
+    .account > summary:hover { background: var(--lapis-800); }
     .account .initials {
         display: inline-grid; place-items: center;
         width: 2rem; height: 2rem; border-radius: 50%;
-        background: var(--lapis-900); color: #FFFFFF;
+        background: var(--gold-500); color: var(--lapis-950);
         font-weight: 800; font-size: var(--step--1);
     }
     .account-menu {
@@ -286,18 +259,21 @@
     .account-name { max-width: 14rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     @media (max-width: 40rem) { .account-name { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); } }
     .account-links { margin-left: auto; display: flex; gap: var(--s-2); }
-    .account-links a { display: inline-flex; align-items: center; min-height: var(--target); padding: var(--s-2) var(--s-3); color: var(--lapis-700); font-weight: 600; text-decoration: none; border-radius: var(--r-control); }
-    .account-links a:hover { background: var(--lapis-50); }
-    .account-links a + a { border: 1px solid var(--line-strong); }
-    .account-links a { white-space: nowrap; }
-    @media (max-width: 40rem) {
-        .account-links { gap: var(--s-1); }
-        .account-links a { padding-inline: var(--s-2); }
-        /* Signed out on a phone: Log in and Register take the room; the name is still the link's text. */
-        .shell-bar__opening:has(.account-links) .brand__name { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-    }
+    .account-links a { display: inline-flex; align-items: center; min-height: var(--target); padding: var(--s-2) var(--s-3); color: #FFFFFF; font-weight: 600; text-decoration: none; border-radius: var(--r-control); }
+    .account-links a:hover { background: var(--lapis-800); }
+    .account-links a + a { border: 1px solid rgb(255 255 255 / 0.45); }
 
-    .shell-body { display: grid; grid-template-columns: minmax(0, 1fr); }
+    /* The signed-in person's chapter, under the bar; the switcher only for someone in more than one. */
+    .chapter-bar {
+        display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-4);
+        padding: var(--s-2) var(--s-4);
+        background: var(--lapis-50); border-bottom: 1px solid var(--line);
+        font-size: var(--step--1); color: var(--ink-soft);
+    }
+    .chapter-bar strong { color: var(--ink); }
+    .chapter-switch { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); margin: 0; }
+
+    .shell-body { flex: 1 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); }
     main { padding: var(--s-6) var(--s-4) var(--s-8); min-width: 0; }
     main > * { max-width: var(--content-max); margin-inline: auto; }
 
@@ -349,7 +325,6 @@
     .shell-foot .eagle { width: 4.5rem; color: var(--gold-700); }
     .shell-foot p { margin: 0; }
     .shell-foot__credit { max-width: 40rem; }
-    .shell:has(.nav-group--staff) .shell-foot { grid-column: 1 / -1; }
 
     #blazor-error-ui {
         color-scheme: light only;

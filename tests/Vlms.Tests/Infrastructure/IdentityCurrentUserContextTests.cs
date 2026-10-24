@@ -33,10 +33,10 @@ public sealed class IdentityCurrentUserContextTests : IDisposable
         _anchorConnection.Open();
         _options = new DbContextOptionsBuilder<VlmsDbContext>().UseSqlite(connectionString).Options;
 
-        using var schemaContext = new VlmsDbContext(_options, NullCurrentUserContext.Instance);
+        using var schemaContext = new VlmsDbContext(_options, TestSeedUserContext.Instance);
         schemaContext.Database.EnsureCreated();
 
-        using var seed = new VlmsDbContext(_options, NullCurrentUserContext.Instance);
+        using var seed = new VlmsDbContext(_options, TestSeedUserContext.Instance);
         seed.Users.Add(new VlmsIdentityUser { Id = 1, UserName = "teacher@example.com", Email = "teacher@example.com", TwoFactorEnabled = false });
         seed.AppUsers.Add(new AppUser { Id = 1, DisplayName = "Teacher One", Email = "teacher@example.com" });
         seed.UserRoles.Add(new UserRole { UserId = 1, Role = Role.Teacher });

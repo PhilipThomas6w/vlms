@@ -16,9 +16,12 @@ namespace Vlms.Infrastructure.Curriculum;
 /// </summary>
 public sealed class LessonLibraryService
 {
-    /// <summary>The roles that may browse and download lesson material (FR-006).</summary>
+    /// <summary>
+    /// The roles that may browse and download lesson material (FR-006). The curriculum is national,
+    /// so the National Administrator (who manages the rank badges) reads it too (docs/adr/0010-chapters.md).
+    /// </summary>
     public static readonly IReadOnlyList<Role> LibraryRoles =
-        [Role.Teacher, Role.Approver, Role.Admin, Role.Student, Role.Parent];
+        [Role.Teacher, Role.Approver, Role.Admin, Role.Student, Role.Parent, Role.NationalAdministrator];
 
     private readonly VlmsDbContext _db;
     private readonly IBlobStorage _blobStorage;

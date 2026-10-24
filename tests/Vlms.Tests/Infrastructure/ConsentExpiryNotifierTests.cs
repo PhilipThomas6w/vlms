@@ -32,7 +32,7 @@ public sealed class ConsentExpiryNotifierTests : IDisposable
         _anchorConnection = new SqliteConnection(_connectionString);
         _anchorConnection.Open();
 
-        using var schema = CreateContext(SystemCurrentUserContext.Instance);
+        using var schema = CreateContext(TestSeedUserContext.Instance);
         schema.Context.Database.EnsureCreated();
 
         schema.Context.AppUsers.Add(new AppUser { Id = 1, DisplayName = "Admin One", Email = "admin1@example.com" });
@@ -83,7 +83,7 @@ public sealed class ConsentExpiryNotifierTests : IDisposable
         var sut = new ConsentExpiryNotifier(run.Context, SystemCurrentUserContext.Instance, notificationService);
 
         var result = new ConsentExpiryJobResult(
-            ConsentFlags: [new ConsentExpiryFlag(100, "Approaching Only", 1, DateOnly.FromDateTime(DateTime.UtcNow.AddDays(10)), IsExpired: false)],
+            ConsentFlags: [new ConsentExpiryFlag(100, "Approaching Only", 1, DateOnly.FromDateTime(DateTime.UtcNow.AddDays(10)), IsExpired: false, Chapter.ShrewsburyId)],
             DbsFlags: [],
             AtRiskStudents: [new AtRiskStudentFlag(200, "At Risk Only", DateTime.UtcNow.AddDays(-60), 60)],
             StudentsDueForDeletion: [],
@@ -103,7 +103,7 @@ public sealed class ConsentExpiryNotifierTests : IDisposable
         var sut = new ConsentExpiryNotifier(run.Context, SystemCurrentUserContext.Instance, notificationService);
 
         var result = new ConsentExpiryJobResult(
-            ConsentFlags: [new ConsentExpiryFlag(100, "Expired Student", 1, DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-5)), IsExpired: true)],
+            ConsentFlags: [new ConsentExpiryFlag(100, "Expired Student", 1, DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-5)), IsExpired: true, Chapter.ShrewsburyId)],
             DbsFlags: [],
             AtRiskStudents: [],
             StudentsDueForDeletion: [],
@@ -129,7 +129,7 @@ public sealed class ConsentExpiryNotifierTests : IDisposable
 
         var result = new ConsentExpiryJobResult(
             ConsentFlags: [],
-            DbsFlags: [new DbsExpiryFlag(3, "Teacher One", 1, DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-5)), IsExpired: true)],
+            DbsFlags: [new DbsExpiryFlag(3, "Teacher One", 1, DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-5)), IsExpired: true, Chapter.ShrewsburyId)],
             AtRiskStudents: [],
             StudentsDueForDeletion: [],
             DbsChecksDueForDeletion: []);
