@@ -115,6 +115,7 @@ Delegation (Philip, 22/10/2026): each item runs as a subagent in its own worktre
 
 
 ## Decisions needed (Philip)
+- **Calendar (FR-022)**: Philip to paste the GOARCH Digital Planner English ICS link (goarch.org/chapel/planner blocks automated requests); then confirm the drafts put to him 24/10/2026 (Teachers and Admins create events; meetings are events and the register opens from one; Great Feasts, Pascha and fasts shown by default, daily saints one tap away; a private subscribable feed of chapter events).
 - **Attendance assumptions** (built 24/10/2026, `docs/design/chapters-and-attendance.md` section 7): two absences in a row added alongside the 8-week rule, not replacing it; Teachers only take the register, Admins see attendance per student; consent alert to Safeguarding Officers once per child per register; corrections overwrite; the student's own page shows no attendance; national figures per month for 12 months.
 - **Chapters assumptions, remaining** (`docs/adr/0010-chapters.md`; 1, 2, 4, 6, 8 and keeping the DBS certificate number confirmed 24/10/2026): role-less accounts found by exact email (3); active chapter per person, not per browser (5); national figures unsuppressed (7); staff MFA judged in the active chapter (9).
 Ordered by go-live critical path.
