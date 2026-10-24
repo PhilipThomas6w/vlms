@@ -314,5 +314,6 @@ now in the hashed set, and `AccountEmailServiceTests.cs` has a floor of 9.
 | Claude (Opus, main session) — awaiting Philip's countersign | 23/10/2026 | Skyline illustration and grid textures removed at Philip's request (markup and CSS only). No access-control change. |
 | Claude (Opus, main session) — awaiting Philip's countersign | 23/10/2026 | All ornament Claude drew removed at Philip's decision (jewelled band, mosaic strips, interlace, illuminated initial, heading lozenges, the two-strand band); styling returns to version 2. Markup and CSS only; no access-control change. |
 | Claude (Opus, main session) — awaiting Philip's countersign | 24/10/2026 | Redesign prototypes, OAJ artwork: static images and text only on `StudentHome.razor` (rank header), `Home.razor` (public welcome), `MainLayout.razor` (footer wording and credit link to orthodoxartsjournal.org). No policy, query, service call or data change; the student page still calls only `GetOwnJourneyAsync`. |
+| Claude (Opus, main session) — awaiting Philip's countersign | 24/10/2026 | Redesign version 5 (Philip, 24/10/2026): the captioned drawings removed from `StudentHome.razor` and `Home.razor`; the foliate header moved from the student page into the banner in `MainLayout.razor` (a static image inside the existing home link); footer credit text changed. Markup, images and CSS only; no policy, query, service call or data change. |
 
-Reviewed-hash: 1cc4d21eae1957f8f52a877fe81c67d0aa50a96b1908e2e6817ceaf13c966f54
+Reviewed-hash: cb6fca95560a59c27f7a3e9bea74b4b08d6a518310f9a0be67fcf00152861249

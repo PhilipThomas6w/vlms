@@ -1,6 +1,6 @@
 /* Student page ("My rank"): the expressive end of the design system (direction doc, section 7). */
 
-/* ---------- Rank header: an illuminated page (Orthodox Arts Journal drawings, gold on white) ---------- */
+/* ---------- Rank header: the rank's name and its verse ---------- */
 .rank-hero {
     background: var(--surface);
     border: 1px solid var(--line);
@@ -9,36 +9,17 @@
     padding: var(--s-5);
     margin-bottom: var(--s-6);
 }
-.rank-hero__page { display: grid; gap: var(--s-5); align-items: start; }
-@media (min-width: 52rem) { .rank-hero__page { grid-template-columns: minmax(0, 1fr) 15rem; } }
-.rank-hero__hello { margin: 0 0 var(--s-2); font-weight: 600; color: var(--ink-soft); font-size: var(--step-1); }
-
-/* The rank's name sits in the opening of the Greek Foliate Header, between IC XC and NIKA. */
-.rank-hero__headpiece { position: relative; }
-.rank-hero__frame { display: block; width: 100%; height: auto; }
-.rank-hero__title {
-    position: absolute; left: 19%; right: 19%; top: 49%; bottom: 0;
-    display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;
-}
+.rank-hero__hello { margin: 0 0 var(--s-1); font-weight: 600; color: var(--ink-soft); font-size: var(--step-1); }
 .rank-hero h1 {
     margin: 0; color: var(--lapis-900);
-    font-size: clamp(1.75rem, 0.9rem + 3.2vw, 3.25rem); line-height: 1.05; letter-spacing: -0.01em;
+    font-size: clamp(2rem, 1.2rem + 3vw, 3.25rem); line-height: 1.05; letter-spacing: -0.01em;
 }
 .rank-hero h1:focus { outline: none; }
 .rank-hero__place { margin: var(--s-1) 0 0; font-weight: 600; color: var(--ink-soft); }
-@media (max-width: 34rem) {
-    /* Too narrow for the name to fit in the opening: it goes under the drawing. */
-    .rank-hero__title { position: static; padding-top: var(--s-3); }
-}
 
-.rank-hero__words { margin: var(--s-4) 0 0; text-align: center; }
-.rank-hero__words p { font-family: var(--font-display); font-style: italic; font-size: var(--step-1); line-height: 1.35; margin: 0 auto; color: var(--ink); }
+.rank-hero__words { margin: var(--s-4) 0 0; max-width: 40rem; }
+.rank-hero__words p { font-family: var(--font-display); font-style: italic; font-size: var(--step-1); line-height: 1.35; margin: 0; color: var(--ink); }
 .rank-hero__words footer { font-size: var(--step--1); font-weight: 600; margin-top: var(--s-1); color: var(--gold-700); }
-
-.rank-hero__art { margin: 0; text-align: center; }
-.rank-hero__art img { display: block; width: 100%; max-width: 15rem; height: auto; margin: 0 auto; }
-.rank-hero__art figcaption { margin-top: var(--s-2); font-size: var(--step--1); color: var(--ink-soft); }
-@media (max-width: 51.99rem) { .rank-hero__art img { max-width: 13rem; } }
 
 /* Progress in the rank: the patch, the tesserae, and the next rank. */
 .rank-hero__progress {
