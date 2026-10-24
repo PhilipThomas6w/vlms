@@ -12,8 +12,11 @@ public enum DbsCheckStatus
 /// entirely to Safeguarding Officer and Admin via the sensitive-data query filter — Teacher and
 /// Approver have no access at all (whole entity, not column-level).
 /// </summary>
-public sealed class DbsCheck
+public sealed class DbsCheck : IChapterOwned
 {
+    /// <summary>The chapter this record belongs to (docs/adr/0010-chapters.md). Left at 0, it is set on save to the caller's active chapter.</summary>
+    public int ChapterId { get; init; }
+
     public required int Id { get; init; }
     public required int TeacherUserId { get; init; }
     public required DateOnly CheckDate { get; init; }

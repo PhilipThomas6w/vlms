@@ -32,6 +32,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Vlms.Domain;
 using Vlms.Infrastructure;
+using Vlms.Infrastructure.Chapters;
 using Vlms.Infrastructure.Curriculum;
 using Vlms.Infrastructure.Engagement;
 using Vlms.Infrastructure.Identity;
@@ -46,12 +47,22 @@ using Vlms.Infrastructure.Storage;
 // arguments are kept out of the host builder so they are never read as configuration.
 var bootstrapEmail = args is ["bootstrap-admin", var emailArg] ? emailArg : null;
 
+// `Vlms.Jobs bootstrap-national-admin <email>` — the same one-off pattern for the first National
+// Administrator (FR-021, docs/adr/0010-chapters.md), inert once one exists.
+var bootstrapNationalEmail = args is ["bootstrap-national-admin", var nationalEmailArg] ? nationalEmailArg : null;
+
+// `Vlms.Jobs seed-dev-chapters --password <password>` — Development only: the Coventry test
+// chapter with its own staff, parent and student (DevelopmentChapterSeeder).
+var seedDevPassword = args is ["seed-dev-chapters", "--password", var passwordArg] ? passwordArg : null;
+
 // `Vlms.Jobs seed-curriculum --manifest <path> --content-root <dir>` — idempotent rank ladder +
 // curriculum seed (STATE.md "Seed rank ladder + curriculum"; CurriculumSeeder's doc comment). Run once
 // after migrations, with the production connection string and Storage:LocalRootPath.
 var seedCurriculumArgs = args is ["seed-curriculum", ..] ? SeedCurriculumArgs.Parse(args[1..]) : null;
 
-var builder = Host.CreateApplicationBuilder(bootstrapEmail is null && seedCurriculumArgs is null ? args : []);
+var isCommand = bootstrapEmail is not null || bootstrapNationalEmail is not null || seedDevPassword is not null
+    || seedCurriculumArgs is not null;
+var builder = Host.CreateApplicationBuilder(isCommand ? [] : args);
 
 builder.Services.AddDbContext<VlmsDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("VlmsDatabase")));
@@ -98,6 +109,14 @@ builder.Services.AddScoped(sp => new GuardianNotificationService(
     builder.Configuration["App:PublicBaseUrl"]));
 builder.Services.AddScoped<FirstAdminBootstrapService>();
 
+// Accounts for the Development seed only (seed-dev-chapters): Identity's user store and the real
+// password rules, as Vlms.Web registers them.
+builder.Services.AddIdentityCore<VlmsIdentityUser>()
+    .AddEntityFrameworkStores<VlmsDbContext>()
+    .AddVlmsPasswordRules();
+builder.Services.AddScoped<AppUserProvisioningService>();
+builder.Services.AddScoped<DevelopmentChapterSeeder>();
+
 // Lesson files for seed-curriculum go to the same root the web app reads (Storage:LocalRootPath).
 // Resolved lazily so the scheduled sweep never needs it; Production refuses a blank, relative or
 // in-app-directory root (BlobStorageRoot).
@@ -124,6 +143,53 @@ if (bootstrapEmail is not null)
     catch (InvalidOperationException ex)
     {
         bootstrapLogger.LogError("First-Admin bootstrap refused: {Reason}", ex.Message);
+        Environment.ExitCode = 1;
+    }
+
+    return;
+}
+
+if (bootstrapNationalEmail is not null)
+{
+    var nationalLogger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    try
+    {
+        var national = await scope.ServiceProvider.GetRequiredService<FirstAdminBootstrapService>()
+            .BootstrapNationalAdministratorAsync(bootstrapNationalEmail);
+        nationalLogger.LogInformation(
+            "First National Administrator bootstrapped: AppUser {UserId} ({DisplayName}). They must enrol TOTP MFA before the chapters page opens.",
+            national.Id, national.DisplayName);
+    }
+    catch (InvalidOperationException ex)
+    {
+        nationalLogger.LogError("National Administrator bootstrap refused: {Reason}", ex.Message);
+        Environment.ExitCode = 1;
+    }
+
+    return;
+}
+
+if (seedDevPassword is not null)
+{
+    var devLogger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    if (!builder.Environment.IsDevelopment())
+    {
+        devLogger.LogError("seed-dev-chapters refused: it runs only in the Development environment (DOTNET_ENVIRONMENT=Development).");
+        Environment.ExitCode = 2;
+        return;
+    }
+
+    try
+    {
+        var seeded = await scope.ServiceProvider.GetRequiredService<DevelopmentChapterSeeder>().SeedAsync(seedDevPassword);
+        devLogger.LogInformation(
+            "seed-dev-chapters done: chapter {ChapterId} ({Created}); accounts created: {Accounts}.",
+            seeded.ChapterId, seeded.ChapterCreated ? "created" : "already there",
+            seeded.AccountsCreated.Count == 0 ? "none" : string.Join(", ", seeded.AccountsCreated));
+    }
+    catch (Exception ex)
+    {
+        devLogger.LogCritical(ex, "seed-dev-chapters failed.");
         Environment.ExitCode = 1;
     }
 

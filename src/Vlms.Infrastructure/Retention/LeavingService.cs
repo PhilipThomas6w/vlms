@@ -134,11 +134,26 @@ public sealed class LeavingService
 
         var user = await _db.AppUsers.SingleAsync(u => u.Id == userId, ct);
 
-        var roles = await _db.UserRoles.Where(r => r.UserId == userId).Select(r => r.Role).ToListAsync(ct);
-        if (!roles.Any(LeftStaffPolicy.IsStaffRole))
+        // Per chapter (FR-021, docs/adr/0010-chapters.md): staff of this Admin's chapter only.
+        var chapterId = _currentUser.ActiveChapterId;
+        var staffRows = await _db.UserRoles
+            .Where(r => r.UserId == userId && (r.Role == Role.Teacher || r.Role == Role.Admin || r.Role == Role.SafeguardingOfficer))
+            .Select(r => new { r.Role, r.ChapterId })
+            .ToListAsync(ct);
+        var roles = staffRows.Where(r => r.ChapterId == chapterId).Select(r => r.Role).ToList();
+        if (roles.Count == 0)
         {
             throw new InvalidOperationException(
                 $"{user.DisplayName} is not a Teacher, Admin or Safeguarding Officer — only staff can be marked as having left here.");
+        }
+
+        // Leaving is recorded on the account, so it would end their staff roles in every chapter.
+        // One chapter's Admin may not do that to another chapter's staff: they remove this
+        // chapter's roles instead (assumption recorded in docs/adr/0010-chapters.md).
+        if (staffRows.Any(r => r.ChapterId != chapterId))
+        {
+            throw new InvalidOperationException(
+                $"{user.DisplayName} is also on the staff of another chapter. Remove their roles in this chapter instead of marking them as having left.");
         }
 
         if (user.HasLeft)
@@ -147,7 +162,7 @@ public sealed class LeavingService
         }
 
         if (roles.Contains(Role.Admin)
-            && !await _db.AppUsers.AnyAsync(u => u.Id != userId && !u.HasLeft && u.Roles.Any(r => r.Role == Role.Admin), ct))
+            && !await _db.AppUsers.AnyAsync(u => u.Id != userId && !u.HasLeft && u.Roles.Any(r => r.Role == Role.Admin && r.ChapterId == chapterId), ct))
         {
             throw new InvalidOperationException(
                 $"{user.DisplayName} is the last Admin who hasn't left — grant Admin to someone else first.");

@@ -279,7 +279,19 @@ sudo systemd-run --wait --pipe -p User=vlms -p WorkingDirectory=/opt/vlms/jobs  
 ```
 
    It refuses (exit code 1, "An Admin already exists") once any Admin exists, so re-running it later
-   is harmless. Every later role change happens in the app at `/administration/user-roles`.
+   is harmless. The Admin it grants is Shrewsbury's (chapter 1, `docs/adr/0010-chapters.md`). Every
+   later role change happens in the app at `/administration/user-roles` (per chapter).
+
+   The first National Administrator (who creates chapters and appoints each chapter's Admins, but
+   sees no chapter's records) is granted the same way, and is likewise inert once one exists:
+
+```bash
+sudo systemd-run --wait --pipe -p User=vlms -p WorkingDirectory=/opt/vlms/jobs   -p EnvironmentFile=/etc/vlms/jobs.env   /usr/bin/dotnet /opt/vlms/jobs/Vlms.Jobs.dll bootstrap-national-admin you@example.org
+# expected: "First National Administrator bootstrapped: AppUser <id> (<name>) ..." and exit code 0
+```
+
+   Later National Administrators are granted on `/administration/chapters`. (`seed-dev-chapters`
+   is for a development machine only and refuses outside the Development environment.)
 3. Sign in, enrol two-factor authentication (Account → Two-factor authentication). Admin pages stay
    closed until you do.
 

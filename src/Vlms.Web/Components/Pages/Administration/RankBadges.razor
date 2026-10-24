@@ -1,5 +1,5 @@
 @page "/administration/rank-badges"
-@attribute [Authorize(Policy = "RequireAdmin")]
+@attribute [Authorize(Policy = "RequireNationalAdministrator")]
 @rendermode InteractiveServer
 @using Vlms.Infrastructure.Badges
 @inject RankBadgeService RankBadgeService
@@ -9,7 +9,7 @@
 <h1>Rank badge images</h1>
 
 <p>
-    This page is for Admins only. Upload one badge image per rank: PNG, JPEG, WebP or SVG, no
+    This page is for National Administrators only: the badges are the same in every chapter. Upload one badge image per rank: PNG, JPEG, WebP or SVG, no
     larger than 2 MB. Uploading again replaces the image. Each image shows on the parent dashboard next
     to the badge a child has earned for that rank.
 </p>

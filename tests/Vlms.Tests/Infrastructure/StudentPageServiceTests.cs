@@ -28,7 +28,7 @@ public sealed class StudentPageServiceTests : IDisposable
         _anchorConnection = new SqliteConnection(_connectionString);
         _anchorConnection.Open();
 
-        using var db = NewContext(NullCurrentUserContext.Instance);
+        using var db = NewContext(TestSeedUserContext.Instance);
         db.Database.EnsureCreated();
 
         db.Ranks.Add(new Rank { Id = 1, Order = 1, Code = "R1", Name = "Recruit" });

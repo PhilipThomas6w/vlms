@@ -13,8 +13,27 @@ public interface ICurrentUserContext
     /// <summary>The current caller's <see cref="AppUser"/> id, or null if unresolved (e.g. a background job).</summary>
     int? UserId { get; }
 
-    /// <summary>Whether the current caller holds the given role. A caller may hold more than one role.</summary>
+    /// <summary>
+    /// Whether the current caller holds the given role. A caller may hold more than one role. For a
+    /// chapter role (<see cref="RoleScope.IsChapterRole"/>) this means "holds it in
+    /// <see cref="ActiveChapterId"/>": a Teacher in one chapter who is Admin in another has no Admin
+    /// powers while working in the first (docs/adr/0010-chapters.md). A national role is held or not.
+    /// </summary>
     bool HasRole(Role role);
+
+    /// <summary>
+    /// The chapter the caller is working in (docs/adr/0010-chapters.md): every chapter role check
+    /// and every chapter query filter uses it. Null when the caller holds no chapter role at all
+    /// (an anonymous caller, a national-only account), who then sees no chapter's rows other than
+    /// their own and their own children's.
+    /// </summary>
+    int? ActiveChapterId { get; }
+
+    /// <summary>
+    /// True only for the scheduled job's system principal, which sweeps every chapter. Never true
+    /// for a signed-in person, national administrators included.
+    /// </summary>
+    bool SeesAllChapters { get; }
 
     /// <summary>
     /// Whether the current caller has TOTP multi-factor authentication enabled (ASP.NET Core

@@ -1,0 +1,44 @@
+@using Vlms.Infrastructure.Chapters
+@inject ChapterService Chapters
+@inject NavigationManager Navigation
+
+@* The signed-in person's active chapter (FR-021, docs/adr/0010-chapters.md), and a switcher only
+   when they belong to more than one. Public pages show nothing here: they stay national. The
+   switcher is a plain form post to ChapterSwitchEndpoint, so it works from this static layout. *@
+@if (_active is { } active)
+{
+    <div class="chapter-bar">
+        Chapter: <strong>@active.Name</strong>
+        @if (_mine.Count > 1)
+        {
+            <form action="@ChapterSwitchEndpoint.RoutePattern" method="post" class="chapter-switch">
+                <AntiforgeryToken />
+                <input type="hidden" name="returnUrl" value="@ReturnUrl" />
+                <label for="chapter-switch">Work in another chapter</label>
+                <select id="chapter-switch" name="chapterId">
+                    @foreach (var chapter in _mine)
+                    {
+                        <option value="@chapter.Id" selected="@(chapter.Id == active.Id)">@chapter.Name</option>
+                    }
+                </select>
+                <button type="submit">Switch chapter</button>
+            </form>
+        }
+    </div>
+}
+
+@code {
+    private ChapterSummary? _active;
+    private IReadOnlyList<ChapterSummary> _mine = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _active = await Chapters.GetActiveAsync();
+        if (_active is not null)
+        {
+            _mine = await Chapters.ListMineAsync();
+        }
+    }
+
+    private string ReturnUrl => "/" + Navigation.ToBaseRelativePath(Navigation.Uri);
+}

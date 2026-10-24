@@ -10,12 +10,13 @@
 <h1>User roles</h1>
 
 <p>
-    This page is for Admins only. A new account has no
-    roles and can do nothing until a role is granted here. Admin and Safeguarding Officer holders
-    must enrol two-factor authentication before those roles take effect. The last remaining Admin
+    This page is for Admins only, and covers this chapter only: the roles shown and granted here are
+    held in this chapter, and roles someone holds in another chapter are not shown. A new account has no
+    roles and can do nothing until a role is granted here. Admin, Safeguarding Officer and Teacher holders
+    must enrol two-factor authentication before those roles take effect. The chapter's last remaining Admin
     cannot lose the Admin role, and a user marked as having left cannot be granted a role. The
     Student role comes only from a parent creating their child's sign-in, and a student sign-in
-    can't be given other roles.
+    can't be given other roles. The Approver role is national and is granted by a National Administrator.
 </p>
 
 @if (_errorMessage is not null)
@@ -32,10 +33,9 @@
 else
 {
     <p>
-        These accounts are waiting for a role: new accounts with none, and guardians who accepted an
-        invite but are not yet a Parent (some already hold other roles, such as a Teacher who is also a
-        parent). Approve a guardian by granting Parent, which adds to any roles they already hold.
-        Anyone else gets a role from the table below.
+        These guardians accepted one of this chapter's invites but are not yet a Parent here (some
+        already hold other roles, such as a Teacher who is also a parent). Approve a guardian by
+        granting Parent, which adds to any roles they already hold.
     </p>
     <table>
         <thead>
@@ -70,11 +70,40 @@ else
     </table>
 }
 
-<h2>All users</h2>
+<h2>Give someone a role</h2>
+<p>
+    Someone new to this chapter (for example a teacher who has just registered) is found by the email
+    address they registered with.
+</p>
+<form @onsubmit="FindAsync" @onsubmit:preventDefault>
+    <label for="find-email">Their email address</label>
+    <input id="find-email" type="email" autocomplete="off" @bind="_findEmail" />
+    <button type="submit">Find</button>
+</form>
+@if (_found is { } found)
+{
+    var foundSelectId = $"grant-role-found-{found.UserId}";
+    <p>
+        @found.DisplayName (@found.Email)@(found.HasLeft ? " has left." : "")
+        @if (!found.HasLeft && GrantableRoles(found) is { Count: > 0 } foundRoles)
+        {
+            <label for="@foundSelectId">Role for @found.DisplayName</label>
+            <select id="@foundSelectId" @bind="_foundRole">
+                @foreach (var role in foundRoles)
+                {
+                    <option value="@role">@role.DisplayName()</option>
+                }
+            </select>
+            <button type="button" aria-label="@($"Grant selected role to {found.DisplayName}")" @onclick="GrantFoundAsync">Grant</button>
+        }
+    </p>
+}
+
+<h2>People in this chapter</h2>
 
 @if (_users.Count == 0)
 {
-    <p>No user accounts.</p>
+    <p>Nobody holds a role in this chapter yet.</p>
 }
 else
 {
@@ -143,10 +172,45 @@ else
 
     // Student is granted only by a parent creating the sign-in, and a student sign-in gets no other
     // role (FR-011, adr/0007; RoleAssignmentService refuses both).
+    // Only the chapter roles an Admin grants (Approver and National Administrator are national).
     private static List<Role> GrantableRoles(RoleAssignmentService.UserWithRoles user) =>
-        user.Roles.Contains(Role.Student)
+        user.Roles.Contains(Role.Student) || string.IsNullOrEmpty(user.Email)
             ? []
-            : Enum.GetValues<Role>().Except(user.Roles).Where(r => r != Role.Student).ToList();
+            : RoleAssignmentService.AssignableRoles.Except(user.Roles).ToList();
+
+    private string? _findEmail;
+    private RoleAssignmentService.UserWithRoles? _found;
+    private Role _foundRole;
+
+    private async Task FindAsync()
+    {
+        _errorMessage = null;
+        _statusMessage = null;
+        _found = await RoleAssignmentService.FindByEmailAsync(_findEmail ?? "");
+        if (_found is null)
+        {
+            _errorMessage = "No account has that email address. Ask them to register first.";
+            return;
+        }
+
+        _foundRole = GrantableRoles(_found).FirstOrDefault();
+    }
+
+    private async Task GrantFoundAsync()
+    {
+        if (_found is not { } found)
+        {
+            return;
+        }
+
+        _selectedRoles[found.UserId] = _foundRole;
+        await GrantAsync(found);
+        if (_errorMessage is null)
+        {
+            _found = null;
+            _findEmail = null;
+        }
+    }
 
     private async Task LoadAsync()
     {

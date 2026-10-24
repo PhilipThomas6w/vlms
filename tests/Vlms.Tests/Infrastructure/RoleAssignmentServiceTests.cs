@@ -97,9 +97,9 @@ public sealed class RoleAssignmentServiceTests : IDisposable
     {
         using var admin = CreateContext(1, Role.Admin);
 
-        await admin.Service.GrantAsync(20, Role.Approver);
+        await admin.Service.GrantAsync(20, Role.SafeguardingOfficer);
 
-        Assert.Equal([Role.Teacher, Role.Approver], (await RolesOf(20)).OrderBy(r => r));
+        Assert.Equal([Role.Teacher, Role.SafeguardingOfficer], (await RolesOf(20)).OrderBy(r => r));
     }
 
     [Theory]
@@ -169,15 +169,16 @@ public sealed class RoleAssignmentServiceTests : IDisposable
     [Fact]
     public async Task RevokeAsync_NonStaffRoleFromLeaver_IsAllowed()
     {
-        // An Approver who leaves keeps access (FR-017, 23/10/2026); an Admin can remove the role.
+        // A Parent role survives leaving the staff (FR-017, 23/10/2026); an Admin can remove it.
+        // (Approver is national since chapters, docs/adr/0010-chapters.md, so is not removed here.)
         using (var seed = CreateContext(1, Role.Admin))
         {
-            seed.Context.UserRoles.Add(new UserRole { UserId = 30, Role = Role.Approver });
+            seed.Context.UserRoles.Add(new UserRole { UserId = 30, Role = Role.Parent });
             await seed.Context.SaveChangesAsync();
         }
 
         using var admin = CreateContext(1, Role.Admin);
-        await admin.Service.RevokeAsync(30, Role.Approver);
+        await admin.Service.RevokeAsync(30, Role.Parent);
 
         Assert.Equal([Role.Teacher], await RolesOf(30));
     }
@@ -231,8 +232,10 @@ public sealed class RoleAssignmentServiceTests : IDisposable
 
         var users = await admin.Service.ListUsersAsync();
 
-        Assert.Equal(["Admin One", "Left Teacher", "New User", "Teacher One"], users.Select(u => u.DisplayName));
-        Assert.Empty(users.Single(u => u.UserId == 10).Roles);
+        // The people holding a role in the Admin's chapter (docs/adr/0010-chapters.md); New User, who
+        // holds none, is found by email instead.
+        Assert.Equal(["Admin One", "Left Teacher", "Teacher One"], users.Select(u => u.DisplayName));
+        Assert.DoesNotContain(users, u => u.UserId == 10);
         Assert.Equal([Role.Teacher], users.Single(u => u.UserId == 20).Roles);
         Assert.True(users.Single(u => u.UserId == 30).HasLeft);
     }
@@ -277,13 +280,12 @@ public sealed class RoleAssignmentServiceTests : IDisposable
 
         var waiting = await admin.Service.ListAwaitingApprovalAsync();
 
-        Assert.Equal([40, 10], waiting.Select(w => w.UserId));
+        // Since chapters (docs/adr/0010-chapters.md) only this chapter's invite accepters wait here; a
+        // self-registered account with no role (New User, 10) is found by email, not listed.
+        Assert.Equal([40], waiting.Select(w => w.UserId));
         var gail = waiting[0];
         Assert.True(gail.FromGuardianInvite);
         Assert.Equal(["Student A"], gail.LinkedStudentNames);
-        var selfRegistered = waiting[1];
-        Assert.False(selfRegistered.FromGuardianInvite);
-        Assert.Empty(selfRegistered.LinkedStudentNames);
     }
 
     [Fact]

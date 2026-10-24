@@ -4,8 +4,11 @@ namespace Vlms.Domain;
 /// Promotion history: a new row starts when a student enters a rank, closes (<see cref="CompletedAt"/>)
 /// when they complete it (auto-promotion trigger).
 /// </summary>
-public sealed class StudentRankProgress
+public sealed class StudentRankProgress : IChapterOwned
 {
+    /// <summary>The chapter this record belongs to (docs/adr/0010-chapters.md): always its parent row's. Left at 0, it is copied from the parent on save.</summary>
+    public int ChapterId { get; init; }
+
     public required int Id { get; init; }
     public required int StudentId { get; init; }
     public required int RankId { get; init; }

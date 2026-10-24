@@ -51,6 +51,10 @@ Routes.razor uses `AuthorizeRouteView` (not a plain `RouteView`), which is what 
 
 All three were adversarially checked (Opus-model checker) for the specific failure mode of "the deny path is accidentally permissive" — confirmed clean, see `STATE.md`'s log entry for that review.
 
+## Roles per chapter (FR-021, adr/0010)
+
+Chapter roles (Admin, Teacher, Safeguarding Officer, Parent, Student) are `UserRole` rows with a `ChapterId` and count only in the caller's active chapter (`IdentityCurrentUserContext.ActiveChapterId`, from `ChapterMembership`); national roles (Approver, National Administrator) have no chapter. `RoleAssignmentService` works on the Admin's active chapter; `FirstAdminBootstrapService` grants Shrewsbury's Admin and, via `BootstrapNationalAdministratorAsync` (`Vlms.Jobs bootstrap-national-admin`), the first National Administrator. `MfaRequirementHandler` also gates National Administrator. Details: [chapters.md](chapters.md).
+
 ## Role changes and multiple roles (FR-016)
 
 - **One identity, any combination of roles; permissions fixed per role.** A user may hold, for example, Teacher+Admin, Teacher+Safeguarding Officer or Teacher+Parent. There is no permission layer beyond the per-role policies, query-filter arms and in-service checks, so a multi-role user gets exactly the union. A student sign-in holds only Student (`RoleAssignmentService` refuses anything else, unchanged).

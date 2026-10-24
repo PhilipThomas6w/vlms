@@ -135,7 +135,7 @@ public sealed class StudentApplicationServiceTests : IDisposable
     private async Task<int> SubmitAsync(int applicantId = ApplicantId, ChildApplicationForm? child = null, params Role[] roles)
     {
         using var applicant = Caller(applicantId, roles);
-        return (await applicant.Service.SubmitAsync(Parent(), [child ?? Child()])).Single().Id;
+        return (await applicant.Service.SubmitAsync(Chapter.ShrewsburyId, Parent(), [child ?? Child()])).Single().Id;
     }
 
     private async Task<int> SubmitAndPassStageOneAsync(int applicantId = ApplicantId, ChildApplicationForm? child = null)
@@ -181,7 +181,7 @@ public sealed class StudentApplicationServiceTests : IDisposable
 
         using (var applicant = Caller(ApplicantId))
         {
-            var created = await applicant.Service.SubmitAsync(Parent(), [Child("Chris Child"), Child("Dana Child", new DateOnly(2018, 1, 2), "Mother")]);
+            var created = await applicant.Service.SubmitAsync(Chapter.ShrewsburyId, Parent(), [Child("Chris Child"), Child("Dana Child", new DateOnly(2018, 1, 2), "Mother")]);
             Assert.Equal(2, created.Count);
         }
 
@@ -215,7 +215,7 @@ public sealed class StudentApplicationServiceTests : IDisposable
         using var applicant = Caller(ApplicantId);
 
         var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
-            applicant.Service.SubmitAsync(new ApplicantDetails(phone, address), [Child(relationship: relationship, emergency: emergency)]));
+            applicant.Service.SubmitAsync(Chapter.ShrewsburyId, new ApplicantDetails(phone, address), [Child(relationship: relationship, emergency: emergency)]));
 
         Assert.StartsWith(expectedMessageStart, ex.Message);
         Assert.Empty(applicant.Db.StudentApplications);
@@ -226,11 +226,11 @@ public sealed class StudentApplicationServiceTests : IDisposable
     {
         using var applicant = Caller(ApplicantId);
 
-        await Assert.ThrowsAsync<ArgumentException>(() => applicant.Service.SubmitAsync(Parent(), []));
+        await Assert.ThrowsAsync<ArgumentException>(() => applicant.Service.SubmitAsync(Chapter.ShrewsburyId, Parent(), []));
         await Assert.ThrowsAsync<ArgumentException>(() =>
-            applicant.Service.SubmitAsync(Parent(), [Child(dateOfBirth: DateOnly.FromDateTime(DateTime.UtcNow).AddDays(1))]));
+            applicant.Service.SubmitAsync(Chapter.ShrewsburyId, Parent(), [Child(dateOfBirth: DateOnly.FromDateTime(DateTime.UtcNow).AddDays(1))]));
         await Assert.ThrowsAsync<ArgumentException>(() =>
-            applicant.Service.SubmitAsync(Parent(), [Child(sen: new string('x', ConsentSensitiveDetails.MaxTextLength + 1))]));
+            applicant.Service.SubmitAsync(Chapter.ShrewsburyId, Parent(), [Child(sen: new string('x', ConsentSensitiveDetails.MaxTextLength + 1))]));
         Assert.Empty(applicant.Db.StudentApplications);
     }
 
@@ -240,7 +240,7 @@ public sealed class StudentApplicationServiceTests : IDisposable
         using var applicant = Caller(ApplicantId);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            applicant.Service.SubmitAsync(Parent(), [Child("Chris Child"), Child("  chris   CHILD ", new DateOnly(2019, 1, 1))]));
+            applicant.Service.SubmitAsync(Chapter.ShrewsburyId, Parent(), [Child("Chris Child"), Child("  chris   CHILD ", new DateOnly(2019, 1, 1))]));
 
         Assert.Empty(applicant.Db.StudentApplications);
     }
@@ -251,13 +251,13 @@ public sealed class StudentApplicationServiceTests : IDisposable
         var first = await SubmitAsync();
         using (var applicant = Caller(ApplicantId))
         {
-            await Assert.ThrowsAsync<InvalidOperationException>(() => applicant.Service.SubmitAsync(Parent(), [Child("CHRIS child")]));
+            await Assert.ThrowsAsync<InvalidOperationException>(() => applicant.Service.SubmitAsync(Chapter.ShrewsburyId, Parent(), [Child("CHRIS child")]));
         }
 
         await PassBothStagesAsync(first);
         using (var applicant = Caller(ApplicantId, Role.Parent))
         {
-            await Assert.ThrowsAsync<InvalidOperationException>(() => applicant.Service.SubmitAsync(Parent(), [Child("Chris Child")]));
+            await Assert.ThrowsAsync<InvalidOperationException>(() => applicant.Service.SubmitAsync(Chapter.ShrewsburyId, Parent(), [Child("Chris Child")]));
         }
 
         Assert.Single(Caller(AdminId, Role.Admin).Db.StudentApplications);
@@ -269,7 +269,7 @@ public sealed class StudentApplicationServiceTests : IDisposable
         using var parent = Caller(ExistingParentId, Role.Parent);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            parent.Service.SubmitAsync(Parent(), [Child(" alex  SMITH", new DateOnly(2015, 3, 4))]));
+            parent.Service.SubmitAsync(Chapter.ShrewsburyId, Parent(), [Child(" alex  SMITH", new DateOnly(2015, 3, 4))]));
 
         Assert.Empty(parent.Db.StudentApplications);
     }
@@ -302,17 +302,17 @@ public sealed class StudentApplicationServiceTests : IDisposable
     {
         using (var student = Caller(StudentSignInId, Role.Student))
         {
-            await Assert.ThrowsAsync<UnauthorizedAccessException>(() => student.Service.SubmitAsync(Parent(), [Child()]));
+            await Assert.ThrowsAsync<UnauthorizedAccessException>(() => student.Service.SubmitAsync(Chapter.ShrewsburyId, Parent(), [Child()]));
         }
 
         using (var leaver = Caller(LeaverId))
         {
-            await Assert.ThrowsAsync<UnauthorizedAccessException>(() => leaver.Service.SubmitAsync(Parent(), [Child()]));
+            await Assert.ThrowsAsync<UnauthorizedAccessException>(() => leaver.Service.SubmitAsync(Chapter.ShrewsburyId, Parent(), [Child()]));
         }
 
         using (var nobody = Caller((int?)null))
         {
-            await Assert.ThrowsAsync<UnauthorizedAccessException>(() => nobody.Service.SubmitAsync(Parent(), [Child()]));
+            await Assert.ThrowsAsync<UnauthorizedAccessException>(() => nobody.Service.SubmitAsync(Chapter.ShrewsburyId, Parent(), [Child()]));
         }
 
         Assert.Empty(Caller(AdminId, Role.Admin).Db.StudentApplications);

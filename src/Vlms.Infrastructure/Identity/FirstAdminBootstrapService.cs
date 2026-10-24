@@ -72,7 +72,47 @@ public sealed class FirstAdminBootstrapService
             throw new InvalidOperationException($"{user.DisplayName} has been marked as having left and cannot be made Admin.");
         }
 
-        _db.UserRoles.Add(new UserRole { UserId = user.Id, Role = Role.Admin });
+        // The first chapter (FR-021, docs/adr/0010-chapters.md): before chapters there was only one.
+        _db.UserRoles.Add(new UserRole { UserId = user.Id, Role = Role.Admin, ChapterId = Chapter.ShrewsburyId });
+        await _db.SaveChangesAsync(ct);
+        return user;
+    }
+
+    /// <summary>
+    /// Grants <see cref="Role.NationalAdministrator"/> (FR-021, docs/adr/0010-chapters.md) to the
+    /// existing account with this email, on the same terms as <see cref="BootstrapAsync"/>: only
+    /// while no National Administrator exists (inert afterwards; later ones are granted on the
+    /// chapters page), only to a confirmed account that has not left, and only from the
+    /// <c>Vlms.Jobs</c> console (<c>bootstrap-national-admin &lt;email&gt;</c>). The role opens no
+    /// chapter's records; it needs TOTP MFA before its pages open.
+    /// </summary>
+    public async Task<AppUser> BootstrapNationalAdministratorAsync(string email, CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(email);
+
+        if (await _db.UserRoles.AnyAsync(r => r.Role == Role.NationalAdministrator, ct))
+        {
+            throw new InvalidOperationException(
+                "A National Administrator already exists — bootstrap is only for a deployment with none. Use the chapters page instead.");
+        }
+
+        var normalised = email.Trim().ToLower();
+        var user = await _db.AppUsers.SingleOrDefaultAsync(u => u.Email.ToLower() == normalised, ct)
+            ?? throw new InvalidOperationException(
+                $"No account with email '{email}' exists — register it through /Account/Register first.");
+
+        if (!await _db.Users.AnyAsync(u => u.Id == user.Id && u.EmailConfirmed, ct))
+        {
+            throw new InvalidOperationException(
+                $"The account for '{email}' hasn't confirmed its email address yet — use the link in the confirmation email first.");
+        }
+
+        if (user.HasLeft)
+        {
+            throw new InvalidOperationException($"{user.DisplayName} has been marked as having left and cannot be made National Administrator.");
+        }
+
+        _db.UserRoles.Add(new UserRole { UserId = user.Id, Role = Role.NationalAdministrator });
         await _db.SaveChangesAsync(ct);
         return user;
     }

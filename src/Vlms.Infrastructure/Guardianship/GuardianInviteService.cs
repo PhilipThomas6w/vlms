@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Vlms.Domain;
+using Vlms.Infrastructure.Chapters;
 using Vlms.Infrastructure.Identity;
 
 namespace Vlms.Infrastructure.Guardianship;
@@ -63,6 +64,7 @@ public sealed class GuardianInviteService
     private readonly ITimeLimitedDataProtector _protector;
     private readonly IConfiguration _configuration;
     private readonly TimeSpan _inviteLifetime;
+    private readonly ChapterScopeOverride? _chapterScope;
 
     public GuardianInviteService(
         VlmsDbContext db,
@@ -71,8 +73,10 @@ public sealed class GuardianInviteService
         AppUserProvisioningService provisioning,
         IDataProtectionProvider dataProtectionProvider,
         IConfiguration configuration,
-        TimeSpan? inviteLifetime = null)
+        TimeSpan? inviteLifetime = null,
+        ChapterScopeOverride? chapterScope = null)
     {
+        _chapterScope = chapterScope;
         _db = db;
         _currentUser = currentUser;
         _notificationService = notificationService;
@@ -136,6 +140,7 @@ public sealed class GuardianInviteService
     /// </summary>
     public async Task<AppUser> AcceptAsync(string token, string password, CancellationToken ct = default)
     {
+        using var chapterScope = await EnterInviteChapterAsync(token, ct);
         var invite = await ValidateAndLoadInviteAsync(token, ct);
         var guardian = await LoadUnlinkedGuardianAsync(invite, ct);
 
@@ -196,6 +201,7 @@ public sealed class GuardianInviteService
     /// </summary>
     public async Task<AcceptMode> GetAcceptModeAsync(string token, CancellationToken ct = default)
     {
+        using var chapterScope = await EnterInviteChapterAsync(token, ct);
         var invite = await ValidateAndLoadInviteAsync(token, ct);
         var guardian = await LoadUnlinkedGuardianAsync(invite, ct);
 
@@ -231,6 +237,7 @@ public sealed class GuardianInviteService
     /// </summary>
     public async Task<AppUser> AcceptForSignedInUserAsync(string token, CancellationToken ct = default)
     {
+        using var chapterScope = await EnterInviteChapterAsync(token, ct);
         var invite = await ValidateAndLoadInviteAsync(token, ct);
         var guardian = await LoadUnlinkedGuardianAsync(invite, ct);
 
@@ -428,6 +435,47 @@ public sealed class GuardianInviteService
     /// single-use against the row itself — belt-and-braces, in case a future caller ever unprotects a
     /// token via a different path (the entity's own doc comment).
     /// </summary>
+    /// <summary>
+    /// Enters the invite's chapter for the rest of an accept call (docs/adr/0010-chapters.md). The
+    /// person accepting is usually not signed in, so has no active chapter and the chapter query
+    /// filters would hide the invite and its guardian record. Only after the token's Data Protection
+    /// signature and expiry have been checked is the invite's chapter read, with one fixed scalar
+    /// query that returns nothing but that chapter's id; then <see cref="ChapterScopeOverride"/>
+    /// makes it the active chapter until the returned scope is disposed. The caller's roles are
+    /// unchanged, so the sensitive-data filters still show an anonymous caller nothing. Every check
+    /// in <see cref="ValidateAndLoadInviteAsync"/> still runs inside the scope.
+    /// </summary>
+    private async Task<IDisposable> EnterInviteChapterAsync(string token, CancellationToken ct)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(token);
+        var inviteIdText = _protector.Unprotect(token, out var expiration);
+        if (!int.TryParse(inviteIdText, NumberStyles.Integer, CultureInfo.InvariantCulture, out var inviteId))
+        {
+            throw new InvalidOperationException("Invite token could not be parsed.");
+        }
+
+        if (expiration < DateTimeOffset.UtcNow)
+        {
+            throw new InvalidOperationException("This invite link has expired.");
+        }
+
+        var chapterId = await _db.Database
+            .SqlQuery<int>($"SELECT chapter_id AS \"Value\" FROM guardian_invites WHERE id = {inviteId}")
+            .SingleOrDefaultAsync(ct);
+        if (chapterId == 0)
+        {
+            throw new InvalidOperationException("Invite not found.");
+        }
+
+        return _chapterScope?.EnterForVerifiedInvite(chapterId) ?? NoScope.Instance;
+    }
+
+    private sealed class NoScope : IDisposable
+    {
+        public static readonly NoScope Instance = new();
+        public void Dispose() { }
+    }
+
     private async Task<GuardianInvite> ValidateAndLoadInviteAsync(string token, CancellationToken ct)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(token);
@@ -531,5 +579,5 @@ public sealed class GuardianInviteService
 
     // Same application-assigned-id pattern as GuardianLinkService.NextId — see its comment.
     private async Task<int> NextId(CancellationToken ct) =>
-        (await _db.GuardianInvites.Select(x => (int?)x.Id).MaxAsync(ct) ?? 0) + 1;
+        await _db.NextIdAsync<GuardianInvite>(ct);
 }

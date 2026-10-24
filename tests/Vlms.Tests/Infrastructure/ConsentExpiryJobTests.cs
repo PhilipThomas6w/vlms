@@ -35,7 +35,7 @@ public sealed class ConsentExpiryJobTests : IDisposable
         _anchorConnection = new SqliteConnection(_connectionString);
         _anchorConnection.Open();
 
-        using var schema = CreateContext(SystemCurrentUserContext.Instance);
+        using var schema = CreateContext(TestSeedUserContext.Instance);
         schema.Context.Database.EnsureCreated();
         schema.Context.Ranks.Add(new Rank { Id = 1, Order = 1, Code = "R1", Name = "Recruit" });
         schema.Context.SaveChanges();
@@ -108,7 +108,7 @@ public sealed class ConsentExpiryJobTests : IDisposable
     {
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
-        using (var seed = CreateContext(SystemCurrentUserContext.Instance))
+        using (var seed = CreateContext(TestSeedUserContext.Instance))
         {
             seed.Context.ParentGuardians.Add(new ParentGuardian { Id = 1, Name = "Jane Parent", ContactInfo = "j@example.com", IsPrimary = true });
 
@@ -156,7 +156,7 @@ public sealed class ConsentExpiryJobTests : IDisposable
     {
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
-        using (var seed = CreateContext(SystemCurrentUserContext.Instance))
+        using (var seed = CreateContext(TestSeedUserContext.Instance))
         {
             seed.Context.AppUsers.Add(new AppUser { Id = 10, DisplayName = "Teacher Soon", Email = "t10@example.com" });
             seed.Context.UserRoles.Add(new UserRole { UserId = 10, Role = Role.Teacher });
@@ -206,7 +206,7 @@ public sealed class ConsentExpiryJobTests : IDisposable
     {
         var now = DateTime.UtcNow;
 
-        using (var seed = CreateContext(SystemCurrentUserContext.Instance))
+        using (var seed = CreateContext(TestSeedUserContext.Instance))
         {
             seed.Context.Lessons.Add(new Lesson { Id = 1, RankId = 1, Code = "L1", Title = "Knots", Order = 1, IsActive = true });
             seed.Context.AppUsers.Add(new AppUser { Id = 10, DisplayName = "Teacher One", Email = "t10@example.com" });
@@ -266,7 +266,7 @@ public sealed class ConsentExpiryJobTests : IDisposable
     {
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
-        using (var seed = CreateContext(SystemCurrentUserContext.Instance))
+        using (var seed = CreateContext(TestSeedUserContext.Instance))
         {
             seed.Context.ParentGuardians.Add(new ParentGuardian { Id = 1, Name = "Jane Parent", ContactInfo = "j@example.com", IsPrimary = true });
             seed.Context.Students.Add(NewStudent(300, "Expiring Soon", StudentStatus.Active, today.AddYears(-1)));
@@ -292,7 +292,7 @@ public sealed class ConsentExpiryJobTests : IDisposable
     {
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
-        using (var seed = CreateContext(SystemCurrentUserContext.Instance))
+        using (var seed = CreateContext(TestSeedUserContext.Instance))
         {
             seed.Context.ParentGuardians.Add(new ParentGuardian { Id = 1, Name = "Jane Parent", ContactInfo = "j@example.com", IsPrimary = true });
             seed.Context.Students.Add(NewStudent(400, "Expires In 40 Days", StudentStatus.Active, today.AddYears(-1)));
@@ -317,7 +317,7 @@ public sealed class ConsentExpiryJobTests : IDisposable
     {
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
-        using (var seed = CreateContext(SystemCurrentUserContext.Instance))
+        using (var seed = CreateContext(TestSeedUserContext.Instance))
         {
             seed.Context.AppUsers.Add(new AppUser { Id = 20, DisplayName = "Teacher Soon", Email = "t20@example.com" });
             seed.Context.UserRoles.Add(new UserRole { UserId = 20, Role = Role.Teacher });
@@ -341,7 +341,7 @@ public sealed class ConsentExpiryJobTests : IDisposable
 
         await sut.RunAsync();
 
-        using var verify = CreateContext(SystemCurrentUserContext.Instance);
+        using var verify = CreateContext(TestSeedUserContext.Instance);
         var logEntries = verify.Context.SensitiveDataAccessLogs
             .Where(l => l.Entity == nameof(DbsCheck))
             .OrderBy(l => l.EntityId)
@@ -384,7 +384,7 @@ public sealed class ConsentExpiryJobTests : IDisposable
     {
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
-        using (var seed = CreateContext(SystemCurrentUserContext.Instance))
+        using (var seed = CreateContext(TestSeedUserContext.Instance))
         {
             seed.Context.ParentGuardians.Add(new ParentGuardian { Id = 1, Name = "Jane Parent", ContactInfo = "j@example.com", IsPrimary = true });
             seed.Context.Students.Add(NewStudent(500, "Expires In 40 Days", StudentStatus.Active, today.AddYears(-1)));
@@ -440,7 +440,7 @@ public sealed class ConsentExpiryJobTests : IDisposable
     {
         var now = DateTime.UtcNow;
 
-        using (var seed = CreateContext(SystemCurrentUserContext.Instance))
+        using (var seed = CreateContext(TestSeedUserContext.Instance))
         {
             seed.Context.Students.Add(NewStudent(600, "Graduated Long Ago", StudentStatus.Graduated, DateOnly.FromDateTime(now.AddYears(-6))));
             seed.Context.StudentRankProgresses.Add(new StudentRankProgress { Id = 1, StudentId = 600, RankId = 1, StartedAt = now.AddYears(-6), CompletedAt = now.AddYears(-4) });
@@ -493,7 +493,7 @@ public sealed class ConsentExpiryJobTests : IDisposable
     {
         var now = DateTime.UtcNow;
 
-        using (var seed = CreateContext(SystemCurrentUserContext.Instance))
+        using (var seed = CreateContext(TestSeedUserContext.Instance))
         {
             seed.Context.Students.Add(NewStudent(610, "Left Long Ago", StudentStatus.Inactive, DateOnly.FromDateTime(now.AddYears(-10)), leftAt: now.AddYears(-4)));
             seed.Context.Students.Add(NewStudent(611, "Recently Left", StudentStatus.Inactive, DateOnly.FromDateTime(now.AddYears(-10)), leftAt: now.AddYears(-1)));
@@ -530,7 +530,7 @@ public sealed class ConsentExpiryJobTests : IDisposable
     {
         var now = DateTime.UtcNow;
 
-        using (var seed = CreateContext(SystemCurrentUserContext.Instance))
+        using (var seed = CreateContext(TestSeedUserContext.Instance))
         {
             seed.Context.Students.Add(NewStudent(700, "Graduated Long Ago", StudentStatus.Graduated, DateOnly.FromDateTime(now.AddYears(-6))));
             seed.Context.StudentRankProgresses.Add(new StudentRankProgress { Id = 1, StudentId = 700, RankId = 1, StartedAt = now.AddYears(-6), CompletedAt = now.AddYears(-4) });
@@ -564,7 +564,7 @@ public sealed class ConsentExpiryJobTests : IDisposable
     {
         var now = DateTime.UtcNow;
 
-        using (var seed = CreateContext(SystemCurrentUserContext.Instance))
+        using (var seed = CreateContext(TestSeedUserContext.Instance))
         {
             seed.Context.AppUsers.Add(new AppUser { Id = 80, DisplayName = "Teacher Flagged Past Retention", Email = "t80@example.com" });
             seed.Context.UserRoles.Add(new UserRole { UserId = 80, Role = Role.Teacher });
@@ -577,7 +577,7 @@ public sealed class ConsentExpiryJobTests : IDisposable
 
         await sut.RunAsync();
 
-        using var verify = CreateContext(SystemCurrentUserContext.Instance);
+        using var verify = CreateContext(TestSeedUserContext.Instance);
         var logEntry = Assert.Single(verify.Context.SensitiveDataAccessLogs.Where(l => l.Entity == nameof(DbsCheck) && l.EntityId == 81));
         Assert.Equal(SensitiveAccessType.View, logEntry.AccessType);
     }

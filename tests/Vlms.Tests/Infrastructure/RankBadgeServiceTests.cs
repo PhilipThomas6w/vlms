@@ -33,7 +33,7 @@ public sealed class RankBadgeServiceTests : IDisposable
         _anchorConnection = new SqliteConnection(_connectionString);
         _anchorConnection.Open();
 
-        using var schema = CreateCaller(userId: 1, Role.Admin);
+        using var schema = CreateCaller(userId: 1, Role.NationalAdministrator);
         schema.Context.Database.EnsureCreated();
 
         schema.Context.Ranks.Add(new Rank { Id = 1, Order = 1, Code = "R1", Name = "Recruit" });
@@ -80,6 +80,7 @@ public sealed class RankBadgeServiceTests : IDisposable
     }
 
     [Theory]
+    [InlineData(Role.Admin)] // a chapter Admin: badges are national (docs/adr/0010-chapters.md)
     [InlineData(Role.Teacher)]
     [InlineData(Role.Parent)]
     [InlineData(Role.Approver)]
@@ -104,7 +105,7 @@ public sealed class RankBadgeServiceTests : IDisposable
     [InlineData(Role.Approver)]
     public async Task LibraryRoles_CanViewAnImage_ButNotUpload(Role role)
     {
-        using var admin = CreateCaller(userId: 1, Role.Admin);
+        using var admin = CreateCaller(userId: 1, Role.NationalAdministrator);
         await admin.Service.SetImageAsync(1, "badge.png", PngSignature);
 
         using var viewer = CreateCaller(userId: 10, role);
@@ -119,7 +120,7 @@ public sealed class RankBadgeServiceTests : IDisposable
     [Fact]
     public async Task SafeguardingOfficer_CannotViewAnImage()
     {
-        using var admin = CreateCaller(userId: 1, Role.Admin);
+        using var admin = CreateCaller(userId: 1, Role.NationalAdministrator);
         await admin.Service.SetImageAsync(1, "badge.png", PngSignature);
 
         using var officer = CreateCaller(userId: 11, Role.SafeguardingOfficer);
@@ -135,7 +136,7 @@ public sealed class RankBadgeServiceTests : IDisposable
     [InlineData("badge.svg", 3)]
     public async Task ValidImages_AreAccepted(string fileName, int kind)
     {
-        using var admin = CreateCaller(userId: 1, Role.Admin);
+        using var admin = CreateCaller(userId: 1, Role.NationalAdministrator);
         var content = kind switch
         {
             0 => PngSignature,
@@ -157,7 +158,7 @@ public sealed class RankBadgeServiceTests : IDisposable
     [InlineData("badge.svg.exe")]
     public async Task UnsupportedExtension_IsRefused(string fileName)
     {
-        using var admin = CreateCaller(userId: 1, Role.Admin);
+        using var admin = CreateCaller(userId: 1, Role.NationalAdministrator);
 
         await Assert.ThrowsAsync<ArgumentException>(() => admin.Service.SetImageAsync(1, fileName, PngSignature));
         Assert.Empty(admin.Context.RankBadges);
@@ -170,7 +171,7 @@ public sealed class RankBadgeServiceTests : IDisposable
     [InlineData("badge.svg", new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A })]
     public async Task ContentThatDoesNotMatchExtension_IsRefused(string fileName, byte[] content)
     {
-        using var admin = CreateCaller(userId: 1, Role.Admin);
+        using var admin = CreateCaller(userId: 1, Role.NationalAdministrator);
 
         await Assert.ThrowsAsync<ArgumentException>(() => admin.Service.SetImageAsync(1, fileName, content));
         Assert.Empty(admin.Context.RankBadges);
@@ -180,7 +181,7 @@ public sealed class RankBadgeServiceTests : IDisposable
     [Fact]
     public async Task SvgWithoutAnSvgElement_IsRefused()
     {
-        using var admin = CreateCaller(userId: 1, Role.Admin);
+        using var admin = CreateCaller(userId: 1, Role.NationalAdministrator);
 
         await Assert.ThrowsAsync<ArgumentException>(() =>
             admin.Service.SetImageAsync(1, "badge.svg", Encoding.UTF8.GetBytes("<html><body>not svg</body></html>")));
@@ -189,7 +190,7 @@ public sealed class RankBadgeServiceTests : IDisposable
     [Fact]
     public async Task EmptyFile_IsRefused()
     {
-        using var admin = CreateCaller(userId: 1, Role.Admin);
+        using var admin = CreateCaller(userId: 1, Role.NationalAdministrator);
 
         await Assert.ThrowsAsync<ArgumentException>(() => admin.Service.SetImageAsync(1, "badge.png", []));
     }
@@ -197,7 +198,7 @@ public sealed class RankBadgeServiceTests : IDisposable
     [Fact]
     public async Task FileOfExactlyTwoMegabytes_IsAccepted_AndOneByteMore_IsRefused()
     {
-        using var admin = CreateCaller(userId: 1, Role.Admin);
+        using var admin = CreateCaller(userId: 1, Role.NationalAdministrator);
 
         await admin.Service.SetImageAsync(1, "badge.png", Padded(PngSignature, (int)RankBadgeService.MaxBytes));
 
@@ -209,7 +210,7 @@ public sealed class RankBadgeServiceTests : IDisposable
     [Fact]
     public async Task UnknownRank_IsRefused()
     {
-        using var admin = CreateCaller(userId: 1, Role.Admin);
+        using var admin = CreateCaller(userId: 1, Role.NationalAdministrator);
 
         await Assert.ThrowsAsync<ArgumentException>(() => admin.Service.SetImageAsync(999, "badge.png", PngSignature));
     }
@@ -217,7 +218,7 @@ public sealed class RankBadgeServiceTests : IDisposable
     [Fact]
     public async Task FirstUpload_CreatesOneRow_AndLaterUpload_ReplacesTheImageInPlace()
     {
-        using var admin = CreateCaller(userId: 1, Role.Admin);
+        using var admin = CreateCaller(userId: 1, Role.NationalAdministrator);
 
         await admin.Service.SetImageAsync(1, "first.png", PngSignature);
 
@@ -249,7 +250,7 @@ public sealed class RankBadgeServiceTests : IDisposable
     [Fact]
     public async Task SecondRankBadgeForSameRank_IsRejectedByTheDatabase()
     {
-        using var admin = CreateCaller(userId: 1, Role.Admin);
+        using var admin = CreateCaller(userId: 1, Role.NationalAdministrator);
         await admin.Service.SetImageAsync(1, "first.png", PngSignature);
 
         admin.Context.RankBadges.Add(new RankBadge { Id = 99, RankId = 1, ImageBlobKey = "rank-badges/1-dup.png" });
@@ -260,7 +261,7 @@ public sealed class RankBadgeServiceTests : IDisposable
     [Fact]
     public async Task OpenImage_ForRankWithoutBadge_ReturnsNull()
     {
-        using var admin = CreateCaller(userId: 1, Role.Admin);
+        using var admin = CreateCaller(userId: 1, Role.NationalAdministrator);
 
         Assert.Null(await admin.Service.OpenImageAsync(2));
     }

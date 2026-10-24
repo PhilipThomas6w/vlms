@@ -12,10 +12,11 @@ namespace Vlms.Infrastructure.Safeguarding;
 /// <see cref="ConsentRecord"/> exists at all for this student, the same condition
 /// <c>Progress.CompletionService</c> already blocks lesson completion on).
 /// <see cref="ConsentRecordId"/>/<see cref="ExpiryDate"/> are null when the student has never had
-/// an Approved <see cref="ConsentRecord"/> at all.
+/// an Approved <see cref="ConsentRecord"/> at all. <see cref="ChapterId"/> is the student's chapter,
+/// whose staff alone are told (docs/adr/0010-chapters.md).
 /// </summary>
 public sealed record ConsentExpiryFlag(
-    int StudentId, string StudentName, int? ConsentRecordId, DateOnly? ExpiryDate, bool IsExpired);
+    int StudentId, string StudentName, int? ConsentRecordId, DateOnly? ExpiryDate, bool IsExpired, int ChapterId);
 
 /// <summary>
 /// One flagged <see cref="DbsCheck"/> outcome for a teacher (an <see cref="AppUser"/> holding
@@ -23,10 +24,11 @@ public sealed record ConsentExpiryFlag(
 /// <see cref="DbsCheckId"/>/<see cref="ExpiryDate"/> are null when the teacher has never had a
 /// Clear <see cref="DbsCheck"/> at all, or their most recent one is Flagged/Pending — treated the
 /// same as "expired" (<see cref="IsExpired"/> = true), since neither state is a currently valid
-/// clearance.
+/// clearance. A teacher at two chapters is flagged once per chapter: each chapter records its own
+/// teachers' DBS checks (docs/adr/0010-chapters.md), and <see cref="ChapterId"/> says whose.
 /// </summary>
 public sealed record DbsExpiryFlag(
-    int TeacherUserId, string TeacherName, int? DbsCheckId, DateOnly? ExpiryDate, bool IsExpired);
+    int TeacherUserId, string TeacherName, int? DbsCheckId, DateOnly? ExpiryDate, bool IsExpired, int ChapterId);
 
 public sealed record ConsentExpiryJobResult(
     IReadOnlyList<ConsentExpiryFlag> ConsentFlags,
@@ -158,7 +160,7 @@ public sealed class ConsentExpiryJob
 
         var activeStudents = await _db.Students
             .Where(s => s.Status == StudentStatus.Active)
-            .Select(s => new { s.Id, s.Name })
+            .Select(s => new { s.Id, s.Name, s.ChapterId })
             .ToListAsync(ct);
 
         var approvedConsents = await _db.ConsentRecords
@@ -175,11 +177,11 @@ public sealed class ConsentExpiryJob
         {
             if (!latestPerStudent.TryGetValue(student.Id, out var latest) || latest.ExpiryDate < today)
             {
-                flags.Add(new ConsentExpiryFlag(student.Id, student.Name, latest?.Id, latest?.ExpiryDate, IsExpired: true));
+                flags.Add(new ConsentExpiryFlag(student.Id, student.Name, latest?.Id, latest?.ExpiryDate, IsExpired: true, student.ChapterId));
             }
             else if (latest.ExpiryDate <= warningCutoff)
             {
-                flags.Add(new ConsentExpiryFlag(student.Id, student.Name, latest.Id, latest.ExpiryDate, IsExpired: false));
+                flags.Add(new ConsentExpiryFlag(student.Id, student.Name, latest.Id, latest.ExpiryDate, IsExpired: false, student.ChapterId));
             }
         }
 
@@ -211,36 +213,39 @@ public sealed class ConsentExpiryJob
     {
         var warningCutoff = today.AddDays(_expiryWarningWindowDays);
 
-        var teacherUserIds = await _db.UserRoles
-            .Where(r => r.Role == Role.Teacher)
-            .Select(r => r.UserId)
+        // A teacher is a (person, chapter) pair: each chapter keeps its own teachers' DBS checks
+        // (docs/adr/0010-chapters.md), so a teacher at two chapters needs a clear check in each.
+        var teacherRoles = await _db.UserRoles
+            .Where(r => r.Role == Role.Teacher && r.ChapterId != null)
+            .Select(r => new { r.UserId, ChapterId = r.ChapterId!.Value })
             .Distinct()
             .ToListAsync(ct);
+        var teacherUserIds = teacherRoles.Select(r => r.UserId).Distinct().ToList();
 
-        var teacherUsers = await _db.AppUsers
+        var teacherNames = await _db.AppUsers
             .Where(u => teacherUserIds.Contains(u.Id))
-            .Select(u => new { u.Id, u.DisplayName })
-            .ToListAsync(ct);
+            .ToDictionaryAsync(u => u.Id, u => u.DisplayName, ct);
 
         var clearChecks = (await _db.DbsChecks
             .Where(d => d.Status == DbsCheckStatus.Clear)
             .ToListAsync(ct))
-            .Select(d => new { d.Id, d.TeacherUserId, d.ExpiryDate });
+            .Select(d => new { d.Id, d.TeacherUserId, d.ChapterId, d.ExpiryDate });
 
         var latestPerTeacher = clearChecks
-            .GroupBy(d => d.TeacherUserId)
+            .GroupBy(d => (d.TeacherUserId, d.ChapterId))
             .ToDictionary(g => g.Key, g => g.OrderByDescending(d => d.ExpiryDate).First());
 
         var flags = new List<DbsExpiryFlag>();
-        foreach (var teacher in teacherUsers)
+        foreach (var teacher in teacherRoles.OrderBy(r => r.UserId).ThenBy(r => r.ChapterId))
         {
-            if (!latestPerTeacher.TryGetValue(teacher.Id, out var latest) || latest.ExpiryDate < today)
+            var name = teacherNames[teacher.UserId];
+            if (!latestPerTeacher.TryGetValue((teacher.UserId, teacher.ChapterId), out var latest) || latest.ExpiryDate < today)
             {
-                flags.Add(new DbsExpiryFlag(teacher.Id, teacher.DisplayName, latest?.Id, latest?.ExpiryDate, IsExpired: true));
+                flags.Add(new DbsExpiryFlag(teacher.UserId, name, latest?.Id, latest?.ExpiryDate, IsExpired: true, teacher.ChapterId));
             }
             else if (latest.ExpiryDate <= warningCutoff)
             {
-                flags.Add(new DbsExpiryFlag(teacher.Id, teacher.DisplayName, latest.Id, latest.ExpiryDate, IsExpired: false));
+                flags.Add(new DbsExpiryFlag(teacher.UserId, name, latest.Id, latest.ExpiryDate, IsExpired: false, teacher.ChapterId));
             }
         }
 

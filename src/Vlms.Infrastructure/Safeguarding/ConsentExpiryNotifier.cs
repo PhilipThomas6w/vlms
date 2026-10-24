@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Vlms.Domain;
+using Vlms.Infrastructure.Chapters;
 
 namespace Vlms.Infrastructure.Safeguarding;
 
@@ -65,23 +66,30 @@ public sealed class ConsentExpiryNotifier
             return [];
         }
 
-        var subject = $"VLMS safeguarding escalation: {expiredConsent.Count + expiredDbs.Count} issue(s) require attention";
-        var body = BuildDigestBody(expiredConsent, expiredDbs);
-
-        var recipients = await _db.UserRoles
-            .Where(r => r.Role == Role.Admin || r.Role == Role.SafeguardingOfficer)
-            .Select(r => r.UserId)
-            .Distinct()
-            .Join(_db.AppUsers, userId => userId, user => user.Id, (_, user) => new { user.Email, user.DisplayName })
-            .ToListAsync(ct);
+        // One digest per chapter, to that chapter's Admins and Safeguarding Officers only
+        // (docs/adr/0010-chapters.md): no chapter hears about another chapter's children or teachers.
+        var chapterIds = expiredConsent.Select(f => f.ChapterId).Concat(expiredDbs.Select(f => f.ChapterId)).Distinct().Order();
 
         var outcomes = new List<NotificationOutcome>();
-        foreach (var recipient in recipients)
+        foreach (var chapterId in chapterIds)
         {
-            var outcome = await _notificationService.SendAsync(
-                new NotificationRequest(recipient.Email, recipient.DisplayName, subject, body, NotificationPriority.SafeguardingCritical),
-                ct);
-            outcomes.Add(outcome);
+            var chapterConsent = expiredConsent.Where(f => f.ChapterId == chapterId).ToList();
+            var chapterDbs = expiredDbs.Where(f => f.ChapterId == chapterId).ToList();
+            var subject = $"VLMS safeguarding escalation: {chapterConsent.Count + chapterDbs.Count} issue(s) require attention";
+            var body = BuildDigestBody(chapterConsent, chapterDbs);
+
+            var recipients = await ChapterMembership.StaffIn(_db, chapterId, Role.Admin, Role.SafeguardingOfficer)
+                .OrderBy(u => u.Id)
+                .Select(u => new { u.Email, u.DisplayName })
+                .ToListAsync(ct);
+
+            foreach (var recipient in recipients)
+            {
+                var outcome = await _notificationService.SendAsync(
+                    new NotificationRequest(recipient.Email, recipient.DisplayName, subject, body, NotificationPriority.SafeguardingCritical),
+                    ct);
+                outcomes.Add(outcome);
+            }
         }
 
         return outcomes;

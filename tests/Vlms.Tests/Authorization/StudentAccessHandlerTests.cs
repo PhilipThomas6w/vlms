@@ -65,7 +65,7 @@ public sealed class StudentAccessHandlerTests : IDisposable
 
     public void Dispose() => _anchorConnection.Dispose();
 
-    private VlmsDbContext CreateContext() => new(_options, NullCurrentUserContext.Instance);
+    private VlmsDbContext CreateContext() => new(_options, TestSeedUserContext.Instance);
 
     private static AuthorizationHandlerContext BuildContext(Student resource) =>
         new([new StudentAccessRequirement()], new ClaimsPrincipal(new ClaimsIdentity()), resource);

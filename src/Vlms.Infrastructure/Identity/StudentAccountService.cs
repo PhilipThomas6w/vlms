@@ -130,7 +130,8 @@ public sealed class StudentAccountService
             return StudentSignInResult.From(result);
         }
 
-        _db.UserRoles.Add(new UserRole { UserId = appUser!.Id, Role = Role.Student });
+        // Student is held in the student's own chapter (FR-021, docs/adr/0010-chapters.md).
+        _db.UserRoles.Add(new UserRole { UserId = appUser!.Id, Role = Role.Student, ChapterId = student.ChapterId });
         await _db.SaveChangesAsync(ct);
 
         var linked = await _db.Students

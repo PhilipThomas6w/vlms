@@ -93,5 +93,5 @@ public sealed class CertificateService
 
     // Same application-assigned-id pattern as LessonProposalService.NextId — see its comment.
     private async Task<int> NextId(CancellationToken ct) =>
-        (await _db.Certificates.Select(x => (int?)x.Id).MaxAsync(ct) ?? 0) + 1;
+        await _db.NextIdAsync<Certificate>(ct);
 }

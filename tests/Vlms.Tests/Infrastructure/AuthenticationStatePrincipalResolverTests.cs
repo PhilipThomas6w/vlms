@@ -93,10 +93,10 @@ public sealed class AuthenticationStatePrincipalResolverTests : IDisposable
         _anchorConnection.Open();
         _options = new DbContextOptionsBuilder<VlmsDbContext>().UseSqlite(_connectionString).Options;
 
-        using var schemaContext = new VlmsDbContext(_options, NullCurrentUserContext.Instance);
+        using var schemaContext = new VlmsDbContext(_options, TestSeedUserContext.Instance);
         schemaContext.Database.EnsureCreated();
 
-        using var seed = new VlmsDbContext(_options, NullCurrentUserContext.Instance);
+        using var seed = new VlmsDbContext(_options, TestSeedUserContext.Instance);
         seed.Users.Add(new VlmsIdentityUser { Id = 1, UserName = "teacher@example.com", Email = "teacher@example.com" });
         seed.AppUsers.Add(new AppUser { Id = 1, DisplayName = "Teacher One", Email = "teacher@example.com" });
         seed.UserRoles.Add(new UserRole { UserId = 1, Role = Role.Teacher });
@@ -235,7 +235,7 @@ public sealed class AuthenticationStatePrincipalResolverTests : IDisposable
         Assert.NotNull(appUser);
         Assert.Equal("new-signin@example.com", appUser!.Email);
 
-        using var verify = new VlmsDbContext(_options, NullCurrentUserContext.Instance);
+        using var verify = new VlmsDbContext(_options, TestSeedUserContext.Instance);
         var persisted = await verify.AppUsers.SingleAsync(u => u.Id == appUser.Id);
         Assert.Equal(appUser.Id, persisted.Id);
     }

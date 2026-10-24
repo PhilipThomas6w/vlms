@@ -98,6 +98,23 @@ namespace Vlms.Infrastructure.Migrations
                     b.ToTable("asp_net_user_tokens", (string)null);
                 });
 
+            modelBuilder.Entity("Vlms.Domain.ActiveChapterChoice", b =>
+                {
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("user_id");
+
+                    b.Property<int>("ChapterId")
+                        .HasColumnType("integer")
+                        .HasColumnName("chapter_id");
+
+                    b.HasKey("UserId");
+
+                    b.HasIndex("ChapterId");
+
+                    b.ToTable("active_chapter_choices");
+                });
+
             modelBuilder.Entity("Vlms.Domain.AppUser", b =>
                 {
                     b.Property<int>("Id")
@@ -138,6 +155,10 @@ namespace Vlms.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("blob_key");
 
+                    b.Property<int>("ChapterId")
+                        .HasColumnType("integer")
+                        .HasColumnName("chapter_id");
+
                     b.Property<DateTime>("GeneratedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("generated_at");
@@ -148,10 +169,56 @@ namespace Vlms.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ChapterId");
+
                     b.HasIndex("StudentLessonCompletionId")
                         .IsUnique();
 
                     b.ToTable("certificates");
+                });
+
+            modelBuilder.Entity("Vlms.Domain.Chapter", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Place")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("place");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("chapters");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            CreatedAt = new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            Name = "Shrewsbury Orthodox Church",
+                            Place = "Shrewsbury"
+                        });
                 });
 
             modelBuilder.Entity("Vlms.Domain.ConsentRecord", b =>
@@ -163,6 +230,10 @@ namespace Vlms.Infrastructure.Migrations
                     b.Property<int?>("ApprovedByUserId")
                         .HasColumnType("integer")
                         .HasColumnName("approved_by_user_id");
+
+                    b.Property<int>("ChapterId")
+                        .HasColumnType("integer")
+                        .HasColumnName("chapter_id");
 
                     b.Property<bool>("DataSharingConsent")
                         .HasColumnType("boolean")
@@ -232,6 +303,8 @@ namespace Vlms.Infrastructure.Migrations
 
                     b.HasIndex("ApprovedByUserId");
 
+                    b.HasIndex("ChapterId");
+
                     b.HasIndex("StudentId");
 
                     b.HasIndex("SubmittedByParentId");
@@ -246,6 +319,10 @@ namespace Vlms.Infrastructure.Migrations
                     b.Property<int>("Id")
                         .HasColumnType("integer")
                         .HasColumnName("id");
+
+                    b.Property<int>("ChapterId")
+                        .HasColumnType("integer")
+                        .HasColumnName("chapter_id");
 
                     b.Property<int>("ConsentRecordId")
                         .HasColumnType("integer")
@@ -270,6 +347,8 @@ namespace Vlms.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ChapterId");
+
                     b.HasIndex("ConsentRecordId")
                         .IsUnique();
 
@@ -286,6 +365,10 @@ namespace Vlms.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("certificate_number");
+
+                    b.Property<int>("ChapterId")
+                        .HasColumnType("integer")
+                        .HasColumnName("chapter_id");
 
                     b.Property<DateOnly>("CheckDate")
                         .HasColumnType("date")
@@ -305,6 +388,8 @@ namespace Vlms.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ChapterId");
+
                     b.HasIndex("TeacherUserId");
 
                     b.ToTable("dbs_checks");
@@ -315,6 +400,10 @@ namespace Vlms.Infrastructure.Migrations
                     b.Property<int>("Id")
                         .HasColumnType("integer")
                         .HasColumnName("id");
+
+                    b.Property<int>("ChapterId")
+                        .HasColumnType("integer")
+                        .HasColumnName("chapter_id");
 
                     b.Property<DateTimeOffset?>("ConsumedAt")
                         .HasColumnType("timestamp with time zone")
@@ -345,6 +434,8 @@ namespace Vlms.Infrastructure.Migrations
                         .HasColumnName("student_id");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ChapterId");
 
                     b.HasIndex("ConsumedByAppUserId");
 
@@ -508,6 +599,10 @@ namespace Vlms.Infrastructure.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("app_user_id");
 
+                    b.Property<int>("ChapterId")
+                        .HasColumnType("integer")
+                        .HasColumnName("chapter_id");
+
                     b.Property<string>("ContactInfo")
                         .IsRequired()
                         .HasColumnType("text")
@@ -533,6 +628,8 @@ namespace Vlms.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("AppUserId");
+
+                    b.HasIndex("ChapterId");
 
                     b.ToTable("parent_guardians");
                 });
@@ -634,6 +731,10 @@ namespace Vlms.Infrastructure.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("assigned_teacher_user_id");
 
+                    b.Property<int>("ChapterId")
+                        .HasColumnType("integer")
+                        .HasColumnName("chapter_id");
+
                     b.Property<int>("CurrentRankId")
                         .HasColumnType("integer")
                         .HasColumnName("current_rank_id");
@@ -665,6 +766,8 @@ namespace Vlms.Infrastructure.Migrations
 
                     b.HasIndex("AssignedTeacherUserId");
 
+                    b.HasIndex("ChapterId");
+
                     b.HasIndex("CurrentRankId");
 
                     b.ToTable("students");
@@ -687,6 +790,10 @@ namespace Vlms.Infrastructure.Migrations
                     b.Property<int>("ApplicantUserId")
                         .HasColumnType("integer")
                         .HasColumnName("applicant_user_id");
+
+                    b.Property<int>("ChapterId")
+                        .HasColumnType("integer")
+                        .HasColumnName("chapter_id");
 
                     b.Property<DateOnly>("ChildDateOfBirth")
                         .HasColumnType("date")
@@ -764,6 +871,8 @@ namespace Vlms.Infrastructure.Migrations
 
                     b.HasIndex("AdminDecidedByUserId");
 
+                    b.HasIndex("ChapterId");
+
                     b.HasIndex("ConsentRecordId");
 
                     b.HasIndex("SafeguardingReviewedByUserId");
@@ -782,6 +891,10 @@ namespace Vlms.Infrastructure.Migrations
                     b.Property<int>("Id")
                         .HasColumnType("integer")
                         .HasColumnName("id");
+
+                    b.Property<int>("ChapterId")
+                        .HasColumnType("integer")
+                        .HasColumnName("chapter_id");
 
                     b.Property<string>("DecisionComments")
                         .HasColumnType("text")
@@ -818,6 +931,8 @@ namespace Vlms.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ChapterId");
+
                     b.HasIndex("StudentApplicationId")
                         .IsUnique();
 
@@ -834,6 +949,10 @@ namespace Vlms.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("awarded_at");
 
+                    b.Property<int>("ChapterId")
+                        .HasColumnType("integer")
+                        .HasColumnName("chapter_id");
+
                     b.Property<int>("RankBadgeId")
                         .HasColumnType("integer")
                         .HasColumnName("rank_badge_id");
@@ -843,6 +962,8 @@ namespace Vlms.Infrastructure.Migrations
                         .HasColumnName("student_id");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ChapterId");
 
                     b.HasIndex("RankBadgeId");
 
@@ -861,6 +982,10 @@ namespace Vlms.Infrastructure.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("parent_guardian_id");
 
+                    b.Property<int>("ChapterId")
+                        .HasColumnType("integer")
+                        .HasColumnName("chapter_id");
+
                     b.Property<int>("CreatedByUserId")
                         .HasColumnType("integer")
                         .HasColumnName("created_by_user_id");
@@ -870,6 +995,8 @@ namespace Vlms.Infrastructure.Migrations
                         .HasColumnName("relationship");
 
                     b.HasKey("StudentId", "ParentGuardianId");
+
+                    b.HasIndex("ChapterId");
 
                     b.HasIndex("CreatedByUserId");
 
@@ -883,6 +1010,10 @@ namespace Vlms.Infrastructure.Migrations
                     b.Property<int>("Id")
                         .HasColumnType("integer")
                         .HasColumnName("id");
+
+                    b.Property<int>("ChapterId")
+                        .HasColumnType("integer")
+                        .HasColumnName("chapter_id");
 
                     b.Property<DateTime>("CompletedAt")
                         .HasColumnType("timestamp with time zone")
@@ -914,6 +1045,8 @@ namespace Vlms.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ChapterId");
+
                     b.HasIndex("CompletedByUserId");
 
                     b.HasIndex("LessonId");
@@ -928,6 +1061,10 @@ namespace Vlms.Infrastructure.Migrations
                     b.Property<int>("Id")
                         .HasColumnType("integer")
                         .HasColumnName("id");
+
+                    b.Property<int>("ChapterId")
+                        .HasColumnType("integer")
+                        .HasColumnName("chapter_id");
 
                     b.Property<DateTime?>("CompletedAt")
                         .HasColumnType("timestamp with time zone")
@@ -947,6 +1084,8 @@ namespace Vlms.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ChapterId");
+
                     b.HasIndex("RankId");
 
                     b.HasIndex("StudentId");
@@ -956,15 +1095,38 @@ namespace Vlms.Infrastructure.Migrations
 
             modelBuilder.Entity("Vlms.Domain.UserRole", b =>
                 {
-                    b.Property<int>("UserId")
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("integer")
-                        .HasColumnName("user_id");
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("ChapterId")
+                        .HasColumnType("integer")
+                        .HasColumnName("chapter_id");
 
                     b.Property<int>("Role")
                         .HasColumnType("integer")
                         .HasColumnName("role");
 
-                    b.HasKey("UserId", "Role");
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChapterId", "Role");
+
+                    b.HasIndex("UserId", "Role")
+                        .IsUnique()
+                        .HasDatabaseName("IX_user_roles_user_id_role_national")
+                        .HasFilter("chapter_id IS NULL");
+
+                    b.HasIndex("UserId", "Role", "ChapterId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_user_roles_user_id_role_chapter_id")
+                        .HasFilter("chapter_id IS NOT NULL");
 
                     b.ToTable("user_roles");
                 });
@@ -1082,8 +1244,29 @@ namespace Vlms.Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Vlms.Domain.ActiveChapterChoice", b =>
+                {
+                    b.HasOne("Vlms.Domain.Chapter", null)
+                        .WithMany()
+                        .HasForeignKey("ChapterId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Vlms.Domain.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Vlms.Domain.Certificate", b =>
                 {
+                    b.HasOne("Vlms.Domain.Chapter", null)
+                        .WithMany()
+                        .HasForeignKey("ChapterId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("Vlms.Domain.StudentLessonCompletion", "StudentLessonCompletion")
                         .WithOne("Certificate")
                         .HasForeignKey("Vlms.Domain.Certificate", "StudentLessonCompletionId")
@@ -1099,6 +1282,12 @@ namespace Vlms.Infrastructure.Migrations
                         .WithMany()
                         .HasForeignKey("ApprovedByUserId")
                         .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Vlms.Domain.Chapter", null)
+                        .WithMany()
+                        .HasForeignKey("ChapterId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
                     b.HasOne("Vlms.Domain.Student", "Student")
                         .WithMany("ConsentRecords")
@@ -1128,6 +1317,12 @@ namespace Vlms.Infrastructure.Migrations
 
             modelBuilder.Entity("Vlms.Domain.ConsentSensitiveDetails", b =>
                 {
+                    b.HasOne("Vlms.Domain.Chapter", null)
+                        .WithMany()
+                        .HasForeignKey("ChapterId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("Vlms.Domain.ConsentRecord", "ConsentRecord")
                         .WithOne("SensitiveDetails")
                         .HasForeignKey("Vlms.Domain.ConsentSensitiveDetails", "ConsentRecordId")
@@ -1139,6 +1334,12 @@ namespace Vlms.Infrastructure.Migrations
 
             modelBuilder.Entity("Vlms.Domain.DbsCheck", b =>
                 {
+                    b.HasOne("Vlms.Domain.Chapter", null)
+                        .WithMany()
+                        .HasForeignKey("ChapterId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("Vlms.Domain.AppUser", "TeacherUser")
                         .WithMany()
                         .HasForeignKey("TeacherUserId")
@@ -1150,6 +1351,12 @@ namespace Vlms.Infrastructure.Migrations
 
             modelBuilder.Entity("Vlms.Domain.GuardianInvite", b =>
                 {
+                    b.HasOne("Vlms.Domain.Chapter", null)
+                        .WithMany()
+                        .HasForeignKey("ChapterId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("Vlms.Domain.AppUser", "ConsumedByAppUser")
                         .WithMany()
                         .HasForeignKey("ConsumedByAppUserId")
@@ -1254,6 +1461,12 @@ namespace Vlms.Infrastructure.Migrations
                         .HasForeignKey("AppUserId")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.HasOne("Vlms.Domain.Chapter", null)
+                        .WithMany()
+                        .HasForeignKey("ChapterId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.Navigation("AppUser");
                 });
 
@@ -1280,6 +1493,12 @@ namespace Vlms.Infrastructure.Migrations
                         .HasForeignKey("AssignedTeacherUserId")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.HasOne("Vlms.Domain.Chapter", null)
+                        .WithMany()
+                        .HasForeignKey("ChapterId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("Vlms.Domain.Rank", "CurrentRank")
                         .WithMany()
                         .HasForeignKey("CurrentRankId")
@@ -1303,6 +1522,12 @@ namespace Vlms.Infrastructure.Migrations
                     b.HasOne("Vlms.Domain.AppUser", "ApplicantUser")
                         .WithMany()
                         .HasForeignKey("ApplicantUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Vlms.Domain.Chapter", null)
+                        .WithMany()
+                        .HasForeignKey("ChapterId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
@@ -1334,6 +1559,12 @@ namespace Vlms.Infrastructure.Migrations
 
             modelBuilder.Entity("Vlms.Domain.StudentApplicationSensitiveDetails", b =>
                 {
+                    b.HasOne("Vlms.Domain.Chapter", null)
+                        .WithMany()
+                        .HasForeignKey("ChapterId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("Vlms.Domain.StudentApplication", "StudentApplication")
                         .WithOne("SensitiveDetails")
                         .HasForeignKey("Vlms.Domain.StudentApplicationSensitiveDetails", "StudentApplicationId")
@@ -1345,6 +1576,12 @@ namespace Vlms.Infrastructure.Migrations
 
             modelBuilder.Entity("Vlms.Domain.StudentBadge", b =>
                 {
+                    b.HasOne("Vlms.Domain.Chapter", null)
+                        .WithMany()
+                        .HasForeignKey("ChapterId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("Vlms.Domain.RankBadge", "RankBadge")
                         .WithMany("StudentBadges")
                         .HasForeignKey("RankBadgeId")
@@ -1364,6 +1601,12 @@ namespace Vlms.Infrastructure.Migrations
 
             modelBuilder.Entity("Vlms.Domain.StudentGuardianLink", b =>
                 {
+                    b.HasOne("Vlms.Domain.Chapter", null)
+                        .WithMany()
+                        .HasForeignKey("ChapterId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("Vlms.Domain.AppUser", "CreatedByUser")
                         .WithMany()
                         .HasForeignKey("CreatedByUserId")
@@ -1391,6 +1634,12 @@ namespace Vlms.Infrastructure.Migrations
 
             modelBuilder.Entity("Vlms.Domain.StudentLessonCompletion", b =>
                 {
+                    b.HasOne("Vlms.Domain.Chapter", null)
+                        .WithMany()
+                        .HasForeignKey("ChapterId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("Vlms.Domain.AppUser", "CompletedByUser")
                         .WithMany()
                         .HasForeignKey("CompletedByUserId")
@@ -1418,6 +1667,12 @@ namespace Vlms.Infrastructure.Migrations
 
             modelBuilder.Entity("Vlms.Domain.StudentRankProgress", b =>
                 {
+                    b.HasOne("Vlms.Domain.Chapter", null)
+                        .WithMany()
+                        .HasForeignKey("ChapterId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("Vlms.Domain.Rank", "Rank")
                         .WithMany()
                         .HasForeignKey("RankId")
@@ -1437,6 +1692,11 @@ namespace Vlms.Infrastructure.Migrations
 
             modelBuilder.Entity("Vlms.Domain.UserRole", b =>
                 {
+                    b.HasOne("Vlms.Domain.Chapter", null)
+                        .WithMany()
+                        .HasForeignKey("ChapterId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("Vlms.Domain.AppUser", "User")
                         .WithMany("Roles")
                         .HasForeignKey("UserId")

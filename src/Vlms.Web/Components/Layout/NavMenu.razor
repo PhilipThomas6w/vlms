@@ -45,10 +45,14 @@
             <li><a href="/administration/students" aria-current="@Current("/administration/students")">Manage students</a></li>
             <li><a href="/administration/user-roles" aria-current="@Current("/administration/user-roles")">User roles</a></li>
             <li><a href="/administration/student-sign-ins" aria-current="@Current("/administration/student-sign-ins")">Student sign-ins</a></li>
-            <li><a href="/administration/rank-badges" aria-current="@Current("/administration/rank-badges")">Rank badges</a></li>
             <li><a href="/reporting" aria-current="@Current("/reporting")">Reporting</a></li>
             <li><a href="/reporting/records-due-for-deletion" aria-current="@Current("/reporting/records-due-for-deletion")">Records due for deletion</a></li>
             <li><a href="/retention/mark-as-left" aria-current="@Current("/retention/mark-as-left")">Mark as left</a></li>
+        </AuthorizeView>
+        <AuthorizeView Policy="RequireNationalAdministrator">
+            <li><a href="/administration/chapters" aria-current="@Current("/administration/chapters")">Chapters</a></li>
+            <li><a href="/reporting/national" aria-current="@Current("/reporting/national")">National figures</a></li>
+            <li><a href="/administration/rank-badges" aria-current="@Current("/administration/rank-badges")">Rank badges</a></li>
         </AuthorizeView>
     </ul>
 </nav>

@@ -321,8 +321,8 @@ public sealed class CompletionService
         _currentUser.UserId ?? throw new UnauthorizedAccessException("Caller has no resolved UserId.");
 
     // Same application-assigned-id pattern as LessonProposalService.NextId — see its comment.
-    private static async Task<int> NextId(DbSet<StudentLessonCompletion> set, CancellationToken ct) =>
-        (await set.Select(x => (int?)x.Id).MaxAsync(ct) ?? 0) + 1;
+    // Allocated over the whole table, not through the chapter query filter (VlmsDbContext.NextIdAsync, docs/adr/0010-chapters.md).
+    private Task<int> NextId(DbSet<StudentLessonCompletion> _, CancellationToken ct) => _db.NextIdAsync<StudentLessonCompletion>(ct);
 }
 
 /// <summary>Per-student outcome of <see cref="CompletionService.MarkCompleteBatchAsync"/>.</summary>
