@@ -148,6 +148,9 @@
 
     protected override async Task OnInitializedAsync()
     {
+        // Set before the first await: Blazor renders while that await is pending, before
+        // OnParametersSetAsync runs, and a default _first (01/01/0001) can't step back a month.
+        _first = FirstOfMonth(Month);
         try
         {
             _linkCreatedAt = await Feeds.GetLinkCreatedAtAsync();
@@ -160,9 +163,7 @@
 
     protected override async Task OnParametersSetAsync()
     {
-        _first = DateOnly.TryParseExact(Month, "yyyy-MM", CultureInfo.InvariantCulture, DateTimeStyles.None, out var month)
-            ? month
-            : new DateOnly(Today.Year, Today.Month, 1);
+        _first = FirstOfMonth(Month);
         _open.Clear();
         try
         {
@@ -173,6 +174,11 @@
             _errorMessage = ex.Message;
         }
     }
+
+    private static DateOnly FirstOfMonth(string? value) =>
+        DateOnly.TryParseExact(value, "yyyy-MM", CultureInfo.InvariantCulture, DateTimeStyles.None, out var month)
+            ? month
+            : new DateOnly(Today.Year, Today.Month, 1);
 
     private static string MonthHref(DateOnly month) => $"/calendar?month={month:yyyy-MM}";
 
