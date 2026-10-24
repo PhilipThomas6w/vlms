@@ -11,9 +11,9 @@
 
 <PageTitle>Mark as left</PageTitle>
 
-<h1>Mark as left</h1>
+<PageHeader Title="Mark as left" />
 
-<p>
+<p class="intro">
     A manual action for Admins only. It is not inferred from disengagement or activity. Marking a Student or staff member as having left records the
     date automatically (the moment you click the button, not a backdated date you choose) and feeds
     the <a href="/reporting/records-due-for-deletion">records due for deletion</a> retention report.
@@ -42,7 +42,7 @@
 }
 else
 {
-    <table>
+    <table class="data-table data-table--wide">
         <thead>
             <tr>
                 <th>Student</th>
@@ -54,9 +54,9 @@ else
             @foreach (var student in _activeStudents)
             {
                 <tr>
-                    <td>@student.Name</td>
-                    <td>@student.EnrolmentDate.ToString("d MMMM yyyy")</td>
-                    <td><button aria-label="@($"Mark {student.Name} as left")" @onclick="() => MarkStudentInactiveAsync(student.Id)">Mark as left</button></td>
+                    <td data-label="Student">@student.Name</td>
+                    <td data-label="Enrolment date">@student.EnrolmentDate.ToString("d MMMM yyyy")</td>
+                    <td><button class="btn--secondary" aria-label="@($"Mark {student.Name} as left")" @onclick="() => MarkStudentInactiveAsync(student.Id)">Mark as left</button></td>
                 </tr>
             }
         </tbody>
@@ -70,7 +70,7 @@ else
 }
 else
 {
-    <table>
+    <table class="data-table data-table--wide">
         <thead>
             <tr>
                 <th>Name</th>
@@ -83,19 +83,19 @@ else
             @foreach (var member in _currentStaff)
             {
                 <tr>
-                    <td>@member.User.DisplayName</td>
-                    <td>@member.User.Email</td>
-                    <td>@string.Join(", ", member.Roles.Select(r => r.DisplayName()))</td>
+                    <td data-label="Name">@member.User.DisplayName</td>
+                    <td data-label="Email">@member.User.Email</td>
+                    <td data-label="Roles">@string.Join(", ", member.Roles.Select(r => r.DisplayName()))</td>
                     <td>
                         @if (_confirmingUserId == member.User.Id)
                         {
                             <p role="alert">Mark @member.User.DisplayName as left? They lose all staff access at once, and you cannot undo this in the app.</p>
-                            <button aria-label="@($"Confirm: mark {member.User.DisplayName} as left")" @onclick="() => MarkStaffLeftAsync(member.User.Id)">Confirm</button>
-                            <button aria-label="@($"Cancel marking {member.User.DisplayName} as left")" @onclick="CancelConfirm">Cancel</button>
+                            <button class="btn--danger" aria-label="@($"Confirm: mark {member.User.DisplayName} as left")" @onclick="() => MarkStaffLeftAsync(member.User.Id)">Confirm</button>
+                            <button aria-label="@($"Cancel marking {member.User.DisplayName} as left")" @onclick="CancelConfirm" class="btn--secondary">Cancel</button>
                         }
                         else
                         {
-                            <button aria-label="@($"Mark {member.User.DisplayName} as left")" @onclick="() => AskToConfirm(member.User.Id)">Mark as left</button>
+                            <button class="btn--secondary" aria-label="@($"Mark {member.User.DisplayName} as left")" @onclick="() => AskToConfirm(member.User.Id)">Mark as left</button>
                         }
                     </td>
                 </tr>

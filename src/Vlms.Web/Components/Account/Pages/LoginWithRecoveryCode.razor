@@ -16,9 +16,10 @@
 
 <PageTitle>Recovery code verification</PageTitle>
 
-<h1>Recovery code verification</h1>
+<div class="auth">
+<PageHeader Title="Recovery code verification" />
 
-<p>
+<p class="intro">
     You have requested to log in with a recovery code. This login will not be remembered until you
     provide an authenticator app code at log in or disable and re-enable two-factor authentication.
 </p>
@@ -28,17 +29,18 @@
     <p class="error" role="alert">@_errorMessage</p>
 }
 
-<EditForm Model="Input" method="post" OnValidSubmit="OnValidSubmitAsync" FormName="login-with-recovery-code">
+<EditForm class="form panel" Model="Input" method="post" OnValidSubmit="OnValidSubmitAsync" FormName="login-with-recovery-code">
     <DataAnnotationsValidator />
     <ValidationSummary role="alert" />
 
-    <div>
+    <div class="field">
         <label for="recoveryCode">Recovery code</label>
         <InputText id="recoveryCode" @bind-Value="Input.RecoveryCode" autocomplete="off" aria-required="true" />
     </div>
 
-    <button type="submit">Log in</button>
+    <div class="form-actions"><button type="submit">Log in</button></div>
 </EditForm>
+</div>
 
 @code {
     // No property initializer — BL0008 (learn.microsoft.com/aspnet/core/diagnostics/bl0008): see

@@ -6,12 +6,11 @@
 
 <PageTitle>Reporting</PageTitle>
 
-<h1>Reporting</h1>
+<PageHeader Title="Reporting" />
 
-<p>
+<p class="intro">
     Core progress reports, and flags for students who may be at risk of disengaging.
-    Admin-only — see <code>ProgressReportingService</code>'s doc comment for why this isn't gated the
-    same way as the consent/DBS pages.
+    Admin only.
 </p>
 
 @if (_errorMessage is not null)
@@ -25,7 +24,7 @@ else if (_stats is null)
 else
 {
     <h2>Students by rank</h2>
-    <table>
+    <table class="data-table">
         <thead>
             <tr>
                 <th>Rank</th>
@@ -36,19 +35,19 @@ else
             @foreach (var rank in _stats.StudentsByRank)
             {
                 <tr>
-                    <td>@rank.RankName</td>
-                    <td>@rank.ActiveStudentCount</td>
+                    <td data-label="Rank">@rank.RankName</td>
+                    <td data-label="Active students">@rank.ActiveStudentCount</td>
                 </tr>
             }
         </tbody>
     </table>
 
     <h2>Students by status</h2>
-    <ul>
-        <li>Active: @_stats.StatusCounts.ActiveCount</li>
-        <li>Inactive: @_stats.StatusCounts.InactiveCount</li>
-        <li>Graduated: @_stats.StatusCounts.GraduatedCount</li>
-    </ul>
+    <dl class="facts">
+        <dt>Active</dt><dd>@_stats.StatusCounts.ActiveCount</dd>
+        <dt>Inactive</dt><dd>@_stats.StatusCounts.InactiveCount</dd>
+        <dt>Graduated</dt><dd>@_stats.StatusCounts.GraduatedCount</dd>
+    </dl>
 
     <h2>Completion stats</h2>
     <p>Total lesson completions recorded (non-reversed): @_stats.TotalLessonCompletions</p>
@@ -60,7 +59,7 @@ else
     }
     else
     {
-        <table>
+        <table class="data-table">
             <thead>
                 <tr>
                     <th>Student</th>
@@ -72,9 +71,9 @@ else
                 @foreach (var entry in _stats.PromotionHistory)
                 {
                     <tr>
-                        <td>@entry.StudentName</td>
-                        <td>@entry.RankName</td>
-                        <td>@entry.CompletedAt.ToString("d MMMM yyyy")</td>
+                        <td data-label="Student">@entry.StudentName</td>
+                        <td data-label="Rank completed">@entry.RankName</td>
+                        <td data-label="Completed at">@entry.CompletedAt.ToString("d MMMM yyyy")</td>
                     </tr>
                 }
             </tbody>
@@ -92,7 +91,7 @@ else
     }
     else
     {
-        <table>
+        <table class="data-table">
             <thead>
                 <tr>
                     <th>Student</th>
@@ -104,9 +103,9 @@ else
                 @foreach (var flag in _atRiskStudents)
                 {
                     <tr>
-                        <td>@flag.StudentName</td>
-                        <td>@flag.LastActivityAt.ToString("d MMMM yyyy")</td>
-                        <td>@flag.DaysSinceLastActivity</td>
+                        <td data-label="Student">@flag.StudentName</td>
+                        <td data-label="Last activity">@flag.LastActivityAt.ToString("d MMMM yyyy")</td>
+                        <td data-label="Days since">@flag.DaysSinceLastActivity</td>
                     </tr>
                 }
             </tbody>

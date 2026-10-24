@@ -10,9 +10,9 @@
 
 <PageTitle>Curriculum approvals</PageTitle>
 
-<h1>Curriculum: pending proposals</h1>
+<PageHeader Title="Curriculum: pending proposals" />
 
-<p>
+<p class="intro">
     The Approver role decides curriculum proposals only — it has no consent, DBS, or safeguarding
     access. Differences from the current lesson are marked "Changed", "Added" or "Removed".
 </p>
@@ -33,11 +33,11 @@
 
 @foreach (var review in _reviews)
 {
-    <section aria-labelledby="proposal@(review.ProposalId)">
+    <section class="panel proposal" aria-labelledby="proposal@(review.ProposalId)">
         <h2 id="proposal@(review.ProposalId)">@review.ChangeType: @TitleOf(review)</h2>
         <p>Proposed by @review.ProposedBy on @review.SubmittedAt.ToString("g").</p>
 
-        <table>
+        <table class="data-table data-table--wide">
             <caption>@(review.HasCurrent ? "Current lesson compared with the proposal" : "New lesson")</caption>
             <thead>
                 <tr>
@@ -57,42 +57,44 @@
                 @foreach (var field in review.Fields)
                 {
                     <tr class="@(field.Changed && review.HasCurrent ? "review-changed" : null)">
-                        <th scope="row">@field.Label</th>
+                        <th scope="row" data-label="Field">@field.Label</th>
                         @if (review.HasCurrent)
                         {
-                            <td>@field.Current</td>
+                            <td data-label="Current">@field.Current</td>
                         }
-                        <td>@field.Proposed</td>
+                        <td data-label="Proposed">@field.Proposed</td>
                         @if (review.HasCurrent)
                         {
-                            <td>@(field.Changed ? "Changed" : "Same")</td>
+                            <td data-label="Difference">@(field.Changed ? "Changed" : "Same")</td>
                         }
                     </tr>
                 }
                 <tr class="@(review.HasCurrent && (review.FilesChanged || review.FileOrderChanged) ? "review-changed" : null)">
-                    <th scope="row">Files</th>
+                    <th scope="row" data-label="Field">Files</th>
                     @if (review.HasCurrent)
                     {
-                        <td>@FileList(review.CurrentFiles)</td>
+                        <td data-label="Current">@FileList(review.CurrentFiles)</td>
                     }
-                    <td>@FileList(review.ProposedFiles)</td>
+                    <td data-label="Proposed">@FileList(review.ProposedFiles)</td>
                     @if (review.HasCurrent)
                     {
-                        <td>@FilesVerdict(review)</td>
+                        <td data-label="Difference">@FilesVerdict(review)</td>
                     }
                 </tr>
             </tbody>
         </table>
 
-        <div>
+        <div class="field-row decision">
             <button type="button" @onclick="() => ApproveAsync(review.ProposalId)">Approve proposal @review.ProposalId</button>
         </div>
-        <div>
-            <label for="comments@(review.ProposalId)">Rejection comments for proposal @review.ProposalId</label>
-            <input type="text" id="comments@(review.ProposalId)"
-                   value="@GetComments(review.ProposalId)"
-                   @oninput="e => SetComments(review.ProposalId, e.Value?.ToString())" />
-            <button type="button" @onclick="() => RejectAsync(review.ProposalId)">Reject proposal @review.ProposalId</button>
+        <div class="field-row decision">
+            <div class="field">
+                <label for="comments@(review.ProposalId)">Rejection comments for proposal @review.ProposalId</label>
+                <input type="text" id="comments@(review.ProposalId)"
+                       value="@GetComments(review.ProposalId)"
+                       @oninput="e => SetComments(review.ProposalId, e.Value?.ToString())" />
+            </div>
+            <button type="button" class="btn--secondary" @onclick="() => RejectAsync(review.ProposalId)">Reject proposal @review.ProposalId</button>
         </div>
     </section>
 }

@@ -1,0 +1,14 @@
+@* A message with a word, an icon and a colour (never colour alone). Kind: info, success, warning, danger.
+   Role is up to the caller: "status" for results announced politely, "alert" for errors. *@
+<div class="notice notice--@Kind" role="@Role">
+    <Icon Name="@IconName" />
+    <div>@ChildContent</div>
+</div>
+
+@code {
+    [Parameter] public string Kind { get; set; } = "info";
+    [Parameter] public string? Role { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private string IconName => Kind switch { "success" => "check", "warning" => "alert", "danger" => "error", _ => "info" };
+}

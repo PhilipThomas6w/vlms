@@ -7,9 +7,9 @@
 
 <PageTitle>My dashboard</PageTitle>
 
-<h1>My dashboard</h1>
+<PageHeader Title="My dashboard" />
 
-<p>
+<p class="intro">
     Progress, badges, certificates and consent status for your children. You see only the children
     an Admin has linked to your account; no other student's information is shown.
 </p>
@@ -26,27 +26,35 @@ else if (_students.Count == 0)
 }
 else
 {
+    <div class="children">
     @foreach (var student in _students)
     {
-        <section>
-            <h2>@student.StudentName</h2>
-            <p>
-                Current rank: <strong>@student.CurrentRankName</strong>
-                @if (student.CurrentRankStartedAt is { } startedAt)
-                {
-                    <span> (since @startedAt.ToString("d MMMM yyyy"))</span>
-                }
-            </p>
+        <section class="child rank-@student.CurrentRankOrder" aria-labelledby="child-@student.StudentId">
+            <div class="child__head">
+                <RankMedallion RankId="student.CurrentRankId" Order="student.CurrentRankOrder" RankName="@student.CurrentRankName"
+                               HasBadgeImage="student.CurrentRankHasBadgeImage" Earned="false" Current="true" Alt="" />
+                <div>
+                    <h2 id="child-@student.StudentId">@student.StudentName</h2>
+                    <p>
+                        Current rank: <strong>@student.CurrentRankName</strong>
+                        @if (student.CurrentRankStartedAt is { } startedAt)
+                        {
+                            <span> (since @startedAt.ToString("d MMMM yyyy"))</span>
+                        }
+                    </p>
+                </div>
+            </div>
 
-            <p>
+            <p class="child__consent">
                 Consent status:
                 @if (student.ConsentStatus is { } status)
                 {
-                    <span><strong>@status</strong> (expires @student.ConsentExpiryDate)</span>
+                    <span class="pill @ConsentPill(status)">@status</span>
+                    <span>(expires @student.ConsentExpiryDate)</span>
                 }
                 else
                 {
-                    <strong>No consent record on file</strong>
+                    <span class="pill pill--warning"><Icon Name="alert" /> No consent record on file</span>
                 }
             </p>
 
@@ -57,16 +65,12 @@ else
             }
             else
             {
-                <ul>
+                <ul class="badge-row">
                     @foreach (var badge in student.Badges)
                     {
-                        <li>
-                            @if (badge.HasImage)
-                            {
-                                <img src="/badges/@badge.RankId/image" alt="@badge.RankName badge" width="48" height="48" />
-                                <span> </span>
-                            }
-                            @badge.RankName — @badge.AwardedAt.ToString("d MMMM yyyy")
+                        <li class="rank-@badge.RankOrder">
+                            <RankMedallion RankId="badge.RankId" Order="badge.RankOrder" RankName="@badge.RankName" HasBadgeImage="badge.HasImage" Size="sm" Alt="" />
+                            <span>@badge.RankName — @badge.AwardedAt.ToString("d MMMM yyyy")</span>
                         </li>
                     }
                 </ul>
@@ -79,24 +83,37 @@ else
             }
             else
             {
-                <ul>
+                <details class="fold">
+                <summary>Show certificates (@student.Certificates.Count)</summary>
+                <ul class="rows">
                     @foreach (var certificate in student.Certificates)
                     {
-                        <li>
-                            @certificate.LessonTitle — @certificate.GeneratedAt.ToString("d MMMM yyyy")
-                            (<a href="@CertificateEndpoint.ViewUrl(certificate.CertificateId)" target="_blank" rel="noopener" aria-label="View certificate for @certificate.LessonTitle (opens in a new tab)" data-enhance-nav="false">View</a>
-                            | <a href="@CertificateEndpoint.DownloadUrl(certificate.CertificateId)" aria-label="Download certificate for @certificate.LessonTitle" data-enhance-nav="false">Download</a>)
+                        <li class="cert-row">
+                            <span>@certificate.LessonTitle — @certificate.GeneratedAt.ToString("d MMMM yyyy")</span>
+                            <span class="btn-row">
+                                <a class="btn btn--quiet" href="@CertificateEndpoint.ViewUrl(certificate.CertificateId)" target="_blank" rel="noopener" aria-label="View certificate for @certificate.LessonTitle (opens in a new tab)" data-enhance-nav="false">View</a>
+                                <a class="btn btn--quiet" href="@CertificateEndpoint.DownloadUrl(certificate.CertificateId)" aria-label="Download certificate for @certificate.LessonTitle" data-enhance-nav="false">Download</a>
+                            </span>
                         </li>
                     }
                 </ul>
+                </details>
             }
         </section>
     }
+    </div>
 }
 
 @code {
     private List<ParentDashboardStudent> _students = new();
     private string? _errorMessage;
+
+    private static string ConsentPill(Vlms.Domain.ConsentStatus status) => status switch
+    {
+        Vlms.Domain.ConsentStatus.Approved => "pill--success",
+        Vlms.Domain.ConsentStatus.Pending => "pill--info",
+        _ => "pill--warning",
+    };
 
     protected override async Task OnInitializedAsync()
     {

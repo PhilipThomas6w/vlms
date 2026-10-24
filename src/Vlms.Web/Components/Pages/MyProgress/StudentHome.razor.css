@@ -1,0 +1,160 @@
+/* Student page ("My rank"): the expressive end of the design system (direction doc, section 7). */
+
+/* ---------- Rank header: the rank's name and its verse ---------- */
+.rank-hero {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-top: 6px solid var(--rank-field);
+    border-radius: 12px;
+    padding: var(--s-5);
+    margin-bottom: var(--s-6);
+}
+.rank-hero__hello { margin: 0 0 var(--s-1); font-weight: 600; color: var(--ink-soft); font-size: var(--step-1); }
+.rank-hero h1 {
+    margin: 0; color: var(--lapis-900);
+    font-size: clamp(2rem, 1.2rem + 3vw, 3.25rem); line-height: 1.05; letter-spacing: -0.01em;
+}
+.rank-hero h1:focus { outline: none; }
+.rank-hero__place { margin: var(--s-1) 0 0; font-weight: 600; color: var(--ink-soft); }
+
+.rank-hero__words { margin: var(--s-4) 0 0; max-width: 40rem; }
+.rank-hero__words p { font-family: var(--font-display); font-style: italic; font-size: var(--step-1); line-height: 1.35; margin: 0; color: var(--ink); }
+.rank-hero__words footer { font-size: var(--step--1); font-weight: 600; margin-top: var(--s-1); color: var(--gold-700); }
+
+/* Progress in the rank: the patch, the tesserae, and the next rank. */
+.rank-hero__progress {
+    display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-4) var(--s-5);
+    margin-top: var(--s-5); padding-top: var(--s-4); border-top: 1px solid var(--line);
+}
+.rank-hero__count { flex: 1 1 18rem; min-width: 0; }
+.rank-hero__count p { margin: var(--s-2) 0 0; }
+.rank-hero__count p span { color: var(--ink-soft); }
+.rank-hero ::deep .tesserae li { width: 1.75rem; height: 1.75rem; }
+/* The one moment of motion: the newest tile settles into place when the page opens. */
+.rank-hero ::deep .tesserae li.done:has(+ li:not(.done)) { animation: tessera-set 700ms var(--ease) 250ms both; }
+@keyframes tessera-set {
+    from { transform: scale(0.3) rotate(-20deg); opacity: 0; }
+    to { transform: none; opacity: 1; }
+}
+.rank-hero__next { display: flex; align-items: center; gap: var(--s-3); font-family: var(--font-display); font-weight: 700; font-size: var(--step-1); color: var(--lapis-900); }
+.rank-hero__next-label { display: block; font-family: var(--font-text); font-size: var(--step--1); font-weight: 600; color: var(--ink-soft); }
+
+/* ---------- Body: main column and "The way" ---------- */
+.student__body { display: grid; gap: var(--s-6); }
+/* Phone and tablet: the way comes after this rank's lessons, before earlier ranks. */
+@media (max-width: 59.99rem) {
+    .student__main { display: contents; }
+    .next-lesson { order: 1; }
+    .rank-lessons { order: 2; }
+    .the-way { order: 3; }
+    .earlier { order: 4; }
+}
+@media (min-width: 60rem) {
+    .student__body { grid-template-columns: minmax(0, 1fr) 19rem; gap: var(--s-7); align-items: start; }
+}
+.student__main > section + section { margin-top: var(--s-6); }
+.student h2 { font-size: var(--step-2); margin-top: 0; display: flex; align-items: center; gap: var(--s-2); }
+/* Gould's Byzantine cross (Orthodox Arts Journal) in gold before each section heading. */
+.student h2::before {
+    content: ""; flex: none; width: 1.1rem; height: 1.1rem; background: var(--gold-700);
+    -webkit-mask: url("img/oaj/byzantine-cross.svg") center / contain no-repeat;
+    mask: url("img/oaj/byzantine-cross.svg") center / contain no-repeat;
+}
+
+/* Next lesson: the one thing to do this week. */
+.next-lesson__card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-left: 6px solid var(--rank-field);
+    border-radius: var(--r-panel);
+    padding: var(--s-5);
+}
+.next-lesson__step { margin: 0; color: var(--ink-soft); font-weight: 600; }
+.next-lesson__title { font-family: var(--font-display); font-size: var(--step-3); font-weight: 700; color: var(--lapis-900); line-height: 1.15; margin: var(--s-1) 0 var(--s-2); }
+.next-lesson__tags { color: var(--ink-soft); margin-bottom: var(--s-4); }
+
+/* This rank's lessons, in teaching order. */
+.lesson-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.lesson-list > li {
+    display: grid; grid-template-columns: 2.25rem minmax(0, 1fr) auto; gap: var(--s-3); align-items: center;
+    padding: var(--s-3) 0; border-bottom: 1px solid var(--line);
+}
+.lesson-list__mark {
+    display: grid; place-items: center;
+    width: 2rem; height: 2rem; border-radius: 50%;
+    border: 2px solid var(--line-strong); color: var(--ink-soft);
+    font-weight: 700; font-size: var(--step--1);
+}
+.lesson-list .is-done .lesson-list__mark { background: var(--success); border-color: var(--success); color: #FFFFFF; }
+.lesson-list .is-done .lesson-list__mark ::deep svg { width: 1.125rem; height: 1.125rem; stroke-width: 3; }
+.lesson-list .is-next .lesson-list__mark { border-style: dashed; border-color: var(--rank-field); color: var(--ink); }
+.lesson-list__text { display: flex; flex-direction: column; min-width: 0; }
+.lesson-list__title { font-weight: 700; font-size: var(--step-0); }
+.lesson-list__title:hover { color: var(--lapis-700); }
+.lesson-list__meta { color: var(--ink-soft); font-size: var(--step--1); }
+.lesson-list__certificate { display: inline-flex; align-items: center; gap: var(--s-1); }
+.lesson-list__certificate a {
+    display: inline-flex; align-items: center; gap: var(--s-1);
+    min-height: var(--target); padding: 0 var(--s-2);
+    border-radius: var(--r-control); font-weight: 600; text-decoration: none;
+}
+.lesson-list__certificate a:hover { background: var(--lapis-50); }
+.lesson-list__download { min-width: var(--target); justify-content: center; }
+.lesson-list__certificate ::deep svg { width: 1.25rem; height: 1.25rem; }
+@media (max-width: 30rem) {
+    .lesson-list > li { grid-template-columns: 2.25rem minmax(0, 1fr); }
+    .lesson-list__certificate { grid-column: 2; margin-left: calc(-1 * var(--s-2)); }
+}
+
+/* Earlier ranks: their certificates, folded away. */
+.earlier__rank { border-top: 1px solid var(--line); }
+.earlier__rank:last-child { border-bottom: 1px solid var(--line); }
+.earlier__rank > summary {
+    display: flex; align-items: center; gap: var(--s-3); flex-wrap: wrap;
+    min-height: 3.75rem; padding: var(--s-2) 0; cursor: pointer; list-style: none;
+}
+.earlier__rank > summary::-webkit-details-marker { display: none; }
+.earlier__rank > summary::after { content: "Show"; margin-left: auto; color: var(--lapis-700); font-weight: 600; }
+.earlier__rank[open] > summary::after { content: "Hide"; }
+.earlier__name { font-weight: 700; }
+.earlier__meta { color: var(--ink-soft); font-size: var(--step--1); }
+.earlier__list { list-style: none; margin: 0 0 var(--s-3); padding: 0 0 0 3.75rem; }
+.earlier__list li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s-2); border-top: 1px dashed var(--line); }
+
+/* ---------- The way: the ten ranks as a procession ---------- */
+.the-way {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--r-panel);
+    padding: var(--s-5) var(--s-4);
+}
+@media (min-width: 60rem) { .the-way { position: sticky; top: var(--s-4); } }
+.the-way__list { list-style: none; margin: 0; padding: 0; position: relative; }
+.the-way__list::before {
+    /* The processional way: one line through every station's centre. */
+    content: ""; position: absolute; left: calc(1.375rem - 1px); top: 1.5rem; bottom: 1.5rem;
+    width: 2px; background: repeating-linear-gradient(to bottom, var(--line-strong) 0 4px, transparent 4px 8px);
+}
+.the-way__movement {
+    position: relative;
+    font-family: var(--font-display); font-style: italic; font-weight: 600;
+    color: var(--gold-700); font-size: var(--step-0);
+    padding: var(--s-3) 0 var(--s-1) 3.75rem;
+}
+.the-way__station {
+    position: relative;
+    display: flex; align-items: center; gap: var(--s-3);
+    padding: var(--s-2) var(--s-2) var(--s-2) 0;
+    border-radius: var(--r-control);
+}
+.the-way__text { display: flex; flex-direction: column; min-width: 0; }
+.the-way__name { font-weight: 700; line-height: 1.25; }
+.the-way__meta { color: var(--ink-soft); font-size: var(--step--1); }
+.the-way__station.is-ahead .the-way__name { color: var(--ink-soft); font-weight: 600; }
+.the-way__station.is-current {
+    background: var(--rank-tint);
+    margin-left: -0.5rem; padding-left: 0.5rem;
+    box-shadow: inset 4px 0 0 var(--rank-field);
+}
+.the-way__station.is-current .the-way__name { font-family: var(--font-display); font-size: var(--step-1); color: var(--lapis-900); }
+.the-way__station.is-current .the-way__meta { color: var(--ink); font-weight: 600; }

@@ -1,61 +1,120 @@
 @implements IDisposable
 @inject NavigationManager Navigation
 
+@* Grouped by area; a group appears only for someone holding one of its roles. Every link sits in an
+   AuthorizeView with exactly its page's policy (NavigationCoverageTests). Groups marked
+   nav-group--staff turn the desktop layout into a sidebar (app.css). *@
+<div id="site-nav" class="site-nav">
 <nav aria-label="Main">
-    <ul class="nav-list">
-        <li><a href="/" aria-current="@Current("/")">Home</a></li>
-        <AuthorizeView Policy="RequireSignedIn">
-            <li><a href="/registration/apply" aria-current="@Current("/registration/apply")">Register a child</a></li>
-            <li><a href="/registration/my-applications" aria-current="@Current("/registration/my-applications")">My applications</a></li>
-        </AuthorizeView>
-        <AuthorizeView Policy="RequireLessonLibrary">
-            <li><a href="/lessons" aria-current="@Current("/lessons")">Lesson library</a></li>
-        </AuthorizeView>
-        <AuthorizeView Policy="RequireStudent">
-            <li><a href="/student" aria-current="@Current("/student")">My progress</a></li>
-        </AuthorizeView>
+    <div class="nav-groups">
+        <div class="nav-group">
+            <ul class="nav-list">
+                <li><a href="/" aria-current="@Current("/")"><Icon Name="home" /> Home</a></li>
+                <AuthorizeView Policy="RequireStudent">
+                    <li><a href="/student" aria-current="@Current("/student")"><Icon Name="rank" /> My rank</a></li>
+                </AuthorizeView>
+                <AuthorizeView Policy="RequireLessonLibrary">
+                    <li><a href="/lessons" aria-current="@Current("/lessons")"><Icon Name="book" /> Lesson library</a></li>
+                </AuthorizeView>
+            </ul>
+        </div>
+
         <AuthorizeView Policy="RequireParent">
-            <li><a href="/parent/dashboard" aria-current="@Current("/parent/dashboard")">Parent dashboard</a></li>
-            <li><a href="/parent/consent" aria-current="@Current("/parent/consent")">Consent form</a></li>
-            <li><a href="/parent/student-sign-ins" aria-current="@Current("/parent/student-sign-ins")">Student sign-ins</a></li>
+            <div class="nav-group">
+                <span class="nav-group-label" id="nav-family">Family</span>
+                <ul class="nav-list" aria-labelledby="nav-family">
+                    <li><a href="/parent/dashboard" aria-current="@Current("/parent/dashboard")"><Icon Name="users" /> My children</a></li>
+                    <li><a href="/parent/consent" aria-current="@Current("/parent/consent")"><Icon Name="clipboard" /> Consent form</a></li>
+                    <li><a href="/parent/student-sign-ins" aria-current="@Current("/parent/student-sign-ins")"><Icon Name="key" /> Student sign-ins</a></li>
+                </ul>
+            </div>
         </AuthorizeView>
+
         <AuthorizeView Policy="RequireAdminOrTeacher">
-            <li><a href="/students" aria-current="@Current("/students")">Students</a></li>
+            <div class="nav-group nav-group--staff">
+                <span class="nav-group-label" id="nav-teaching">Teaching</span>
+                <ul class="nav-list" aria-labelledby="nav-teaching">
+                    <AuthorizeView Policy="RequireTeacher" Context="teacher">
+                        <li><a href="/progress/record" aria-current="@Current("/progress/record")"><Icon Name="record" /> Record completions</a></li>
+                    </AuthorizeView>
+                    <li><a href="/students" aria-current="@Current("/students")"><Icon Name="users" /> Students</a></li>
+                    <AuthorizeView Policy="RequireTeacher" Context="teacher">
+                        <li><a href="/students/consent" aria-current="@Current("/students/consent")"><Icon Name="clipboard" /> Student consent</a></li>
+                        <li><a href="/progress/completions" aria-current="@Current("/progress/completions")"><Icon Name="undo" /> Correct a completion</a></li>
+                        <li><a href="/curriculum/teacher" aria-current="@Current("/curriculum/teacher")"><Icon Name="pencil" /> Propose lesson changes</a></li>
+                    </AuthorizeView>
+                </ul>
+            </div>
         </AuthorizeView>
-        <AuthorizeView Policy="RequireTeacher">
-            <li><a href="/students/consent" aria-current="@Current("/students/consent")">Student consent</a></li>
-            <li><a href="/progress/record" aria-current="@Current("/progress/record")">Record completions</a></li>
-            <li><a href="/progress/completions" aria-current="@Current("/progress/completions")">Correct a completion</a></li>
-            <li><a href="/curriculum/teacher" aria-current="@Current("/curriculum/teacher")">Propose lesson changes</a></li>
-        </AuthorizeView>
+
         <AuthorizeView Policy="RequireApprover">
-            <li><a href="/curriculum/approver" aria-current="@Current("/curriculum/approver")">Pending proposals</a></li>
+            <div class="nav-group">
+                <span class="nav-group-label" id="nav-curriculum">Curriculum</span>
+                <ul class="nav-list" aria-labelledby="nav-curriculum">
+                    <li><a href="/curriculum/approver" aria-current="@Current("/curriculum/approver")"><Icon Name="inbox" /> Pending proposals</a></li>
+                </ul>
+            </div>
         </AuthorizeView>
+
         <AuthorizeView Policy="RequireAdminOrSafeguardingOfficer">
-            <li><a href="/safeguarding/consent" aria-current="@Current("/safeguarding/consent")">Consent records</a></li>
-            <li><a href="/safeguarding/dbs" aria-current="@Current("/safeguarding/dbs")">DBS checks</a></li>
+            <div class="nav-group nav-group--staff">
+                <span class="nav-group-label" id="nav-safeguarding">Safeguarding</span>
+                <ul class="nav-list" aria-labelledby="nav-safeguarding">
+                    <AuthorizeView Policy="RequireSafeguardingOfficer" Context="officer">
+                        <li><a href="/registration/review" aria-current="@Current("/registration/review")"><Icon Name="inbox" /> Review registrations</a></li>
+                    </AuthorizeView>
+                    <li><a href="/safeguarding/consent" aria-current="@Current("/safeguarding/consent")"><Icon Name="clipboard" /> Consent records</a></li>
+                    <li><a href="/safeguarding/dbs" aria-current="@Current("/safeguarding/dbs")"><Icon Name="id-card" /> DBS checks</a></li>
+                </ul>
+            </div>
         </AuthorizeView>
-        <AuthorizeView Policy="RequireSafeguardingOfficer">
-            <li><a href="/registration/review" aria-current="@Current("/registration/review")">Review registrations</a></li>
-        </AuthorizeView>
+
         <AuthorizeView Policy="RequireAdmin">
-            <li><a href="/registration/approve" aria-current="@Current("/registration/approve")">Approve registrations</a></li>
-            <li><a href="/registration/students" aria-current="@Current("/registration/students")">Register student</a></li>
-            <li><a href="/guardianship/links" aria-current="@Current("/guardianship/links")">Guardian links</a></li>
-            <li><a href="/administration/students" aria-current="@Current("/administration/students")">Manage students</a></li>
-            <li><a href="/administration/user-roles" aria-current="@Current("/administration/user-roles")">User roles</a></li>
-            <li><a href="/administration/student-sign-ins" aria-current="@Current("/administration/student-sign-ins")">Student sign-ins</a></li>
-            <li><a href="/reporting" aria-current="@Current("/reporting")">Reporting</a></li>
-            <li><a href="/reporting/records-due-for-deletion" aria-current="@Current("/reporting/records-due-for-deletion")">Records due for deletion</a></li>
-            <li><a href="/retention/mark-as-left" aria-current="@Current("/retention/mark-as-left")">Mark as left</a></li>
+            <div class="nav-group nav-group--staff">
+                <span class="nav-group-label" id="nav-admin">Administration</span>
+                <ul class="nav-list" aria-labelledby="nav-admin">
+                    <li><a href="/registration/approve" aria-current="@Current("/registration/approve")"><Icon Name="inbox" /> Approve registrations</a></li>
+                    <li><a href="/registration/students" aria-current="@Current("/registration/students")"><Icon Name="user-plus" /> Register student</a></li>
+                    <li><a href="/administration/students" aria-current="@Current("/administration/students")"><Icon Name="users" /> Manage students</a></li>
+                    <li><a href="/guardianship/links" aria-current="@Current("/guardianship/links")"><Icon Name="link" /> Guardian links</a></li>
+                    <li><a href="/administration/user-roles" aria-current="@Current("/administration/user-roles")"><Icon Name="shield" /> User roles</a></li>
+                    <li><a href="/administration/student-sign-ins" aria-current="@Current("/administration/student-sign-ins")"><Icon Name="key" /> Student sign-ins</a></li>
+                    <li><a href="/reporting" aria-current="@Current("/reporting")"><Icon Name="chart" /> Reporting</a></li>
+                    <li><a href="/reporting/records-due-for-deletion" aria-current="@Current("/reporting/records-due-for-deletion")"><Icon Name="clock" /> Records due for deletion</a></li>
+                    <li><a href="/retention/mark-as-left" aria-current="@Current("/retention/mark-as-left")"><Icon Name="user-minus" /> Mark as left</a></li>
+                </ul>
+            </div>
         </AuthorizeView>
+
         <AuthorizeView Policy="RequireNationalAdministrator">
-            <li><a href="/administration/chapters" aria-current="@Current("/administration/chapters")">Chapters</a></li>
-            <li><a href="/reporting/national" aria-current="@Current("/reporting/national")">National figures</a></li>
-            <li><a href="/administration/rank-badges" aria-current="@Current("/administration/rank-badges")">Rank badges</a></li>
+            <div class="nav-group nav-group--staff">
+                <span class="nav-group-label" id="nav-national">National</span>
+                <ul class="nav-list" aria-labelledby="nav-national">
+                    <li><a href="/administration/chapters" aria-current="@Current("/administration/chapters")"><Icon Name="home" /> Chapters</a></li>
+                    <li><a href="/reporting/national" aria-current="@Current("/reporting/national")"><Icon Name="chart" /> National figures</a></li>
+                    <li><a href="/administration/rank-badges" aria-current="@Current("/administration/rank-badges")"><Icon Name="image" /> Rank badges</a></li>
+                </ul>
+            </div>
         </AuthorizeView>
-    </ul>
+
+        @* Any signed-in adult can apply to register their children (adr/0008). Not shown to a student
+           sign-in, which can't apply; the pages refuse students regardless. *@
+        <AuthorizeView Policy="RequireStudent" Context="student">
+            <NotAuthorized>
+                <div class="nav-group">
+                    <span class="nav-group-label" id="nav-register">Registration</span>
+                    <ul class="nav-list" aria-labelledby="nav-register">
+                        <AuthorizeView Policy="RequireSignedIn" Context="signedIn">
+                            <li><a href="/registration/apply" aria-current="@Current("/registration/apply")"><Icon Name="user-plus" /> Register a child</a></li>
+                            <li><a href="/registration/my-applications" aria-current="@Current("/registration/my-applications")"><Icon Name="file" /> My applications</a></li>
+                        </AuthorizeView>
+                    </ul>
+                </div>
+            </NotAuthorized>
+        </AuthorizeView>
+    </div>
 </nav>
+</div>
 
 @code {
     protected override void OnInitialized() => Navigation.LocationChanged += OnLocationChanged;

@@ -1,0 +1,16 @@
+@* Progress in a rank as mosaic tiles: one tile per lesson, filled for each one completed, the next one
+   dashed. Hidden from screen readers; the caller always writes the same fact in words beside it
+   ("5 of 8 lessons complete"), so colour and shape are never the only way it is conveyed. *@
+<ul class="tesserae @(Small ? "tesserae--sm" : null)" aria-hidden="true">
+    @for (var i = 0; i < Total; i++)
+    {
+        <li class="@(i < Done ? "done" : i == Done && MarkNext ? "next" : null)"></li>
+    }
+</ul>
+
+@code {
+    [Parameter, EditorRequired] public int Done { get; set; }
+    [Parameter, EditorRequired] public int Total { get; set; }
+    [Parameter] public bool MarkNext { get; set; } = true;
+    [Parameter] public bool Small { get; set; }
+}

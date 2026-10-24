@@ -1,0 +1,36 @@
+@* A rank shown as a round embroidered patch: the rank's colours, a stitched rim, and the Admin-uploaded
+   badge image (FR-014) when there is one, else the rank's number. Earned ranks are filled; ranks ahead
+   are outlined, and a badge not yet earned is shown faded. The image's alt text names the rank; without an image the number is hidden from screen
+   readers, because the rank name is always written beside the medallion. *@
+<span class="medallion rank-@Order @SizeClass @(Ahead ? "medallion--ahead" : null)">
+    @if (HasBadgeImage)
+    {
+        <img src="/badges/@RankId/image" alt="@(Alt ?? RankName + " badge")" class="@(Earned ? null : Current ? "in-progress" : "unearned")" />
+    }
+    else if (Order == 10)
+    {
+        @* Akolouthos has no patch yet: the double-headed eagle, as the commander of the Guard stood beside the Emperor. *@
+        <Eagle Class="medallion__eagle" />
+    }
+    else
+    {
+        <span aria-hidden="true">@Order</span>
+    }
+</span>
+
+@code {
+    [Parameter, EditorRequired] public int RankId { get; set; }
+    [Parameter, EditorRequired] public int Order { get; set; }
+    [Parameter, EditorRequired] public string RankName { get; set; } = "";
+    [Parameter] public bool HasBadgeImage { get; set; }
+    [Parameter] public bool Ahead { get; set; }
+    [Parameter] public bool Earned { get; set; } = true;
+    /// <summary>The rank being worked towards now: its unearned badge is shown in colour, faded.</summary>
+    [Parameter] public bool Current { get; set; }
+    /// <summary>"sm", "md" (default) or "lg".</summary>
+    [Parameter] public string Size { get; set; } = "md";
+    /// <summary>Alt text for the badge image; empty marks it decorative when the name is right next to it.</summary>
+    [Parameter] public string? Alt { get; set; }
+
+    private string? SizeClass => Size switch { "sm" => "medallion--sm", "lg" => "medallion--lg", _ => null };
+}

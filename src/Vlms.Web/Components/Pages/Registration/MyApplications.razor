@@ -11,7 +11,7 @@
 
 <PageTitle>My applications</PageTitle>
 
-<h1>My applications</h1>
+<PageHeader Title="My applications" />
 
 <FormErrorSummary Errors="_errors" />
 
@@ -26,14 +26,14 @@
 
 @if (_editing is { } editing)
 {
-    <section aria-labelledby="resubmitHeading">
+    <section class="panel section" aria-labelledby="resubmitHeading">
         <h2 id="resubmitHeading">Answer and resubmit: @editing.ChildName</h2>
         <p>The Safeguarding Officer asked:</p>
         <blockquote class="preserve-lines">@editing.Details?.InformationRequest</blockquote>
         <p>Answer the question below and correct anything else on the application, then resubmit it.</p>
 
-        <EditForm Model="Input" method="post" OnSubmit="ResubmitAsync" FormName="resubmit-application">
-            <div>
+        <EditForm class="form" Model="Input" method="post" OnSubmit="ResubmitAsync" FormName="resubmit-application">
+            <div class="field">
                 <label for="response">Your answer</label>
                 <textarea id="response" rows="5" maxlength="4000" name="Input.Response" aria-required="true" aria-invalid="@_errors.Invalid("response")" aria-describedby="@_errors.DescribedBy("response")">@Input.Response</textarea>
                 @if (_errors.For("response") is { } responseError)
@@ -43,7 +43,7 @@
             </div>
 
             <h3>Your details</h3>
-            <div>
+            <div class="field">
                 <label for="phone">Your phone number</label>
                 <input id="phone" type="tel" autocomplete="tel" name="Input.Phone" value="@Input.Phone" aria-required="true" aria-invalid="@_errors.Invalid("phone")" aria-describedby="@_errors.DescribedBy("phone")" />
                 @if (_errors.For("phone") is { } phoneError)
@@ -51,7 +51,7 @@
                     <p class="field-error" id="phone-error">@phoneError</p>
                 }
             </div>
-            <div>
+            <div class="field">
                 <label for="postalAddress">Your postal address</label>
                 <textarea id="postalAddress" rows="4" autocomplete="street-address" name="Input.PostalAddress" aria-required="true" aria-invalid="@_errors.Invalid("postalAddress")" aria-describedby="@_errors.DescribedBy("postalAddress")">@Input.PostalAddress</textarea>
                 @if (_errors.For("postalAddress") is { } postalAddressError)
@@ -61,7 +61,7 @@
             </div>
 
             <h3>About the child</h3>
-            <div>
+            <div class="field">
                 <label for="childName">Child's full name</label>
                 <input id="childName" name="Input.Name" value="@Input.Name" autocomplete="off" aria-required="true" aria-invalid="@_errors.Invalid("childName")" aria-describedby="@_errors.DescribedBy("childName")" />
                 @if (_errors.For("childName") is { } childNameError)
@@ -69,7 +69,7 @@
                     <p class="field-error" id="childName-error">@childNameError</p>
                 }
             </div>
-            <div>
+            <div class="field">
                 <label for="childDateOfBirth">Child's date of birth</label>
                 <input id="childDateOfBirth" type="date" name="Input.DateOfBirth" value="@Input.DateOfBirth" aria-required="true" aria-invalid="@_errors.Invalid("childDateOfBirth")" aria-describedby="@_errors.DescribedBy("childDateOfBirth")" />
                 @if (_errors.For("childDateOfBirth") is { } childDateOfBirthError)
@@ -77,7 +77,7 @@
                     <p class="field-error" id="childDateOfBirth-error">@childDateOfBirthError</p>
                 }
             </div>
-            <div>
+            <div class="field">
                 <label for="relationship">Your relationship to the child</label>
                 <input id="relationship" name="Input.Relationship" value="@Input.Relationship" aria-required="true" aria-invalid="@_errors.Invalid("relationship")" aria-describedby="@_errors.DescribedBy("relationship")" />
                 @if (_errors.For("relationship") is { } relationshipError)
@@ -87,25 +87,25 @@
             </div>
 
             <h3>Consent</h3>
-            <div>
+            <div class="field--check">
                 <InputCheckbox id="photo" @bind-Value="Input.PhotoMediaConsent" />
                 <label for="photo">I consent to photos and media of my child</label>
             </div>
-            <div>
+            <div class="field--check">
                 <InputCheckbox id="transport" @bind-Value="Input.TransportConsent" />
                 <label for="transport">I consent to my child being transported between our sites (this can be a short trip)</label>
             </div>
-            <div>
+            <div class="field--check">
                 <InputCheckbox id="offsite" @bind-Value="Input.OffsiteTripConsent" />
                 <label for="offsite">I consent to my child going on off-site trips and outings</label>
             </div>
-            <div>
+            <div class="field--check">
                 <InputCheckbox id="dataSharing" @bind-Value="Input.DataSharingConsent" />
                 <label for="dataSharing">I consent to data sharing</label>
             </div>
 
             <h3>Medical, dietary and emergency details</h3>
-            <div>
+            <div class="field">
                 <label for="emergencyContact">Emergency contact (name and phone number)</label>
                 <input id="emergencyContact" name="Input.EmergencyContact" value="@Input.EmergencyContact" aria-required="true" aria-invalid="@_errors.Invalid("emergencyContact")" aria-describedby="@_errors.DescribedBy("emergencyContact")" />
                 @if (_errors.For("emergencyContact") is { } emergencyContactError)
@@ -113,7 +113,7 @@
                     <p class="field-error" id="emergencyContact-error">@emergencyContactError</p>
                 }
             </div>
-            <div>
+            <div class="field">
                 <label for="medical">Emergency medical information (optional)</label>
                 <textarea id="medical" rows="3" maxlength="4000" name="Input.EmergencyMedicalInfo" aria-invalid="@_errors.Invalid("medical")" aria-describedby="@_errors.DescribedBy("medical")">@Input.EmergencyMedicalInfo</textarea>
                 @if (_errors.For("medical") is { } medicalError)
@@ -121,7 +121,7 @@
                     <p class="field-error" id="medical-error">@medicalError</p>
                 }
             </div>
-            <div>
+            <div class="field">
                 <label for="dietary">Dietary requirements, including allergies (optional)</label>
                 <textarea id="dietary" rows="4" maxlength="4000" name="Input.DietaryRequirements" aria-invalid="@_errors.Invalid("dietary")" aria-describedby="@_errors.DescribedBy("dietary")">@Input.DietaryRequirements</textarea>
                 @if (_errors.For("dietary") is { } dietaryError)
@@ -129,7 +129,7 @@
                     <p class="field-error" id="dietary-error">@dietaryError</p>
                 }
             </div>
-            <div>
+            <div class="field">
                 <label for="sen">Special educational needs (optional)</label>
                 <textarea id="sen" rows="4" maxlength="4000" name="Input.SpecialEducationalNeeds" aria-invalid="@_errors.Invalid("sen")" aria-describedby="@_errors.DescribedBy("sen")">@Input.SpecialEducationalNeeds</textarea>
                 @if (_errors.For("sen") is { } senError)
@@ -138,8 +138,10 @@
                 }
             </div>
 
-            <button type="submit">Resubmit application</button>
-            <a href="/registration/my-applications">Cancel</a>
+            <div class="form-actions">
+                <button type="submit">Resubmit application</button>
+                <a class="btn btn--secondary" href="/registration/my-applications">Cancel</a>
+            </div>
         </EditForm>
     </section>
 }
@@ -151,7 +153,7 @@
 
 @foreach (var application in _applications)
 {
-    <section aria-labelledby="application@(application.Id)">
+    <section class="panel application" aria-labelledby="application@(application.Id)">
         <h2 id="application@(application.Id)">@application.ChildName</h2>
         @if (application.Status == StudentApplicationStatus.MoreInformationRequested && _editing?.Id != application.Id)
         {
@@ -165,7 +167,7 @@
     </section>
 }
 
-<p><a href="/registration/apply">Register another child</a></p>
+<p><a class="btn btn--secondary" href="/registration/apply">Register another child</a></p>
 
 @code {
     [SupplyParameterFromQuery(Name = "edit")]

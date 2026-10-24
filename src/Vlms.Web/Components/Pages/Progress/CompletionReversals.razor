@@ -12,9 +12,9 @@
 
 <PageTitle>My recorded completions</PageTitle>
 
-<h1>My recorded completions</h1>
+<PageHeader Title="My recorded completions" />
 
-<p>
+<p class="intro">
     Lists lesson completions you personally recorded. You can self-correct/reverse your own entry
     within @CompletionService.DefaultReversalWindowDays days of recording it — no
     separate correction gate through Admin. A reversal excludes the completion from rank-promotion
@@ -31,7 +31,7 @@
     <p role="status">@_statusMessage</p>
 }
 
-<table>
+<table class="data-table data-table--wide">
     <thead>
         <tr>
             <th>Student</th>
@@ -46,11 +46,11 @@
         @foreach (var completion in _completions)
         {
             <tr>
-                <td>@completion.Student?.Name</td>
-                <td>@completion.Lesson?.Title</td>
-                <td>@completion.CompletedAt.ToString("g")</td>
-                <td>@completion.Note</td>
-                <td>
+                <td data-label="Student">@completion.Student?.Name</td>
+                <td data-label="Lesson">@completion.Lesson?.Title</td>
+                <td data-label="Completed">@completion.CompletedAt.ToString("g")</td>
+                <td data-label="Note">@completion.Note</td>
+                <td data-label="Status">
                     @if (completion.IsReversed)
                     {
                         <text>Reversed @completion.ReversedAt?.ToString("g")</text>
@@ -63,7 +63,7 @@
                 <td>
                     @if (!completion.IsReversed)
                     {
-                        <button type="button" aria-label="@($"Reverse completion of {completion.Lesson?.Title} for {completion.Student?.Name}")" @onclick="() => StartReverse(completion)">Reverse</button>
+                        <button type="button" class="btn--secondary" aria-label="@($"Reverse completion of {completion.Lesson?.Title} for {completion.Student?.Name}")" @onclick="() => StartReverse(completion)">Reverse</button>
                     }
                 </td>
             </tr>
@@ -74,17 +74,19 @@
 @if (_reversingCompletion is not null)
 {
     <h2>Reverse completion: @_reversingCompletion.Student?.Name — @_reversingCompletion.Lesson?.Title</h2>
-    <EditForm Model="_reversalForm" OnValidSubmit="ConfirmReverseAsync">
+    <EditForm class="form" Model="_reversalForm" OnValidSubmit="ConfirmReverseAsync">
         <DataAnnotationsValidator />
         <ValidationSummary role="alert" />
 
-        <div>
+        <div class="field">
             <label for="reversalNote">Reason (optional)</label>
             <InputTextArea id="reversalNote" @bind-Value="_reversalForm.Note" />
         </div>
 
-        <button type="submit">Confirm reversal</button>
-        <button type="button" @onclick="CancelReverse">Cancel</button>
+        <div class="form-actions">
+            <button type="submit">Confirm reversal</button>
+            <button type="button" @onclick="CancelReverse" class="btn--secondary">Cancel</button>
+        </div>
     </EditForm>
 }
 

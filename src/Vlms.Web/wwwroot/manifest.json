@@ -1,12 +1,12 @@
 {
-  "name": "Varangians LMS",
-  "short_name": "VLMS",
-  "description": "Varangians LMS: curriculum, progress tracking, and safeguarding for Teachers, Approvers, Parents, and Admins.",
+  "name": "Varangians",
+  "short_name": "Varangians",
+  "description": "Varangians: Orthodox formation for young people. Ranks, lessons, progress and safeguarding for students, parents and teachers.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#1f2937",
+  "background_color": "#F7F8FA",
+  "theme_color": "#14254F",
   "icons": [
     {
       "src": "icons/icon.svg",

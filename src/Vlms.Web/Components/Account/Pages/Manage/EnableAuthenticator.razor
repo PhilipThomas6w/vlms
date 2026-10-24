@@ -1,9 +1,10 @@
-@page "/Account/Manage/EnableAuthenticator"
+﻿@page "/Account/Manage/EnableAuthenticator"
 @attribute [Authorize]
 
 @using System.ComponentModel.DataAnnotations
 @using System.Text.Encodings.Web
 @using Microsoft.AspNetCore.Identity
+@using Net.Codecrete.QrCodeGenerator
 @using Vlms.Infrastructure.Identity
 
 @inject UserManager<VlmsIdentityUser> UserManager
@@ -13,21 +14,16 @@
 @* Static SSR — see TwoFactorAuthentication.razor's doc comment (SignInManager.RefreshSignInAsync
    on success writes the auth cookie).
 
-   Scope decision, recorded (STATE.md "Identity" item 4): no QR code image is generated here — only
-   the manual "enter this key" shared-secret text, which every compliant authenticator app accepts
-   as an alternative to scanning (Microsoft/Google Authenticator both support it). A scannable QR
-   code needs a third-party rendering library (e.g. Net.Codecrete.QrCodeGenerator — there is no
-   built-in .NET QR encoder) — an extra dependency this "fewest moving parts" solo-maintained project
-   (adr/0003's own reasoning, already applied to reject axe-core/gitleaks/heavier tooling elsewhere)
-   does not take on for what a manual key already achieves. The otpauth:// URI format below is
-   still built and shown as text (some authenticator apps accept pasting it directly), verified
-   against Microsoft Learn's own QR-code-enrolment guidance for the URI shape
-   (learn.microsoft.com/aspnet/core/security/authentication/identity-enable-qrcodes) even though the
-   QR rendering step itself is out of scope. *@
+   QR code (Philip, 24/10/2026, reversing the earlier text-key-only decision): typing the key is
+   too slow, especially on a phone. The otpauth:// URI (format per Microsoft Learn,
+   learn.microsoft.com/aspnet/core/security/authentication/identity-enable-qrcodes) is rendered as
+   an inline SVG QR code by Net.Codecrete.QrCodeGenerator (MIT, no dependencies), and offered as a
+   link that opens the phone's authenticator app directly. The typed key stays as a fallback. *@
 
 <PageTitle>Configure authenticator app</PageTitle>
 
-<h1>Configure authenticator app</h1>
+<div class="auth">
+<PageHeader Title="Configure authenticator app" />
 
 @if (_errorMessage is not null)
 {
@@ -41,7 +37,7 @@
         <strong>Put these codes in a safe place.</strong> If you lose your authenticator device and
         don't have an unused recovery code, you will lose access to your account.
     </p>
-    <ul>
+    <ul class="recovery-codes">
         @foreach (var recoveryCode in _recoveryCodes)
         {
             <li><code>@recoveryCode</code></li>
@@ -57,27 +53,39 @@ else
             Authenticator, for your phone.
         </li>
         <li>
-            <p>Enter this key into your authenticator app (spaces and casing don't matter):</p>
-            <p><kbd>@_sharedKey</kbd></p>
+            <p>Scan this QR code with the authenticator app.</p>
+            @if (_qrSvg is not null)
+            {
+                <div class="qr-code" role="img" aria-label="QR code for adding your Varangians account to an authenticator app">@_qrSvg</div>
+            }
+            <p class="authenticator-link">On this phone? <a class="btn btn--secondary" href="@_authenticatorUri" data-enhance-nav="false">Add to authenticator app</a></p>
+            <details class="fold">
+                <summary>Can't scan the code? Enter the key instead</summary>
+                <p>Spaces and capitals don't matter:</p>
+                <p><kbd class="shared-key">@_sharedKey</kbd></p>
+            </details>
         </li>
         <li>
             <p>Once you have added the key, enter the 6-digit code the app displays below.</p>
-            <EditForm Model="Input" method="post" OnValidSubmit="OnValidSubmitAsync" FormName="send-code">
+            <EditForm class="form" Model="Input" method="post" OnValidSubmit="OnValidSubmitAsync" FormName="send-code">
                 <DataAnnotationsValidator />
                 <ValidationSummary role="alert" />
-                <div>
+                <div class="field">
                     <label for="code">Verification code</label>
                     <InputText id="code" @bind-Value="Input.Code" autocomplete="off" aria-required="true" />
                 </div>
-                <button type="submit">Verify and enable</button>
+                <div class="form-actions"><button type="submit">Verify and enable</button></div>
             </EditForm>
         </li>
     </ol>
 }
+</div>
 
 @code {
     private VlmsIdentityUser? _user;
     private string? _sharedKey;
+    private string? _authenticatorUri;
+    private MarkupString? _qrSvg;
     private string[]? _recoveryCodes;
     private string? _errorMessage;
 
@@ -113,6 +121,11 @@ else
         }
 
         _sharedKey = FormatKey(unformattedKey!);
+        _authenticatorUri = AuthenticatorUri(_user.Email ?? _user.UserName ?? "account", unformattedKey!);
+        // The SVG is built by the library from our own URI, so it is safe to render as markup; the XML
+        // prologue is dropped so it can sit inline.
+        var svg = QrCode.EncodeText(_authenticatorUri, QrCode.Ecc.Medium).ToSvgString(2, "#14254F", "#FFFFFF");
+        _qrSvg = new MarkupString(svg[svg.IndexOf("<svg", StringComparison.Ordinal)..]);
     }
 
     private async Task OnValidSubmitAsync()
@@ -137,6 +150,14 @@ else
         _recoveryCodes = (await UserManager.GenerateNewTwoFactorRecoveryCodesAsync(_user, 10))?.ToArray() ?? [];
 
         await SignInManager.RefreshSignInAsync(_user);
+    }
+
+    // otpauth://totp/{issuer}:{account}?secret={key}&issuer={issuer}&digits=6, as Microsoft Learn's
+    // QR-code enrolment guidance builds it.
+    private static string AuthenticatorUri(string account, string unformattedKey)
+    {
+        const string issuer = "Varangians";
+        return $"otpauth://totp/{UrlEncoder.Default.Encode(issuer)}:{UrlEncoder.Default.Encode(account)}?secret={unformattedKey}&issuer={UrlEncoder.Default.Encode(issuer)}&digits=6";
     }
 
     private static string FormatKey(string unformattedKey)

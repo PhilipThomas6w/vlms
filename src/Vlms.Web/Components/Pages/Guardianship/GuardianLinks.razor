@@ -12,9 +12,9 @@
 
 <PageTitle>Guardian links</PageTitle>
 
-<h1>Guardian links</h1>
+<PageHeader Title="Guardian links" />
 
-<p>
+<p class="intro">
     A guardian link is created only by an Admin: when a student is registered, here, or by approving
     a parent's application to register their child. Parents cannot create links themselves. A parent can see a child's progress and consent information
     only through a link like this.
@@ -30,7 +30,7 @@
 }
 
 <h2>Existing links</h2>
-<table>
+<table class="data-table data-table--wide">
     <thead>
         <tr>
             <th>Student</th>
@@ -44,11 +44,11 @@
         @foreach (var link in _links)
         {
             <tr>
-                <td>@link.Student?.Name</td>
-                <td>@link.ParentGuardian?.Name</td>
-                <td>@(link.ParentGuardian?.IsPrimary == true ? "Yes" : "No")</td>
-                <td>@link.CreatedByUser?.DisplayName</td>
-                <td>
+                <td data-label="Student">@link.Student?.Name</td>
+                <td data-label="Guardian">@link.ParentGuardian?.Name</td>
+                <td data-label="Primary">@(link.ParentGuardian?.IsPrimary == true ? "Yes" : "No")</td>
+                <td data-label="Created by">@link.CreatedByUser?.DisplayName</td>
+                <td data-label="Account">
                     @if (link.ParentGuardian?.AppUserId is null && link.ParentGuardian is not null)
                     {
                         <AuthorizeView Policy="RequireAdmin" Context="adminContext">
@@ -68,11 +68,11 @@
 </table>
 
 <h2>Create a guardian link</h2>
-<EditForm Model="_form" OnValidSubmit="SubmitAsync">
+<EditForm class="form" Model="_form" OnValidSubmit="SubmitAsync">
     <DataAnnotationsValidator />
     <ValidationSummary role="alert" />
 
-    <div>
+    <div class="field">
         <label for="student">Student</label>
         <InputSelect id="student" @bind-Value="_form.StudentId">
             @foreach (var student in _students)
@@ -83,17 +83,17 @@
     </div>
 
     <InputRadioGroup @bind-Value="_form.LinkExistingGuardian">
-        <div>
+        <div class="field">
             <label><InputRadio Value="true" /> Link an existing guardian</label>
         </div>
-        <div>
+        <div class="field">
             <label><InputRadio Value="false" /> Register a new guardian</label>
         </div>
     </InputRadioGroup>
 
     @if (_form.LinkExistingGuardian)
     {
-        <div>
+        <div class="field">
             <label for="guardian">Guardian</label>
             <InputSelect id="guardian" @bind-Value="_form.ParentGuardianId">
                 @foreach (var guardian in _guardians)
@@ -105,20 +105,20 @@
     }
     else
     {
-        <div>
+        <div class="field">
             <label for="guardianName">Guardian name</label>
             <InputText id="guardianName" @bind-Value="_form.NewGuardianName" />
         </div>
-        <div>
+        <div class="field">
             <label for="contactInfo">Contact info</label>
             <InputText id="contactInfo" @bind-Value="_form.NewGuardianContactInfo" />
         </div>
-        <div>
+        <div class="field">
             <label><InputCheckbox @bind-Value="_form.NewGuardianIsPrimary" /> Primary guardian</label>
         </div>
     }
 
-    <button type="submit">Create link</button>
+    <div class="form-actions"><button type="submit">Create link</button></div>
 </EditForm>
 
 @code {

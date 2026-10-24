@@ -6,7 +6,7 @@
 
 <PageTitle>Students</PageTitle>
 
-<h1>Students</h1>
+<PageHeader Title="Students" />
 
 @if (_errorMessage is not null)
 {
@@ -14,10 +14,12 @@
 }
 else
 {
-    <p>
-        <input type="checkbox" id="assignedToMe" checked="@_assignedToMe" @onchange="OnFilterChanged" />
-        <label for="assignedToMe">Assigned to me</label>
-    </p>
+    <div class="toolbar">
+        <div class="check">
+            <input type="checkbox" id="assignedToMe" checked="@_assignedToMe" @onchange="OnFilterChanged" />
+            <label for="assignedToMe">Assigned to me</label>
+        </div>
+    </div>
 
     @if (_students.Count == 0)
     {
@@ -25,7 +27,7 @@ else
     }
     else
     {
-        <table>
+        <table class="data-table">
             <caption>Active students</caption>
             <thead>
                 <tr>
@@ -39,10 +41,10 @@ else
                 @foreach (var student in _students)
                 {
                     <tr>
-                        <td>@student.StudentName</td>
-                        <td>@student.CurrentRankName</td>
-                        <td>@student.CompletedLessons of @student.TotalLessons lessons</td>
-                        <td><a href="/students/@student.StudentId">Record for @student.StudentName</a></td>
+                        <td data-label="Student">@student.StudentName</td>
+                        <td data-label="Rank">@student.CurrentRankName</td>
+                        <td data-label="Progress in rank">@student.CompletedLessons of @student.TotalLessons lessons</td>
+                        <td data-label="Record"><a href="/students/@student.StudentId">Record for @student.StudentName</a></td>
                     </tr>
                 }
             </tbody>

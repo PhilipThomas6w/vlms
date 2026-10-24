@@ -12,9 +12,9 @@
 
 <PageTitle>DBS checks</PageTitle>
 
-<h1>DBS checks</h1>
+<PageHeader Title="DBS checks" />
 
-<p>
+<p class="intro">
     DBS check records. Only Admins and Safeguarding Officers can see or change them. Teachers and
     Approvers have no access.
 </p>
@@ -29,7 +29,7 @@
 }
 
 <h2>Existing checks</h2>
-<table>
+<table class="data-table data-table--wide">
     <thead>
         <tr>
             <th>Teacher</th>
@@ -44,19 +44,21 @@
         @foreach (var check in _checks)
         {
             <tr>
-                <td>@_teacherNames.GetValueOrDefault(check.TeacherUserId)</td>
-                <td>@check.CheckDate</td>
-                <td>@check.ExpiryDate</td>
-                <td>@check.CertificateNumber</td>
-                <td>@check.Status</td>
+                <td data-label="Teacher">@_teacherNames.GetValueOrDefault(check.TeacherUserId)</td>
+                <td data-label="Check date">@check.CheckDate</td>
+                <td data-label="Expiry">@check.ExpiryDate</td>
+                <td data-label="Certificate number">@check.CertificateNumber</td>
+                <td data-label="Status">@check.Status</td>
                 <td>
+                    <div class="cell-actions">
                     @foreach (var status in Enum.GetValues<DbsCheckStatus>())
                     {
                         @if (status != check.Status)
                         {
-                            <button aria-label="@($"Mark {status} for {_teacherNames.GetValueOrDefault(check.TeacherUserId)}")" @onclick="() => UpdateStatusAsync(check.Id, status)">Mark @status</button>
+                            <button class="btn--secondary" aria-label="@($"Mark {status} for {_teacherNames.GetValueOrDefault(check.TeacherUserId)}")" @onclick="() => UpdateStatusAsync(check.Id, status)">Mark @status</button>
                         }
                     }
+                    </div>
                 </td>
             </tr>
         }
@@ -64,11 +66,11 @@
 </table>
 
 <h2>Record a new DBS check</h2>
-<EditForm Model="_form" OnValidSubmit="SubmitAsync">
+<EditForm class="form" Model="_form" OnValidSubmit="SubmitAsync">
     <DataAnnotationsValidator />
     <ValidationSummary role="alert" />
 
-    <div>
+    <div class="field">
         <label for="teacher">Teacher</label>
         <InputSelect id="teacher" @bind-Value="_form.TeacherUserId">
             @foreach (var teacher in _teachers)
@@ -77,19 +79,19 @@
             }
         </InputSelect>
     </div>
-    <div>
+    <div class="field">
         <label for="checkDate">Check date</label>
         <InputDate id="checkDate" @bind-Value="_form.CheckDate" />
     </div>
-    <div>
+    <div class="field">
         <label for="expiryDate">Expiry date</label>
         <InputDate id="expiryDate" @bind-Value="_form.ExpiryDate" />
     </div>
-    <div>
+    <div class="field">
         <label for="certificateNumber">Certificate number</label>
         <InputText id="certificateNumber" @bind-Value="_form.CertificateNumber" />
     </div>
-    <div>
+    <div class="field">
         <label for="status">Status</label>
         <InputSelect id="status" @bind-Value="_form.Status">
             @foreach (var status in Enum.GetValues<DbsCheckStatus>())
@@ -99,7 +101,7 @@
         </InputSelect>
     </div>
 
-    <button type="submit">Record DBS check</button>
+    <div class="form-actions"><button type="submit">Record DBS check</button></div>
 </EditForm>
 
 @code {

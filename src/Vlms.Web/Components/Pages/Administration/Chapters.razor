@@ -11,9 +11,9 @@
 
 <PageTitle>Chapters</PageTitle>
 
-<h1>Chapters</h1>
+<PageHeader Title="Chapters" />
 
-<p>
+<p class="intro">
     Set up chapters, appoint and remove each chapter's Admins, and manage the national roles. A
     chapter's Admins then appoint its Safeguarding Officers, Teachers and other Admins. Being a
     National Administrator does not open any chapter's records: to work in a chapter you need a role
@@ -27,35 +27,35 @@
 <p role="status">@_statusMessage</p>
 
 <h2>Add a chapter</h2>
-<form @onsubmit="CreateAsync" @onsubmit:preventDefault>
-    <div>
+<form class="form" @onsubmit="CreateAsync" @onsubmit:preventDefault>
+    <div class="field">
         <label for="new-name">Chapter name (usually the parish's name)</label>
         <input id="new-name" maxlength="@Chapter.MaxNameLength" @bind="_newName" aria-required="true" />
     </div>
-    <div>
+    <div class="field">
         <label for="new-place">Place (town or city)</label>
         <input id="new-place" maxlength="@Chapter.MaxNameLength" @bind="_newPlace" aria-required="true" />
     </div>
-    <button type="submit">Add chapter</button>
+    <div class="form-actions"><button type="submit">Add chapter</button></div>
 </form>
 
 <h2>All chapters</h2>
 @foreach (var chapter in _chapters)
 {
     var edit = _edits[chapter.Id];
-    <section aria-labelledby="chapter-@chapter.Id-heading">
+    <section class="panel section" aria-labelledby="chapter-@chapter.Id-heading">
         <h3 id="chapter-@chapter.Id-heading">@chapter.Name@(chapter.IsActive ? "" : " (closed)")</h3>
         <p>Created @chapter.CreatedAt.ToString("dd/MM/yyyy")</p>
-        <form @onsubmit="() => UpdateAsync(chapter.Id)" @onsubmit:preventDefault>
-            <div>
+        <form class="form" @onsubmit="() => UpdateAsync(chapter.Id)" @onsubmit:preventDefault>
+            <div class="field">
                 <label for="name-@chapter.Id">Name of @chapter.Name</label>
                 <input id="name-@chapter.Id" maxlength="@Chapter.MaxNameLength" @bind="edit.Name" />
             </div>
-            <div>
+            <div class="field">
                 <label for="place-@chapter.Id">Place of @chapter.Name</label>
                 <input id="place-@chapter.Id" maxlength="@Chapter.MaxNameLength" @bind="edit.Place" />
             </div>
-            <div>
+            <div class="field--check">
                 <input id="open-@chapter.Id" type="checkbox" @bind="edit.IsActive" />
                 <label for="open-@chapter.Id">@chapter.Name is open to new registrations</label>
             </div>
@@ -69,20 +69,22 @@
         }
         else
         {
-            <ul>
+            <ul class="person-list">
                 @foreach (var admin in _admins[chapter.Id])
                 {
                     <li>
                         @admin.DisplayName (@admin.Email)@(admin.HasLeft ? " (left)" : "")
-                        <button type="button" aria-label="@($"Remove {admin.DisplayName} as Admin of {chapter.Name}")"
+                        <button type="button" class="btn--secondary" aria-label="@($"Remove {admin.DisplayName} as Admin of {chapter.Name}")"
                                 @onclick="() => RemoveAdminAsync(chapter, admin)">Remove</button>
                     </li>
                 }
             </ul>
         }
-        <form @onsubmit="() => AppointAdminAsync(chapter)" @onsubmit:preventDefault>
-            <label for="admin-email-@chapter.Id">Email address of a new Admin for @chapter.Name</label>
-            <input id="admin-email-@chapter.Id" type="email" autocomplete="off" @bind="edit.AdminEmail" />
+        <form class="field-row" @onsubmit="() => AppointAdminAsync(chapter)" @onsubmit:preventDefault>
+            <div class="field">
+                <label for="admin-email-@chapter.Id">Email address of a new Admin for @chapter.Name</label>
+                <input id="admin-email-@chapter.Id" type="email" autocomplete="off" @bind="edit.AdminEmail" />
+            </div>
             <button type="submit" aria-label="@($"Appoint Admin of {chapter.Name}")">Appoint Admin</button>
         </form>
     </section>
@@ -91,7 +93,7 @@
 <h2>National roles</h2>
 @foreach (var role in NationalRoles)
 {
-    <section aria-labelledby="role-@role-heading">
+    <section class="panel section" aria-labelledby="role-@role-heading">
         <h3 id="role-@role-heading">@role.DisplayName()</h3>
         @if (role == Role.Approver)
         {
@@ -107,20 +109,22 @@
         }
         else
         {
-            <ul>
+            <ul class="person-list">
                 @foreach (var holder in _holders[role])
                 {
                     <li>
                         @holder.DisplayName (@holder.Email)
-                        <button type="button" aria-label="@($"Remove {role.DisplayName()} from {holder.DisplayName}")"
+                        <button type="button" class="btn--secondary" aria-label="@($"Remove {role.DisplayName()} from {holder.DisplayName}")"
                                 @onclick="() => RevokeNationalAsync(role, holder)">Remove</button>
                     </li>
                 }
             </ul>
         }
-        <form @onsubmit="() => GrantNationalAsync(role)" @onsubmit:preventDefault>
-            <label for="grant-@role">Email address of a new @role.DisplayName()</label>
-            <input id="grant-@role" type="email" autocomplete="off" @bind="_nationalEmails[role]" />
+        <form class="field-row" @onsubmit="() => GrantNationalAsync(role)" @onsubmit:preventDefault>
+            <div class="field">
+                <label for="grant-@role">Email address of a new @role.DisplayName()</label>
+                <input id="grant-@role" type="email" autocomplete="off" @bind="_nationalEmails[role]" />
+            </div>
             <button type="submit" aria-label="@($"Grant {role.DisplayName()}")">Grant</button>
         </form>
     </section>

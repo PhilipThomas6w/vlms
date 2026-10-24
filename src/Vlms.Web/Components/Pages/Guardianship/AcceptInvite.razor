@@ -22,7 +22,8 @@
 
 <PageTitle>@(_mode == GuardianInviteService.AcceptMode.CreateAccount ? "Set up your account" : "Accept your invite")</PageTitle>
 
-<h1>@(_mode == GuardianInviteService.AcceptMode.CreateAccount ? "Set up your account" : "Accept your invite")</h1>
+<div class="auth">
+<PageHeader Title="@(_mode == GuardianInviteService.AcceptMode.CreateAccount ? "Set up your account" : "Accept your invite")" />
 
 @if (_errorMessage is not null)
 {
@@ -42,7 +43,7 @@ else if (_accepted)
 else if (_mode == GuardianInviteService.AcceptMode.SignInRequired)
 {
     <p>@GuardianInviteService.SignInToAcceptMessage</p>
-    <p><a href="@SignInHref">Sign in to accept</a></p>
+    <p><a class="btn" href="@SignInHref">Sign in to accept</a></p>
 }
 else if (_mode == GuardianInviteService.AcceptMode.SignedInAsDifferentAccount)
 {
@@ -52,31 +53,32 @@ else if (_mode == GuardianInviteService.AcceptMode.ReadyToLink)
 {
     <p>Accept this invite to link your account to the guardian record. An Admin then approves you as a parent.</p>
 
-    <EditForm Model="Input" method="post" OnSubmit="AcceptSignedInAsync" FormName="accept-invite-signed-in">
-        <button type="submit">Accept invite</button>
+    <EditForm class="form panel" Model="Input" method="post" OnSubmit="AcceptSignedInAsync" FormName="accept-invite-signed-in">
+        <div class="form-actions"><button type="submit">Accept invite</button></div>
     </EditForm>
 }
 else
 {
-    <p>Choose a password to finish setting up your Varangians LMS account.</p>
+    <p>Choose a password to finish setting up your Varangians account.</p>
 
-    <EditForm Model="Input" method="post" OnValidSubmit="AcceptAsync" FormName="accept-invite">
+    <EditForm class="form panel" Model="Input" method="post" OnValidSubmit="AcceptAsync" FormName="accept-invite">
         <input type="hidden" name="Token" value="@Token" />
         <DataAnnotationsValidator />
         <ValidationSummary role="alert" />
 
-        <div>
+        <div class="field">
             <label for="password">Password</label>
             <InputText id="password" type="password" @bind-Value="Input.Password" autocomplete="new-password" aria-required="true" />
         </div>
-        <div>
+        <div class="field">
             <label for="confirmPassword">Confirm password</label>
             <InputText id="confirmPassword" type="password" @bind-Value="Input.ConfirmPassword" autocomplete="new-password" aria-required="true" />
         </div>
 
-        <button type="submit">Set up account</button>
+        <div class="form-actions"><button type="submit">Set up account</button></div>
     </EditForm>
 }
+</div>
 
 @code {
     // No property initializer — BL0008 (learn.microsoft.com/aspnet/core/diagnostics/bl0008): see

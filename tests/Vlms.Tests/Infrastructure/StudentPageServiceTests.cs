@@ -36,6 +36,7 @@ public sealed class StudentPageServiceTests : IDisposable
         db.Lessons.Add(new Lesson { Id = 1, RankId = 1, Code = "L1", Title = "Knots", Order = 1, IsActive = true });
         db.Lessons.Add(new Lesson { Id = 2, RankId = 2, Code = "L2", Title = "Fire Safety", Order = 1, IsActive = true });
         db.Lessons.Add(new Lesson { Id = 3, RankId = 2, Code = "L3", Title = "Map Reading", Order = 2, IsActive = true });
+        db.LessonTagAssignments.Add(new LessonTagAssignment { LessonId = 2, Tag = LessonTag.Prayers });
         db.RankBadges.Add(new RankBadge { Id = 1, RankId = 1, ImageBlobKey = "badges/1.png" });
         db.AppUsers.Add(new AppUser { Id = 10, DisplayName = "Teacher", Email = "t@example.com" });
         db.AppUsers.Add(new AppUser { Id = AlexUser, DisplayName = "Alex", Email = "" });
@@ -132,5 +133,92 @@ public sealed class StudentPageServiceTests : IDisposable
     public async Task OtherRoles_AreRefused_EvenWithAStudentsUserId(Role role)
     {
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => PageFor(new FakeCurrentUserContext(AlexUser, role)));
+    }
+
+    private async Task<StudentJourney?> JourneyFor(ICurrentUserContext user)
+    {
+        using var db = NewContext(user);
+        return await new StudentPageService(db, user).GetOwnJourneyAsync();
+    }
+
+    [Fact]
+    public async Task Journey_ListsEveryRank_WithItsLessons_AndMarksTheCurrentOne()
+    {
+        var journey = await JourneyFor(new FakeCurrentUserContext(SamUser, Role.Student));
+
+        Assert.NotNull(journey);
+        Assert.Equal(200, journey!.StudentId);
+        Assert.False(journey.Graduated);
+        Assert.Equal(["Recruit", "Scout"], journey.Ranks.Select(r => r.Name));
+        Assert.Equal([JourneyRankState.Current, JourneyRankState.Ahead], journey.Ranks.Select(r => r.State));
+
+        var recruit = journey.Ranks[0];
+        var knots = Assert.Single(recruit.Lessons);
+        Assert.Equal(new DateTime(2025, 3, 4, 0, 0, 0, DateTimeKind.Utc), knots.CompletedAt);
+        Assert.Equal(4, knots.CertificateId);
+        Assert.Equal(1, recruit.CompletedCount);
+        Assert.Null(recruit.BadgeAwardedAt);
+        Assert.True(recruit.HasBadgeImage);
+
+        var scout = journey.Ranks[1];
+        Assert.Equal(["Fire Safety", "Map Reading"], scout.Lessons.Select(l => l.Title));
+        Assert.Equal([LessonTag.Prayers], scout.Lessons[0].Tags);
+        Assert.All(scout.Lessons, l => Assert.Null(l.CompletedAt));
+        Assert.False(scout.HasBadgeImage);
+
+        Assert.Same(recruit, journey.Current);
+        Assert.Null(journey.NextLesson);
+    }
+
+    [Fact]
+    public async Task Journey_LeavesOutReversedCompletions_AndTheirCertificates_AndShowsBadgesEarned()
+    {
+        var journey = await JourneyFor(new FakeCurrentUserContext(AlexUser, Role.Student));
+
+        Assert.NotNull(journey);
+        Assert.True(journey!.Graduated);
+        Assert.All(journey.Ranks, r => Assert.Equal(JourneyRankState.Past, r.State));
+        Assert.Equal(new DateTime(2025, 3, 1, 0, 0, 0, DateTimeKind.Utc), journey.Ranks[0].BadgeAwardedAt);
+
+        var scout = journey.Ranks[1];
+        Assert.NotNull(scout.Lessons.Single(l => l.Title == "Fire Safety").CompletedAt);
+        var mapReading = scout.Lessons.Single(l => l.Title == "Map Reading");
+        Assert.Null(mapReading.CompletedAt);
+        Assert.Null(mapReading.CertificateId);
+
+        // Sam's completion of Knots (certificate 4) is not Alex's.
+        Assert.Equal(1, journey.Ranks[0].Lessons.Single().CertificateId);
+    }
+
+    [Fact]
+    public async Task Journey_NextLesson_IsTheFirstIncompleteLessonOfTheCurrentRank()
+    {
+        using (var db = NewContext(TestSeedUserContext.Instance))
+        {
+            var sam = db.Students.Single(s => s.Id == 200);
+            db.Entry(sam).Property(s => s.CurrentRankId).CurrentValue = 2;
+            db.StudentLessonCompletions.Add(Completion(5, 200, lessonId: 2, reversed: false));
+            db.SaveChanges();
+        }
+
+        var journey = await JourneyFor(new FakeCurrentUserContext(SamUser, Role.Student));
+
+        Assert.Equal([JourneyRankState.Past, JourneyRankState.Current], journey!.Ranks.Select(r => r.State));
+        Assert.Equal("Map Reading", journey.NextLesson?.Title);
+    }
+
+    [Fact]
+    public async Task Journey_StudentRoleWithNoLinkedRecord_GetsNothing()
+    {
+        Assert.Null(await JourneyFor(new FakeCurrentUserContext(999, Role.Student)));
+    }
+
+    [Theory]
+    [InlineData(Role.Parent)]
+    [InlineData(Role.Teacher)]
+    [InlineData(Role.Admin)]
+    public async Task Journey_OtherRoles_AreRefused_EvenWithAStudentsUserId(Role role)
+    {
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => JourneyFor(new FakeCurrentUserContext(AlexUser, role)));
     }
 }

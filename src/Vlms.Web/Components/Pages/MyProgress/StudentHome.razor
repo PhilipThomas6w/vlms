@@ -1,105 +1,224 @@
 @page "/student"
 @attribute [Authorize(Policy = "RequireStudent")]
 @rendermode InteractiveServer
+@using Vlms.Domain
 @using Vlms.Infrastructure.Engagement
 @using Vlms.Web
 @inject StudentPageService StudentPage
 
-@* FR-011, journey J4 steps 3–4. Takes no student id: StudentPageService resolves the signed-in
-   student's own record, so no other student's data can be requested from here. *@
+@* FR-011, journey J4 steps 3–4; redesign prototype (docs/design/redesign-direction.md, section 7).
+   Takes no student id: StudentPageService resolves the signed-in student's own record, so no other
+   student's data can be requested from here. *@
 
-<PageTitle>My progress</PageTitle>
-
-<h1>My progress</h1>
+<PageTitle>My rank – Varangians</PageTitle>
 
 @if (_errorMessage is not null)
 {
-    <p class="error" role="alert">@_errorMessage</p>
+    <PageHeader Title="My rank" />
+    <Notice Kind="danger" Role="alert"><p>@_errorMessage</p></Notice>
 }
 else if (!_loaded)
 {
-    <p>Loading…</p>
+    <PageHeader Title="My rank" />
+    <p class="muted" role="status">Loading your rank…</p>
 }
-else if (_record is null)
+else if (_journey is null)
 {
-    <p>Your sign-in isn't linked to a student record. Ask your parent or teacher for help.</p>
+    <PageHeader Title="My rank" />
+    <div class="empty"><p>Your sign-in isn't linked to a student record yet. Ask your parent or teacher to check it.</p></div>
 }
 else
 {
-    <p>Hello, @_record.StudentName.</p>
+    var current = _journey.Current;
+    var next = _journey.NextLesson;
+    var nextRank = current is null ? null : _journey.Ranks.FirstOrDefault(r => r.Order == current.Order + 1);
 
-    <h2>Rank</h2>
-    <p>
-        Current rank: <strong>@_record.CurrentRankName</strong>.
-        You have completed @_record.CompletedLessons of @_record.TotalLessons lessons in this rank.
-    </p>
-    @if (_record.TotalLessons > 0)
-    {
-        <progress max="@_record.TotalLessons" value="@_record.CompletedLessons"
-                  aria-label="Lessons completed in @_record.CurrentRankName">@_record.CompletedLessons of @_record.TotalLessons</progress>
-    }
-
-    <p><a href="/lessons">Open the lesson library</a></p>
-
-    <h2>Completed lessons</h2>
-    @if (_record.Completions.Count == 0)
-    {
-        <p>No lessons completed yet.</p>
-    }
-    else
-    {
-        <ul>
-            @foreach (var completion in _record.Completions)
+    <div class="student">
+        <section class="rank-hero rank-@(current?.Order ?? 10)" aria-labelledby="rank-title">
+            <p class="rank-hero__hello">Hello, @FirstName(_journey.StudentName)</p>
+            @if (_journey.Graduated || current is null)
             {
-                <li>@completion.LessonTitle (@completion.RankName) — @completion.CompletedAt.ToString("d MMMM yyyy")</li>
+                <h1 id="rank-title" tabindex="-1"><span class="visually-hidden">Your rank: </span>Akolouthos</h1>
+                <p class="rank-hero__place">From Recruit to Akolouthos</p>
             }
-        </ul>
-    }
-
-    <h2>Badges</h2>
-    @if (_record.Badges.Count == 0)
-    {
-        <p>No badges yet.</p>
-    }
-    else
-    {
-        <ul>
-            @foreach (var badge in _record.Badges)
+            else
             {
-                <li>
-                    @if (badge.HasImage)
+                <h1 id="rank-title" tabindex="-1"><span class="visually-hidden">Your rank: </span>@current.Name</h1>
+                <p class="rank-hero__place">Rank @current.Order of @_journey.Ranks.Count</p>
+            }
+            @if (current is not null && RankWords.For(current.Order) is { } words)
+            {
+                <blockquote class="rank-hero__words">
+                    <p>@words.Text</p>
+                    <footer>@words.Reference</footer>
+                </blockquote>
+            }
+            @if (current is not null && !_journey.Graduated)
+            {
+                <div class="rank-hero__progress">
+                    <RankMedallion RankId="current.RankId" Order="current.Order" RankName="@current.Name" HasBadgeImage="current.HasBadgeImage" Earned="@(current.BadgeAwardedAt is not null)" Current="true" Alt="" />
+                    <div class="rank-hero__count">
+                        @if (current.Lessons.Count > 0)
+                        {
+                            <Tesserae Done="current.CompletedCount" Total="current.Lessons.Count" />
+                            <p>
+                                <strong>@current.CompletedCount of @current.Lessons.Count lessons complete.</strong>@(" ")
+                                @if (nextRank is not null && current.CompletedCount < current.Lessons.Count)
+                                {
+                                    <span>@(current.Lessons.Count - current.CompletedCount) more to become @Article(nextRank.Name) @nextRank.Name.</span>
+                                }
+                            </p>
+                        }
+                        else
+                        {
+                            <p>The lessons for @current.Name are still being written.</p>
+                        }
+                    </div>
+                    @if (nextRank is not null)
                     {
-                        <img src="/badges/@badge.RankId/image" alt="@badge.RankName badge" width="48" height="48" />
-                        <span> </span>
+                        <div class="rank-hero__next">
+                            <RankMedallion RankId="nextRank.RankId" Order="nextRank.Order" RankName="@nextRank.Name" HasBadgeImage="nextRank.HasBadgeImage" Earned="false" Ahead="true" Size="sm" Alt="" />
+                            <span><span class="rank-hero__next-label">Next rank</span> @nextRank.Name</span>
+                        </div>
                     }
-                    @badge.RankName — @badge.AwardedAt.ToString("d MMMM yyyy")
-                </li>
+                </div>
             }
-        </ul>
-    }
+        </section>
 
-    <h2>Certificates</h2>
-    @if (_record.Certificates.Count == 0)
-    {
-        <p>No certificates yet.</p>
-    }
-    else
-    {
-        <ul>
-            @foreach (var certificate in _record.Certificates)
-            {
-                <li>
-                    @certificate.LessonTitle — @certificate.GeneratedAt.ToString("d MMMM yyyy")
-                    (<a href="@CertificateEndpoint.ViewUrl(certificate.CertificateId)" target="_blank" rel="noopener" aria-label="View certificate for @certificate.LessonTitle (opens in a new tab)" data-enhance-nav="false">View</a>
-                    | <a href="@CertificateEndpoint.DownloadUrl(certificate.CertificateId)" aria-label="Download certificate for @certificate.LessonTitle" data-enhance-nav="false">Download</a>)
-                </li>
-            }
-        </ul>
-    }
+        <div class="student__body">
+            <div class="student__main">
+                @if (current is not null && !_journey.Graduated)
+                {
+                    <section class="next-lesson" aria-labelledby="next-title">
+                        <h2 id="next-title">Next lesson</h2>
+                        @if (next is not null)
+                        {
+                            <div class="next-lesson__card rank-@current.Order">
+                                <p class="next-lesson__step">Lesson @next.Order of @current.Lessons.Count</p>
+                                <p class="next-lesson__title">@next.Title</p>
+                                @if (next.Tags.Count > 0)
+                                {
+                                    <p class="next-lesson__tags">@string.Join(" and ", next.Tags.Select(TagName))</p>
+                                }
+                                <a class="btn" href="/lessons#lesson-@next.Code">Read it in the library</a>
+                            </div>
+                        }
+                        else if (current.Lessons.Count == 0)
+                        {
+                            <div class="empty"><p>The lessons for @current.Name are still being written. Your teacher will tell you what comes next.</p></div>
+                        }
+                        else
+                        {
+                            <div class="empty"><p>You've finished every lesson in @current.Name. Well done.</p></div>
+                        }
+                    </section>
+                }
+
+                @if (current is not null && current.Lessons.Count > 0)
+                {
+                    <section class="rank-lessons" aria-labelledby="lessons-title">
+                        <h2 id="lessons-title">@current.Name lessons</h2>
+                        <ol class="lesson-list rank-@current.Order">
+                            @foreach (var lesson in current.Lessons)
+                            {
+                                var isNext = next is not null && lesson.LessonId == next.LessonId;
+                                <li class="@(lesson.CompletedAt is not null ? "is-done" : isNext ? "is-next" : null)">
+                                    <span class="lesson-list__mark" aria-hidden="true">
+                                        @if (lesson.CompletedAt is not null) { <Icon Name="check" /> } else { @lesson.Order }
+                                    </span>
+                                    <div class="lesson-list__text">
+                                        <a class="lesson-list__title" href="/lessons#lesson-@lesson.Code">@lesson.Title</a>
+                                        @if (lesson.CompletedAt is { } completedAt)
+                                        {
+                                            <span class="lesson-list__meta">Completed @completedAt.ToString("d MMMM yyyy")</span>
+                                        }
+                                        else if (isNext)
+                                        {
+                                            <span class="lesson-list__meta"><span class="pill pill--info">Next</span></span>
+                                        }
+                                        else
+                                        {
+                                            <span class="lesson-list__meta">Not yet completed</span>
+                                        }
+                                    </div>
+                                    @if (lesson.CertificateId is int certificateId)
+                                    {
+                                        <span class="lesson-list__certificate">
+                                            <a href="@CertificateEndpoint.ViewUrl(certificateId)" target="_blank" rel="noopener" data-enhance-nav="false"
+                                               aria-label="View certificate for @lesson.Title (opens in a new tab)"><Icon Name="certificate" /> Certificate</a>
+                                            <a href="@CertificateEndpoint.DownloadUrl(certificateId)" data-enhance-nav="false" class="lesson-list__download"
+                                               aria-label="Download certificate for @lesson.Title"><Icon Name="download" /></a>
+                                        </span>
+                                    }
+                                </li>
+                            }
+                        </ol>
+                    </section>
+                }
+
+                @{ var earlier = _journey.Ranks.Where(r => r.State == JourneyRankState.Past && r.Lessons.Any(l => l.CertificateId is not null)).ToList(); }
+                @if (earlier.Count > 0)
+                {
+                    <section class="earlier" aria-labelledby="earlier-title">
+                        <h2 id="earlier-title">Earlier ranks</h2>
+                        @foreach (var rank in earlier)
+                        {
+                            <details class="earlier__rank rank-@rank.Order">
+                                <summary>
+                                    <RankMedallion RankId="rank.RankId" Order="rank.Order" RankName="@rank.Name" HasBadgeImage="rank.HasBadgeImage" Earned="@(rank.BadgeAwardedAt is not null)" Size="sm" Alt="" />
+                                    <span class="earlier__name">@rank.Name</span>
+                                    <span class="earlier__meta">@rank.CompletedCount lessons, @rank.Lessons.Count(l => l.CertificateId is not null) certificates</span>
+                                </summary>
+                                <ul class="earlier__list">
+                                    @foreach (var lesson in rank.Lessons.Where(l => l.CertificateId is not null))
+                                    {
+                                        <li>
+                                            <span>@lesson.Title</span>
+                                            <span class="lesson-list__certificate">
+                                                <a href="@CertificateEndpoint.ViewUrl(lesson.CertificateId!.Value)" target="_blank" rel="noopener" data-enhance-nav="false"
+                                                   aria-label="View certificate for @lesson.Title (opens in a new tab)"><Icon Name="certificate" /> Certificate</a>
+                                                <a href="@CertificateEndpoint.DownloadUrl(lesson.CertificateId!.Value)" data-enhance-nav="false" class="lesson-list__download"
+                                                   aria-label="Download certificate for @lesson.Title"><Icon Name="download" /></a>
+                                            </span>
+                                        </li>
+                                    }
+                                </ul>
+                            </details>
+                        }
+                    </section>
+                }
+            </div>
+
+            @* Through the ranks: all ten as a procession. (Never "The Way": that is the name of the faith itself.) *@
+            <aside class="the-way" aria-labelledby="way-title">
+                <h2 id="way-title">Through the ranks</h2>
+                <ol class="the-way__list">
+                    @foreach (var rank in _journey.Ranks)
+                    {
+                        var movement = Movement(rank.Order);
+                        if (movement is not null)
+                        {
+                            <li class="the-way__movement" aria-hidden="true">@movement</li>
+                        }
+                        <li class="the-way__station is-@rank.State.ToString().ToLowerInvariant() rank-@rank.Order"
+                            aria-current="@(rank.State == JourneyRankState.Current ? "step" : null)">
+                            <RankMedallion RankId="rank.RankId" Order="rank.Order" RankName="@rank.Name"
+                                           HasBadgeImage="rank.HasBadgeImage" Earned="@(rank.BadgeAwardedAt is not null)"
+                                           Ahead="@(rank.State == JourneyRankState.Ahead)" Size="sm" Alt="" />
+                            <div class="the-way__text">
+                                <span class="the-way__name">@rank.Name</span>
+                                <span class="the-way__meta">@StationText(rank)</span>
+                            </div>
+                        </li>
+                    }
+                </ol>
+            </aside>
+        </div>
+    </div>
 }
 
 @code {
-    private StudentRecord? _record;
+    private StudentJourney? _journey;
     private bool _loaded;
     private string? _errorMessage;
 
@@ -107,7 +226,7 @@ else
     {
         try
         {
-            _record = await StudentPage.GetOwnRecordAsync();
+            _journey = await StudentPage.GetOwnJourneyAsync();
         }
         catch (UnauthorizedAccessException ex)
         {
@@ -116,4 +235,43 @@ else
 
         _loaded = true;
     }
+
+    private static string FirstName(string name) => name.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? name;
+
+    private static string Article(string word) => "AEIOU".Contains(char.ToUpperInvariant(word[0])) ? "an" : "a";
+
+    // The stages of the procession through the ranks (direction doc, section 9), shown as labels between stations.
+    private static string? Movement(int order) => order switch
+    {
+        1 => "Joining the Guard",
+        5 => "Proclaiming",
+        6 => "In the procession",
+        9 => "Bearing Christ",
+        10 => "Leading",
+        _ => null,
+    };
+
+    private static string StationText(JourneyRank rank) => rank.State switch
+    {
+        JourneyRankState.Past => rank.BadgeAwardedAt is { } earned ? $"Earned {earned:d MMMM yyyy}" : "Earned",
+        JourneyRankState.Current when rank.Order == 10 => "Your rank now: leadership and a wider programme",
+        JourneyRankState.Current when rank.Lessons.Count == 0 => "Your rank now. Lessons being written",
+        JourneyRankState.Current => $"Your rank now: {rank.CompletedCount} of {rank.Lessons.Count} lessons",
+        // Akolouthos is not a badge level: after Christ-bearer, a leadership role and a wider programme (syllabus scheme).
+        _ when rank.Order == 10 => "After Christ-bearer: leadership and a wider programme",
+        _ when rank.Lessons.Count == 0 => "Lessons being written",
+        _ => $"{rank.Lessons.Count} lessons",
+    };
+
+    private static string TagName(LessonTag tag) => tag switch
+    {
+        LessonTag.ChurchLife => "Church life",
+        LessonTag.ChurchInterior => "Church interior",
+        LessonTag.ChurchHistory => "Church history",
+        LessonTag.OldTestament => "Old Testament",
+        LessonTag.NewTestament => "New Testament",
+        LessonTag.ChurchYear => "Church year",
+        LessonTag.ChristianLife => "Christian life",
+        _ => tag.ToString(),
+    };
 }

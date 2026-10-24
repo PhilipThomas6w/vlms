@@ -6,21 +6,21 @@
 
 @if (_consent > 0)
 {
-    <p role="status" id="pending-consent-notice">
-        <a href="/safeguarding/consent">@_consent consent @(_consent == 1 ? "form is" : "forms are") waiting for review</a>
-    </p>
+    <Notice Kind="warning" Role="status">
+        <p id="pending-consent-notice"><a href="/safeguarding/consent">@_consent consent @(_consent == 1 ? "form is" : "forms are") waiting for review</a></p>
+    </Notice>
 }
 @if (_review > 0)
 {
-    <p role="status" id="pending-review-notice">
-        <a href="/registration/review">@_review registration @(_review == 1 ? "application is" : "applications are") waiting for review</a>
-    </p>
+    <Notice Kind="warning" Role="status">
+        <p id="pending-review-notice"><a href="/registration/review">@_review registration @(_review == 1 ? "application is" : "applications are") waiting for review</a></p>
+    </Notice>
 }
 @if (_approval > 0)
 {
-    <p role="status" id="pending-approval-notice">
-        <a href="/registration/approve">@_approval registration @(_approval == 1 ? "application is" : "applications are") waiting for final approval</a>
-    </p>
+    <Notice Kind="warning" Role="status">
+        <p id="pending-approval-notice"><a href="/registration/approve">@_approval registration @(_approval == 1 ? "application is" : "applications are") waiting for final approval</a></p>
+    </Notice>
 }
 
 @code {

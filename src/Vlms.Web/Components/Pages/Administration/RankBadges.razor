@@ -6,9 +6,9 @@
 
 <PageTitle>Rank badge images</PageTitle>
 
-<h1>Rank badge images</h1>
+<PageHeader Title="Rank badge images" />
 
-<p>
+<p class="intro">
     This page is for National Administrators only: the badges are the same in every chapter. Upload one badge image per rank: PNG, JPEG, WebP or SVG, no
     larger than 2 MB. Uploading again replaces the image. Each image shows on the parent dashboard next
     to the badge a child has earned for that rank.
@@ -26,7 +26,7 @@
 }
 else
 {
-    <table>
+    <table class="data-table data-table--wide">
         <thead>
             <tr>
                 <th>Rank</th>
@@ -39,8 +39,8 @@ else
             {
                 var fileInputId = $"badge-file-{rank.RankId}";
                 <tr>
-                    <td>@rank.RankName</td>
-                    <td>
+                    <td data-label="Rank">@rank.RankName</td>
+                    <td data-label="Current badge">
                         @if (rank.HasImage)
                         {
                             <img src="/badges/@rank.RankId/image" alt="@rank.RankName badge" width="64" height="64" />
@@ -50,7 +50,7 @@ else
                             <span>No badge image</span>
                         }
                     </td>
-                    <td>
+                    <td data-label="Upload a new image">
                         <label for="@fileInputId">Badge image for @rank.RankName</label>
                         <InputFile id="@fileInputId" accept=".png,.jpg,.jpeg,.webp,.svg" OnChange="@(e => SelectFile(rank.RankId, e))" />
                         <button type="button" aria-label="@($"Upload badge image for {rank.RankName}")"

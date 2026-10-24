@@ -17,9 +17,10 @@
 
 <PageTitle>Two-factor authentication</PageTitle>
 
-<h1>Two-factor authentication</h1>
+<div class="auth">
+<PageHeader Title="Two-factor authentication" />
 
-<p>Enter the 6-digit code from your authenticator app.</p>
+<p class="intro">Enter the 6-digit code from your authenticator app.</p>
 
 @if (_errorMessage is not null)
 {
@@ -30,22 +31,24 @@
    HTML spec a submit posts back to "the document's URL" — the current request URL, query string
    included — so SupplyParameterFromQuery below re-reads the same ReturnUrl/RememberMe values on the
    POST as it did on the initial GET. *@
-<EditForm Model="Input" method="post" OnValidSubmit="OnValidSubmitAsync" FormName="login-with-2fa">
+<EditForm class="form panel" Model="Input" method="post" OnValidSubmit="OnValidSubmitAsync" FormName="login-with-2fa">
     <DataAnnotationsValidator />
     <ValidationSummary role="alert" />
 
-    <div>
+    <div class="field">
         <label for="code">Authenticator code</label>
         <InputText id="code" @bind-Value="Input.TwoFactorCode" autocomplete="off" aria-required="true" />
     </div>
-    <div>
-        <label><InputCheckbox @bind-Value="Input.RememberMachine" /> Remember this device</label>
+    <div class="field--check">
+        <InputCheckbox id="rememberMachine" @bind-Value="Input.RememberMachine" />
+        <label for="rememberMachine">Remember this device</label>
     </div>
 
-    <button type="submit">Verify</button>
+    <div class="form-actions"><button type="submit">Verify</button></div>
 </EditForm>
 
-<p><a href="Account/LoginWithRecoveryCode?returnUrl=@Uri.EscapeDataString(ReturnUrl ?? "/")">Use a recovery code instead</a></p>
+<div class="auth-links"><a href="Account/LoginWithRecoveryCode?returnUrl=@Uri.EscapeDataString(ReturnUrl ?? "/")">Use a recovery code instead</a></div>
+</div>
 
 @code {
     // No property initializer — BL0008 (learn.microsoft.com/aspnet/core/diagnostics/bl0008): see

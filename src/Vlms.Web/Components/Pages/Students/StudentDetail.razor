@@ -8,20 +8,20 @@
 
 @if (_errorMessage is not null)
 {
-    <h1>Student record</h1>
+    <PageHeader Title="Student record" />
     <p class="error" role="alert">@_errorMessage</p>
 }
 else if (_record is null)
 {
-    <h1>Student record</h1>
-    <p>Active student not found.</p>
+    <PageHeader Title="Student record" />
+    <p class="intro">Active student not found.</p>
     <p><a href="/students">Back to students</a></p>
 }
 else
 {
-    <h1>@_record.StudentName</h1>
-    <p><a href="/students">Back to students</a></p>
-    <dl>
+    <PageHeader Title="@_record.StudentName" />
+    <p class="intro"><a href="/students">Back to students</a></p>
+    <dl class="facts">
         <dt>Current rank</dt>
         <dd>@_record.CurrentRankName</dd>
         <dt>Progress in rank</dt>
@@ -51,7 +51,7 @@ else
     }
     else
     {
-        <table>
+        <table class="data-table">
             <thead>
                 <tr>
                     <th scope="col">Lesson</th>
@@ -63,9 +63,9 @@ else
                 @foreach (var completion in _record.Completions)
                 {
                     <tr>
-                        <td>@completion.LessonTitle</td>
-                        <td>@completion.RankName</td>
-                        <td>@completion.CompletedAt.ToString("d MMMM yyyy")</td>
+                        <td data-label="Lesson">@completion.LessonTitle</td>
+                        <td data-label="Rank">@completion.RankName</td>
+                        <td data-label="Completed">@completion.CompletedAt.ToString("d MMMM yyyy")</td>
                     </tr>
                 }
             </tbody>

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Vlms.Domain;
 using Vlms.Infrastructure.Identity;
 
@@ -51,8 +52,9 @@ public sealed class ChapterService
             return [];
         }
 
-        var ids = ChapterMembership.ChapterIds(_db, userId);
-        return await _db.Chapters.Where(c => ids.Contains(c.Id)).OrderBy(c => c.Name).Select(Summary).ToListAsync(ct);
+        await using var db = LayoutContext();
+        var ids = ChapterMembership.ChapterIds(db, userId);
+        return await db.Chapters.Where(c => ids.Contains(c.Id)).OrderBy(c => c.Name).Select(Summary).ToListAsync(ct);
     }
 
     /// <summary>The chapter the caller is working in, or null if they belong to none.</summary>
@@ -63,8 +65,16 @@ public sealed class ChapterService
             return null;
         }
 
-        return await _db.Chapters.Where(c => c.Id == chapterId).Select(Summary).SingleOrDefaultAsync(ct);
+        await using var db = LayoutContext();
+        return await db.Chapters.Where(c => c.Id == chapterId).Select(Summary).SingleOrDefaultAsync(ct);
     }
+
+    // The chapter bar sits in the layout and loads while the page's own components query the
+    // circuit's shared context, which allows one operation at a time ("A second operation was started
+    // on this context"). Its two reads use a short-lived context of their own, with the same options
+    // and the same caller (so the same query filters), as IdentityCurrentUserContext does.
+    private VlmsDbContext LayoutContext() =>
+        new((DbContextOptions<VlmsDbContext>)_db.GetService<IDbContextOptions>(), _currentUser);
 
     /// <summary>
     /// Makes <paramref name="chapterId"/> the caller's active chapter. Refused unless they hold a
