@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Vlms.Domain;
 using Vlms.Infrastructure;
 using Vlms.Infrastructure.Attendance;
+using Vlms.Infrastructure.Calendar;
 using Vlms.Infrastructure.Authorization;
 using Vlms.Infrastructure.Badges;
 using Vlms.Infrastructure.Chapters;
@@ -160,9 +161,15 @@ builder.Services.AddScoped<StudentConsentViewService>();
 builder.Services.AddScoped<ParentDashboardService>();
 builder.Services.AddScoped<StudentRosterService>();
 
-// --- Attendance register (functional.md FR-020): per chapter per meeting date; the chapter's
-// Safeguarding Officers are told when a child without consent in force is marked present.
+// --- Attendance registers (functional.md FR-020, FR-022): one per class per meeting day; the
+// chapter's Safeguarding Officers are told when a child without consent in force is marked present.
 builder.Services.AddScoped<AttendanceService>();
+builder.Services.AddScoped<ClassTeacherService>();
+
+// --- Calendar (functional.md FR-022): the liturgical calendar (imported by Vlms.Jobs), the
+// chapter's events, and each person's private subscribe link.
+builder.Services.AddScoped<CalendarService>();
+builder.Services.AddScoped<CalendarFeedService>();
 builder.Services.AddScoped(sp => new AttendanceNotificationService(
     sp.GetRequiredService<VlmsDbContext>(), sp.GetRequiredService<ICurrentUserContext>(), sp.GetRequiredService<INotificationService>(),
     sp.GetRequiredService<ILogger<AttendanceNotificationService>>(), builder.Configuration["App:PublicBaseUrl"]));
@@ -297,6 +304,13 @@ builder.Services.AddAuthorization(options =>
         policy.Requirements.Add(new MfaRequirement());
     });
 
+    // The calendar (FR-022): anyone holding a role in the chapter they are working in.
+    options.AddPolicy("RequireChapterMember", policy =>
+    {
+        policy.Requirements.Add(new AnyRoleRequirement(Role.Admin, Role.Teacher, Role.SafeguardingOfficer, Role.Parent, Role.Student));
+        policy.Requirements.Add(new MfaRequirement());
+    });
+
     // Consent/DBS management pages (STATE.md, adr/0004-sensitive-data-access-control.md): matches
     // the VlmsDbContext query filter on DbsCheck exactly — Admin or SafeguardingOfficer, never
     // Approver (curriculum-only) or Teacher. ConsentSensitiveDetails is also readable by Teachers
@@ -398,6 +412,7 @@ app.MapStaticAssets();
 app.MapLessonFileEndpoint();
 app.MapRankBadgeEndpoint();
 app.MapCertificateEndpoint();
+app.MapCalendarFeedEndpoint();
 app.MapProposalFileEndpoint();
 app.MapChapterSwitchEndpoint();
 app.MapRazorComponents<App>()

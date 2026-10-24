@@ -90,10 +90,10 @@ Recorded as deferred. When designed:
 Built to sections 3 and 5. Where neither said, the build assumed:
 
 1. **At-risk:** two absences in a row is added alongside the existing 8-week no-completion rule, not instead of it (the draft said "whichever comes first"; section 5 named only the new rule). The report shows which rule flagged each student.
-2. **Who:** Teachers take, read and correct the register (`/attendance`); Admins see each student's attendance on the student record but have no register page; Safeguarding Officers and Approvers neither (Safeguarding Officers get the consent alert).
+2. **Who:** Teachers take, read and correct registers; Admins read them (each meeting day's registers and total on `/calendar/events/{id}` and `/attendance`, and each student's attendance on the student record); Safeguarding Officers and Approvers neither (Safeguarding Officers get the consent alert). *Updated 24/10/2026 for FR-022: one register per class per meeting day; any Teacher takes any class's.*
 3. **Consent alert:** emailed to the chapter's Safeguarding Officers, sent with the retrying safeguarding-critical priority, naming the children and the date and nothing else; sent once per child per register, not again when the register is corrected.
 4. **Corrections:** saving a register again overwrites its marks and records who saved it last; earlier versions are not kept.
-5. **Dates:** any past or today's date; never a future one. A student who joins later is simply not on earlier registers.
+5. **Dates:** a register is taken on or after its event's day, never before (FR-022: only days in the calendar have registers). A student who joins later is simply not on earlier registers.
 6. **The student's own page** does not show attendance (only staff and parents were named).
 7. **National figures:** the last 12 months, per chapter per month: meetings held, present, absent and the attendance rate, exact counts however small (as for the rank totals).
 

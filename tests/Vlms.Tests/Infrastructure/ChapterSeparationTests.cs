@@ -45,6 +45,7 @@ public sealed class ChapterSeparationTests : IDisposable
         typeof(Rank), typeof(Lesson), typeof(LessonTagAssignment), typeof(LessonFile), typeof(LessonChangeProposal),
         typeof(RankBadge), typeof(AppUser), typeof(UserRole), typeof(Chapter), typeof(ActiveChapterChoice),
         typeof(SensitiveDataAccessLog), typeof(VlmsIdentityUser),
+        typeof(LiturgicalDay), typeof(LiturgicalReading), typeof(CalendarFeedToken),
         typeof(IdentityUserClaim<int>), typeof(IdentityUserLogin<int>), typeof(IdentityUserToken<int>)
     ];
 
@@ -151,7 +152,9 @@ public sealed class ChapterSeparationTests : IDisposable
             SubmittedAt = new DateTime(2026, 10, 1, 0, 0, 0, DateTimeKind.Utc), LastSubmittedAt = new DateTime(2026, 10, 1, 0, 0, 0, DateTimeKind.Utc)
         });
         db.StudentApplicationSensitiveDetails.Add(new StudentApplicationSensitiveDetails { Id = b + 95, StudentApplicationId = b + 95, EmergencyContact = $"Contact {c}" });
-        db.AttendanceRegisters.Add(new AttendanceRegister { Id = b + 97, ChapterId = c, MeetingDate = MeetingDate, TakenByUserId = b + Staff, TakenAt = DateTime.UtcNow });
+        db.ChapterEvents.Add(new ChapterEvent { Id = b + 96, ChapterId = c, Date = MeetingDate, Title = $"Meeting {c}", CreatedByUserId = b + Staff, CreatedAt = DateTime.UtcNow });
+        db.ClassTeachers.Add(new ClassTeacher { Id = b + 98, ChapterId = c, RankId = 1, TeacherUserId = b + Staff });
+        db.AttendanceRegisters.Add(new AttendanceRegister { Id = b + 97, ChapterEventId = b + 96, RankId = 1, MeetingDate = MeetingDate, TakenByUserId = b + Staff, TakenAt = DateTime.UtcNow });
         db.AttendanceMarks.Add(new AttendanceMark { Id = b + 97, AttendanceRegisterId = b + 97, StudentId = b + StudentOffset, MeetingDate = MeetingDate, Present = true });
         db.SaveChanges();
     }
@@ -218,7 +221,7 @@ public sealed class ChapterSeparationTests : IDisposable
         using var db = NewContext(StaffOf(1));
         var owned = ChapterOwnedTypes(db).ToList();
 
-        Assert.Equal(15, owned.Count);
+        Assert.Equal(17, owned.Count);
         foreach (var type in owned)
         {
             var entityType = db.Model.FindEntityType(type)!;

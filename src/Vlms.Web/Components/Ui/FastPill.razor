@@ -1,0 +1,21 @@
+@using Vlms.Domain
+
+@* A day's fasting status from the liturgical calendar; nothing on a day the feed states no fast. *@
+@if (Label is not null)
+{
+    <span class="pill @(Fast == LiturgicalFast.FastFree ? "pill--success" : "pill--info")">@Label</span>
+}
+
+@code {
+    [Parameter, EditorRequired] public LiturgicalFast Fast { get; set; }
+
+    private string? Label => Fast switch
+    {
+        LiturgicalFast.FastFree => "Fast-free",
+        LiturgicalFast.WineAndOil => "Fast: wine and oil allowed",
+        LiturgicalFast.Fish => "Fast: fish allowed",
+        LiturgicalFast.DairyEggsAndFish => "Fast: dairy, eggs and fish allowed",
+        LiturgicalFast.Strict => "Strict fast",
+        _ => null,
+    };
+}

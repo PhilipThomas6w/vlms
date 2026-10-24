@@ -23,6 +23,7 @@ public class NavigationCoverageTests
         ["RequireNationalAdministrator"] = ["NationalAdministrator"],
         ["RequireAdminOrTeacher"] = ["Admin", "Teacher"],
         ["RequireAdminOrSafeguardingOfficer"] = ["Admin", "SafeguardingOfficer"],
+        ["RequireChapterMember"] = ["Admin", "Teacher", "SafeguardingOfficer", "Parent", "Student"],
         ["RequireLessonLibrary"] = ["Teacher", "Approver", "Admin", "Student", "Parent", "NationalAdministrator"],
         // Any signed-in user, including one with no role yet (parent registration, adr/0008).
         ["RequireSignedIn"] = ["Admin", "Teacher", "Approver", "Parent", "Student", "SafeguardingOfficer", "NationalAdministrator"],
@@ -32,7 +33,13 @@ public class NavigationCoverageTests
     private static readonly string[] ExcludedPrefixes = ["/Account/", "/Error", "/not-found", "/guardianship/accept-invite"];
 
     // Reached from list pages, not the nav.
-    private static readonly string[] ExcludedRoutes = ["/students/{StudentId:int}", "/students/{StudentId:int}/consent"];
+    private static readonly string[] ExcludedRoutes =
+    [
+        "/students/{StudentId:int}", "/students/{StudentId:int}/consent",
+        // Reached from the calendar: an event, its form, and each class's register for it.
+        "/calendar/events/new", "/calendar/events/{EventId:int}", "/calendar/events/{EventId:int}/edit",
+        "/attendance/{EventId:int}/{RankId:int}",
+    ];
 
     // Routes linked ahead of their page being merged; empty since /student merged (FR-011).
     private static readonly string[] PendingRoutes = [];

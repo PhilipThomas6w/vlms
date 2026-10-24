@@ -1,0 +1,34 @@
+/* The calendar: one row per day, the month at a glance at every width (no seven-column grid to squeeze). */
+
+.calendar__months { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s-3); margin-bottom: var(--s-4); }
+.calendar__month { margin: 0; font-size: var(--step-2); order: -1; flex: 1 1 100%; }
+@media (min-width: 48rem) { .calendar__month { order: 0; flex: 0 1 auto; text-align: center; } }
+
+.calendar__days { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.day {
+    display: grid; grid-template-columns: 3.5rem minmax(0, 1fr); column-gap: var(--s-4);
+    padding: var(--s-3) var(--s-2); border-bottom: 1px solid var(--line);
+}
+.day--event { background: var(--lapis-50); }
+.day--today { box-shadow: inset 4px 0 0 var(--lapis-700); }
+
+.day__date { margin: 0; display: flex; flex-direction: column; align-items: center; line-height: 1.1; }
+.day__weekday { font-size: var(--step--1); color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.04em; }
+.day__number { font-size: var(--step-2); font-weight: 700; }
+
+.day__body { min-width: 0; }
+.day__body > p { margin: 0 0 var(--s-1); }
+.day__event { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-1) var(--s-2); font-weight: 700; }
+.day__event ::deep svg { width: 1.1rem; height: 1.1rem; color: var(--lapis-700); flex: none; }
+.day__time { font-weight: 400; color: var(--ink-soft); }
+.day__feast { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-1) var(--s-3); }
+.day__toggle { padding-inline: 0; min-height: var(--target); }
+
+.day__detail { margin-top: var(--s-2); padding: var(--s-4); background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-panel); }
+.day__detail h3 { font-size: var(--step-0); margin: var(--s-4) 0 var(--s-1); }
+.day__detail h3:first-child { margin-top: 0; }
+.day__detail p { margin: 0; max-width: 70ch; }
+.day__saints { margin: 0; padding-left: var(--s-5); }
+
+.calendar__subscribe { margin-top: var(--s-7); }
+.calendar__subscribe input { width: 100%; }

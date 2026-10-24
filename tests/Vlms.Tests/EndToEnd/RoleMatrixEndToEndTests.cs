@@ -33,6 +33,7 @@ public sealed class RoleMatrixEndToEndTests(RoleMatrixEndToEndTests.Sessions ses
         ["RequireNationalAdministrator"] = [Role.NationalAdministrator],
         ["RequireAdminOrTeacher"] = [Role.Admin, Role.Teacher],
         ["RequireAdminOrSafeguardingOfficer"] = [Role.Admin, Role.SafeguardingOfficer],
+        ["RequireChapterMember"] = [Role.Admin, Role.Teacher, Role.SafeguardingOfficer, Role.Parent, Role.Student],
         ["RequireLessonLibrary"] = [Role.Teacher, Role.Approver, Role.Admin, Role.Student, Role.Parent, Role.NationalAdministrator],
         // Any signed-in user, with no role requirement at all (parent registration, adr/0008 answer 1).
         ["RequireSignedIn"] = Enum.GetValues<Role>(),

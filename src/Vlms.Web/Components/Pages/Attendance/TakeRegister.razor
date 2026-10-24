@@ -1,19 +1,22 @@
-@page "/attendance"
+@page "/attendance/{EventId:int}/{RankId:int}"
 @attribute [Authorize(Policy = "RequireTeacher")]
 @rendermode InteractiveServer
 @using Vlms.Infrastructure.Attendance
 @inject AttendanceService Attendance
 @inject AttendanceNotificationService AttendanceNotifications
 
-@* The attendance register (docs/design/chapters-and-attendance.md sections 3, 5 and 7): one per chapter
-   per meeting date, present or absent only, taken by Teachers. AttendanceService decides who may be
-   marked; the chapter query filter keeps it to this chapter. *@
+@* One class's register at one meeting day (docs/design/chapters-and-attendance.md; the calendar
+   requirement): present or absent only, taken or updated by any Teacher in the chapter, opened from
+   the event. AttendanceService decides who is on it; the chapter query filter keeps it to this chapter. *@
 
 <PageTitle>Register – Varangians</PageTitle>
 
 <div class="register">
-    <PageHeader Title="Register">
-        <Lead>Tick everyone who is here. Anyone not ticked is marked absent. Then record the lessons they completed.</Lead>
+    <PageHeader Title="@(_view is null ? "Register" : $"{_view.RankName} register")">
+        <Lead>@(_view is null ? "" : $"{_view.EventTitle}, {_view.MeetingDate:dddd d MMMM yyyy}. ")Tick everyone who is here. Anyone not ticked is marked absent.</Lead>
+        <Actions>
+            <a class="btn btn--secondary" href="/calendar/events/@EventId">All registers for this day</a>
+        </Actions>
     </PageHeader>
 
     @if (_errorMessage is not null)
@@ -25,22 +28,21 @@
     {
         <div tabindex="-1" @ref="_savedElement" class="register__saved">
             <Notice Kind="success" Role="status">
-                <p><strong>Register saved for @_meetingDate.ToString("d MMMM yyyy"): @_saved.Present present, @_saved.Absent absent.</strong></p>
+                <p><strong>Register saved: @_saved.Present present, @_saved.Absent absent.</strong></p>
                 @if (_saved.PresentWithoutConsent.Count > 0)
                 {
                     <p>The Safeguarding Officer has been told that @(_saved.PresentWithoutConsent.Count == 1 ? "a child" : "children") without consent in force attended.</p>
                 }
-                <p><a href="/progress/record?date=@_meetingDate.ToString("yyyy-MM-dd")">Record the lessons completed at this meeting</a></p>
+                <p><a href="/progress/record?date=@_view!.MeetingDate.ToString("yyyy-MM-dd")">Record the lessons completed at this meeting</a></p>
             </Notice>
         </div>
     }
 
-    <div class="field register__date">
-        <label for="meetingDate">Meeting date</label>
-        <input type="date" id="meetingDate" max="@Today.ToString("yyyy-MM-dd")" @bind="_meetingDate" @bind:after="LoadAsync" />
-    </div>
-
-    @if (_view is null)
+    @if (_notFound)
+    {
+        <div class="empty"><p>That register is not in this chapter's calendar. <a href="/calendar">Back to the calendar</a></p></div>
+    }
+    else if (_view is null)
     {
         <p class="muted" role="status">Loading the register…</p>
     }
@@ -53,18 +55,18 @@
             }
             else
             {
-                <span>Not taken yet for this date.</span>
+                <span>Not taken yet.</span>
             }
         </p>
 
         @if (_view.Students.Count == 0)
         {
-            <div class="empty"><p>No active students in this chapter yet.</p></div>
+            <div class="empty"><p>No active students in this class.</p></div>
         }
         else
         {
             <fieldset class="register__students">
-                <legend>Here at the meeting on @_meetingDate.ToString("d MMMM yyyy") (@_present.Count of @_view.Students.Count)</legend>
+                <legend>Here at the meeting (@_present.Count of @_view.Students.Count)</legend>
                 <div class="register__tools">
                     <button type="button" class="btn--secondary" @onclick="MarkEveryonePresent">Mark everyone present</button>
                     <button type="button" class="btn--secondary" @onclick="() => _present.Clear()" disabled="@(_present.Count == 0)">Clear the ticks</button>
@@ -102,44 +104,15 @@
             </section>
         }
 
-        @if (_registers.Count > 0)
-        {
-            <section class="register__history" aria-labelledby="earlier-registers">
-                <h2 id="earlier-registers">Registers taken</h2>
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th scope="col">Meeting</th>
-                            <th scope="col">Present</th>
-                            <th scope="col">Absent</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var register in _registers)
-                        {
-                            <tr>
-                                <th scope="row" data-label="Meeting">
-                                    <a href="/attendance?date=@register.MeetingDate.ToString("yyyy-MM-dd")" @onclick="() => OpenAsync(register.MeetingDate)" @onclick:preventDefault>@register.MeetingDate.ToString("d MMMM yyyy")</a>
-                                </th>
-                                <td data-label="Present">@register.Present</td>
-                                <td data-label="Absent">@register.Absent</td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </section>
-        }
     }
 </div>
 
 @code {
-    [SupplyParameterFromQuery(Name = "date")] public string? Date { get; set; }
+    [Parameter] public int EventId { get; set; }
+    [Parameter] public int RankId { get; set; }
 
-    private static DateOnly Today => DateOnly.FromDateTime(DateTime.UtcNow);
-
-    private DateOnly _meetingDate = Today;
     private RegisterView? _view;
-    private IReadOnlyList<RegisterSummary> _registers = [];
+    private bool _notFound;
     private HashSet<int> _present = new();
     private RegisterSaveResult? _saved;
     private ElementReference _savedElement;
@@ -147,15 +120,7 @@
     private bool _busy;
     private string? _errorMessage;
 
-    protected override async Task OnInitializedAsync()
-    {
-        if (DateOnly.TryParseExact(Date, "yyyy-MM-dd", out var date) && date <= Today)
-        {
-            _meetingDate = date;
-        }
-
-        await LoadAsync();
-    }
+    protected override async Task OnParametersSetAsync() => await LoadAsync();
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -166,21 +131,15 @@
         }
     }
 
-    private async Task OpenAsync(DateOnly date)
-    {
-        _meetingDate = date;
-        await LoadAsync();
-    }
-
     private async Task LoadAsync()
     {
         _errorMessage = null;
         _saved = null;
         try
         {
-            _view = await Attendance.GetRegisterAsync(_meetingDate);
-            _registers = await Attendance.ListRegistersAsync();
-            _present = _view.Students.Where(s => s.Present == true).Select(s => s.StudentId).ToHashSet();
+            _view = await Attendance.GetRegisterAsync(EventId, RankId);
+            _notFound = _view is null;
+            _present = _view?.Students.Where(s => s.Present == true).Select(s => s.StudentId).ToHashSet() ?? [];
         }
         catch (UnauthorizedAccessException ex)
         {
@@ -210,8 +169,8 @@
         try
         {
             var marks = _view.Students.ToDictionary(s => s.StudentId, s => _present.Contains(s.StudentId));
-            var result = await Attendance.SaveRegisterAsync(_meetingDate, marks);
-            await AttendanceNotifications.NotifyPresentWithoutConsentAsync(_meetingDate, result.PresentWithoutConsent);
+            var result = await Attendance.SaveRegisterAsync(EventId, RankId, marks);
+            await AttendanceNotifications.NotifyPresentWithoutConsentAsync(_view.MeetingDate, result.PresentWithoutConsent);
             await LoadAsync();
             _saved = result;
             _focusSaved = true;

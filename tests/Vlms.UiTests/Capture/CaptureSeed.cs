@@ -233,19 +233,58 @@ public static class CaptureSeed
             await db.SaveChangesAsync();
         }
 
-        // Registers (FR-020): monthly meetings, today's the latest. Student 3 missed the last two
-        // (flagged at risk); student 6 (no consent) attended today.
+        // Meeting days and registers (FR-020, FR-022): monthly meetings, today's the latest, one
+        // register per class (rank). Student 3 missed the last two (flagged at risk); student 6 (no
+        // consent) attended today. One meeting day is still to come.
         var markId = 0;
+        var registerId = 0;
         for (var m = 0; m < 4; m++)
         {
             var meeting = today.AddDays(-28 * m);
-            var register = new AttendanceRegister { Id = m + 1, MeetingDate = meeting, TakenByUserId = teacher.UserId, TakenAt = now.AddDays(-28 * m) };
-            db.AttendanceRegisters.Add(register);
-            for (var i = 0; i < StudentNames.Length; i++)
+            var chapterEvent = new ChapterEvent
             {
-                var present = !(i == 2 && m < 2) && !(i == 7 && m == 1) && !(i == 5 && m > 0);
-                db.AttendanceMarks.Add(new AttendanceMark { Id = ++markId, AttendanceRegisterId = register.Id, StudentId = i + 1, MeetingDate = meeting, Present = present });
+                Id = m + 1, Date = meeting, Title = "Chapter meeting", StartTime = new TimeOnly(14, 0), EndTime = new TimeOnly(16, 0),
+                Location = "Church hall", CreatedByUserId = teacher.UserId, CreatedAt = now.AddDays(-28 * m - 30),
+            };
+            db.ChapterEvents.Add(chapterEvent);
+            foreach (var rankId in Placement.Select(p => p.Rank).Distinct().Order())
+            {
+                var register = new AttendanceRegister
+                {
+                    Id = ++registerId, ChapterEventId = chapterEvent.Id, RankId = rankId, MeetingDate = meeting,
+                    TakenByUserId = teacher.UserId, TakenAt = now.AddDays(-28 * m),
+                };
+                db.AttendanceRegisters.Add(register);
+                for (var i = 0; i < StudentNames.Length; i++)
+                {
+                    if (Placement[i].Rank != rankId) continue;
+                    var present = !(i == 2 && m < 2) && !(i == 7 && m == 1) && !(i == 5 && m > 0);
+                    db.AttendanceMarks.Add(new AttendanceMark { Id = ++markId, AttendanceRegisterId = register.Id, StudentId = i + 1, MeetingDate = meeting, Present = present });
+                }
             }
+        }
+
+        db.ChapterEvents.Add(new ChapterEvent
+        {
+            Id = 5, Date = today.AddDays(28), Title = "Chapter meeting", StartTime = new TimeOnly(14, 0), EndTime = new TimeOnly(16, 0),
+            Location = "Church hall", CreatedByUserId = teacher.UserId, CreatedAt = now,
+        });
+        db.ClassTeachers.Add(new ClassTeacher { Id = 1, RankId = 3, TeacherUserId = teacher.UserId });
+
+        // The liturgical calendar for this month and next (the real feed is imported by Vlms.Jobs).
+        var readingId = 0;
+        var firstDay = new DateOnly(today.Year, today.Month, 1);
+        for (var day = firstDay; day < firstDay.AddMonths(2); day = day.AddDays(1))
+        {
+            var fast = day.DayOfWeek is DayOfWeek.Wednesday or DayOfWeek.Friday ? LiturgicalFast.WineAndOil : LiturgicalFast.None;
+            var liturgical = new LiturgicalDay
+            {
+                Date = day, Title = day.DayOfWeek == DayOfWeek.Sunday ? "Sunday of the Holy Fathers" : "Martyrs Marcian and Martyrius",
+                Fast = fast, Saints = "Martyrs Marcian and Martyrius; Tabitha the Merciful",
+            };
+            liturgical.Readings.Add(new LiturgicalReading { Id = ++readingId, Date = day, Order = 1, Heading = "Epistle Reading", Reference = "Galatians 2:16-20", Text = "Brethren, knowing that a man is not justified by works of the law but through faith in Jesus Christ." });
+            liturgical.Readings.Add(new LiturgicalReading { Id = ++readingId, Date = day, Order = 2, Heading = "Gospel Reading", Reference = "Luke 8:26-39", Text = "At that time, as Jesus arrived at the country of the Gadarenes, there met him a man from the city who had demons." });
+            db.LiturgicalDays.Add(liturgical);
         }
 
         await db.SaveChangesAsync();

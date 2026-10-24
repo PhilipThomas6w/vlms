@@ -30,12 +30,12 @@ public sealed class DesignCapture
     private static readonly (string Persona, string[] Paths)[] Plan =
     [
         ("anonymous", ["/", "/Account/Login", "/Account/Register", "/Account/ForgotPassword", "/Account/ResendEmailConfirmation", "/Account/ResetPassword?code=abc", "/Account/AccessDenied", "/not-found", "/guardianship/accept-invite"]),
-        ("student-1", ["/", "/student", "/lessons"]),
-        ("parent", ["/", "/parent/dashboard", "/parent/consent", "/parent/student-sign-ins", "/registration/apply", "/registration/my-applications", "/Account/Manage/ChangePassword"]),
-        ("teacher", ["/", "/attendance", "/students", "/students/1", "/students/consent", "/students/1/consent", "/progress/record", "/progress/record#lesson", "/progress/completions", "/curriculum/teacher", "/lessons"]),
+        ("student-1", ["/", "/student", "/lessons", "/calendar"]),
+        ("parent", ["/", "/calendar", "/calendar/events/1", "/parent/dashboard", "/parent/consent", "/parent/student-sign-ins", "/registration/apply", "/registration/my-applications", "/Account/Manage/ChangePassword"]),
+        ("teacher", ["/", "/calendar", "/calendar/events/1", "/attendance/1/3", "/attendance", "/students", "/students/1", "/students/consent", "/students/1/consent", "/progress/record", "/progress/record#lesson", "/progress/completions", "/curriculum/teacher", "/lessons"]),
         ("approver", ["/", "/curriculum/approver"]),
         ("safeguarding", ["/", "/safeguarding/consent", "/safeguarding/dbs", "/registration/review"]),
-        ("admin", ["/", "/administration/students", "/administration/user-roles", "/administration/student-sign-ins", "/guardianship/links", "/registration/approve", "/registration/students", "/reporting", "/reporting/records-due-for-deletion", "/retention/mark-as-left", "/Account/Manage/TwoFactorAuthentication", "/Account/Manage/EnableAuthenticator"]),
+        ("admin", ["/", "/calendar", "/calendar/events/new", "/calendar/events/5/edit", "/calendar/events/1", "/attendance", "/administration/students", "/administration/user-roles", "/administration/student-sign-ins", "/guardianship/links", "/registration/approve", "/registration/students", "/reporting", "/reporting/records-due-for-deletion", "/retention/mark-as-left", "/Account/Manage/TwoFactorAuthentication", "/Account/Manage/EnableAuthenticator"]),
         ("national", ["/", "/administration/chapters", "/administration/rank-badges", "/reporting/national", "/Error"]),
         ("admin-teacher", ["/"]),
     ];

@@ -32,6 +32,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Vlms.Domain;
 using Vlms.Infrastructure;
+using Vlms.Infrastructure.Calendar;
 using Vlms.Infrastructure.Chapters;
 using Vlms.Infrastructure.Curriculum;
 using Vlms.Infrastructure.Engagement;
@@ -60,8 +61,12 @@ var seedDevPassword = args is ["seed-dev-chapters", "--password", var passwordAr
 // after migrations, with the production connection string and Storage:LocalRootPath.
 var seedCurriculumArgs = args is ["seed-curriculum", ..] ? SeedCurriculumArgs.Parse(args[1..]) : null;
 
+// `Vlms.Jobs import-calendar` — import the liturgical calendar now, without the rest of the daily
+// run (it is also part of every daily run, below).
+var importCalendarOnly = args is ["import-calendar"];
+
 var isCommand = bootstrapEmail is not null || bootstrapNationalEmail is not null || seedDevPassword is not null
-    || seedCurriculumArgs is not null;
+    || seedCurriculumArgs is not null || importCalendarOnly;
 var builder = Host.CreateApplicationBuilder(isCommand ? [] : args);
 
 builder.Services.AddDbContext<VlmsDbContext>(options =>
@@ -125,6 +130,13 @@ builder.Services.AddScoped<IBlobStorage>(sp => new LocalDiskBlobStorage(BlobStor
     sp.GetRequiredService<IHostEnvironment>().IsProduction(),
     AppContext.BaseDirectory)));
 builder.Services.AddScoped<CurriculumSeeder>();
+
+// The liturgical calendar (FR-022): the New Calendar feed, address from Calendar:LiturgicalFeedUrl.
+// One HttpClient for the process, which runs once and exits.
+builder.Services.AddSingleton(_ => new HttpClient { Timeout = TimeSpan.FromMinutes(2) });
+builder.Services.AddScoped(sp => new LiturgicalCalendarImporter(
+    sp.GetRequiredService<VlmsDbContext>(), sp.GetRequiredService<ICurrentUserContext>(), sp.GetRequiredService<HttpClient>(),
+    sp.GetRequiredService<ILogger<LiturgicalCalendarImporter>>(), builder.Configuration[LiturgicalCalendarImporter.FeedUrlKey]));
 
 using var host = builder.Build();
 
@@ -239,6 +251,12 @@ if (seedCurriculumArgs is not null)
     return;
 }
 
+if (importCalendarOnly)
+{
+    await ImportCalendarAsync(scope.ServiceProvider);
+    return;
+}
+
 var job = scope.ServiceProvider.GetRequiredService<ConsentExpiryJob>();
 var notifier = scope.ServiceProvider.GetRequiredService<ConsentExpiryNotifier>();
 var guardianNotifications = scope.ServiceProvider.GetRequiredService<GuardianNotificationService>();
@@ -267,4 +285,22 @@ catch (Exception ex)
     // A non-zero exit code plus a Critical log entry is what that alerting acts on.
     logger.LogCritical(ex, "ConsentExpiryJob run failed.");
     Environment.ExitCode = 1;
+}
+
+// The liturgical calendar import runs after the safeguarding sweep, so a feed outage never delays or
+// stops the sweep; a failure is logged and fails the run like any other.
+await ImportCalendarAsync(scope.ServiceProvider);
+
+static async Task ImportCalendarAsync(IServiceProvider services)
+{
+    var calendarLogger = services.GetRequiredService<ILogger<LiturgicalCalendarImporter>>();
+    try
+    {
+        await services.GetRequiredService<LiturgicalCalendarImporter>().ImportAsync();
+    }
+    catch (Exception ex)
+    {
+        calendarLogger.LogError(ex, "Liturgical calendar import failed; the calendar keeps the days it already had.");
+        Environment.ExitCode = 1;
+    }
 }

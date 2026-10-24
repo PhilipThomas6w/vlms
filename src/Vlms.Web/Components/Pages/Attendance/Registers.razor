@@ -1,0 +1,91 @@
+@page "/attendance"
+@attribute [Authorize(Policy = "RequireAdminOrTeacher")]
+@rendermode InteractiveServer
+@using System.Globalization
+@using Vlms.Infrastructure.Attendance
+@inject AttendanceService Attendance
+
+@* The chapter's meeting days with each day's registers collated (the calendar requirement): the
+   total attendance on any day. Each day opens its event, where every class's register is taken. *@
+
+<PageTitle>Registers – Varangians</PageTitle>
+
+<PageHeader Title="Registers">
+    <Actions>
+        <a class="btn btn--secondary" href="/calendar"><Icon Name="calendar" /> Calendar</a>
+    </Actions>
+</PageHeader>
+
+@if (_errorMessage is not null)
+{
+    <Notice Kind="danger" Role="alert"><p>@_errorMessage</p></Notice>
+}
+
+@if (_days is null)
+{
+    <p class="muted" role="status">Loading…</p>
+}
+else if (_days.Count == 0)
+{
+    <div class="empty"><p>No meeting days in the calendar yet. An Admin adds them from the <a href="/calendar">calendar</a>.</p></div>
+}
+else
+{
+    @if (_days.Where(d => d.Date > Today).ToList() is { Count: > 0 } coming)
+    {
+        <section class="section" aria-labelledby="coming-heading">
+            <h2 id="coming-heading">Coming up</h2>
+            <ul class="action-list">
+                @foreach (var day in coming.OrderBy(d => d.Date))
+                {
+                    <li><a href="/calendar/events/@day.EventId"><Icon Name="calendar" /> @day.Date.ToString("dddd d MMMM yyyy", Uk): @day.Title</a></li>
+                }
+            </ul>
+        </section>
+    }
+
+    <section class="section" aria-labelledby="days-heading">
+        <h2 id="days-heading">Meeting days</h2>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th scope="col">Day</th>
+                    <th scope="col">Present</th>
+                    <th scope="col">Absent</th>
+                    <th scope="col">Registers taken</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var day in _days.Where(d => d.Date <= Today))
+                {
+                    <tr>
+                        <th scope="row" data-label="Day"><a href="/calendar/events/@day.EventId">@day.Date.ToString("d MMMM yyyy", Uk)</a></th>
+                        <td data-label="Present">@day.Present</td>
+                        <td data-label="Absent">@day.Absent</td>
+                        <td data-label="Registers taken">@day.ClassesTaken</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </section>
+}
+
+@code {
+    private static readonly CultureInfo Uk = CultureInfo.GetCultureInfo("en-GB");
+    private static DateOnly Today => DateOnly.FromDateTime(DateTime.UtcNow);
+
+    private IReadOnlyList<MeetingDaySummary>? _days;
+    private string? _errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _days = await Attendance.ListMeetingDaysAsync();
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+}

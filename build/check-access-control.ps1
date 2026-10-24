@@ -147,7 +147,12 @@ $expectedMinimums = @{
     "ChapterSeparationTests.cs"         = 27
     # FR-020 attendance register: who takes and reads it, this chapter's active students only,
     # the consent alert's recipients and content.
-    "AttendanceServiceTests.cs"         = 11
+    # Raised 24/10/2026 for FR-022 (one register per class per meeting day, opened from the event).
+    "AttendanceServiceTests.cs"         = 15
+    # FR-022 calendar: who reads it, Admin-only events kept to their chapter, class teachers; the
+    # private subscribe link served without signing in.
+    "CalendarServiceTests.cs"           = 10
+    "CalendarFeedServiceTests.cs"       = 6
 }
 
 foreach ($testFileName in $expectedMinimums.Keys) {
@@ -219,6 +224,9 @@ $hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Infrastructure/Guardians
 # FR-020 attendance register: role checks, chapter scope, the Safeguarding Officer alert.
 $hashedFiles += Get-ChildItem (Join-Path $repoRoot "src/Vlms.Infrastructure/Attendance") -Filter "*.cs"
 $hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Web/ChapterSwitchEndpoint.cs")
+# FR-022 calendar: event and calendar role checks, the subscribe link and its anonymous endpoint.
+$hashedFiles += Get-ChildItem (Join-Path $repoRoot "src/Vlms.Infrastructure/Calendar") -Filter "*.cs"
+$hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Web/CalendarFeedEndpoint.cs")
 $hashedFiles += $pageFiles
 
 if ($PrintHash) {

@@ -334,7 +334,8 @@ public sealed class ParentDashboardServiceTests : IDisposable
         var meeting = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(-7);
         using (var seed = CreateContext(TestSeedUserContext.Instance))
         {
-            seed.Context.AttendanceRegisters.Add(new AttendanceRegister { Id = 1, MeetingDate = meeting, TakenByUserId = 10, TakenAt = DateTime.UtcNow });
+            seed.Context.ChapterEvents.Add(new ChapterEvent { Id = 1, Date = meeting, Title = "Chapter meeting", CreatedByUserId = 10, CreatedAt = DateTime.UtcNow });
+            seed.Context.AttendanceRegisters.Add(new AttendanceRegister { Id = 1, ChapterEventId = 1, RankId = 1, MeetingDate = meeting, TakenByUserId = 10, TakenAt = DateTime.UtcNow });
             seed.Context.AttendanceMarks.Add(new AttendanceMark { Id = 1, AttendanceRegisterId = 1, StudentId = 100, MeetingDate = meeting, Present = true });
             seed.Context.AttendanceMarks.Add(new AttendanceMark { Id = 2, AttendanceRegisterId = 1, StudentId = 200, MeetingDate = meeting, Present = false });
             seed.Context.SaveChanges();

@@ -1,0 +1,206 @@
+@page "/calendar"
+@attribute [Authorize(Policy = "RequireChapterMember")]
+@rendermode InteractiveServer
+@using System.Globalization
+@using Vlms.Domain
+@using Vlms.Infrastructure.Calendar
+@inject CalendarService CalendarService
+@inject CalendarFeedService Feeds
+@inject NavigationManager Navigation
+
+@* The calendar (docs/requirements/functional.md, the calendar requirement): each day's main feast and
+   fast from the Church's calendar, with the chapter's own events; saints and readings open from the
+   day. Admins add events; everyone in the chapter can make a private subscribe link. *@
+
+<PageTitle>Calendar – Varangians</PageTitle>
+
+<div class="calendar">
+    <PageHeader Title="Calendar">
+        <Actions>
+            <AuthorizeView Policy="RequireAdmin">
+                <a class="btn" href="/calendar/events/new"><Icon Name="calendar" /> Add an event</a>
+            </AuthorizeView>
+        </Actions>
+    </PageHeader>
+
+    @if (_errorMessage is not null)
+    {
+        <Notice Kind="danger" Role="alert"><p>@_errorMessage</p></Notice>
+    }
+
+    <nav class="calendar__months" aria-label="Months">
+        <a class="btn btn--secondary" href="@MonthHref(_first.AddMonths(-1))">
+            <span aria-hidden="true">‹</span> @_first.AddMonths(-1).ToString("MMMM yyyy", Uk)
+        </a>
+        <h2 id="month-heading" class="calendar__month">@_first.ToString("MMMM yyyy", Uk)</h2>
+        <a class="btn btn--secondary" href="@MonthHref(_first.AddMonths(1))">
+            @_first.AddMonths(1).ToString("MMMM yyyy", Uk) <span aria-hidden="true">›</span>
+        </a>
+    </nav>
+
+    @if (_month is null)
+    {
+        <p class="muted" role="status">Loading the calendar…</p>
+    }
+    else
+    {
+        <ol class="calendar__days" aria-labelledby="month-heading">
+            @foreach (var day in _month.Days)
+            {
+                var isToday = day.Date == Today;
+                var panelId = $"day-{day.Date:yyyyMMdd}";
+                <li class="day @(isToday ? "day--today" : null) @(day.Events.Count > 0 ? "day--event" : null)" aria-current="@(isToday ? "date" : null)">
+                    <p class="day__date">
+                        <span class="day__weekday">@day.Date.ToString("ddd", Uk)</span>
+                        <span class="day__number">@day.Date.Day</span>
+                        <span class="visually-hidden">@day.Date.ToString("MMMM", Uk)</span>
+                    </p>
+                    <div class="day__body">
+                        @foreach (var item in day.Events)
+                        {
+                            <p class="day__event">
+                                <Icon Name="calendar" />
+                                <a href="/calendar/events/@item.Id">@item.Title</a>
+                                @if (item.StartTime is { } start)
+                                {
+                                    <span class="day__time">@Times(start, item.EndTime)</span>
+                                }
+                            </p>
+                        }
+                        @if (day.Feast is not null)
+                        {
+                            <p class="day__feast">
+                                <span>@day.Feast</span>
+                                <FastPill Fast="day.Fast" />
+                            </p>
+                            <button type="button" class="btn--quiet day__toggle" aria-expanded="@(_open.ContainsKey(day.Date) ? "true" : "false")"
+                                    aria-controls="@panelId" @onclick="() => ToggleAsync(day.Date)">
+                                Saints and readings <span class="visually-hidden">for @day.Date.ToString("d MMMM", Uk)</span>
+                            </button>
+                            @if (_open.TryGetValue(day.Date, out var detail))
+                            {
+                                <div class="day__detail" id="@panelId">
+                                    @if (detail is null)
+                                    {
+                                        <p class="muted">Loading…</p>
+                                    }
+                                    else
+                                    {
+                                        <h3>Saints and feasts</h3>
+                                        <ul class="day__saints">
+                                            @foreach (var saint in detail.Saints)
+                                            {
+                                                <li>@saint</li>
+                                            }
+                                        </ul>
+                                        @foreach (var reading in detail.Readings)
+                                        {
+                                            <h3>@reading.Heading: @reading.Reference</h3>
+                                            <p class="preserve-lines">@reading.Text</p>
+                                        }
+                                    }
+                                </div>
+                            }
+                        }
+                    </div>
+                </li>
+            }
+        </ol>
+    }
+
+    <section class="section panel calendar__subscribe" aria-labelledby="subscribe-heading">
+        <h2 id="subscribe-heading">Subscribe in your calendar app</h2>
+        <p>Your own link adds this chapter's events to your calendar app. Keep it private: anyone with the link can see the events.</p>
+        @if (_newLink is not null)
+        {
+            <div class="field">
+                <label for="feed-link">Your link</label>
+                <input id="feed-link" type="text" readonly value="@_newLink" />
+            </div>
+            <p class="muted">This link is shown only now. Copy it into your calendar app's "subscribe" or "add by URL" option.</p>
+        }
+        else if (_linkCreatedAt is { } created)
+        {
+            <p>You made a link on @created.ToLocalTime().ToString("d MMMM yyyy", Uk). Making a new one stops the old one working.</p>
+        }
+        <div class="btn-row">
+            <button type="button" @onclick="CreateLinkAsync">@(_linkCreatedAt is null && _newLink is null ? "Make my link" : "Make a new link")</button>
+            @if (_linkCreatedAt is not null || _newLink is not null)
+            {
+                <button type="button" class="btn--secondary" @onclick="RemoveLinkAsync">Stop my link</button>
+            }
+        </div>
+    </section>
+</div>
+
+@code {
+    private static readonly CultureInfo Uk = CultureInfo.GetCultureInfo("en-GB");
+    private static DateOnly Today => DateOnly.FromDateTime(DateTime.UtcNow);
+
+    [SupplyParameterFromQuery(Name = "month")] public string? Month { get; set; }
+
+    private DateOnly _first;
+    private CalendarMonth? _month;
+    private readonly Dictionary<DateOnly, LiturgicalDayDetail?> _open = new();
+    private DateTime? _linkCreatedAt;
+    private string? _newLink;
+    private string? _errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _linkCreatedAt = await Feeds.GetLinkCreatedAtAsync();
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _first = DateOnly.TryParseExact(Month, "yyyy-MM", CultureInfo.InvariantCulture, DateTimeStyles.None, out var month)
+            ? month
+            : new DateOnly(Today.Year, Today.Month, 1);
+        _open.Clear();
+        try
+        {
+            _month = await CalendarService.GetMonthAsync(_first.Year, _first.Month);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+
+    private static string MonthHref(DateOnly month) => $"/calendar?month={month:yyyy-MM}";
+
+    private static string Times(TimeOnly start, TimeOnly? end) =>
+        end is { } finish ? $"{start:HH:mm}–{finish:HH:mm}" : start.ToString("HH:mm", Uk);
+
+    private async Task ToggleAsync(DateOnly date)
+    {
+        if (_open.Remove(date))
+        {
+            return;
+        }
+
+        _open[date] = null;
+        _open[date] = await CalendarService.GetLiturgicalDayAsync(date);
+    }
+
+    private async Task CreateLinkAsync()
+    {
+        var secret = await Feeds.CreateLinkAsync();
+        _newLink = Navigation.ToAbsoluteUri($"/calendar/feed/{secret}.ics").ToString();
+        _linkCreatedAt = null;
+    }
+
+    private async Task RemoveLinkAsync()
+    {
+        await Feeds.RemoveLinkAsync();
+        _newLink = null;
+        _linkCreatedAt = null;
+    }
+}

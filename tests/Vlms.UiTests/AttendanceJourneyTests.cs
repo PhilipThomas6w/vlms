@@ -7,8 +7,9 @@ using Vlms.UiTests.Capture;
 namespace Vlms.UiTests;
 
 /// <summary>
-/// The teacher's session journey with the register (functional.md FR-020, TC-052), driven in Chromium
-/// against the real app: take the register with one child marked absent; on Record completions the
+/// The teacher's session journey with the register (functional.md FR-020, FR-022, TC-052), driven in
+/// Chromium against the real app: from the calendar, open today's meeting day, see their own class first
+/// and the day's total, and update their class's register with one child marked absent; on Record completions the
 /// "here and ready" shortcut leaves the absent child out; recording for them needs the catch-up
 /// confirmation, and then it is recorded. Its own app instance with <see cref="CaptureSeed"/>'s data,
 /// so the shared public-page fixture stays unseeded.
@@ -29,12 +30,20 @@ public sealed class AttendanceJourneyTests
         var page = await context.NewPageAsync();
         await DesignCapture.SignInAsync(page, baseUrl, personas["teacher"]);
 
-        // Take today's register: Alexander Hughes (Shield-bearer, consent in force) is not here.
-        await page.GotoAsync(baseUrl + "/attendance", new PageGotoOptions { WaitUntil = WaitUntilState.NetworkIdle });
+        // From the calendar, open today's meeting day: the Shield-bearer class (the teacher's own) is first.
+        await page.GotoAsync(baseUrl + "/calendar", new PageGotoOptions { WaitUntil = WaitUntilState.NetworkIdle });
+        await page.Locator(".day--today .day__event a").ClickAsync();
+        await page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+        await Assertions.Expect(page.Locator(".class-row").First).ToContainTextAsync("Your class");
+        await Assertions.Expect(page.Locator(".event__total")).ToContainTextAsync("Day total: 17 present, 1 absent");
+
+        // Update the Shield-bearer register: Alexander Hughes (consent in force) is not here.
+        await page.GetByRole(AriaRole.Link, new() { Name = "Update the Shield-bearer register" }).ClickAsync();
+        await page.WaitForLoadStateAsync(LoadState.NetworkIdle);
         await page.GetByRole(AriaRole.Button, new() { Name = "Mark everyone present" }).ClickAsync();
         await page.GetByLabel("Alexander Hughes").UncheckAsync();
         await page.GetByRole(AriaRole.Button, new() { Name = "Save changes to the register" }).ClickAsync();
-        await Assertions.Expect(page.GetByRole(AriaRole.Status).Filter(new() { HasText = "Register saved" })).ToContainTextAsync("17 present, 1 absent");
+        await Assertions.Expect(page.GetByRole(AriaRole.Status).Filter(new() { HasText = "Register saved" })).ToContainTextAsync("5 present, 1 absent");
 
         // Record completions for this meeting: Shield-bearer, lesson 6 (St Paul).
         await page.GetByRole(AriaRole.Link, new() { Name = "Record the lessons completed at this meeting" }).ClickAsync();

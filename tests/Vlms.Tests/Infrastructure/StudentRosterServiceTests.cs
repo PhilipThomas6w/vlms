@@ -191,7 +191,8 @@ public sealed class StudentRosterServiceTests : IDisposable
             for (var i = 0; i < 4; i++)
             {
                 var date = today.AddDays(-7 * (4 - i));
-                db.AttendanceRegisters.Add(new AttendanceRegister { Id = i + 1, MeetingDate = date, TakenByUserId = 10, TakenAt = DateTime.UtcNow });
+                db.ChapterEvents.Add(new ChapterEvent { Id = i + 1, Date = date, Title = "Chapter meeting", CreatedByUserId = 10, CreatedAt = DateTime.UtcNow });
+                db.AttendanceRegisters.Add(new AttendanceRegister { Id = i + 1, ChapterEventId = i + 1, RankId = 1, MeetingDate = date, TakenByUserId = 10, TakenAt = DateTime.UtcNow });
                 db.AttendanceMarks.Add(new AttendanceMark { Id = i + 1, AttendanceRegisterId = i + 1, StudentId = 100, MeetingDate = date, Present = i % 2 == 1 });
             }
 

@@ -11,11 +11,11 @@ namespace Vlms.Infrastructure.Chapters;
 /// wrong chapter:
 /// <list type="number">
 /// <item>A new top-level record (<see cref="Student"/>, <see cref="ParentGuardian"/>,
-/// <see cref="DbsCheck"/>, <see cref="AttendanceRegister"/>) goes into the caller's active chapter; left at 0 its chapter is set to
+/// <see cref="DbsCheck"/>, <see cref="ChapterEvent"/>, <see cref="ClassTeacher"/>) goes into the caller's active chapter; left at 0 its chapter is set to
 /// it, and any other chapter is refused. A <see cref="StudentApplication"/> is the exception: the
 /// applicant chooses the chapter (StudentApplicationService checks it is an open one).</item>
 /// <item>A new child record (rank progress, completion, certificate, badge, guardian link, consent
-/// record and details, guardian invite, application details, attendance mark) takes its parent row's chapter; left
+/// record and details, guardian invite, application details, attendance register, attendance mark) takes its parent row's chapter; left
 /// at 0 it is copied, and a different value is refused. The parent is looked up through the query
 /// filters, so a parent the caller cannot see (another chapter's student) is refused too. A guardian
 /// link, a guardian invite and a consent record also need their guardian in the same chapter, and an
@@ -45,9 +45,15 @@ internal static class ChapterWriteRules
         var added = entries.Where(e => e.State == EntityState.Added).ToList();
 
         // Parents before children, so a parent added in the same save is stamped first.
-        foreach (var entry in added.Where(e => e.Entity is Student or ParentGuardian or DbsCheck or AttendanceRegister))
+        foreach (var entry in added.Where(e => e.Entity is Student or ParentGuardian or DbsCheck or ChapterEvent or ClassTeacher))
         {
             StampTopLevel(entry, currentUser);
+        }
+
+        // Registers before their marks, so a register added in the same save is stamped first.
+        foreach (var entry in added.Where(e => e.Entity is AttendanceRegister))
+        {
+            StampChild(db, entry);
         }
 
         foreach (var entry in added.Where(e => e.Entity is StudentApplication))
@@ -58,7 +64,7 @@ internal static class ChapterWriteRules
             }
         }
 
-        foreach (var entry in added.Where(e => e.Entity is IChapterOwned && e.Entity is not (Student or ParentGuardian or DbsCheck or AttendanceRegister or StudentApplication or Certificate or ConsentSensitiveDetails)))
+        foreach (var entry in added.Where(e => e.Entity is IChapterOwned && e.Entity is not (Student or ParentGuardian or DbsCheck or ChapterEvent or ClassTeacher or AttendanceRegister or StudentApplication or Certificate or ConsentSensitiveDetails)))
         {
             StampChild(db, entry);
         }
@@ -126,6 +132,7 @@ internal static class ChapterWriteRules
             StudentLessonCompletion c => (StudentChapter(db, c.StudentId), null),
             StudentRankProgress p => (StudentChapter(db, p.StudentId), null),
             StudentBadge b => (StudentChapter(db, b.StudentId), null),
+            AttendanceRegister r => (ChapterOf<ChapterEvent>(db, r.ChapterEventId), null),
             // A mark's register and student must be in the same chapter (the student checked like a guardian).
             AttendanceMark m => (ChapterOf<AttendanceRegister>(db, m.AttendanceRegisterId), StudentChapter(db, m.StudentId) ?? -1),
             Certificate c => (ChapterOf<StudentLessonCompletion>(db, c.StudentLessonCompletionId), null),

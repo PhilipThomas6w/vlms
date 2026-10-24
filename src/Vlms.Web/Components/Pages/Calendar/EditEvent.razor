@@ -1,0 +1,161 @@
+@page "/calendar/events/new"
+@page "/calendar/events/{EventId:int}/edit"
+@attribute [Authorize(Policy = "RequireAdmin")]
+@rendermode InteractiveServer
+@using System.Globalization
+@using Vlms.Infrastructure.Calendar
+@inject CalendarService CalendarService
+@inject NavigationManager Navigation
+
+@* An Admin schedules, changes or removes one of the chapter's events (a day the chapter meets).
+   CalendarService refuses a second event on the same date, a date change once a register has been
+   taken, and removing an event with registers. *@
+
+<PageTitle>@(IsNew ? "Add an event" : "Change the event") – Varangians</PageTitle>
+
+<PageHeader Title="@(IsNew ? "Add an event" : "Change the event")" />
+
+@if (_errorMessage is not null)
+{
+    <Notice Kind="danger" Role="alert"><p>@_errorMessage</p></Notice>
+}
+
+@if (!IsNew && _loaded && _existing is null)
+{
+    <div class="empty"><p>That event is not in this chapter's calendar. <a href="/calendar">Back to the calendar</a></p></div>
+}
+else if (_loaded)
+{
+    <form class="form" @onsubmit="SaveAsync" @onsubmit:preventDefault>
+        <div class="field">
+            <label for="event-date">Date</label>
+            <input id="event-date" type="date" required @bind="_date" disabled="@(_existing?.HasRegisters == true)"
+                   aria-describedby="@(_existing?.HasRegisters == true ? "event-date-hint" : null)" />
+            @if (_existing?.HasRegisters == true)
+            {
+                <p class="muted" id="event-date-hint">A register has been taken at this event, so its date can't change.</p>
+            }
+        </div>
+        <div class="field">
+            <label for="event-title">Name</label>
+            <input id="event-title" type="text" required maxlength="@CalendarService.TitleMaxLength" @bind="_title" />
+        </div>
+        <div class="field-row">
+            <div class="field">
+                <label for="event-start">Start time (optional)</label>
+                <input id="event-start" type="time" @bind="_start" />
+            </div>
+            <div class="field">
+                <label for="event-end">End time (optional)</label>
+                <input id="event-end" type="time" @bind="_end" />
+            </div>
+        </div>
+        <div class="field">
+            <label for="event-location">Place (optional)</label>
+            <input id="event-location" type="text" maxlength="@CalendarService.LocationMaxLength" @bind="_location" />
+        </div>
+        <div class="form-actions btn-row">
+            <button type="submit" disabled="@_busy">@(IsNew ? "Add the event" : "Save changes")</button>
+            <a class="btn btn--secondary" href="@(IsNew ? "/calendar" : $"/calendar/events/{EventId}")">Cancel</a>
+        </div>
+    </form>
+
+    @if (_existing is { HasRegisters: false })
+    {
+        <section class="section" aria-labelledby="remove-heading">
+            <h2 id="remove-heading">Remove this event</h2>
+            @if (_confirmRemove)
+            {
+                <Notice Kind="warning" Role="alert">
+                    <p><strong>Remove "@_existing.Title" on @_existing.Date.ToString("d MMMM yyyy", Uk) from the calendar?</strong></p>
+                    <div class="btn-row confirm-actions">
+                        <button type="button" class="btn--danger" @onclick="RemoveAsync">Remove the event</button>
+                        <button type="button" class="btn--secondary" @onclick="() => _confirmRemove = false">Keep it</button>
+                    </div>
+                </Notice>
+            }
+            else
+            {
+                <button type="button" class="btn--secondary" @onclick="() => _confirmRemove = true">Remove the event</button>
+            }
+        </section>
+    }
+}
+
+@code {
+    private static readonly CultureInfo Uk = CultureInfo.GetCultureInfo("en-GB");
+
+    [Parameter] public int? EventId { get; set; }
+
+    private bool IsNew => EventId is null;
+
+    private EventDetail? _existing;
+    private bool _loaded;
+    private DateOnly _date = DateOnly.FromDateTime(DateTime.UtcNow);
+    private string _title = "Chapter meeting";
+    private TimeOnly? _start;
+    private TimeOnly? _end;
+    private string? _location;
+    private bool _busy;
+    private bool _confirmRemove;
+    private string? _errorMessage;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (EventId is int id)
+        {
+            _existing = await CalendarService.GetEventAsync(id);
+            if (_existing is not null)
+            {
+                (_date, _title, _start, _end, _location) = (_existing.Date, _existing.Title, _existing.StartTime, _existing.EndTime, _existing.Location);
+            }
+        }
+
+        _loaded = true;
+    }
+
+    private async Task SaveAsync()
+    {
+        _busy = true;
+        _errorMessage = null;
+        try
+        {
+            var input = new EventInput(_date, _title, _start, _end, _location);
+            var id = EventId ?? 0;
+            if (IsNew)
+            {
+                id = await CalendarService.CreateEventAsync(input);
+            }
+            else
+            {
+                await CalendarService.UpdateEventAsync(id, input);
+            }
+
+            Navigation.NavigateTo($"/calendar/events/{id}");
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException)
+        {
+            _errorMessage = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task RemoveAsync()
+    {
+        _errorMessage = null;
+        try
+        {
+            var month = _existing!.Date.ToString("yyyy-MM");
+            await CalendarService.DeleteEventAsync(EventId!.Value);
+            Navigation.NavigateTo($"/calendar?month={month}");
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException)
+        {
+            _confirmRemove = false;
+            _errorMessage = ex.Message;
+        }
+    }
+}

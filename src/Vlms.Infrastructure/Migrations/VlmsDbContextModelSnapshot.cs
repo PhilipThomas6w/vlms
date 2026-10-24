@@ -177,7 +177,8 @@ namespace Vlms.Infrastructure.Migrations
                     b.HasIndex("AttendanceRegisterId", "StudentId")
                         .IsUnique();
 
-                    b.HasIndex("StudentId", "MeetingDate");
+                    b.HasIndex("StudentId", "MeetingDate")
+                        .IsUnique();
 
                     b.ToTable("attendance_marks");
                 });
@@ -188,6 +189,10 @@ namespace Vlms.Infrastructure.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("id");
 
+                    b.Property<int>("ChapterEventId")
+                        .HasColumnType("integer")
+                        .HasColumnName("chapter_event_id");
+
                     b.Property<int>("ChapterId")
                         .HasColumnType("integer")
                         .HasColumnName("chapter_id");
@@ -195,6 +200,10 @@ namespace Vlms.Infrastructure.Migrations
                     b.Property<DateOnly>("MeetingDate")
                         .HasColumnType("date")
                         .HasColumnName("meeting_date");
+
+                    b.Property<int>("RankId")
+                        .HasColumnType("integer")
+                        .HasColumnName("rank_id");
 
                     b.Property<DateTime>("TakenAt")
                         .HasColumnType("timestamp with time zone")
@@ -208,12 +217,51 @@ namespace Vlms.Infrastructure.Migrations
 
                     b.HasIndex("ChapterId");
 
+                    b.HasIndex("RankId");
+
                     b.HasIndex("TakenByUserId");
 
-                    b.HasIndex("ChapterId", "MeetingDate")
+                    b.HasIndex("ChapterEventId", "RankId")
                         .IsUnique();
 
                     b.ToTable("attendance_registers");
+                });
+
+            modelBuilder.Entity("Vlms.Domain.CalendarFeedToken", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    b.Property<int>("ChapterId")
+                        .HasColumnType("integer")
+                        .HasColumnName("chapter_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("token_hash");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChapterId");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique();
+
+                    b.HasIndex("UserId", "ChapterId")
+                        .IsUnique();
+
+                    b.ToTable("calendar_feed_tokens");
                 });
 
             modelBuilder.Entity("Vlms.Domain.Certificate", b =>
@@ -291,6 +339,91 @@ namespace Vlms.Infrastructure.Migrations
                             Name = "Shrewsbury Orthodox Church",
                             Place = "Shrewsbury"
                         });
+                });
+
+            modelBuilder.Entity("Vlms.Domain.ChapterEvent", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    b.Property<int>("ChapterId")
+                        .HasColumnType("integer")
+                        .HasColumnName("chapter_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<int>("CreatedByUserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("created_by_user_id");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date")
+                        .HasColumnName("date");
+
+                    b.Property<TimeOnly?>("EndTime")
+                        .HasColumnType("time without time zone")
+                        .HasColumnName("end_time");
+
+                    b.Property<string>("Location")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("location");
+
+                    b.Property<TimeOnly?>("StartTime")
+                        .HasColumnType("time without time zone")
+                        .HasColumnName("start_time");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("title");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChapterId");
+
+                    b.HasIndex("CreatedByUserId");
+
+                    b.HasIndex("ChapterId", "Date")
+                        .IsUnique();
+
+                    b.ToTable("chapter_events");
+                });
+
+            modelBuilder.Entity("Vlms.Domain.ClassTeacher", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    b.Property<int>("ChapterId")
+                        .HasColumnType("integer")
+                        .HasColumnName("chapter_id");
+
+                    b.Property<int>("RankId")
+                        .HasColumnType("integer")
+                        .HasColumnName("rank_id");
+
+                    b.Property<int>("TeacherUserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("teacher_user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChapterId");
+
+                    b.HasIndex("RankId");
+
+                    b.HasIndex("TeacherUserId");
+
+                    b.HasIndex("ChapterId", "RankId", "TeacherUserId")
+                        .IsUnique();
+
+                    b.ToTable("class_teachers");
                 });
 
             modelBuilder.Entity("Vlms.Domain.ConsentRecord", b =>
@@ -659,6 +792,68 @@ namespace Vlms.Infrastructure.Migrations
                     b.HasKey("LessonId", "Tag");
 
                     b.ToTable("lesson_tag_assignments");
+                });
+
+            modelBuilder.Entity("Vlms.Domain.LiturgicalDay", b =>
+                {
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date")
+                        .HasColumnName("date");
+
+                    b.Property<int>("Fast")
+                        .HasColumnType("integer")
+                        .HasColumnName("fast");
+
+                    b.Property<string>("Saints")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("saints");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("title");
+
+                    b.HasKey("Date");
+
+                    b.ToTable("liturgical_days");
+                });
+
+            modelBuilder.Entity("Vlms.Domain.LiturgicalReading", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date")
+                        .HasColumnName("date");
+
+                    b.Property<string>("Heading")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("heading");
+
+                    b.Property<int>("Order")
+                        .HasColumnType("integer")
+                        .HasColumnName("order");
+
+                    b.Property<string>("Reference")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("reference");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Date", "Order")
+                        .IsUnique();
+
+                    b.ToTable("liturgical_readings");
                 });
 
             modelBuilder.Entity("Vlms.Domain.ParentGuardian", b =>
@@ -1358,9 +1553,21 @@ namespace Vlms.Infrastructure.Migrations
 
             modelBuilder.Entity("Vlms.Domain.AttendanceRegister", b =>
                 {
+                    b.HasOne("Vlms.Domain.ChapterEvent", "ChapterEvent")
+                        .WithMany("Registers")
+                        .HasForeignKey("ChapterEventId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("Vlms.Domain.Chapter", null)
                         .WithMany()
                         .HasForeignKey("ChapterId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Vlms.Domain.Rank", "Rank")
+                        .WithMany()
+                        .HasForeignKey("RankId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
@@ -1370,7 +1577,26 @@ namespace Vlms.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.Navigation("ChapterEvent");
+
+                    b.Navigation("Rank");
+
                     b.Navigation("TakenByUser");
+                });
+
+            modelBuilder.Entity("Vlms.Domain.CalendarFeedToken", b =>
+                {
+                    b.HasOne("Vlms.Domain.Chapter", null)
+                        .WithMany()
+                        .HasForeignKey("ChapterId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Vlms.Domain.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Vlms.Domain.Certificate", b =>
@@ -1388,6 +1614,46 @@ namespace Vlms.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("StudentLessonCompletion");
+                });
+
+            modelBuilder.Entity("Vlms.Domain.ChapterEvent", b =>
+                {
+                    b.HasOne("Vlms.Domain.Chapter", null)
+                        .WithMany()
+                        .HasForeignKey("ChapterId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Vlms.Domain.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Vlms.Domain.ClassTeacher", b =>
+                {
+                    b.HasOne("Vlms.Domain.Chapter", null)
+                        .WithMany()
+                        .HasForeignKey("ChapterId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Vlms.Domain.Rank", "Rank")
+                        .WithMany()
+                        .HasForeignKey("RankId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Vlms.Domain.AppUser", "TeacherUser")
+                        .WithMany()
+                        .HasForeignKey("TeacherUserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Rank");
+
+                    b.Navigation("TeacherUser");
                 });
 
             modelBuilder.Entity("Vlms.Domain.ConsentRecord", b =>
@@ -1566,6 +1832,15 @@ namespace Vlms.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Lesson");
+                });
+
+            modelBuilder.Entity("Vlms.Domain.LiturgicalReading", b =>
+                {
+                    b.HasOne("Vlms.Domain.LiturgicalDay", null)
+                        .WithMany("Readings")
+                        .HasForeignKey("Date")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Vlms.Domain.ParentGuardian", b =>
@@ -1830,6 +2105,11 @@ namespace Vlms.Infrastructure.Migrations
                     b.Navigation("Marks");
                 });
 
+            modelBuilder.Entity("Vlms.Domain.ChapterEvent", b =>
+                {
+                    b.Navigation("Registers");
+                });
+
             modelBuilder.Entity("Vlms.Domain.ConsentRecord", b =>
                 {
                     b.Navigation("SensitiveDetails");
@@ -1844,6 +2124,11 @@ namespace Vlms.Infrastructure.Migrations
                     b.Navigation("Files");
 
                     b.Navigation("Tags");
+                });
+
+            modelBuilder.Entity("Vlms.Domain.LiturgicalDay", b =>
+                {
+                    b.Navigation("Readings");
                 });
 
             modelBuilder.Entity("Vlms.Domain.ParentGuardian", b =>

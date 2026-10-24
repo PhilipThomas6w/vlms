@@ -2,8 +2,10 @@
 @attribute [Authorize(Policy = "RequireAdmin")]
 @rendermode InteractiveServer
 @using Vlms.Domain
+@using Vlms.Infrastructure.Attendance
 @using Vlms.Infrastructure.Identity
 @inject RoleAssignmentService RoleAssignmentService
+@inject ClassTeacherService ClassTeachers
 
 <PageTitle>User roles</PageTitle>
 
@@ -193,7 +195,70 @@
     }
 </section>
 
+<section class="section" aria-labelledby="classes-heading">
+    <h2 id="classes-heading">Class teachers</h2>
+    <p>Each rank is a class. A class's teachers see its register first on a meeting day; any Teacher can take any class's register.</p>
+    <table class="data-table data-table--wide">
+        <thead>
+            <tr>
+                <th>Class</th>
+                <th>Teachers</th>
+                <th>Add a teacher</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in _classes)
+            {
+                var selectId = $"class-teacher-{item.RankId}";
+                var available = _teachers.Where(t => item.Teachers.All(c => c.UserId != t.UserId)).ToList();
+                <tr>
+                    <td data-label="Class"><RankPill Order="item.RankOrder" Name="@item.RankName" /></td>
+                    <td data-label="Teachers">
+                        @if (item.Teachers.Count == 0)
+                        {
+                            <span>None</span>
+                        }
+                        <div class="cell-actions">
+                            @foreach (var teacher in item.Teachers)
+                            {
+                                <span class="role-chip">
+                                    @teacher.DisplayName
+                                    <button type="button" class="btn--quiet" aria-label="@($"Remove {teacher.DisplayName} from the {item.RankName} class")"
+                                            @onclick="() => RemoveClassTeacherAsync(item, teacher)">Remove</button>
+                                </span>
+                            }
+                        </div>
+                    </td>
+                    <td data-label="Add a teacher">
+                        @if (available.Count > 0)
+                        {
+                            <div class="cell-form">
+                                <div class="field">
+                                    <label for="@selectId">Teacher for the @item.RankName class</label>
+                                    <select id="@selectId" @bind="_selectedTeachers[item.RankId]">
+                                        <option value="">Choose a teacher</option>
+                                        @foreach (var teacher in available)
+                                        {
+                                            <option value="@teacher.UserId">@teacher.DisplayName</option>
+                                        }
+                                    </select>
+                                </div>
+                                <button type="button" aria-label="@($"Add the selected teacher to the {item.RankName} class")"
+                                        disabled="@(_selectedTeachers.GetValueOrDefault(item.RankId) is null)"
+                                        @onclick="() => AssignClassTeacherAsync(item)">Add</button>
+                            </div>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</section>
+
 @code {
+    private IReadOnlyList<ClassWithTeachers> _classes = [];
+    private IReadOnlyList<ClassTeacherItem> _teachers = [];
+    private readonly Dictionary<int, int?> _selectedTeachers = new();
     private IReadOnlyList<RoleAssignmentService.UserWithRoles> _users = [];
     private IReadOnlyList<RoleAssignmentService.AwaitingApproval> _awaiting = [];
     private readonly Dictionary<int, Role?> _selectedRoles = new();
@@ -293,6 +358,56 @@
         foreach (var user in _users)
         {
             _selectedRoles[user.UserId] = null;
+        }
+
+        await LoadClassesAsync();
+    }
+
+    private async Task LoadClassesAsync()
+    {
+        _classes = await ClassTeachers.ListAsync();
+        _teachers = await ClassTeachers.ListTeachersAsync();
+        _selectedTeachers.Clear();
+        foreach (var item in _classes)
+        {
+            _selectedTeachers[item.RankId] = null;
+        }
+    }
+
+    private async Task AssignClassTeacherAsync(ClassWithTeachers item)
+    {
+        _errorMessage = null;
+        _statusMessage = null;
+        if (_selectedTeachers.GetValueOrDefault(item.RankId) is not int teacherId)
+        {
+            return;
+        }
+
+        try
+        {
+            await ClassTeachers.AssignAsync(item.RankId, teacherId);
+            _statusMessage = $"{_teachers.First(t => t.UserId == teacherId).DisplayName} now teaches the {item.RankName} class.";
+            await LoadClassesAsync();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+
+    private async Task RemoveClassTeacherAsync(ClassWithTeachers item, ClassTeacherItem teacher)
+    {
+        _errorMessage = null;
+        _statusMessage = null;
+        try
+        {
+            await ClassTeachers.RemoveAsync(item.RankId, teacher.UserId);
+            _statusMessage = $"{teacher.DisplayName} no longer teaches the {item.RankName} class.";
+            await LoadClassesAsync();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException)
+        {
+            _errorMessage = ex.Message;
         }
     }
 

@@ -1,0 +1,133 @@
+@page "/calendar/events/{EventId:int}"
+@attribute [Authorize(Policy = "RequireChapterMember")]
+@rendermode InteractiveServer
+@using System.Globalization
+@using Vlms.Domain
+@using Vlms.Infrastructure.Attendance
+@using Vlms.Infrastructure.Calendar
+@inject CalendarService CalendarService
+@inject AttendanceService Attendance
+@inject ICurrentUserContext CurrentUser
+
+@* One event (a day the chapter meets). Staff see each class's register, their own classes first, and
+   the day's total; any Teacher opens any class's register from here. *@
+
+<PageTitle>@(_event?.Title ?? "Event") – Varangians</PageTitle>
+
+<div class="event">
+    @if (_notFound)
+    {
+        <PageHeader Title="Event not found" />
+        <div class="empty"><p>That event is not in this chapter's calendar. <a href="/calendar">Back to the calendar</a></p></div>
+    }
+    else if (_event is null)
+    {
+        <p class="muted" role="status">Loading…</p>
+    }
+    else
+    {
+        <PageHeader Title="@_event.Title">
+            <Lead>@When(_event)@(_event.Location is null ? "" : $", {_event.Location}")</Lead>
+            <Actions>
+                <a class="btn btn--secondary" href="/calendar?month=@_event.Date.ToString("yyyy-MM")">Calendar</a>
+                <AuthorizeView Policy="RequireAdmin">
+                    <a class="btn btn--secondary" href="/calendar/events/@_event.Id/edit"><Icon Name="pencil" /> Change</a>
+                </AuthorizeView>
+            </Actions>
+        </PageHeader>
+
+        @if (_registers is not null)
+        {
+            <section class="section" aria-labelledby="registers-heading">
+                <h2 id="registers-heading">Registers</h2>
+                @if (!_registers.CanBeTaken)
+                {
+                    <p class="muted">The registers can be taken on the day.</p>
+                }
+                <p class="event__total">
+                    <strong>Day total: @_registers.Present present, @_registers.Absent absent</strong>
+                    <span class="muted">(@_registers.ClassesTaken of @_registers.Classes.Count classes' registers taken)</span>
+                </p>
+
+                @if (_registers.Classes.Count == 0)
+                {
+                    <div class="empty"><p>No active students in this chapter yet.</p></div>
+                }
+                else
+                {
+                    <ul class="rows class-rows">
+                        @foreach (var item in _registers.Classes)
+                        {
+                            <li class="class-row rank-@item.RankOrder">
+                                <div class="class-row__name">
+                                    <RankPill Order="item.RankOrder" Name="@item.RankName" />
+                                    @if (item.IsMine)
+                                    {
+                                        <span class="pill pill--info">Your class</span>
+                                    }
+                                </div>
+                                <p class="class-row__teachers">
+                                    @(item.Teachers.Count == 0 ? "No teacher assigned" : string.Join(", ", item.Teachers))
+                                </p>
+                                <p class="class-row__count">
+                                    @if (item.Taken)
+                                    {
+                                        <span>@item.Present present, @item.Absent absent</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="muted">Not taken (@item.Students @(item.Students == 1 ? "student" : "students"))</span>
+                                    }
+                                </p>
+                                @if (_isTeacher && _registers.CanBeTaken)
+                                {
+                                    <a class="btn @(item.Taken ? "btn--secondary" : null)" href="/attendance/@_event.Id/@item.RankId"
+                                       aria-label="@($"{(item.Taken ? "Update" : "Take")} the {item.RankName} register")">
+                                        @(item.Taken ? "Update the register" : "Take the register")
+                                    </a>
+                                }
+                            </li>
+                        }
+                    </ul>
+                }
+
+                @if (_isTeacher && _registers.ClassesTaken > 0)
+                {
+                    <p><a href="/progress/record?date=@_event.Date.ToString("yyyy-MM-dd")">Record the lessons completed at this meeting</a></p>
+                }
+            </section>
+        }
+    }
+</div>
+
+@code {
+    private static readonly CultureInfo Uk = CultureInfo.GetCultureInfo("en-GB");
+
+    [Parameter] public int EventId { get; set; }
+
+    private EventDetail? _event;
+    private EventRegisters? _registers;
+    private bool _notFound;
+    private bool _isTeacher;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _event = await CalendarService.GetEventAsync(EventId);
+        _notFound = _event is null;
+        _isTeacher = CurrentUser.HasRole(Role.Teacher);
+        _registers = _event is not null && (_isTeacher || CurrentUser.HasRole(Role.Admin))
+            ? await Attendance.GetEventRegistersAsync(EventId)
+            : null;
+    }
+
+    private static string When(EventDetail e)
+    {
+        var date = e.Date.ToString("dddd d MMMM yyyy", Uk);
+        return e.StartTime switch
+        {
+            { } start when e.EndTime is { } end => $"{date}, {start:HH:mm}–{end:HH:mm}",
+            { } start => $"{date}, {start:HH:mm}",
+            _ => date,
+        };
+    }
+}

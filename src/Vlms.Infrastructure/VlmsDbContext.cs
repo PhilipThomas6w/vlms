@@ -64,6 +64,11 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
     public DbSet<ActiveChapterChoice> ActiveChapterChoices => Set<ActiveChapterChoice>();
     public DbSet<AttendanceRegister> AttendanceRegisters => Set<AttendanceRegister>();
     public DbSet<AttendanceMark> AttendanceMarks => Set<AttendanceMark>();
+    public DbSet<ChapterEvent> ChapterEvents => Set<ChapterEvent>();
+    public DbSet<ClassTeacher> ClassTeachers => Set<ClassTeacher>();
+    public DbSet<LiturgicalDay> LiturgicalDays => Set<LiturgicalDay>();
+    public DbSet<LiturgicalReading> LiturgicalReadings => Set<LiturgicalReading>();
+    public DbSet<CalendarFeedToken> CalendarFeedTokens => Set<CalendarFeedToken>();
 
     /// <summary>The name of the query filter every <see cref="IChapterOwned"/> entity carries (docs/adr/0010-chapters.md).</summary>
     public const string ChapterFilter = "Chapter";
@@ -221,12 +226,62 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
             e.HasOne(x => x.RankBadge).WithMany(x => x.StudentBadges).HasForeignKey(x => x.RankBadgeId).OnDelete(DeleteBehavior.Restrict);
         });
 
-        // Attendance (FR-020): one register per chapter per meeting date, one mark per student on it.
+        // Calendar (FR-022): one event per chapter per date (a day the chapter meets).
+        modelBuilder.Entity<ChapterEvent>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Title).HasMaxLength(200);
+            e.Property(x => x.Location).HasMaxLength(200);
+            e.HasIndex(x => new { x.ChapterId, x.Date }).IsUnique();
+            e.HasOne<AppUser>().WithMany().HasForeignKey(x => x.CreatedByUserId).OnDelete(DeleteBehavior.Restrict);
+            e.HasMany(x => x.Registers).WithOne(x => x.ChapterEvent).HasForeignKey(x => x.ChapterEventId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // Class teachers (FR-022): one row per teacher per class (rank) in a chapter.
+        modelBuilder.Entity<ClassTeacher>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.HasIndex(x => new { x.ChapterId, x.RankId, x.TeacherUserId }).IsUnique();
+            e.HasOne(x => x.Rank).WithMany().HasForeignKey(x => x.RankId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.TeacherUser).WithMany().HasForeignKey(x => x.TeacherUserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // The liturgical calendar (FR-022): national, one row per day, written by the scheduled import.
+        modelBuilder.Entity<LiturgicalDay>(e =>
+        {
+            e.HasKey(x => x.Date);
+            e.HasMany(x => x.Readings).WithOne().HasForeignKey(x => x.Date).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<LiturgicalReading>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.HasIndex(x => new { x.Date, x.Order }).IsUnique();
+        });
+
+        // Subscribe links (FR-022): one per person per chapter, found by the hash of its secret.
+        modelBuilder.Entity<CalendarFeedToken>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.TokenHash).HasMaxLength(64);
+            e.HasIndex(x => x.TokenHash).IsUnique();
+            e.HasIndex(x => new { x.UserId, x.ChapterId }).IsUnique();
+            e.HasOne<AppUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<Chapter>().WithMany().HasForeignKey(x => x.ChapterId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Attendance (FR-020, FR-022): one register per event per class (rank), one mark per student on it,
+        // and one mark per student per meeting day across the day's registers.
         modelBuilder.Entity<AttendanceRegister>(e =>
         {
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
-            e.HasIndex(x => new { x.ChapterId, x.MeetingDate }).IsUnique();
+            e.HasIndex(x => new { x.ChapterEventId, x.RankId }).IsUnique();
+            e.HasOne(x => x.Rank).WithMany().HasForeignKey(x => x.RankId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(x => x.TakenByUser).WithMany().HasForeignKey(x => x.TakenByUserId).OnDelete(DeleteBehavior.Restrict);
             e.HasMany(x => x.Marks).WithOne(x => x.AttendanceRegister).HasForeignKey(x => x.AttendanceRegisterId).OnDelete(DeleteBehavior.Cascade);
         });
@@ -236,7 +291,7 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
             e.HasIndex(x => new { x.AttendanceRegisterId, x.StudentId }).IsUnique();
-            e.HasIndex(x => new { x.StudentId, x.MeetingDate });
+            e.HasIndex(x => new { x.StudentId, x.MeetingDate }).IsUnique();
             // Deleted with the student: attendance is part of the student's record (retention).
             e.HasOne(x => x.Student).WithMany().HasForeignKey(x => x.StudentId).OnDelete(DeleteBehavior.Cascade);
         });
@@ -553,6 +608,23 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
                 || (OwnRecordsArmApplies
                     && (StudentGuardianLinks.Any(l => l.StudentId == x.StudentId && l.ParentGuardian!.AppUserId == _currentUser.UserId)
                         || Students.Any(s => s.Id == x.StudentId && s.AppUserId == _currentUser.UserId))));
+        });
+
+        // Events: everyone working in the chapter (the calendar is for parents and students too).
+        modelBuilder.Entity<ChapterEvent>(e =>
+        {
+            ChapterKey(e);
+            e.HasQueryFilter(ChapterFilter, x =>
+                _currentUser.SeesAllChapters
+                || (_currentUser.ActiveChapterId != null && x.ChapterId == _currentUser.ActiveChapterId));
+        });
+
+        modelBuilder.Entity<ClassTeacher>(e =>
+        {
+            ChapterKey(e);
+            e.HasQueryFilter(ChapterFilter, x =>
+                _currentUser.SeesAllChapters
+                || (_currentUser.ActiveChapterId != null && x.ChapterId == _currentUser.ActiveChapterId));
         });
 
         // Registers: the chapter's own staff only. Parents and students read marks, never registers.
