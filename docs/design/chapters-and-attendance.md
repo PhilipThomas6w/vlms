@@ -53,7 +53,7 @@ The curriculum (ranks, lessons, files, tags), lesson change proposals and their 
 
 ## 3. Attendance: draft decisions
 
-- **What a register is:** one register per chapter per meeting date. Sessions are monthly, about two hours, with small groups working at their own rank (syllabus scheme), so a single register per meeting fits.
+- **What a register is:** *superseded 24/10/2026 by FR-022: one register per rank-class per event (meeting day), collated into a day total; any Teacher takes or updates any class's register.* Original draft: one register per chapter per meeting date. Sessions are monthly, about two hours, with small groups working at their own rank (syllabus scheme), so a single register per meeting fits.
 - **Marks:** present, absent, and absent with apology (the parent let the teacher know).
 - **One flow with recording completions:** at a session a teacher takes the register first. Then Record completions offers the students marked present, and the teacher ticks off the lesson each group did. Recording a completion for a child marked absent asks the teacher to confirm, as it may be a catch-up.
 - **History:**
