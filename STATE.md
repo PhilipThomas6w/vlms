@@ -104,6 +104,7 @@ Full narrative for Done/Log items to 12/08/2026: `docs/harness/STATE-archive.md`
 - [x] FR-022 Calendar and per-class registers (Philip, 24/10/2026): GOARCH liturgical calendar imported nightly by Vlms.Jobs (`LiturgicalFeedParser`, `LiturgicalCalendarImporter`; also `Vlms.Jobs import-calendar`), `/calendar` month list with feast and fast by default, saints and readings per day, private subscribe link (`/calendar/feed/{secret}.ics`, hash stored only); Admin-only chapter events (`ChapterEvent`, one a day); one register per class (rank) per event, collated per day on the event page and `/attendance`; any Teacher takes any class's register, own classes first; class teachers assigned on the staff page (`ClassTeacher`); migration `AddCalendarAndAttendance` replaces the never-applied `AddAttendance` — 7b5b733; full gate exit 0, 1188/1188 tests plus 15 UI tests (1 capture skipped), ASVS and WCAG checklists current; design capture of the calendar and register pages for student, parent, teacher and admin axe clean, no overflow.
 
 ## In progress
+- **Lessons saved for offline use** (FR-023; 25/10/2026, Sonnet subagent in its own worktree; started from 92a116a)
 
 ## Next
 Fit-for-purpose build plan (Philip, 22/10/2026; `docs/delivery-plan.md` phase 2, `docs/governance/raid.md` I-001). Acceptance for every item below: tests, gate exits 0, **and** the matching steps in `docs/requirements/user-journeys.md` work in the running app for each named role (checked by running it, not inferred from service tests), with their status updated there.
