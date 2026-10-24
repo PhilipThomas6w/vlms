@@ -314,6 +314,7 @@
     }
     .shell-foot .eagle { width: 4.5rem; color: var(--gold-700); }
     .shell-foot p { margin: 0; }
+    .shell-foot__credit { max-width: 40rem; }
     .shell:has(.nav-group--staff) .shell-foot { grid-column: 1 / -1; }
 
     #blazor-error-ui {
@@ -488,11 +489,16 @@
 
 @layer pages {
     /* Public welcome (Home, signed out). */
-    .welcome { text-align: center; max-width: 40rem; margin: var(--s-6) auto; }
-    .welcome__eagle { width: min(16rem, 60vw); color: var(--gold-700); margin-bottom: var(--s-4); }
+    .welcome { display: grid; gap: var(--s-6); align-items: center; max-width: 60rem; margin: var(--s-5) auto; }
+    @media (min-width: 48rem) { .welcome { grid-template-columns: minmax(0, 1fr) 20rem; } }
+    .welcome__text { text-align: center; }
+    .welcome__eagle { width: min(13rem, 55vw); color: var(--gold-700); margin-bottom: var(--s-3); }
     .welcome h1 { font-size: var(--step-5); margin-bottom: var(--s-3); }
     .welcome__lead { font-size: var(--step-1); color: var(--ink-soft); margin: 0 auto var(--s-5); }
     .welcome__actions { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--s-3); }
+    .welcome__art { margin: 0; text-align: center; }
+    .welcome__art img { display: block; width: 100%; max-width: 20rem; height: auto; margin: 0 auto; }
+    .welcome__art figcaption { margin-top: var(--s-2); font-size: var(--step--1); color: var(--ink-soft); }
 }
 
 @layer utilities {

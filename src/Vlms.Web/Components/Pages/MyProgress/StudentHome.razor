@@ -34,54 +34,73 @@ else
     var nextRank = current is null ? null : _journey.Ranks.FirstOrDefault(r => r.Order == current.Order + 1);
 
     <div class="student">
-        @* The rank header: the headpiece frame on the rank's colour, the medallion, and progress as tesserae. *@
+        @* The rank header, as an illuminated page: the Orthodox Arts Journal's Greek Foliate Header (gold on white)
+           frames the rank's name; beside it, a drawing for the student's stage of the procession through the ranks. *@
         <section class="rank-hero rank-@(current?.Order ?? 10)" aria-labelledby="rank-title">
-            <div class="rank-hero__frame">
-                <span class="rank-hero__crest"><Eagle /></span>
-                @if (current is not null)
-                {
-                    <RankMedallion RankId="current.RankId" Order="current.Order" RankName="@current.Name" HasBadgeImage="current.HasBadgeImage" Earned="@(current.BadgeAwardedAt is not null)" Current="true" Size="lg" Alt="" />
-                }
-                <div class="rank-hero__text">
+            <div class="rank-hero__page">
+                <div class="rank-hero__main">
                     <p class="rank-hero__hello">Hello, @FirstName(_journey.StudentName)</p>
-                    @if (_journey.Graduated || current is null)
+                    <div class="rank-hero__headpiece">
+                        <img class="rank-hero__frame" src="img/oaj/greek-foliate-header.webp" alt="" width="1600" height="574" />
+                        <div class="rank-hero__title">
+                            @if (_journey.Graduated || current is null)
+                            {
+                                <h1 id="rank-title" tabindex="-1"><span class="visually-hidden">Your rank: </span>Akolouthos</h1>
+                                <p class="rank-hero__place">From Recruit to Akolouthos</p>
+                            }
+                            else
+                            {
+                                <h1 id="rank-title" tabindex="-1"><span class="visually-hidden">Your rank: </span>@current.Name</h1>
+                                <p class="rank-hero__place">Rank @current.Order of @_journey.Ranks.Count</p>
+                            }
+                        </div>
+                    </div>
+                    @if (current is not null && RankWords.For(current.Order) is { } words)
                     {
-                        <h1 id="rank-title" tabindex="-1"><span class="visually-hidden">Your rank: </span>Akolouthos</h1>
-                        <p class="rank-hero__place">You have walked the whole way, from Recruit to Akolouthos.</p>
+                        <blockquote class="rank-hero__words">
+                            <p>@words.Text</p>
+                            <footer>@words.Reference</footer>
+                        </blockquote>
                     }
-                    else
-                    {
-                        <h1 id="rank-title" tabindex="-1"><span class="visually-hidden">Your rank: </span>@current.Name</h1>
-                        <p class="rank-hero__place">Rank @current.Order of @_journey.Ranks.Count</p>
-                        @if (RankWords.For(current.Order) is { } words)
-                        {
-                            <blockquote class="rank-hero__words">
-                                <p>@words.Text</p>
-                                <footer>@words.Reference</footer>
-                            </blockquote>
-                        }
+                </div>
+                @if (StageArt(current?.Order ?? 10) is { } art)
+                {
+                    <figure class="rank-hero__art">
+                        <img src="@art.Src" alt="@art.Alt" width="@art.Width" height="@art.Height" />
+                        <figcaption>@art.Caption</figcaption>
+                    </figure>
+                }
+            </div>
+            @if (current is not null && !_journey.Graduated)
+            {
+                <div class="rank-hero__progress">
+                    <RankMedallion RankId="current.RankId" Order="current.Order" RankName="@current.Name" HasBadgeImage="current.HasBadgeImage" Earned="@(current.BadgeAwardedAt is not null)" Current="true" Alt="" />
+                    <div class="rank-hero__count">
                         @if (current.Lessons.Count > 0)
                         {
                             <Tesserae Done="current.CompletedCount" Total="current.Lessons.Count" />
-                            <p class="rank-hero__count">
-                                @current.CompletedCount of @current.Lessons.Count lessons complete.
+                            <p>
+                                <strong>@current.CompletedCount of @current.Lessons.Count lessons complete.</strong>@(" ")
                                 @if (nextRank is not null && current.CompletedCount < current.Lessons.Count)
                                 {
                                     <span>@(current.Lessons.Count - current.CompletedCount) more to become @Article(nextRank.Name) @nextRank.Name.</span>
                                 }
                             </p>
                         }
+                        else
+                        {
+                            <p>The lessons for @current.Name are still being written.</p>
+                        }
+                    </div>
+                    @if (nextRank is not null)
+                    {
+                        <div class="rank-hero__next">
+                            <RankMedallion RankId="nextRank.RankId" Order="nextRank.Order" RankName="@nextRank.Name" HasBadgeImage="nextRank.HasBadgeImage" Earned="false" Ahead="true" Size="sm" Alt="" />
+                            <span><span class="rank-hero__next-label">Next rank</span> @nextRank.Name</span>
+                        </div>
                     }
                 </div>
-                @if (nextRank is not null && !_journey.Graduated)
-                {
-                    <div class="rank-hero__next">
-                        <span class="rank-hero__next-label">Next rank</span>
-                        <RankMedallion RankId="nextRank.RankId" Order="nextRank.Order" RankName="@nextRank.Name" HasBadgeImage="nextRank.HasBadgeImage" Earned="false" Ahead="true" Alt="" />
-                        <span class="rank-hero__next-name">@nextRank.Name</span>
-                    </div>
-                }
-            </div>
+            }
         </section>
 
         <div class="student__body">
@@ -234,6 +253,24 @@ else
 
         _loaded = true;
     }
+
+    private sealed record Art(string Src, string Alt, string Caption, int Width, int Height);
+
+    // One drawing for each stage of the procession through the ranks: the Orthodox Arts Journal's Orthodox
+    // Illustration Project, coloured for Varangians and credited as the journal asks (docs/design/asset-register.md).
+    private static Art? StageArt(int order) => order switch
+    {
+        <= 4 => new("img/oaj/sts-george-demetrios.webp", "Sts George and Demetrios, warrior saints, in armour with spears.",
+                     "Sts George and Demetrios. Drawing by O'Rourke, Orthodox Arts Journal.", 720, 1011),
+        5 => new("img/oaj/st-mark.webp", "St Mark the Evangelist holding the Gospel book.",
+                 "St Mark the Evangelist. Drawing by O'Rourke, Orthodox Arts Journal.", 700, 951),
+        <= 8 => new("img/oaj/dl-candles.webp", "A girl lighting a candle in church beside an analogion.",
+                    "Lighting candles. Divine Liturgy illustration by ONL, Orthodox Arts Journal.", 640, 947),
+        9 => new("img/oaj/dl-communion.webp", "A priest giving Holy Communion to a girl, a deacon beside him.",
+                 "Holy Communion. Divine Liturgy illustration by ONL, Orthodox Arts Journal.", 640, 947),
+        _ => new("img/oaj/three-hierarchs.webp", "The Three Holy Hierarchs: Sts Gregory the Theologian, John Chrysostom and Basil the Great.",
+                 "The Three Holy Hierarchs. Drawing by O'Rourke, Orthodox Arts Journal.", 720, 954),
+    };
 
     private static string FirstName(string name) => name.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? name;
 

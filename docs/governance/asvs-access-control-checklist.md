@@ -313,5 +313,6 @@ now in the hashed set, and `AccountEmailServiceTests.cs` has a floor of 9.
 | Claude (Opus, main session) — awaiting Philip's countersign | 23/10/2026 | Redesign prototypes, art pass on branch `redesign`: static images and markup only (ornament SVGs, the skyline, an illuminated initial, renamed labels on the student page; `Band.razor` removed). No policy, query, service call or data change. |
 | Claude (Opus, main session) — awaiting Philip's countersign | 23/10/2026 | Skyline illustration and grid textures removed at Philip's request (markup and CSS only). No access-control change. |
 | Claude (Opus, main session) — awaiting Philip's countersign | 23/10/2026 | All ornament Claude drew removed at Philip's decision (jewelled band, mosaic strips, interlace, illuminated initial, heading lozenges, the two-strand band); styling returns to version 2. Markup and CSS only; no access-control change. |
+| Claude (Opus, main session) — awaiting Philip's countersign | 24/10/2026 | Redesign prototypes, OAJ artwork: static images and text only on `StudentHome.razor` (rank header), `Home.razor` (public welcome), `MainLayout.razor` (footer wording and credit link to orthodoxartsjournal.org). No policy, query, service call or data change; the student page still calls only `GetOwnJourneyAsync`. |
 
-Reviewed-hash: 714b456999834b2995438a90a8e90ae0a203eef014b03fa5da105cfe31b5e9dd
+Reviewed-hash: 1cc4d21eae1957f8f52a877fe81c67d0aa50a96b1908e2e6817ceaf13c966f54

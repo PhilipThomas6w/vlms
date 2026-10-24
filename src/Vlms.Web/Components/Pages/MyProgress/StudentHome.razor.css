@@ -1,100 +1,62 @@
 /* Student page ("My rank"): the expressive end of the design system (direction doc, section 7). */
 
-/* ---------- Rank header: the rank's colour field, a mosaic grout texture, and the headpiece frame ---------- */
+/* ---------- Rank header: an illuminated page (Orthodox Arts Journal drawings, gold on white) ---------- */
 .rank-hero {
-    position: relative;
-    margin-top: var(--s-5);
-    background-color: var(--rank-field);
-    /* Mosaic grout: faint lines every 14 px, strongest towards the right edge. */
-    background-image:
-        linear-gradient(90deg, var(--rank-field) 35%, transparent 100%),
-        linear-gradient(color-mix(in srgb, var(--rank-on) 9%, transparent) 1px, transparent 1px),
-        linear-gradient(90deg, color-mix(in srgb, var(--rank-on) 9%, transparent) 1px, transparent 1px);
-    background-size: 100% 100%, 14px 14px, 14px 14px;
-    color: var(--rank-on);
-    border-radius: 14px;
-    padding: var(--s-5) var(--s-4) var(--s-4);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-top: 6px solid var(--rank-field);
+    border-radius: 12px;
+    padding: var(--s-5);
     margin-bottom: var(--s-6);
-    --focus-inner: var(--rank-on);
-    --focus-outer: var(--rank-accent);
 }
+.rank-hero__page { display: grid; gap: var(--s-5); align-items: start; }
+@media (min-width: 52rem) { .rank-hero__page { grid-template-columns: minmax(0, 1fr) 15rem; } }
+.rank-hero__hello { margin: 0 0 var(--s-2); font-weight: 600; color: var(--ink-soft); font-size: var(--step-1); }
 
-/* The headpiece (studied in Byzantine manuscripts): a heavy lintel and two pillars, open below. */
-.rank-hero__frame {
-    position: relative;
-    display: flex; align-items: center; gap: var(--s-5);
-    border: 2px solid var(--rank-accent);
-    border-top-width: 6px;
-    border-bottom: 0;
-    border-radius: 8px 8px 0 0;
-    padding: var(--s-5) var(--s-5) var(--s-3);
+/* The rank's name sits in the opening of the Greek Foliate Header, between IC XC and NIKA. */
+.rank-hero__headpiece { position: relative; }
+.rank-hero__frame { display: block; width: 100%; height: auto; }
+.rank-hero__title {
+    position: absolute; left: 19%; right: 19%; top: 49%; bottom: 0;
+    display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;
 }
-.rank-hero__frame::before, .rank-hero__frame::after {
-    /* Gold capitals at the top of each pillar. */
-    content: ""; position: absolute; top: -10px;
-    width: 14px; height: 14px; border-radius: 2px;
-    background: var(--gold-500); box-shadow: 0 0 0 2px var(--rank-field);
-}
-.rank-hero__frame::before { left: -8px; }
-.rank-hero__frame::after { right: -8px; }
-
-/* The double-headed eagle as a crest on the lintel, breaking the line like a crest over an arch. */
-.rank-hero__crest {
-    position: absolute; top: -1.75rem; left: 50%; transform: translateX(-50%);
-    display: block; padding: 0 0.625rem; line-height: 0;
-    background: var(--rank-field); color: var(--gold-500);
-}
-.rank-hero__crest ::deep .eagle { width: 4.75rem; }
-.rank-hero.rank-1 .rank-hero__crest { color: var(--rank-accent); }
-.rank-hero__text { min-width: 0; flex: 1; }
-/* The next rank, faded: what this rank leads to. */
-.rank-hero__next {
-    display: flex; flex-direction: column; align-items: center; gap: var(--s-2);
-    align-self: stretch; justify-content: center;
-    padding-left: var(--s-5); border-left: 1px dashed color-mix(in srgb, currentColor 35%, transparent);
-    color: inherit; text-align: center; min-width: 9rem;
-}
-.rank-hero__next-label { font-size: var(--step--1); font-weight: 600; opacity: 0.9; }
-.rank-hero__next-name { font-family: var(--font-display); font-weight: 700; font-size: var(--step-1); }
-.rank-hero__next ::deep .medallion--ahead { background: transparent; box-shadow: 0 0 0 2px color-mix(in srgb, currentColor 60%, transparent); }
-.rank-hero__hello { margin: 0 0 var(--s-1); font-weight: 600; font-size: var(--step-1); }
 .rank-hero h1 {
-    color: var(--rank-on);
-    font-size: clamp(2.25rem, 1.6rem + 3vw, 3.5rem);
-    margin: 0;
-    letter-spacing: -0.01em;
+    margin: 0; color: var(--lapis-900);
+    font-size: clamp(1.75rem, 0.9rem + 3.2vw, 3.25rem); line-height: 1.05; letter-spacing: -0.01em;
 }
 .rank-hero h1:focus { outline: none; }
-.rank-hero__place { font-weight: 600; margin: var(--s-1) 0 var(--s-3); opacity: 0.92; }
-.rank-hero__words { margin: 0 0 var(--s-4); max-width: 36rem; }
-.rank-hero__words p { font-family: var(--font-display); font-style: italic; font-size: var(--step-1); line-height: 1.35; margin: 0; }
-.rank-hero__words footer { font-size: var(--step--1); font-weight: 600; margin-top: var(--s-1); opacity: 0.92; }
-.rank-hero__count { margin: var(--s-3) 0 0; font-weight: 600; }
-.rank-hero__count span { font-weight: 400; }
+.rank-hero__place { margin: var(--s-1) 0 0; font-weight: 600; color: var(--ink-soft); }
+@media (max-width: 34rem) {
+    /* Too narrow for the name to fit in the opening: it goes under the drawing. */
+    .rank-hero__title { position: static; padding-top: var(--s-3); }
+}
 
-/* Tesserae on the field: tiles outlined in the text colour, filled ones in the text colour with the accent edge. */
-.rank-hero ::deep .tesserae { gap: 0.5rem; }
-.rank-hero ::deep .tesserae li { width: 2rem; height: 2rem; border-color: color-mix(in srgb, var(--rank-on) 55%, transparent); }
-.rank-hero ::deep .tesserae { --tile-fill: var(--gold-500); }
-.rank-hero.rank-1 ::deep .tesserae { --tile-fill: var(--rank-accent); }
-.rank-hero ::deep .tesserae li.next { border-color: var(--rank-on); }
+.rank-hero__words { margin: var(--s-4) 0 0; text-align: center; }
+.rank-hero__words p { font-family: var(--font-display); font-style: italic; font-size: var(--step-1); line-height: 1.35; margin: 0 auto; color: var(--ink); }
+.rank-hero__words footer { font-size: var(--step--1); font-weight: 600; margin-top: var(--s-1); color: var(--gold-700); }
+
+.rank-hero__art { margin: 0; text-align: center; }
+.rank-hero__art img { display: block; width: 100%; max-width: 15rem; height: auto; margin: 0 auto; }
+.rank-hero__art figcaption { margin-top: var(--s-2); font-size: var(--step--1); color: var(--ink-soft); }
+@media (max-width: 51.99rem) { .rank-hero__art img { max-width: 13rem; } }
+
+/* Progress in the rank: the patch, the tesserae, and the next rank. */
+.rank-hero__progress {
+    display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-4) var(--s-5);
+    margin-top: var(--s-5); padding-top: var(--s-4); border-top: 1px solid var(--line);
+}
+.rank-hero__count { flex: 1 1 18rem; min-width: 0; }
+.rank-hero__count p { margin: var(--s-2) 0 0; }
+.rank-hero__count p span { color: var(--ink-soft); }
+.rank-hero ::deep .tesserae li { width: 1.75rem; height: 1.75rem; }
 /* The one moment of motion: the newest tile settles into place when the page opens. */
 .rank-hero ::deep .tesserae li.done:has(+ li:not(.done)) { animation: tessera-set 700ms var(--ease) 250ms both; }
 @keyframes tessera-set {
     from { transform: scale(0.3) rotate(-20deg); opacity: 0; }
     to { transform: none; opacity: 1; }
 }
-
-.rank-hero ::deep .medallion { box-shadow: 0 0 0 3px var(--rank-accent), 0 0 0 6px var(--rank-field), 0 0 0 8px color-mix(in srgb, var(--rank-on) 60%, transparent); }
-
-@media (max-width: 40rem) {
-    .rank-hero { padding: var(--s-4) var(--s-3) var(--s-3); }
-    .rank-hero__frame { flex-direction: column; align-items: flex-start; gap: var(--s-4); padding: var(--s-4) var(--s-4) var(--s-2); }
-    .rank-hero ::deep .medallion--lg { --size: 5.5rem; }
-    .rank-hero ::deep .tesserae li { width: 1.625rem; height: 1.625rem; }
-    .rank-hero__next { flex-direction: row; align-self: auto; padding: var(--s-3) 0 0; border-left: 0; border-top: 1px dashed color-mix(in srgb, currentColor 35%, transparent); width: 100%; justify-content: flex-start; text-align: left; }
-    .rank-hero__next ::deep .medallion { --size: 2.75rem; }
-}
+.rank-hero__next { display: flex; align-items: center; gap: var(--s-3); font-family: var(--font-display); font-weight: 700; font-size: var(--step-1); color: var(--lapis-900); }
+.rank-hero__next-label { display: block; font-family: var(--font-text); font-size: var(--step--1); font-weight: 600; color: var(--ink-soft); }
 
 /* ---------- Body: main column and "The way" ---------- */
 .student__body { display: grid; gap: var(--s-6); }
@@ -110,7 +72,13 @@
     .student__body { grid-template-columns: minmax(0, 1fr) 19rem; gap: var(--s-7); align-items: start; }
 }
 .student__main > section + section { margin-top: var(--s-6); }
-.student h2 { font-size: var(--step-2); margin-top: 0; }
+.student h2 { font-size: var(--step-2); margin-top: 0; display: flex; align-items: center; gap: var(--s-2); }
+/* Gould's Byzantine cross (Orthodox Arts Journal) in gold before each section heading. */
+.student h2::before {
+    content: ""; flex: none; width: 1.1rem; height: 1.1rem; background: var(--gold-700);
+    -webkit-mask: url("img/oaj/byzantine-cross.svg") center / contain no-repeat;
+    mask: url("img/oaj/byzantine-cross.svg") center / contain no-repeat;
+}
 
 /* Next lesson: the one thing to do this week. */
 .next-lesson__card {
