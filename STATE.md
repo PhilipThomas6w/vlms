@@ -97,6 +97,8 @@ Full narrative for Done/Log items to 12/08/2026: `docs/harness/STATE-archive.md`
 
 - [x] UI/UX redesign (Philip's brief 23/10/2026, `docs/design/redesign-brief.md`; `docs/design/redesign-direction.md`): version 7 approved 24/10/2026 (plain lapis banner, chapter bar, grouped nav with a National group; only Gould's cross kept from OAJ art); phase 6 put every page on the design system (`585d24c`, `2640af7`, `ce3a9a0`); then authenticator QR code (`933fa4a`), ChapterBar short-lived DbContext (`90d6693`), Home alignment and student links (`b045fa8`). Phase 6 judgement calls confirmed by Philip 24/10/2026 (direction §9 item 13). Merged into master dba434d; full gate on master exit 0, 1101/1101 tests plus 14 UI tests (capture test skipped by design).
 
+- [x] "Through the ranks" on the staff student record (`/students/{id}`) and per child on the parent dashboard (Philip, 24/10/2026): shared `Ui/RankProcession` component (also used by `/student`); `StudentRosterService.GetJourneyAsync` (Teacher/Admin, active only) and `ParentDashboardService.GetJourneysAsync` (Parent, linked children only) — 52d1022; full gate exit 0, 1113/1113 tests plus 14 UI tests; design capture of `/student`, `/students/1` and `/parent/dashboard` at 375/768/1280 px: axe clean, no overflow, screenshots checked. ASVS and WCAG rows added (awaiting Philip's countersign).
+
 ## In progress
 
 ## Next
@@ -131,7 +133,6 @@ Ordered by go-live critical path.
 12. **Certificate designs** — inspiration given 23/10/2026: `seed/admin/Illustration of Badges.jpg`, plus Byzantine imagery such as the Orthodox Arts Journal references in the redesign questionnaire. Design proposal to come from Claude for approval. Viewing and downloading is built (FR-010) with the existing PDF meanwhile.
 
 ## Waiting on a decision or go-live
-- **"Through the ranks" journey tracker** on the staff student page and the parent dashboard (wanted by Philip, 24/10/2026, after the redesign merge). Acceptance: tests, page seen in the running app for Teacher and Parent, gate exits 0.
 - **Attendance register** (FR-020; next build item now the redesign is merged) - register per chapter per meeting date, self-contained in the chapter; anonymous national figures only; parents see their own child's attendance and progress; combined with recording completions; at-risk rule. Acceptance: tests, user journeys walked in the running app, gate exits 0.
 - **Lesson content as in-app HTML** (post-MVP; Philip, 21/10/2026) — replace the `.docx` lesson documents with one printable HTML page per lesson, with handouts attached, viewed in the app without downloading. Needs a content-authoring/conversion approach and a sanitisation decision (ASVS) before build.
 - **Retention purge** (needs decision 2) — hard delete at 3y students / 6y DBS + audit log, by the chosen mechanism. Include registration applications (1 year after the decision, Philip 23/10/2026; already flagged on the report). Acceptance: purge implemented and tested, DPIA risk 7 updated, gate exits 0.
@@ -254,3 +255,4 @@ Ordered by go-live critical path.
 - 2026-10-22: Browser walk done with Claude in Chrome. Fixed student registration on PostgreSQL (1d674e8). Queued four findings: invite for an existing account (security), consent review differences, plain-English page text, distinct button names. Pages are still unstyled (decision 6, branding).
 - 2026-10-24: Redesign version 7 approved; phase 6 done; QR authenticator set-up, ChapterBar context fix and Home alignment from Philip's local testing (`b045fa8` on `redesign`, gate OK 1101 + 14). Local PostgreSQL passwords reset, Coventry seeded, Philip testing locally. Next: review phase 6, merge `redesign` into master, then attendance (FR-020)
 - 2026-10-24: Redesign (version 7, phase 6) merged into master dba434d; Philip confirmed the phase 6 judgement calls; journey tracker queued; worktrees redesign-phase6 and chapters removed; full gate on master exit 0, 1101 + 14
+- 2026-10-24: Through the ranks added to the staff student record and the parent dashboard (52d1022); full gate exit 0, 1113 + 14. Next build item: attendance register (FR-020)
