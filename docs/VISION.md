@@ -15,7 +15,7 @@ VLMS is a fresh .NET rebuild of the Varangians youth programme's rank-progressio
   - Retention: student records 3 years from leaving/graduating; DBS records and the audit log 6 years; hard delete, not anonymisation.
 - WCAG 2.2 AA is a firm, testable NFR, not an aspiration.
 - No data migration — clean start.
-- Scale target: tens of users per role over ~2 years — do not over-engineer for larger scale (`docs/governance/raid.md` A-002).
+- Scale target: chapters at Orthodox parishes across the country, each with tens of users per role; one database and one small VPS for all chapters, revisited at around 50 chapters (Philip, 24/10/2026, FR-021, `docs/adr/0010-chapters.md`; amends `docs/governance/raid.md` A-002). Chapter separation is enforced by EF Core query filters, as for the sensitive data. Do not over-engineer beyond that.
 - DPIA screening against ICO guidance is owed before go-live (`docs/governance/raid.md` D-003).
 
 ## Current increment: acceptance criteria
