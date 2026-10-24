@@ -82,8 +82,9 @@ else
 
     <h2>At-risk / disengaged students</h2>
     <p>
-        No non-reversed lesson completion in @AtRiskStudentFlagging.AtRiskThresholdDays days —
-        the same disengagement flag that the daily check raises, shown here on demand.
+        No non-reversed lesson completion in @AtRiskStudentFlagging.AtRiskThresholdDays days, or absent
+        from the last @AtRiskStudentFlagging.ConsecutiveAbsenceThreshold meetings in a row — the same
+        disengagement flag that the daily check raises, shown here on demand.
     </p>
     @if (_atRiskStudents.Count == 0)
     {
@@ -97,6 +98,7 @@ else
                     <th>Student</th>
                     <th>Last activity</th>
                     <th>Days since</th>
+                    <th>Reason</th>
                 </tr>
             </thead>
             <tbody>
@@ -106,6 +108,7 @@ else
                         <td data-label="Student">@flag.StudentName</td>
                         <td data-label="Last activity">@flag.LastActivityAt.ToString("d MMMM yyyy")</td>
                         <td data-label="Days since">@flag.DaysSinceLastActivity</td>
+                        <td data-label="Reason">@AtRiskReason(flag)</td>
                     </tr>
                 }
             </tbody>
@@ -123,6 +126,13 @@ else
     private ProgressStatsReport? _stats;
     private List<AtRiskStudentFlag> _atRiskStudents = new();
     private string? _errorMessage;
+
+    private static string AtRiskReason(AtRiskStudentFlag flag) => (flag.NoRecentCompletion, flag.AbsentFromLastMeetings) switch
+    {
+        (true, true) => "No recent completion; absent from the last two meetings",
+        (false, true) => "Absent from the last two meetings",
+        _ => "No recent completion",
+    };
 
     protected override async Task OnInitializedAsync()
     {

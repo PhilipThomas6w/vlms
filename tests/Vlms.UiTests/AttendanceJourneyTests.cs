@@ -1,0 +1,60 @@
+using Microsoft.AspNetCore.Hosting.Server;
+using Microsoft.AspNetCore.Hosting.Server.Features;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Playwright;
+using Vlms.UiTests.Capture;
+
+namespace Vlms.UiTests;
+
+/// <summary>
+/// The teacher's session journey with the register (functional.md FR-020, TC-052), driven in Chromium
+/// against the real app: take the register with one child marked absent; on Record completions the
+/// "here and ready" shortcut leaves the absent child out; recording for them needs the catch-up
+/// confirmation, and then it is recorded. Its own app instance with <see cref="CaptureSeed"/>'s data,
+/// so the shared public-page fixture stays unseeded.
+/// </summary>
+public sealed class AttendanceJourneyTests
+{
+    [Fact]
+    public async Task Teacher_takes_the_register_then_records_a_catch_up_for_an_absent_child_only_after_confirming()
+    {
+        using var factory = new UiWebFactory();
+        factory.StartServer();
+        var baseUrl = factory.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.First().TrimEnd('/');
+        var personas = await CaptureSeed.SeedAsync(factory);
+
+        using var playwright = await Playwright.CreateAsync();
+        await using var browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions { Headless = true });
+        await using var context = await browser.NewContextAsync(new BrowserNewContextOptions { Locale = "en-GB" });
+        var page = await context.NewPageAsync();
+        await DesignCapture.SignInAsync(page, baseUrl, personas["teacher"]);
+
+        // Take today's register: Alexander Hughes (Shield-bearer, consent in force) is not here.
+        await page.GotoAsync(baseUrl + "/attendance", new PageGotoOptions { WaitUntil = WaitUntilState.NetworkIdle });
+        await page.GetByRole(AriaRole.Button, new() { Name = "Mark everyone present" }).ClickAsync();
+        await page.GetByLabel("Alexander Hughes").UncheckAsync();
+        await page.GetByRole(AriaRole.Button, new() { Name = "Save changes to the register" }).ClickAsync();
+        await Assertions.Expect(page.GetByRole(AriaRole.Status).Filter(new() { HasText = "Register saved" })).ToContainTextAsync("17 present, 1 absent");
+
+        // Record completions for this meeting: Shield-bearer, lesson 6 (St Paul).
+        await page.GetByRole(AriaRole.Link, new() { Name = "Record the lessons completed at this meeting" }).ClickAsync();
+        await page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+        await page.GetByLabel("Shield-bearer", new() { Exact = true }).CheckAsync();
+        await page.GetByLabel("St Paul").CheckAsync();
+        await page.GetByRole(AriaRole.Button, new() { Name = "Select everyone here and ready at Shield-bearer" }).ClickAsync();
+
+        var alex = page.GetByLabel("Alexander Hughes");
+        await Assertions.Expect(alex).Not.ToBeCheckedAsync();
+        await Assertions.Expect(page.GetByLabel("Andrew Shaw")).ToBeCheckedAsync();
+
+        await alex.CheckAsync();
+        var record = page.Locator(".record__bar button");
+        await Assertions.Expect(page.GetByText("is marked absent on the register")).ToBeVisibleAsync();
+        await Assertions.Expect(record).ToBeDisabledAsync();
+
+        await page.GetByLabel("as a catch-up").CheckAsync();
+        await Assertions.Expect(record).ToBeEnabledAsync();
+        await record.ClickAsync();
+        await Assertions.Expect(page.GetByRole(AriaRole.Status).Filter(new() { HasText = "recorded" })).ToContainTextAsync("Alexander Hughes: recorded");
+    }
+}

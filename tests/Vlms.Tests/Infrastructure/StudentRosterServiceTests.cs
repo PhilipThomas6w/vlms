@@ -180,4 +180,28 @@ public sealed class StudentRosterServiceTests : IDisposable
 
         Assert.Null(await Run(admin, s => s.GetJourneyAsync(studentId)));
     }
+
+    [Fact]
+    public async Task List_ShowsRecentAttendance_FromTheLatestThreeRegisters()
+    {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        using (var db = CreateDb(TestSeedUserContext.Instance))
+        {
+            // Alex: absent four meetings ago (not counted), then present, absent, present.
+            for (var i = 0; i < 4; i++)
+            {
+                var date = today.AddDays(-7 * (4 - i));
+                db.AttendanceRegisters.Add(new AttendanceRegister { Id = i + 1, MeetingDate = date, TakenByUserId = 10, TakenAt = DateTime.UtcNow });
+                db.AttendanceMarks.Add(new AttendanceMark { Id = i + 1, AttendanceRegisterId = i + 1, StudentId = 100, MeetingDate = date, Present = i % 2 == 1 });
+            }
+
+            db.SaveChanges();
+        }
+
+        var list = await Run(new FakeCurrentUserContext(10, Role.Teacher), s => s.ListActiveStudentsAsync());
+
+        var alex = list.Single(x => x.StudentId == 100);
+        Assert.Equal((2, 3), (alex.RecentAttended, alex.RecentMeetings));
+        Assert.Equal((0, 0), list.Single(x => x.StudentId == 200) is var bea ? (bea.RecentAttended, bea.RecentMeetings) : default);
+    }
 }

@@ -11,8 +11,8 @@
 <PageHeader Title="National figures" />
 
 <p class="intro">
-    The number of students on roll (active) at each rank in each chapter. These are counts only:
-    no child is named. Each chapter's Admins see their own chapter's full reports.
+    The number of students on roll (active) at each rank in each chapter, and each chapter's
+    attendance by month. These are counts only: no child is named. Each chapter's Admins see their own chapter's full reports.
 </p>
 
 @foreach (var chapter in _chapters)
@@ -37,6 +37,38 @@
             }
         </tbody>
     </table>
+
+    @if (chapter.Attendance.Count == 0)
+    {
+        <p>No registers taken in the last @NationalTotalsService.AttendanceMonths months.</p>
+    }
+    else
+    {
+        <table class="data-table">
+            <caption>Attendance by month, @chapter.ChapterName</caption>
+            <thead>
+                <tr>
+                    <th scope="col">Month</th>
+                    <th scope="col">Meetings</th>
+                    <th scope="col">Present</th>
+                    <th scope="col">Absent</th>
+                    <th scope="col">Attendance</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var month in chapter.Attendance)
+                {
+                    <tr>
+                        <th scope="row" data-label="Month">@(new DateOnly(month.Year, month.Month, 1).ToString("MMMM yyyy"))</th>
+                        <td data-label="Meetings">@month.Meetings</td>
+                        <td data-label="Present">@month.Present</td>
+                        <td data-label="Absent">@(month.Marks - month.Present)</td>
+                        <td data-label="Attendance">@(month.RatePercent is int rate ? $"{rate}%" : "–")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
 }
 
 @code {

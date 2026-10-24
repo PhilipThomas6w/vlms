@@ -35,6 +35,7 @@
                 <span class="nav-group-label" id="nav-teaching">Teaching</span>
                 <ul class="nav-list" aria-labelledby="nav-teaching">
                     <AuthorizeView Policy="RequireTeacher" Context="teacher">
+                        <li><a href="/attendance" aria-current="@Current("/attendance")"><Icon Name="calendar" /> Take the register</a></li>
                         <li><a href="/progress/record" aria-current="@Current("/progress/record")"><Icon Name="record" /> Record completions</a></li>
                     </AuthorizeView>
                     <li><a href="/students" aria-current="@Current("/students")"><Icon Name="users" /> Students</a></li>

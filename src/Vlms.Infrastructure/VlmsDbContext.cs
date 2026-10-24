@@ -62,6 +62,8 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
     public DbSet<SensitiveDataAccessLog> SensitiveDataAccessLogs => Set<SensitiveDataAccessLog>();
     public DbSet<Chapter> Chapters => Set<Chapter>();
     public DbSet<ActiveChapterChoice> ActiveChapterChoices => Set<ActiveChapterChoice>();
+    public DbSet<AttendanceRegister> AttendanceRegisters => Set<AttendanceRegister>();
+    public DbSet<AttendanceMark> AttendanceMarks => Set<AttendanceMark>();
 
     /// <summary>The name of the query filter every <see cref="IChapterOwned"/> entity carries (docs/adr/0010-chapters.md).</summary>
     public const string ChapterFilter = "Chapter";
@@ -217,6 +219,26 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
             e.HasOne(x => x.RankBadge).WithMany(x => x.StudentBadges).HasForeignKey(x => x.RankBadgeId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // Attendance (FR-020): one register per chapter per meeting date, one mark per student on it.
+        modelBuilder.Entity<AttendanceRegister>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.HasIndex(x => new { x.ChapterId, x.MeetingDate }).IsUnique();
+            e.HasOne(x => x.TakenByUser).WithMany().HasForeignKey(x => x.TakenByUserId).OnDelete(DeleteBehavior.Restrict);
+            e.HasMany(x => x.Marks).WithOne(x => x.AttendanceRegister).HasForeignKey(x => x.AttendanceRegisterId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<AttendanceMark>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.HasIndex(x => new { x.AttendanceRegisterId, x.StudentId }).IsUnique();
+            e.HasIndex(x => new { x.StudentId, x.MeetingDate });
+            // Deleted with the student: attendance is part of the student's record (retention).
+            e.HasOne(x => x.Student).WithMany().HasForeignKey(x => x.StudentId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<StudentRankProgress>(e =>
@@ -523,6 +545,26 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
         });
 
         modelBuilder.Entity<StudentBadge>(e =>
+        {
+            ChapterKey(e);
+            e.HasQueryFilter(ChapterFilter, x =>
+                _currentUser.SeesAllChapters
+                || (_currentUser.ActiveChapterId != null && x.ChapterId == _currentUser.ActiveChapterId)
+                || (OwnRecordsArmApplies
+                    && (StudentGuardianLinks.Any(l => l.StudentId == x.StudentId && l.ParentGuardian!.AppUserId == _currentUser.UserId)
+                        || Students.Any(s => s.Id == x.StudentId && s.AppUserId == _currentUser.UserId))));
+        });
+
+        // Registers: the chapter's own staff only. Parents and students read marks, never registers.
+        modelBuilder.Entity<AttendanceRegister>(e =>
+        {
+            ChapterKey(e);
+            e.HasQueryFilter(ChapterFilter, x =>
+                _currentUser.SeesAllChapters
+                || (_currentUser.ActiveChapterId != null && x.ChapterId == _currentUser.ActiveChapterId));
+        });
+
+        modelBuilder.Entity<AttendanceMark>(e =>
         {
             ChapterKey(e);
             e.HasQueryFilter(ChapterFilter, x =>

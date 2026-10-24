@@ -233,6 +233,23 @@ public static class CaptureSeed
             await db.SaveChangesAsync();
         }
 
+        // Registers (FR-020): monthly meetings, today's the latest. Student 3 missed the last two
+        // (flagged at risk); student 6 (no consent) attended today.
+        var markId = 0;
+        for (var m = 0; m < 4; m++)
+        {
+            var meeting = today.AddDays(-28 * m);
+            var register = new AttendanceRegister { Id = m + 1, MeetingDate = meeting, TakenByUserId = teacher.UserId, TakenAt = now.AddDays(-28 * m) };
+            db.AttendanceRegisters.Add(register);
+            for (var i = 0; i < StudentNames.Length; i++)
+            {
+                var present = !(i == 2 && m < 2) && !(i == 7 && m == 1) && !(i == 5 && m > 0);
+                db.AttendanceMarks.Add(new AttendanceMark { Id = ++markId, AttendanceRegisterId = register.Id, StudentId = i + 1, MeetingDate = meeting, Present = present });
+            }
+        }
+
+        await db.SaveChangesAsync();
+
         return personas;
     }
 

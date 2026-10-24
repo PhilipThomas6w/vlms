@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Vlms.Domain;
+using Vlms.Infrastructure.Attendance;
 using Vlms.Infrastructure.Authorization;
 
 namespace Vlms.Infrastructure.Engagement;
@@ -198,5 +199,32 @@ public sealed class ParentDashboardService
         }
 
         return journeys;
+    }
+
+    /// <summary>
+    /// Each linked student's attendance over the last <see cref="AttendanceService.HistoryMonths"/>
+    /// months (FR-020: "parents see their own child's attendance"), keyed by student id. Same caller
+    /// checks and linked-students scope as <see cref="GetDashboardAsync"/>.
+    /// </summary>
+    public async Task<IReadOnlyDictionary<int, AttendanceHistory>> GetAttendanceAsync(CancellationToken ct = default)
+    {
+        if (!_currentUser.HasRole(Role.Parent))
+        {
+            throw new UnauthorizedAccessException("Caller must hold the Parent role to view the parent dashboard.");
+        }
+
+        if (_currentUser.UserId is not int userId)
+        {
+            return new Dictionary<int, AttendanceHistory>();
+        }
+
+        var studentIds = await ParentGuardianLinkage.LinkedStudentIds(_db, userId).ToListAsync(ct);
+        var histories = new Dictionary<int, AttendanceHistory>();
+        foreach (var studentId in studentIds.Distinct())
+        {
+            histories[studentId] = await AttendanceService.LoadHistoryAsync(_db, studentId, DateTime.UtcNow, ct);
+        }
+
+        return histories;
     }
 }

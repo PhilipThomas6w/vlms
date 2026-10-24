@@ -84,3 +84,16 @@ Recorded as deferred. When designed:
 1. **Chapters (FR-021)** on `master`: the `Chapter` entity; chapter on every chapter-owned entity; EF query filters scoped to the signed-in user's chapters, with tests for every entity; per-chapter role assignments; the national administrator role; a chapter switcher for people with roles in more than one chapter; Shrewsbury and Coventry in the development seed.
 2. **Attendance (FR-020)**, after chapters: registers per chapter per meeting date, combined with Record completions; the student's attendance on the student record and the parent dashboard; anonymous national figures.
 3. The redesign carries on side by side on branch `redesign`, and is merged after chapters so that its later pages can show chapter names.
+
+## 7. Attendance as built (24/10/2026): assumptions for Philip to confirm
+
+Built to sections 3 and 5. Where neither said, the build assumed:
+
+1. **At-risk:** two absences in a row is added alongside the existing 8-week no-completion rule, not instead of it (the draft said "whichever comes first"; section 5 named only the new rule). The report shows which rule flagged each student.
+2. **Who:** Teachers take, read and correct the register (`/attendance`); Admins see each student's attendance on the student record but have no register page; Safeguarding Officers and Approvers neither (Safeguarding Officers get the consent alert).
+3. **Consent alert:** emailed to the chapter's Safeguarding Officers, sent with the retrying safeguarding-critical priority, naming the children and the date and nothing else; sent once per child per register, not again when the register is corrected.
+4. **Corrections:** saving a register again overwrites its marks and records who saved it last; earlier versions are not kept.
+5. **Dates:** any past or today's date; never a future one. A student who joins later is simply not on earlier registers.
+6. **The student's own page** does not show attendance (only staff and parents were named).
+7. **National figures:** the last 12 months, per chapter per month: meetings held, present, absent and the attendance rate, exact counts however small (as for the rank totals).
+

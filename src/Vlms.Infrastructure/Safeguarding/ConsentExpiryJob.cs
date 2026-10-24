@@ -300,9 +300,19 @@ public sealed class ConsentExpiryJob
 
         foreach (var flag in atRiskStudents)
         {
-            _logger.LogWarning(
-                "At-risk: student {StudentId} ({StudentName}) has had no lesson completion in {DaysSinceLastActivity} days (>= {ThresholdDays}-day threshold) — surfaced to Admin for proactive follow-up.",
-                flag.StudentId, flag.StudentName, flag.DaysSinceLastActivity, AtRiskStudentFlagging.AtRiskThresholdDays);
+            if (flag.NoRecentCompletion)
+            {
+                _logger.LogWarning(
+                    "At-risk: student {StudentId} ({StudentName}) has had no lesson completion in {DaysSinceLastActivity} days (>= {ThresholdDays}-day threshold) — surfaced to Admin for proactive follow-up.",
+                    flag.StudentId, flag.StudentName, flag.DaysSinceLastActivity, AtRiskStudentFlagging.AtRiskThresholdDays);
+            }
+
+            if (flag.AbsentFromLastMeetings)
+            {
+                _logger.LogWarning(
+                    "At-risk: student {StudentId} ({StudentName}) was absent from the last {Absences} meetings in a row — surfaced to Admin for proactive follow-up.",
+                    flag.StudentId, flag.StudentName, AtRiskStudentFlagging.ConsecutiveAbsenceThreshold);
+            }
         }
 
         foreach (var flag in studentsDueForDeletion)

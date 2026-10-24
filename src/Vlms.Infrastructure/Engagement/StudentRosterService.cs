@@ -3,14 +3,20 @@ using Vlms.Domain;
 
 namespace Vlms.Infrastructure.Engagement;
 
-/// <summary>One row of the teacher's student list: rank and progress within it.</summary>
+/// <summary>
+/// One row of the teacher's student list: rank and progress within it, and recent attendance
+/// (FR-020): present at <see cref="RecentAttended"/> of the student's last <see cref="RecentMeetings"/>
+/// registers, at most <see cref="StudentRosterService.RecentMeetingCount"/>.
+/// </summary>
 public sealed record StudentListItem(
     int StudentId,
     string StudentName,
     string CurrentRankName,
     int CompletedLessons,
     int TotalLessons,
-    int? AssignedTeacherUserId);
+    int? AssignedTeacherUserId,
+    int RecentAttended = 0,
+    int RecentMeetings = 0);
 
 public sealed record StudentRecordCompletion(string LessonTitle, string RankName, DateTime CompletedAt);
 
@@ -46,6 +52,9 @@ public sealed record StudentRecord(
 /// </summary>
 public sealed class StudentRosterService
 {
+    /// <summary>How many of a student's latest registers the list's "recent attendance" covers.</summary>
+    public const int RecentMeetingCount = 3;
+
     private readonly VlmsDbContext _db;
     private readonly ICurrentUserContext _currentUser;
 
@@ -98,12 +107,21 @@ public sealed class StudentRosterService
             .GroupBy(c => c.StudentId)
             .ToDictionary(g => g.Key, g => g.Select(c => c.LessonId).ToHashSet());
 
+        var recentMarks = (await _db.AttendanceMarks
+                .Where(m => studentIds.Contains(m.StudentId))
+                .Select(m => new { m.StudentId, m.MeetingDate, m.Present })
+                .ToListAsync(ct))
+            .GroupBy(m => m.StudentId)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(m => m.MeetingDate).Take(RecentMeetingCount).ToList());
+
         return students.Select(s =>
         {
             var rankLessons = lessonsByRank.GetValueOrDefault(s.CurrentRankId) ?? [];
             var done = completions.GetValueOrDefault(s.Id) ?? [];
+            var marks = recentMarks.GetValueOrDefault(s.Id) ?? [];
             return new StudentListItem(
-                s.Id, s.Name, s.RankName, rankLessons.Count(done.Contains), rankLessons.Count, s.AssignedTeacherUserId);
+                s.Id, s.Name, s.RankName, rankLessons.Count(done.Contains), rankLessons.Count, s.AssignedTeacherUserId,
+                marks.Count(m => m.Present), marks.Count);
         }).ToList();
     }
 

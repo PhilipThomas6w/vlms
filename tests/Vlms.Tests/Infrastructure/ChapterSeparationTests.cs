@@ -36,6 +36,9 @@ public sealed class ChapterSeparationTests : IDisposable
     private const int TwoChapterUser = 901;  // Teacher in Shrewsbury, Admin in Coventry
     private const int UnlinkedCoventryStudent = 299;
 
+    // A recent meeting, so the national figures (last 12 months) include it.
+    private static readonly DateOnly MeetingDate = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(-7);
+
     /// <summary>The entities that are national by design (the curriculum, ranks, badges, roles, chapters, audit).</summary>
     private static readonly HashSet<Type> NationalOrIdentityTypes =
     [
@@ -148,6 +151,8 @@ public sealed class ChapterSeparationTests : IDisposable
             SubmittedAt = new DateTime(2026, 10, 1, 0, 0, 0, DateTimeKind.Utc), LastSubmittedAt = new DateTime(2026, 10, 1, 0, 0, 0, DateTimeKind.Utc)
         });
         db.StudentApplicationSensitiveDetails.Add(new StudentApplicationSensitiveDetails { Id = b + 95, StudentApplicationId = b + 95, EmergencyContact = $"Contact {c}" });
+        db.AttendanceRegisters.Add(new AttendanceRegister { Id = b + 97, ChapterId = c, MeetingDate = MeetingDate, TakenByUserId = b + Staff, TakenAt = DateTime.UtcNow });
+        db.AttendanceMarks.Add(new AttendanceMark { Id = b + 97, AttendanceRegisterId = b + 97, StudentId = b + StudentOffset, MeetingDate = MeetingDate, Present = true });
         db.SaveChanges();
     }
 
@@ -213,7 +218,7 @@ public sealed class ChapterSeparationTests : IDisposable
         using var db = NewContext(StaffOf(1));
         var owned = ChapterOwnedTypes(db).ToList();
 
-        Assert.Equal(13, owned.Count);
+        Assert.Equal(15, owned.Count);
         foreach (var type in owned)
         {
             var entityType = db.Model.FindEntityType(type)!;
@@ -299,6 +304,7 @@ public sealed class ChapterSeparationTests : IDisposable
         Assert.Contains(Coventry * 100 + 70, db.ConsentRecords.Select(c => c.Id).ToList());
         Assert.Contains(Coventry * 100 + 70, db.ConsentSensitiveDetails.Select(d => d.Id).ToList());
         Assert.Contains(Coventry * 100 + 40, db.Certificates.Select(c => c.Id).ToList());
+        Assert.Contains(Coventry * 100 + 97, db.AttendanceMarks.Select(m => m.Id).ToList());
     }
 
     [Fact]
@@ -339,6 +345,19 @@ public sealed class ChapterSeparationTests : IDisposable
         {
             Id = 999, StudentId = Coventry * 100 + StudentOffset, LessonId = 1, CompletedByUserId = 101,
             CompletedAt = DateTime.UtcNow, IsReversed = false
+        });
+
+        Assert.Throws<InvalidOperationException>(() => db.SaveChanges());
+    }
+
+    [Fact]
+    public void AnAttendanceMark_ForAnotherChaptersStudent_IsRefused_EvenOnTheCallersOwnRegister()
+    {
+        using var db = NewContext(TestSeedUserContext.Instance);
+        db.AttendanceMarks.Add(new AttendanceMark
+        {
+            Id = 999, AttendanceRegisterId = Chapter.ShrewsburyId * 100 + 97, StudentId = UnlinkedCoventryStudent,
+            MeetingDate = MeetingDate, Present = true
         });
 
         Assert.Throws<InvalidOperationException>(() => db.SaveChanges());
@@ -582,6 +601,8 @@ public sealed class ChapterSeparationTests : IDisposable
         Assert.Equal(1, totals.Single(t => t.ChapterId == Chapter.ShrewsburyId).StudentsOnRoll);
         Assert.Equal(2, totals.Single(t => t.ChapterId == Coventry).StudentsOnRoll);
         Assert.Equal(2, totals.Single(t => t.ChapterId == Coventry).ByRank.Single(r => r.RankId == 1).Students);
+        var month = Assert.Single(totals.Single(t => t.ChapterId == Coventry).Attendance);
+        Assert.Equal((MeetingDate.Year, MeetingDate.Month, 1, 1, 1, (int?)100), (month.Year, month.Month, month.Meetings, month.Marks, month.Present, month.RatePercent));
 
         var admin = StaffOf(Chapter.ShrewsburyId);
         using var adminDb = NewContext(admin);

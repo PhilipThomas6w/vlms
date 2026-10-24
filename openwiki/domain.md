@@ -15,7 +15,7 @@ Three things worth knowing that aren't obvious from `data-design.md` alone:
 
 All entity primary keys are application-assigned (`ValueGeneratedNever` in `VlmsDbContext`), except `SensitiveDataAccessLog.Id` and `VlmsIdentityUser.Id` (`Vlms.Infrastructure/Identity/`, ASP.NET Core Identity's own store row, not a `Vlms.Domain` entity — see [authentication-authorization.md](authentication-authorization.md)), both database-generated (`ValueGeneratedOnAdd`) — see [data-access.md](data-access.md) for why. `AppUser.Id` stays `ValueGeneratedNever`, but its *value* is always copied from the paired `VlmsIdentityUser.Id` immediately after that row is inserted, not computed independently.
 
-**Chapters (adr/0010):** new `Chapter`, `ActiveChapterChoice` and the `IChapterOwned` interface (13 entities, listed in [chapters.md](chapters.md)); `UserRole` gains `Id` and nullable `ChapterId`.
+**Chapters (adr/0010):** new `Chapter`, `ActiveChapterChoice` and the `IChapterOwned` interface (15 entities, listed in [chapters.md](chapters.md)); `UserRole` gains `Id` and nullable `ChapterId`.
 
 ## `Role` (`src/Vlms.Domain/Role.cs`)
 
@@ -39,3 +39,5 @@ Since chapters it also has `int? ActiveChapterId` and `bool SeesAllChapters`, an
 `HasMfaEnabled` is new (STATE.md "Identity" item 4) — whether the caller has TOTP MFA enabled on their ASP.NET Core Identity credential row. Consulted by `MfaRequirementHandler` and by `VlmsDbContext`'s `DbsCheck`/`ConsentSensitiveDetails` query filters, which now require it in addition to role — see [authentication-authorization.md](authentication-authorization.md)'s MFA section for the full "enforced for Admin/SafeguardingOfficer, offered to everyone" scope decision.
 
 Consumed by `VlmsDbContext`'s query filters and by `SensitiveDataAuditInterceptor` (both in `Vlms.Infrastructure`). Three implementations exist, all in Infrastructure — see [data-access.md](data-access.md) and [authentication-authorization.md](authentication-authorization.md).
+
+**Attendance (FR-020):** `AttendanceRegister` (one per chapter per `MeetingDate`, `TakenByUserId`, `TakenAt`) and `AttendanceMark` (`Present` true/false, carries the register's `MeetingDate`; cascades with its register and its student). See [attendance.md](attendance.md).

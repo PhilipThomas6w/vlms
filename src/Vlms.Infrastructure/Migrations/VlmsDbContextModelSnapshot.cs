@@ -144,6 +144,78 @@ namespace Vlms.Infrastructure.Migrations
                     b.ToTable("app_users");
                 });
 
+            modelBuilder.Entity("Vlms.Domain.AttendanceMark", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    b.Property<int>("AttendanceRegisterId")
+                        .HasColumnType("integer")
+                        .HasColumnName("attendance_register_id");
+
+                    b.Property<int>("ChapterId")
+                        .HasColumnType("integer")
+                        .HasColumnName("chapter_id");
+
+                    b.Property<DateOnly>("MeetingDate")
+                        .HasColumnType("date")
+                        .HasColumnName("meeting_date");
+
+                    b.Property<bool>("Present")
+                        .HasColumnType("boolean")
+                        .HasColumnName("present");
+
+                    b.Property<int>("StudentId")
+                        .HasColumnType("integer")
+                        .HasColumnName("student_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChapterId");
+
+                    b.HasIndex("AttendanceRegisterId", "StudentId")
+                        .IsUnique();
+
+                    b.HasIndex("StudentId", "MeetingDate");
+
+                    b.ToTable("attendance_marks");
+                });
+
+            modelBuilder.Entity("Vlms.Domain.AttendanceRegister", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    b.Property<int>("ChapterId")
+                        .HasColumnType("integer")
+                        .HasColumnName("chapter_id");
+
+                    b.Property<DateOnly>("MeetingDate")
+                        .HasColumnType("date")
+                        .HasColumnName("meeting_date");
+
+                    b.Property<DateTime>("TakenAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("taken_at");
+
+                    b.Property<int>("TakenByUserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("taken_by_user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChapterId");
+
+                    b.HasIndex("TakenByUserId");
+
+                    b.HasIndex("ChapterId", "MeetingDate")
+                        .IsUnique();
+
+                    b.ToTable("attendance_registers");
+                });
+
             modelBuilder.Entity("Vlms.Domain.Certificate", b =>
                 {
                     b.Property<int>("Id")
@@ -1259,6 +1331,48 @@ namespace Vlms.Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Vlms.Domain.AttendanceMark", b =>
+                {
+                    b.HasOne("Vlms.Domain.AttendanceRegister", "AttendanceRegister")
+                        .WithMany("Marks")
+                        .HasForeignKey("AttendanceRegisterId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Vlms.Domain.Chapter", null)
+                        .WithMany()
+                        .HasForeignKey("ChapterId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Vlms.Domain.Student", "Student")
+                        .WithMany()
+                        .HasForeignKey("StudentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("AttendanceRegister");
+
+                    b.Navigation("Student");
+                });
+
+            modelBuilder.Entity("Vlms.Domain.AttendanceRegister", b =>
+                {
+                    b.HasOne("Vlms.Domain.Chapter", null)
+                        .WithMany()
+                        .HasForeignKey("ChapterId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Vlms.Domain.AppUser", "TakenByUser")
+                        .WithMany()
+                        .HasForeignKey("TakenByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("TakenByUser");
+                });
+
             modelBuilder.Entity("Vlms.Domain.Certificate", b =>
                 {
                     b.HasOne("Vlms.Domain.Chapter", null)
@@ -1709,6 +1823,11 @@ namespace Vlms.Infrastructure.Migrations
             modelBuilder.Entity("Vlms.Domain.AppUser", b =>
                 {
                     b.Navigation("Roles");
+                });
+
+            modelBuilder.Entity("Vlms.Domain.AttendanceRegister", b =>
+                {
+                    b.Navigation("Marks");
                 });
 
             modelBuilder.Entity("Vlms.Domain.ConsentRecord", b =>

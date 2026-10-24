@@ -144,7 +144,10 @@ $expectedMinimums = @{
     "StudentApplicationServiceTests.cs" = 38
     # FR-021 chapters (adr/0010): the reflection classification, every entity per chapter, the
     # write rules, roles per chapter, national administrator least privilege, notifications.
-    "ChapterSeparationTests.cs"         = 26
+    "ChapterSeparationTests.cs"         = 27
+    # FR-020 attendance register: who takes and reads it, this chapter's active students only,
+    # the consent alert's recipients and content.
+    "AttendanceServiceTests.cs"         = 11
 }
 
 foreach ($testFileName in $expectedMinimums.Keys) {
@@ -213,6 +216,8 @@ $hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Infrastructure/Registrat
 $hashedFiles += Get-ChildItem (Join-Path $repoRoot "src/Vlms.Infrastructure/Chapters") -Filter "*.cs"
 $hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Infrastructure/Security/AccountLookupUserContext.cs")
 $hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Infrastructure/Guardianship/GuardianInviteService.cs")
+# FR-020 attendance register: role checks, chapter scope, the Safeguarding Officer alert.
+$hashedFiles += Get-ChildItem (Join-Path $repoRoot "src/Vlms.Infrastructure/Attendance") -Filter "*.cs"
 $hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Web/ChapterSwitchEndpoint.cs")
 $hashedFiles += $pageFiles
 

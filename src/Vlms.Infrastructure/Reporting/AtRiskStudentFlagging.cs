@@ -8,9 +8,14 @@ namespace Vlms.Infrastructure.Reporting;
 /// <see cref="AtRiskStudentFlagging.AtRiskThresholdDays"/> days (functional.md "Reporting": "no
 /// lesson completions within 8 weeks"; quality/test-plan.md TC-010). <see cref="LastActivityAt"/>
 /// is the student's <see cref="Student.EnrolmentDate"/> if they have never had a completion at all.
+/// Since FR-020 (Philip, 24/10/2026) a student is also flagged when marked absent at the last
+/// <see cref="AtRiskStudentFlagging.ConsecutiveAbsenceThreshold"/> registers they were on, in a row
+/// (<see cref="AbsentFromLastMeetings"/>); <see cref="NoRecentCompletion"/> says whether the 8-week
+/// rule applies too.
 /// </summary>
 public sealed record AtRiskStudentFlag(
-    int StudentId, string StudentName, DateTime LastActivityAt, int DaysSinceLastActivity);
+    int StudentId, string StudentName, DateTime LastActivityAt, int DaysSinceLastActivity,
+    bool NoRecentCompletion = true, bool AbsentFromLastMeetings = false);
 
 /// <summary>
 /// The 8-week disengagement-flag computation, extracted out of
@@ -37,6 +42,9 @@ public static class AtRiskStudentFlagging
     /// </summary>
     public const int AtRiskThresholdDays = 56;
 
+    /// <summary>Absences in a row that flag a student (functional.md FR-020: "two absences in a row").</summary>
+    public const int ConsecutiveAbsenceThreshold = 2;
+
     /// <summary>
     /// Active students only, per functional.md ("at-risk/disengaged student flagging... surfaced to
     /// Admin for proactive follow-up") — a Graduated/Inactive student has no more lessons to
@@ -62,6 +70,15 @@ public static class AtRiskStudentFlagging
             .Select(g => new { StudentId = g.Key, LastCompletedAt = g.Max(c => c.CompletedAt) })
             .ToDictionaryAsync(x => x.StudentId, x => x.LastCompletedAt, ct);
 
+        // Each active student's latest marks, newest first: flagged when the latest ones are all absences.
+        var activeIds = activeStudents.Select(s => s.Id).ToList();
+        var recentMarks = (await db.AttendanceMarks
+                .Where(m => activeIds.Contains(m.StudentId))
+                .Select(m => new { m.StudentId, m.MeetingDate, m.Present })
+                .ToListAsync(ct))
+            .GroupBy(m => m.StudentId)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(m => m.MeetingDate).Take(ConsecutiveAbsenceThreshold).ToList());
+
         var flags = new List<AtRiskStudentFlag>();
         foreach (var student in activeStudents)
         {
@@ -69,10 +86,14 @@ public static class AtRiskStudentFlagging
                 ? lastCompletedAt
                 : student.EnrolmentDate.ToDateTime(TimeOnly.MinValue);
 
-            if (lastActivity < cutoff)
+            var noRecentCompletion = lastActivity < cutoff;
+            var absentInARow = recentMarks.TryGetValue(student.Id, out var marks)
+                && marks.Count == ConsecutiveAbsenceThreshold
+                && marks.All(m => !m.Present);
+            if (noRecentCompletion || absentInARow)
             {
                 var daysSince = (int)(now - lastActivity).TotalDays;
-                flags.Add(new AtRiskStudentFlag(student.Id, student.Name, lastActivity, daysSince));
+                flags.Add(new AtRiskStudentFlag(student.Id, student.Name, lastActivity, daysSince, noRecentCompletion, absentInARow));
             }
         }
 

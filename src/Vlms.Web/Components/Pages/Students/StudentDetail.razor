@@ -3,6 +3,7 @@
 @rendermode InteractiveServer
 @using Vlms.Infrastructure.Engagement
 @inject StudentRosterService Roster
+@inject Vlms.Infrastructure.Attendance.AttendanceService Attendance
 
 <PageTitle>Student record</PageTitle>
 
@@ -47,6 +48,11 @@ else
     @if (_journey is not null)
     {
         <RankProcession Ranks="_journey.Ranks" CurrentLabel="Current rank" />
+    }
+
+    @if (_attendance is not null)
+    {
+        <AttendanceSummary History="_attendance" />
     }
 
     <h2>Completions</h2>
@@ -113,6 +119,7 @@ else
 
     private StudentRecord? _record;
     private StudentJourney? _journey;
+    private Vlms.Infrastructure.Attendance.AttendanceHistory? _attendance;
     private string? _errorMessage;
 
     protected override async Task OnParametersSetAsync()
@@ -121,6 +128,7 @@ else
         {
             _record = await Roster.GetRecordAsync(StudentId);
             _journey = _record is null ? null : await Roster.GetJourneyAsync(StudentId);
+            _attendance = _record is null ? null : await Attendance.GetStudentHistoryAsync(StudentId);
         }
         catch (UnauthorizedAccessException ex)
         {

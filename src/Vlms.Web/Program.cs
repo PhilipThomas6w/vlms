@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Vlms.Domain;
 using Vlms.Infrastructure;
+using Vlms.Infrastructure.Attendance;
 using Vlms.Infrastructure.Authorization;
 using Vlms.Infrastructure.Badges;
 using Vlms.Infrastructure.Chapters;
@@ -158,6 +159,13 @@ builder.Services.AddScoped<StudentConsentViewService>();
 // ParentStudentAccessHandler below).
 builder.Services.AddScoped<ParentDashboardService>();
 builder.Services.AddScoped<StudentRosterService>();
+
+// --- Attendance register (functional.md FR-020): per chapter per meeting date; the chapter's
+// Safeguarding Officers are told when a child without consent in force is marked present.
+builder.Services.AddScoped<AttendanceService>();
+builder.Services.AddScoped(sp => new AttendanceNotificationService(
+    sp.GetRequiredService<VlmsDbContext>(), sp.GetRequiredService<ICurrentUserContext>(), sp.GetRequiredService<INotificationService>(),
+    sp.GetRequiredService<ILogger<AttendanceNotificationService>>(), builder.Configuration["App:PublicBaseUrl"]));
 
 // --- Student sign-ins and the student page (functional.md FR-011, adr/0007-student-sign-in-accounts.md).
 // A linked parent creates a username-and-password sign-in with no email, and resets it (Admins can

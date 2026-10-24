@@ -1,0 +1,37 @@
+@using Vlms.Infrastructure.Attendance
+
+@* A student's attendance over the last 12 months (FR-020): the count in words, then each meeting.
+   Shared by the staff student record and the parent dashboard. *@
+<section class="attendance" aria-labelledby="@HeadingId">
+    @if (HeadingLevel == 3)
+    {
+        <h3 id="@HeadingId">Attendance</h3>
+    }
+    else
+    {
+        <h2 id="@HeadingId">Attendance</h2>
+    }
+    @if (History.Sessions == 0)
+    {
+        <p>No registers taken in the last @AttendanceService.HistoryMonths months.</p>
+    }
+    else
+    {
+        <p>Attended @History.Attended of @History.Sessions @(History.Sessions == 1 ? "meeting" : "meetings") in the last @AttendanceService.HistoryMonths months.</p>
+        <ul class="attendance__list">
+            @foreach (var entry in History.Entries)
+            {
+                <li>
+                    <span>@entry.MeetingDate.ToString("d MMMM yyyy")</span>
+                    <span class="pill @(entry.Present ? "pill--success" : null)">@(entry.Present ? "Present" : "Absent")</span>
+                </li>
+            }
+        </ul>
+    }
+</section>
+
+@code {
+    [Parameter, EditorRequired] public AttendanceHistory History { get; set; } = new([]);
+    [Parameter] public string HeadingId { get; set; } = "attendance-title";
+    [Parameter] public int HeadingLevel { get; set; } = 2;
+}

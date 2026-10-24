@@ -4,14 +4,18 @@
 @using Microsoft.EntityFrameworkCore
 @using Vlms.Domain
 @using Vlms.Infrastructure
+@using Vlms.Infrastructure.Attendance
 @using Vlms.Infrastructure.Progress
 @inject VlmsDbContext Db
 @inject ICurrentUserContext CurrentUser
 @inject CompletionService CompletionService
+@inject AttendanceService Attendance
 
 @* Recording lesson completions; redesign prototype (docs/design/redesign-direction.md, section 8). Same service call and
    checks as before: CompletionService decides; consent-blocked students are shown with the reason and
-   can't be selected; nothing here changes who may record what. *@
+   can't be selected; nothing here changes who may record what. With the attendance register: the
+   meeting's marks are shown, "Select everyone ready" takes only those present, and recording for a
+   student marked absent needs the teacher to confirm it is a catch-up. *@
 
 <PageTitle>Record completions – Varangians</PageTitle>
 
@@ -52,6 +56,15 @@
                 </ul>
             </Notice>
         </div>
+    }
+
+    @if (_marks.Count == 0)
+    {
+        <Notice Kind="info"><p>No register has been taken for @_meetingDate.ToString("d MMMM yyyy"). <a href="/attendance?date=@_meetingDate.ToString("yyyy-MM-dd")">Take the register</a> first to see who is here.</p></Notice>
+    }
+    else
+    {
+        <p class="muted">Register for @_meetingDate.ToString("d MMMM yyyy"): @_marks.Count(m => m.Value) present, @_marks.Count(m => !m.Value) absent.</p>
     }
 
     @* Step 1: the lesson, chosen by rank. *@
@@ -106,8 +119,8 @@
                     <input type="checkbox" id="assignedToMe" @bind="_assignedToMeOnly" @bind:after="ClearHiddenSelections" />
                     Only students assigned to me
                 </label>
-                <button type="button" class="btn--secondary" @onclick="() => SelectAllReady(atRank)" disabled="@(!atRank.Any(IsReady))">
-                    Select everyone ready at @RankName(lessonRankId)
+                <button type="button" class="btn--secondary" @onclick="() => SelectAllReady(atRank)" disabled="@(!atRank.Any(IsReadyAndHere))">
+                    Select everyone @(_marks.Count > 0 ? "here and ready" : "ready") at @RankName(lessonRankId)
                 </button>
             </div>
 
@@ -144,6 +157,19 @@
             }
         </section>
 
+        @if (SelectedAbsent.Count > 0)
+        {
+            <div class="record__absent">
+                <Notice Kind="warning">
+                    <p>@string.Join(", ", SelectedAbsent.Select(NameOf)) @(SelectedAbsent.Count == 1 ? "is" : "are") marked absent on the register for @_meetingDate.ToString("d MMMM yyyy").</p>
+                    <label class="check" for="catchUp">
+                        <input type="checkbox" id="catchUp" @bind="_catchUpConfirmed" />
+                        Record @(SelectedAbsent.Count == 1 ? "it" : "them") anyway, as a catch-up
+                    </label>
+                </Notice>
+            </div>
+        }
+
         <div class="field record__note">
             <label for="completionNote">Note <span class="muted">(optional)</span></label>
             <span class="hint" id="completionNote-hint">Saved with each of these completions, for example a word on how the lesson went.</span>
@@ -154,7 +180,7 @@
         <section class="record__bar" aria-labelledby="step-record">
             <h2 id="step-record" class="visually-hidden">Record</h2>
             <p class="record__selected">@(_selected.Count == 0 ? "No students selected" : _selected.Count == 1 ? "1 student selected" : $"{_selected.Count} students selected")</p>
-            <button type="button" @onclick="SubmitAsync" disabled="@(_busy || _selected.Count == 0)">
+            <button type="button" @onclick="SubmitAsync" disabled="@(_busy || _selected.Count == 0 || (SelectedAbsent.Count > 0 && !_catchUpConfirmed))">
                 <Icon Name="record" />
                 @(_busy ? "Recording…" : _selected.Count switch { 0 => "Record completions", 1 => "Record 1 completion", var n => $"Record {n} completions" })
             </button>
@@ -163,6 +189,11 @@
 </div>
 
 @code {
+    [SupplyParameterFromQuery(Name = "date")] public string? Date { get; set; }
+
+    private DateOnly _meetingDate = DateOnly.FromDateTime(DateTime.UtcNow);
+    private IReadOnlyDictionary<int, bool> _marks = new Dictionary<int, bool>();
+    private bool _catchUpConfirmed;
     private List<Lesson> _lessons = new();
     private List<Rank> _ranks = new();
     private List<Student> _students = new();
@@ -200,6 +231,12 @@
                     <RankPill Order="rank.Order" Name="@rank.Name" />
                 }
             </label>
+            @if (!blocked && !already && _marks.TryGetValue(student.Id, out var present))
+            {
+                <span class="student-row__state">
+                    <span class="pill @(present ? "pill--success" : null)">@(present ? "Here" : "Absent")</span>
+                </span>
+            }
             @if (blocked)
             {
                 <span class="student-row__state" id="student@(student.Id)-state">
@@ -225,6 +262,12 @@
         _ranks = _lessons.Select(l => l.Rank!).DistinctBy(r => r.Id).OrderBy(r => r.Order).ToList();
         await LoadStudentsAsync();
         await LoadConsentAsync();
+        if (DateOnly.TryParseExact(Date, "yyyy-MM-dd", out var date) && date <= _meetingDate)
+        {
+            _meetingDate = date;
+        }
+
+        _marks = await Attendance.GetMarksAsync(_meetingDate);
 
         // Start at the rank most of the teacher's own students are at (or most students, if none are assigned).
         var mine = _students.Where(s => CurrentUser.UserId is not null && s.AssignedTeacherUserId == CurrentUser.UserId).ToList();
@@ -296,9 +339,14 @@
 
     private bool IsReady(Student student) => !_consentBlocked.Contains(student.Id) && !_alreadyCompleted.Contains(student.Id);
 
+    // With a register taken, "everyone ready" means everyone ready who is marked present.
+    private bool IsReadyAndHere(Student student) => IsReady(student) && (_marks.Count == 0 || _marks.GetValueOrDefault(student.Id));
+
+    private List<int> SelectedAbsent => _selected.Where(id => _marks.TryGetValue(id, out var present) && !present).ToList();
+
     private void SelectAllReady(IEnumerable<Student> students)
     {
-        foreach (var student in students.Where(IsReady)) _selected.Add(student.Id);
+        foreach (var student in students.Where(IsReadyAndHere)) _selected.Add(student.Id);
     }
 
     // Hiding students (the "assigned to me" filter) must not leave hidden ones selected.
@@ -337,6 +385,7 @@
             _results = await CompletionService.MarkCompleteBatchAsync(_selected.ToList(), _lessonId, _note);
             _selected.Clear();
             _note = null;
+            _catchUpConfirmed = false;
             // Ranks may have changed (promotion): reload so the list and the result show the new rank.
             await LoadStudentsAsync();
             await LoadAlreadyCompletedAsync();

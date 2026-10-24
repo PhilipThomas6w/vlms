@@ -96,6 +96,7 @@ public class PerChildAccessibleNamesTests
     [InlineData("Retention", "MarkAsLeft.razor")]
     [InlineData("Progress", "CompletionReversals.razor")]
     [InlineData("Progress", "RecordCompletions.razor")]
+    [InlineData("Attendance", "TakeRegister.razor")]
     public void PageText_DoesNotShowInternalReferences(string folder, string fileName)
     {
         // Only rendered markup matters here; C# line comments may keep the references.

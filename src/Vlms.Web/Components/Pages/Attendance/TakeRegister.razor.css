@@ -1,0 +1,38 @@
+/* The register: the same task-first rows as Record completions (direction doc, section 8). */
+
+.register__date { max-width: 16rem; }
+.register__status { color: var(--ink-soft); margin: 0 0 var(--s-4); }
+.register__saved:focus { outline: none; }
+
+.register__students { border: 0; padding: 0; margin: 0 0 var(--s-4); min-width: 0; }
+.register__students legend { padding: 0; margin-bottom: var(--s-2); font-weight: 700; }
+.register__tools { display: flex; flex-wrap: wrap; gap: var(--s-2); margin-bottom: var(--s-3); }
+
+.student-rows { list-style: none; margin: 0; padding: 0; display: grid; gap: 0 var(--s-5); border-top: 1px solid var(--line); }
+@media (min-width: 72rem) { .student-rows { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.student-row {
+    display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; column-gap: var(--s-3);
+    padding: var(--s-1) var(--s-2); border-bottom: 1px solid var(--line);
+}
+.student-row label { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-1) var(--s-3); min-height: var(--target); cursor: pointer; }
+.student-row__name { font-weight: 600; }
+.student-row:has(input:checked) { background: var(--lapis-50); }
+.student-row__state { grid-column: 2; display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-1) var(--s-2); padding-bottom: var(--s-2); }
+.student-row__reason { color: var(--ink-soft); font-size: var(--step--1); }
+.student-row.is-blocked { background: color-mix(in srgb, var(--warning-tint) 55%, transparent); }
+.student-row.is-blocked:has(input:checked) { background: color-mix(in srgb, var(--warning-tint) 85%, transparent); }
+
+/* The save bar stays in view at the bottom while the list scrolls. */
+.register__bar {
+    position: sticky; bottom: 0; z-index: 5;
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s-3) var(--s-5);
+    margin: var(--s-5) calc(-1 * var(--s-4)) 0; padding: var(--s-3) var(--s-4) calc(var(--s-3) + env(safe-area-inset-bottom));
+    background: var(--surface);
+    border-top: 1px solid var(--line);
+    box-shadow: 0 -6px 18px rgb(14 26 57 / 0.08);
+}
+.register__count { margin: 0; font-weight: 600; color: var(--ink-soft); }
+@media (max-width: 40rem) { .register__bar button { flex: 1 1 auto; } .register__count { flex: 1 1 100%; font-size: var(--step--1); } }
+
+.register__history { margin-top: var(--s-7); }
+.register__history h2 { font-size: var(--step-2); }

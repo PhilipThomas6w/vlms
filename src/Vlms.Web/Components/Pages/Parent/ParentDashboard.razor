@@ -1,6 +1,7 @@
 @page "/parent/dashboard"
 @attribute [Authorize(Policy = "RequireParent")]
 @rendermode InteractiveServer
+@using Vlms.Infrastructure.Attendance
 @using Vlms.Infrastructure.Engagement
 @using Vlms.Web
 @inject ParentDashboardService DashboardService
@@ -10,7 +11,7 @@
 <PageHeader Title="My dashboard" />
 
 <p class="intro">
-    Progress, badges, certificates and consent status for your children. You see only the children
+    Progress, attendance, badges, certificates and consent status for your children. You see only the children
     an Admin has linked to your account; no other student's information is shown.
 </p>
 
@@ -63,6 +64,11 @@ else
                 <RankProcession Ranks="journey.Ranks" CurrentLabel="Current rank" HeadingLevel="3" HeadingId="@($"way-{student.StudentId}")" />
             }
 
+            @if (_attendance.GetValueOrDefault(student.StudentId) is { } attendance)
+            {
+                <AttendanceSummary History="attendance" HeadingLevel="3" HeadingId="@($"attendance-{student.StudentId}")" />
+            }
+
             <h3>Badges</h3>
             @if (student.Badges.Count == 0)
             {
@@ -112,6 +118,7 @@ else
 @code {
     private List<ParentDashboardStudent> _students = new();
     private IReadOnlyDictionary<int, StudentJourney> _journeys = new Dictionary<int, StudentJourney>();
+    private IReadOnlyDictionary<int, AttendanceHistory> _attendance = new Dictionary<int, AttendanceHistory>();
     private string? _errorMessage;
 
     private static string ConsentPill(Vlms.Domain.ConsentStatus status) => status switch
@@ -127,6 +134,7 @@ else
         {
             _students = (await DashboardService.GetDashboardAsync()).ToList();
             _journeys = await DashboardService.GetJourneysAsync();
+            _attendance = await DashboardService.GetAttendanceAsync();
         }
         catch (UnauthorizedAccessException ex)
         {

@@ -5,7 +5,7 @@ Read `docs/adr/0010-chapters.md` first; this page maps it to the code.
 ## Data
 
 - `Vlms.Domain/Chapter.cs` (Shrewsbury is `Chapter.ShrewsburyId` = 1, seeded by the model's `HasData` and by migration `20261024084910_AddChapters`), `IChapterOwned.cs`, `ActiveChapterChoice.cs`.
-- 13 entities implement `IChapterOwned` (`ChapterId`, non-null, FK `Restrict`, indexed): Student, ParentGuardian, StudentGuardianLink, StudentLessonCompletion, Certificate, StudentBadge, StudentRankProgress, ConsentRecord, ConsentSensitiveDetails, DbsCheck, GuardianInvite, StudentApplication, StudentApplicationSensitiveDetails. Children carry their parent's chapter (denormalised).
+- 15 entities implement `IChapterOwned` (`ChapterId`, non-null, FK `Restrict`, indexed): Student, ParentGuardian, StudentGuardianLink, StudentLessonCompletion, Certificate, StudentBadge, StudentRankProgress, ConsentRecord, ConsentSensitiveDetails, DbsCheck, GuardianInvite, StudentApplication, StudentApplicationSensitiveDetails, AttendanceRegister (top-level, chapter arm only: parents and students never read registers), AttendanceMark (child of both its register and its student; own-records arm for parents and students). Children carry their parent's chapter (denormalised).
 - `UserRole` now has a surrogate `Id` and nullable `ChapterId` (null = national role); partial unique indexes `IX_user_roles_user_id_role_chapter_id` / `IX_user_roles_user_id_role_national`. `Role.NationalAdministrator` appended (value 6); `RoleScope.IsChapterRole/IsNationalRole`.
 
 ## Read side: `VlmsDbContext.ConfigureChapters`
@@ -35,7 +35,7 @@ Top-level rows default to / must be in the active chapter (system principal may 
 
 ## Gate
 
-`build/check-access-control.ps1`: raw SQL (`SqlQuery*`, `FromSql*`, `ExecuteSql*`) only in `VlmsDbContext.cs`, `NationalTotalsService.cs`, `GuardianInviteService.cs`; `EnterForVerifiedInvite` only in `GuardianInviteService.cs`; `ChapterSeparationTests.cs` floor 26; chapter sources hashed.
+`build/check-access-control.ps1`: raw SQL (`SqlQuery*`, `FromSql*`, `ExecuteSql*`) only in `VlmsDbContext.cs`, `NationalTotalsService.cs`, `GuardianInviteService.cs`; `EnterForVerifiedInvite` only in `GuardianInviteService.cs`; `ChapterSeparationTests.cs` floor 27; `AttendanceServiceTests.cs` floor 11 and `Attendance/` hashed; chapter sources hashed.
 
 ## Tests
 

@@ -327,4 +327,37 @@ public sealed class ParentDashboardServiceTests : IDisposable
 
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => run.Service(caller).GetJourneysAsync());
     }
+
+    [Fact]
+    public async Task GetAttendanceAsync_ParentA_GetsAlexsMarksOnly()
+    {
+        var meeting = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(-7);
+        using (var seed = CreateContext(TestSeedUserContext.Instance))
+        {
+            seed.Context.AttendanceRegisters.Add(new AttendanceRegister { Id = 1, MeetingDate = meeting, TakenByUserId = 10, TakenAt = DateTime.UtcNow });
+            seed.Context.AttendanceMarks.Add(new AttendanceMark { Id = 1, AttendanceRegisterId = 1, StudentId = 100, MeetingDate = meeting, Present = true });
+            seed.Context.AttendanceMarks.Add(new AttendanceMark { Id = 2, AttendanceRegisterId = 1, StudentId = 200, MeetingDate = meeting, Present = false });
+            seed.Context.SaveChanges();
+        }
+
+        var parentA = new FakeCurrentUserContext(userId: 1, Role.Parent);
+        using var run = CreateContext(parentA);
+        var attendance = await run.Service(parentA).GetAttendanceAsync();
+
+        var (studentId, history) = Assert.Single(attendance);
+        Assert.Equal(100, studentId);
+        Assert.Equal([new Vlms.Infrastructure.Attendance.AttendanceEntry(meeting, true)], history.Entries);
+    }
+
+    [Theory]
+    [InlineData(Role.Teacher)]
+    [InlineData(Role.Admin)]
+    [InlineData(Role.Student)]
+    public async Task GetAttendanceAsync_ByNonParentRole_Throws(Role role)
+    {
+        var caller = new FakeCurrentUserContext(userId: 1, role);
+        using var run = CreateContext(caller);
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => run.Service(caller).GetAttendanceAsync());
+    }
 }

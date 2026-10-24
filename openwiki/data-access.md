@@ -25,3 +25,4 @@
 ## Provider split: PostgreSQL (production) vs SQLite (tests)
 
 `VlmsDbContext.OnConfiguring` doesn't choose a provider — that's done by whoever constructs the `DbContextOptions`. `Vlms.Web/Program.cs` and `Vlms.Jobs/Program.cs` use `UseNpgsql` (adr/0005-hosting-pivot-self-hosted-vps-postgresql.md — supersedes the original `UseSqlServer`); tests use SQLite in-memory, unchanged by the provider swap. See [testing.md](testing.md) for why, for the explicit test-provider-strategy decision this pivot required, and for a caveat about SQLite's connection-sharing behaviour under this context's own "open a second context" patterns.
+- `AddAttendance` (FR-020) — `attendance_registers` (unique `chapter_id, meeting_date`) and `attendance_marks` (unique `attendance_register_id, student_id`; index `student_id, meeting_date`; cascade from register and student). Default privileges grant `vlms_app` access; no grants change.
