@@ -115,7 +115,7 @@ Delegation (Philip, 22/10/2026): each item runs as a subagent in its own worktre
 
 
 ## Decisions needed (Philip)
-- **Calendar (FR-022)**: decided 24/10/2026 (feed, Admin-only events, no credit, register per event and per class, opened from the event, feast and fast by default, private subscribe link; `functional.md` FR-022). Still to confirm: what a class is and who is in it; who takes a class's register; which events count towards "two absences in a row".
+- **Calendar (FR-022)**: decided 24/10/2026 (feed, Admin-only events, no credit, register per event and per class, opened from the event, feast and fast by default, private subscribe link; `functional.md` FR-022). Classes follow rank; class teachers (assigned by an Admin) take class registers; only class absences count towards at-risk (Philip, 24/10/2026). Still to confirm: a class is one rank or an Admin-chosen group of ranks; who takes the register at non-class events.
 - **Attendance assumptions** (built 24/10/2026, `docs/design/chapters-and-attendance.md` section 7): two absences in a row added alongside the 8-week rule, not replacing it; Teachers only take the register, Admins see attendance per student; consent alert to Safeguarding Officers once per child per register; corrections overwrite; the student's own page shows no attendance; national figures per month for 12 months.
 - **Chapters assumptions, remaining** (`docs/adr/0010-chapters.md`; 1, 2, 4, 6, 8 and keeping the DBS certificate number confirmed 24/10/2026): role-less accounts found by exact email (3); active chapter per person, not per browser (5); national figures unsuppressed (7); staff MFA judged in the active chapter (9).
 Ordered by go-live critical path.
