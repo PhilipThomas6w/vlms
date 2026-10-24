@@ -109,13 +109,14 @@ Fit-for-purpose build plan (Philip, 22/10/2026; `docs/delivery-plan.md` phase 2,
 
 Delegation (Philip, 22/10/2026): each item runs as a subagent in its own worktree, model in brackets. Items in a wave run in parallel; a wave starts when the items it depends on are merged into `master`.
 
+- **FR-022 Calendar and per-class registers** [Opus: chapter filters, migration, register rework] (`functional.md` FR-022, FR-020; all decided 24/10/2026). (1) Import the GOARCH ICS feed on a schedule (national, not chapter-owned): each day's main feast and fasting status shown by default, saints and readings opened from the day. (2) Chapter events (meeting days), each scheduled individually by an Admin; no repeating pattern. (3) Teachers assigned to classes (one class per rank) by an Admin on the chapter staff page; many-to-many. (4) Replace the one-register-per-date model: one register per rank-class per event, opened from the event; own classes first, any chapter Teacher can take or update any class's; collated day total; at-risk counts every absence; Record completions, national figures, history and the parent dashboard follow. Replaces the unapplied `AddAttendance` migration's register shape. (5) Private per-person ICS subscribe link to the chapter's events. Tests per entity in ChapterSeparationTests; user-journeys steps for Admin, Teacher and Parent.
+
 
 
 
 
 
 ## Decisions needed (Philip)
-- **Calendar (FR-022)**: decided 24/10/2026 (feed, Admin-only events, no credit, register per event and per class, opened from the event, feast and fast by default, private subscribe link; `functional.md` FR-022). Event = a meeting day; one register per rank-class per event, collated into a day total; Teachers are assigned to classes (Admin assigns; Philip teaches the Akolouthos) and normally take their class's register, but any chapter Teacher can take or update any class's register; every absence counts towards at-risk; Shrewsbury meets third Sunday, Sep–Jun, plus ad hoc extras (Philip, 24/10/2026). Draft to confirm: Admins set a repeating pattern (e.g. third Sunday monthly, Sep–Jun) that creates the year's events, and add or remove one-off days.
 - **Attendance assumptions** (built 24/10/2026, `docs/design/chapters-and-attendance.md` section 7): two absences in a row added alongside the 8-week rule, not replacing it; Teachers only take the register, Admins see attendance per student; consent alert to Safeguarding Officers once per child per register; corrections overwrite; the student's own page shows no attendance; national figures per month for 12 months.
 - **Chapters assumptions, remaining** (`docs/adr/0010-chapters.md`; 1, 2, 4, 6, 8 and keeping the DBS certificate number confirmed 24/10/2026): role-less accounts found by exact email (3); active chapter per person, not per browser (5); national figures unsuppressed (7); staff MFA judged in the active chapter (9).
 Ordered by go-live critical path.
