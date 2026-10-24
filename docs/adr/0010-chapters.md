@@ -70,6 +70,8 @@ All in reviewed, gate-checked places (`build/check-access-control.ps1` fails on 
 
 ## Assumptions (least privilege chosen; Philip to confirm)
 
+**Confirmed by Philip, 24/10/2026:** 1, 2, 4, 6 and 8. Not yet put to him individually: 3, 5, 7 and 9. The DBS certificate number is kept (Philip, 24/10/2026).
+
 1. **Rank badges are managed by the National Administrator only.** Badges are national; a chapter Admin could otherwise change every chapter's artwork. The National Administrator can also read the lesson library (national curriculum, no child data) so the badges page works.
 2. **Approver is granted by the National Administrator**, not by chapter Admins (it is a national role).
 3. **Role-less accounts are not listed to chapter Admins.** Before chapters, every account with no role appeared on the role page; now an Admin finds a new person by exact email, and the waiting list shows only those who accepted one of that chapter's guardian invites.
