@@ -1,6 +1,6 @@
 # Chapters and attendance: plan
 
-Status: **draft for Philip**, 24/10/2026. Requirements: `requirements/functional.md` FR-020 (attendance) and FR-021 (chapters); merchandise is deferred (`requirements/business-requirements.md`). Each decision below is a draft answer for Philip to confirm or change; nothing here is built yet.
+Status: **decided in part**, 24/10/2026 (Philip's answers in section 5; one question still open). Requirements: `requirements/functional.md` FR-020 (attendance) and FR-021 (chapters); merchandise is deferred (`requirements/business-requirements.md`). Each decision below is a draft answer for Philip to confirm or change; nothing here is built yet.
 
 ## 1. Why this needs deciding now
 
@@ -71,10 +71,16 @@ Recorded as deferred. When designed:
 - **Products:** likely a print-on-demand supplier for parish-named items.
 - **Data:** buyers' details would be new personal data, so the privacy notice and DPIA change at that point.
 
-## 5. Questions for Philip
+## 5. Decisions (Philip, 24/10/2026)
 
-1. Data responsibility: model A (each parish its own controller, the platform a processor), or B (a national body)? If A, are Shrewsbury's trustees content for Shrewsbury to operate the platform for other parishes?
-2. Build chapters before go-live, as recommended, even if that moves go-live later?
-3. Roles: is a national administrator who cannot see children's records right, and who should hold it at first (you)?
-4. Attendance: one register per meeting date, with present / absent / absent with apology? And should the at-risk flag use two consecutive absences?
-5. Should parents see their child's attendance?
+1. **Data responsibility: still open.** Philip's answers assume each chapter runs itself (3 and 4 below), which fits model A, but A or B is not yet confirmed. It does not change the build: chapter separation is the same either way. It changes the DPIA, the privacy notice and whether data processing agreements are needed.
+2. **Build chapters now.** Add a second chapter for testing: **the Greek Orthodox Church of the Holy Transfiguration, Coventry**, alongside Shrewsbury.
+3. **Roles.** Philip is the **national administrator**. The national administrator sets up chapters and assigns each chapter's Admins. A chapter's Admins then have admin powers over their own chapter, including appointing other Admins and Safeguarding Officers (and Teachers). Assumption kept from the draft, not contradicted: the national administrator sees no chapter's children, consent or DBS records without also holding a role in that chapter (Philip holds Shrewsbury roles).
+4. **The register is self-contained in each chapter.** Only the chapter's own staff take and see its registers. Nationally, attendance is available only as **anonymous** figures (for example per chapter per month: sessions held, students on roll, attendance rate), never names. Not yet confirmed, kept as drafts: the marks (present, absent, absent with apology) and the at-risk rule (two consecutive absences, or 8 weeks without a completion).
+5. **Parents see their own child's attendance and progress** on the parent dashboard.
+
+## 6. Build order
+
+1. **Chapters (FR-021)** on `master`: the `Chapter` entity; chapter on every chapter-owned entity; EF query filters scoped to the signed-in user's chapters, with tests for every entity; per-chapter role assignments; the national administrator role; a chapter switcher for people with roles in more than one chapter; Shrewsbury and Coventry in the development seed.
+2. **Attendance (FR-020)**, after chapters: registers per chapter per meeting date, combined with Record completions; the student's attendance on the student record and the parent dashboard; anonymous national figures.
+3. The redesign carries on side by side on branch `redesign`, and is merged after chapters so that its later pages can show chapter names.
