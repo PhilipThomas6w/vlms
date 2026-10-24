@@ -635,6 +635,14 @@
     .welcome__actions { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--s-3); }
 }
 
+@layer pages {
+    /* Authenticator set-up: the QR code, and on phones the link straight into the authenticator app. */
+    .qr-code { width: min(14rem, 100%); margin: var(--s-2) 0 var(--s-3); border: 1px solid var(--line); border-radius: var(--r-control); background: #FFFFFF; }
+    .qr-code svg { display: block; width: 100%; height: auto; }
+    .authenticator-link { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); }
+    .shared-key { user-select: all; overflow-wrap: anywhere; }
+}
+
 @layer utilities {
     .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
     .muted { color: var(--ink-soft); }

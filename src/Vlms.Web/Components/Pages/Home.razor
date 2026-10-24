@@ -1,5 +1,6 @@
 ﻿@page "/"
 @rendermode InteractiveServer
+@inject Vlms.Domain.ICurrentUserContext CurrentUser
 
 <PageTitle>Home</PageTitle>
 
@@ -21,6 +22,15 @@
     </NotAuthorized>
     <Authorized>
         <PageHeader Title="Home" />
+        @* Every staff page needs two-factor sign-in (MfaRequirementHandler); until it is set up the staff
+           menus are hidden, so say why rather than show an empty page. *@
+        @if (NeedsTwoFactor)
+        {
+            <Notice Kind="warning" Role="status">
+                <p><strong>Set up two-factor sign-in to see your staff pages.</strong> Your roles need it before their menus and pages appear.</p>
+                <p><a class="btn" href="/Account/Manage/EnableAuthenticator" data-enhance-nav="false">Set up two-factor sign-in</a></p>
+            </Notice>
+        }
         <h2 class="section-title">What to do next</h2>
 
         <PendingWorkNotices />
@@ -119,3 +129,9 @@
         </div>
     </Authorized>
 </AuthorizeView>
+
+@code {
+    private bool NeedsTwoFactor => !CurrentUser.HasMfaEnabled
+        && (CurrentUser.HasRole(Vlms.Domain.Role.Admin) || CurrentUser.HasRole(Vlms.Domain.Role.Teacher)
+            || CurrentUser.HasRole(Vlms.Domain.Role.SafeguardingOfficer) || CurrentUser.HasRole(Vlms.Domain.Role.NationalAdministrator));
+}
