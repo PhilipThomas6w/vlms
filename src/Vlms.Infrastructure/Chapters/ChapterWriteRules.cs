@@ -25,7 +25,8 @@ namespace Vlms.Infrastructure.Chapters;
 /// active chapter when left null; a national role carries none.</item>
 /// </list>
 /// The scheduled job's system principal (<see cref="ICurrentUserContext.SeesAllChapters"/>) has no
-/// active chapter, so it can add child records (promotions) but never a top-level one.
+/// active chapter, so it can add a top-level record only when the record names its chapter (the
+/// job itself adds none); its child records take their parent's chapter like anyone's.
 /// </summary>
 internal static class ChapterWriteRules
 {
@@ -105,7 +106,9 @@ internal static class ChapterWriteRules
             return;
         }
 
-        if (chapterId != active)
+        // The system principal sees every chapter and may file a row in a named one (it has no
+        // active chapter to default to); everyone else writes only in the chapter they work in.
+        if (chapterId != active && !currentUser.SeesAllChapters)
         {
             throw new InvalidOperationException(
                 $"A new {entry.Metadata.ClrType.Name} can only be added to the chapter the caller is working in.");
