@@ -3,19 +3,18 @@
 <a class="skip-link" href="#main-content">Skip to main content</a>
 
 <div class="shell">
+    @* The banner is the Greek Foliate Header (Orthodox Arts Journal), lengthened by repeating its roundels either side
+       of the cross; the name and the account controls sit in its opening, between IC XC and NIKA. *@
     <header class="shell-bar">
-        @* The banner: the logo, and the name set in the opening of the Greek Foliate Header (Orthodox Arts Journal), gold on lapis. *@
-        <a class="brand" href="/">
-            <BrandMark Letters="true" />
-            <span class="brand__plate">
-                <img src="img/oaj/banner-header.webp" alt="" width="720" height="246" />
-                <span class="brand__name">Varangians</span>
-            </span>
-        </a>
+        <span class="frieze frieze--left" aria-hidden="true"></span>
+        <span class="frieze frieze--band" aria-hidden="true"><span class="frieze__fill frieze__fill--left"></span><span class="frieze__centre"></span><span class="frieze__fill frieze__fill--right"></span></span>
+        <span class="frieze frieze--right" aria-hidden="true"></span>
+        <div class="shell-bar__opening">
+        <a class="brand" href="/"><BrandMark Letters="true" /><span class="brand__name">Varangians</span></a>
         <AuthorizeView>
             <Authorized>
                 <button type="button" class="nav-toggle" aria-expanded="false" aria-controls="site-nav" data-nav-toggle>
-                    <Icon Name="menu" /> Menu
+                    <Icon Name="menu" /> <span class="nav-toggle__label">Menu</span>
                 </button>
                 <details class="account">
                     <summary>
@@ -47,6 +46,7 @@
                 </nav>
             </NotAuthorized>
         </AuthorizeView>
+        </div>
     </header>
 
     <div class="shell-body">
