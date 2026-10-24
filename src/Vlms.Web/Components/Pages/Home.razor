@@ -73,7 +73,7 @@
             <section class="action-card" aria-labelledby="home-student">
                 <h3 id="home-student">Student</h3>
                 <ul class="action-list">
-                    <li><a href="/student"><Icon Name="rank" />My progress</a></li>
+                    <li><a href="/student"><Icon Name="rank" />My rank</a></li>
                     <li><a href="/lessons"><Icon Name="book" />Lesson library</a></li>
                 </ul>
             </section>
@@ -116,6 +116,9 @@
                 </ul>
             </section>
         </AuthorizeView>
+        @* Not for a student sign-in, which can't apply (the menu hides it the same way; the pages refuse students regardless). *@
+        <AuthorizeView Policy="RequireStudent" Context="studentContext">
+            <NotAuthorized>
         <AuthorizeView Policy="RequireSignedIn" Context="applyContext">
             <section class="action-card" aria-labelledby="home-register">
                 <h3 id="home-register">Register your child</h3>
@@ -125,6 +128,8 @@
                     <li><a href="/registration/my-applications"><Icon Name="clipboard" />My applications</a></li>
                 </ul>
             </section>
+        </AuthorizeView>
+            </NotAuthorized>
         </AuthorizeView>
         </div>
     </Authorized>
