@@ -75,13 +75,22 @@
                     <li><a href="/registration/approve">Approve registration applications</a></li>
                     <li><a href="/registration/students">Register student</a></li>
                     <li><a href="/guardianship/links">Guardian links</a></li>
-                    <li><a href="/administration/rank-badges">Rank badges</a></li>
                     <li><a href="/reporting">Reporting</a></li>
                     <li><a href="/reporting/records-due-for-deletion">Records due for deletion</a></li>
                     <li><a href="/retention/mark-as-left">Mark as left</a></li>
                     <li><a href="/safeguarding/consent">Consent records</a></li>
                     <li><a href="/safeguarding/dbs">DBS checks</a></li>
                     <li><a href="/lessons">Lesson library</a></li>
+                </ul>
+            </section>
+        </AuthorizeView>
+        <AuthorizeView Policy="RequireNationalAdministrator" Context="roleContext">
+            <section aria-labelledby="home-national">
+                <h3 id="home-national">National Administrator</h3>
+                <ul>
+                    <li><a href="/administration/chapters">Chapters</a></li>
+                    <li><a href="/reporting/national">National figures</a></li>
+                    <li><a href="/administration/rank-badges">Rank badges</a></li>
                 </ul>
             </section>
         </AuthorizeView>

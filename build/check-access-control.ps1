@@ -83,6 +83,30 @@ foreach ($file in $csFiles) {
     }
 }
 
+# --- 2b. Raw SQL only where docs/adr/0010-chapters.md sanctions it -------------------------------
+# Raw SQL is the other way past a query filter. Three reads are sanctioned, each returning no
+# person-level row: the whole-table id allocation (VlmsDbContext.NextIdAsync), the national
+# administrator's anonymous counts (NationalTotalsService) and an invite's chapter id after its
+# token is verified (GuardianInviteService). Migrations are DDL and are not scanned.
+$rawSqlAllowList = @(
+    "src/Vlms.Infrastructure/VlmsDbContext.cs",
+    "src/Vlms.Infrastructure/Chapters/NationalTotalsService.cs",
+    "src/Vlms.Infrastructure/Guardianship/GuardianInviteService.cs"
+)
+$sourceFiles = Get-ChildItem -Path $srcRoot -Recurse -Include "*.cs", "*.razor" |
+    Where-Object { $_.FullName -notmatch '[\\/](bin|obj|Migrations)[\\/]' }
+foreach ($file in $sourceFiles) {
+    $relative = (RelativePath $file.FullName) -replace '\\', '/'
+    $content = Get-Content -Raw -LiteralPath $file.FullName
+    if ($content -match '\.(SqlQuery|SqlQueryRaw|FromSql[A-Za-z]*|ExecuteSql[A-Za-z]*)\s*[<(]' -and $rawSqlAllowList -notcontains $relative) {
+        $failures += "raw SQL outside the sanctioned files (adr/0010) — it bypasses the chapter and sensitive-data query filters: $relative"
+    }
+    # The chapter scope override (invite acceptance) may be entered by GuardianInviteService only.
+    if ($content -match '\.EnterForVerifiedInvite\s*\(' -and $relative -ne "src/Vlms.Infrastructure/Guardianship/GuardianInviteService.cs") {
+        $failures += "ChapterScopeOverride.EnterForVerifiedInvite called outside GuardianInviteService (adr/0010): $relative"
+    }
+}
+
 # --- 3. Access-control test suites must still exist with at least their original test count -----
 # (test-plan.md TC-007/011 -> SensitiveDataAccessControlTests; TC-008 -> Consent/DbsCheck service
 # denial tests; TC-012 -> GuardianLinkServiceTests). Counts are the number present when this stage
@@ -118,6 +142,9 @@ $expectedMinimums = @{
     # change, security-stamp rotation.
     "RoleChangeTests.cs"                = 13
     "StudentApplicationServiceTests.cs" = 38
+    # FR-021 chapters (adr/0010): the reflection classification, every entity per chapter, the
+    # write rules, roles per chapter, national administrator least privilege, notifications.
+    "ChapterSeparationTests.cs"         = 26
 }
 
 foreach ($testFileName in $expectedMinimums.Keys) {
@@ -181,6 +208,12 @@ $hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Infrastructure/Identity/
 $hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Infrastructure/Identity/VlmsIdentityUser.cs")
 $hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Web/Components/Account/VlmsSignInManager.cs")
 $hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Infrastructure/Registration/StudentApplicationService.cs")
+# FR-021 chapters (adr/0010): filters' write side, membership, scope override, national services,
+# the switch endpoint, the anonymous-lookup context and the invite acceptance that uses the override.
+$hashedFiles += Get-ChildItem (Join-Path $repoRoot "src/Vlms.Infrastructure/Chapters") -Filter "*.cs"
+$hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Infrastructure/Security/AccountLookupUserContext.cs")
+$hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Infrastructure/Guardianship/GuardianInviteService.cs")
+$hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Web/ChapterSwitchEndpoint.cs")
 $hashedFiles += $pageFiles
 
 if ($PrintHash) {

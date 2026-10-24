@@ -23,7 +23,7 @@ public class NavigationCoverageTests
         ["RequireNationalAdministrator"] = ["NationalAdministrator"],
         ["RequireAdminOrTeacher"] = ["Admin", "Teacher"],
         ["RequireAdminOrSafeguardingOfficer"] = ["Admin", "SafeguardingOfficer"],
-        ["RequireLessonLibrary"] = ["Teacher", "Approver", "Admin", "Student", "Parent"],
+        ["RequireLessonLibrary"] = ["Teacher", "Approver", "Admin", "Student", "Parent", "NationalAdministrator"],
         // Any signed-in user, including one with no role yet (parent registration, adr/0008).
         ["RequireSignedIn"] = ["Admin", "Teacher", "Approver", "Parent", "Student", "SafeguardingOfficer", "NationalAdministrator"],
     };
