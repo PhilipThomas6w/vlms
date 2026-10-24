@@ -184,6 +184,42 @@ public sealed class LessonLibraryServiceTests : IDisposable
         Assert.Null(await CreateService(context, user).OpenFileAsync(9999));
     }
 
+    [Theory]
+    [MemberData(nameof(AllowedRoles))]
+    public async Task GetSavedLessonsAsync_AllowedRole_ReturnsTheLessonsAsAskedWithRankAndFiles(Role role)
+    {
+        var user = new FakeCurrentUserContext(5, role);
+        using var context = CreateContext(user);
+
+        var saved = await CreateService(context, user).GetSavedLessonsAsync([12, 21]);
+
+        Assert.Equal([12, 21], saved.Select(l => l.Id));
+        var first = saved[0];
+        Assert.Equal("First lesson", first.Title);
+        Assert.Equal("R1: First", first.Rank);
+        Assert.Equal([101, 102], first.Files.Select(f => f.Id));
+    }
+
+    [Fact]
+    public async Task GetSavedLessonsAsync_UnknownAndRetiredIds_AreLeftOut()
+    {
+        var user = new FakeCurrentUserContext(5, Role.Teacher);
+        using var context = CreateContext(user);
+
+        var saved = await CreateService(context, user).GetSavedLessonsAsync([13, 9999, 11]);
+
+        Assert.Equal([11], saved.Select(l => l.Id));
+    }
+
+    [Fact]
+    public async Task GetSavedLessonsAsync_SafeguardingOfficerOnly_Throws()
+    {
+        var user = new FakeCurrentUserContext(5, Role.SafeguardingOfficer);
+        using var context = CreateContext(user);
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => CreateService(context, user).GetSavedLessonsAsync([12]));
+    }
+
     [Fact]
     public async Task OpenFileAsync_BlobMissingFromStorage_ReturnsNull()
     {

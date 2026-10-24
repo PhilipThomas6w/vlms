@@ -18,6 +18,7 @@ public static class LessonFileEndpoint
 {
     public const string PolicyName = "RequireLessonLibrary";
     public const string RoutePattern = "/lessons/files/{id:int}";
+    public const string SavedRoutePattern = "/lessons/saved";
 
     public static void AddLessonLibraryPolicy(this AuthorizationOptions options) =>
         options.AddPolicy(PolicyName, policy =>
@@ -45,6 +46,24 @@ public static class LessonFileEndpoint
             }
 
             return ToResult(file, http);
+        }).RequireAuthorization(PolicyName);
+
+    /// <summary>
+    /// <c>GET /lessons/saved?id=1&amp;id=2</c> (FR-023): the current lessons and files for the lesson ids a
+    /// device has saved, so it can drop what is gone and fetch what is new. Same policy and role check as
+    /// the file endpoint; ids that are unknown or retired are left out of the answer.
+    /// </summary>
+    public static IEndpointConventionBuilder MapSavedLessonsEndpoint(this IEndpointRouteBuilder endpoints) =>
+        endpoints.MapGet(SavedRoutePattern, async (int[] id, LessonLibraryService library, CancellationToken ct) =>
+        {
+            try
+            {
+                return Results.Ok(await library.GetSavedLessonsAsync(id, ct));
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Results.Forbid();
+            }
         }).RequireAuthorization(PolicyName);
 
     /// <summary>Inline for pdf/images, attachment for everything else, always nosniff.</summary>

@@ -52,12 +52,31 @@ public sealed class LessonLibraryService
             lessons.Where(l => l.RankId == rank.Id)
                 .OrderBy(l => l.Order).ThenBy(l => l.Id)
                 .Select(l => new LibraryLesson(
+                    l.Id,
                     l.Code,
                     l.Title,
                     l.Tags.Select(t => t.Tag).Order().Select(LessonTagNames.Display).ToList(),
                     l.Files.OrderBy(f => f.Order).ThenBy(f => f.Id)
                         .Select(f => new LibraryFile(f.Id, f.FileName)).ToList()))
                 .ToList()))
+            .ToList();
+    }
+
+    /// <summary>
+    /// The current state of the given lessons, for a device that has saved them for offline use
+    /// (FR-023): each one that is still an active lesson, with its rank, position and files. Ids that
+    /// are unknown or retired are simply absent, which tells the device to drop them. Nothing beyond
+    /// what <see cref="GetLibraryAsync"/> already shows. Same role check as the rest of the library.
+    /// </summary>
+    public async Task<IReadOnlyList<SavedLesson>> GetSavedLessonsAsync(IReadOnlyCollection<int> lessonIds, CancellationToken ct = default)
+    {
+        RequireLibraryRole();
+
+        var library = await GetLibraryAsync(ct);
+        return library
+            .SelectMany((rank, rankPosition) => rank.Lessons.Select((lesson, position) =>
+                new SavedLesson(lesson.Id, lesson.Code, lesson.Title, $"{rank.Code}: {rank.Name}", rankPosition, position, lesson.Files)))
+            .Where(l => lessonIds.Contains(l.Id))
             .ToList();
     }
 
@@ -93,7 +112,10 @@ public sealed class LessonLibraryService
 
 public sealed record LibraryRank(string Code, string Name, IReadOnlyList<LibraryLesson> Lessons);
 
-public sealed record LibraryLesson(string Code, string Title, IReadOnlyList<string> Tags, IReadOnlyList<LibraryFile> Files);
+public sealed record LibraryLesson(int Id, string Code, string Title, IReadOnlyList<string> Tags, IReadOnlyList<LibraryFile> Files);
+
+/// <summary>A lesson as a device that saved it needs to know it: <c>Rank</c> reads like "R1: First", the two positions give the delivery order.</summary>
+public sealed record SavedLesson(int Id, string Code, string Title, string Rank, int RankPosition, int Position, IReadOnlyList<LibraryFile> Files);
 
 public sealed record LibraryFile(int Id, string FileName);
 

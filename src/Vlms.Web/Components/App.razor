@@ -24,11 +24,18 @@
     <ReconnectModal />
     <script src="@Assets["_framework/blazor.web.js"]"></script>
     <script src="@Assets["app.js"]"></script>
+    <script src="@Assets["offline-lessons.js"]"></script>
     <script>
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('service-worker.js');
+            navigator.serviceWorker.register('service-worker.js?v=@BuildId');
         }
     </script>
 </body>
 
 </html>
+
+@code {
+    // Changes with every build, so the service worker's static cache is renamed (and the old one
+    // deleted) on every deploy: see wwwroot/service-worker.js.
+    private static readonly string BuildId = typeof(App).Assembly.ManifestModule.ModuleVersionId.ToString("N");
+}

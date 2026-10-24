@@ -1,37 +1,44 @@
-// Minimal service worker for VLMS: installability ("Add to Home Screen") plus
-// app-shell asset caching for faster repeat loads.
+// Service worker for VLMS: installability ("Add to Home Screen"), app-shell asset caching and
+// lessons saved for offline use (functional.md FR-023, adr/0011).
 //
 // Scope, deliberately: Vlms.Web is a Blazor Web App using **Server** interactivity
 // (see openwiki/web.md/architecture.md) — the UI is rendered server-side and kept
-// live over a SignalR circuit, so there is no meaningful "offline app" to build here
-// the way there is for a Blazor WebAssembly PWA (whose template generates a
-// service-worker-assets.js build manifest and can run the whole app disconnected —
-// see Microsoft Learn's "ASP.NET Core Blazor Progressive Web Application (PWA)").
-// None of that offline-execution machinery applies to a Server-interactive app: without
-// a live connection to the server there is no app to run. This service worker is
-// therefore scoped to exactly two things:
+// live over a SignalR circuit, so there is no "offline app" to build the way there is for a
+// Blazor WebAssembly PWA. Without a connection the only thing that works is the lesson content a
+// person chose to save, and that is all this worker does beyond installability and asset caching:
 //   1. Making the app installable (a registered service worker is one of the standard
-//      browser installability signals, alongside the manifest below).
+//      browser installability signals, alongside the manifest).
 //   2. Cache-first, populate-as-you-go caching of same-origin static assets (CSS, JS,
 //      images, fonts, the manifest itself) so a repeat visit fetches them from the
-//      cache instead of the network.
-// It never intercepts navigation requests (the server-rendered HTML document itself,
-// which is dynamic and per-request — auth state, antiforgery tokens, etc. — and must
-// never be served stale from a cache) and it never touches the SignalR circuit
-// (WebSocket upgrades aren't dispatched through the Fetch API's 'fetch' event at all,
-// so there is nothing to explicitly exclude for that, but the destination allow-list
-// below means non-asset requests are left alone regardless).
+//      cache instead of the network. The cache name carries the build id (the `v` in this script's
+//      URL, set by App.razor), so every build starts with an empty cache and the old one is deleted
+//      on activate: an unversioned asset can never be served stale for ever.
+//   3. Lesson files (/lessons/files/{id}): network first, falling back to the copy saved on the
+//      device in the "vlms-lessons" cache. The page script (offline-lessons.js) writes and removes
+//      that cache; this worker only reads it and must never delete it.
+//   4. Navigation: network first, so a page is never served stale while online; with no connection
+//      the precached /offline.html, which lists the saved lessons.
+// It never touches the SignalR circuit (WebSocket upgrades aren't dispatched through the Fetch
+// API's 'fetch' event at all).
 
-const CACHE_NAME = "vlms-static-v1";
+const BUILD = new URL(self.location.href).searchParams.get("v") || "dev";
+const STATIC_PREFIX = "vlms-static-";
+const CACHE_NAME = STATIC_PREFIX + BUILD;
+const LESSONS_CACHE = "vlms-lessons";
 const CACHEABLE_DESTINATIONS = ["style", "script", "image", "font", "manifest"];
+const LESSON_FILE = /^\/lessons\/files\/\d+$/;
+const OFFLINE_PAGE = "/offline.html";
+const PRECACHE = [OFFLINE_PAGE, "/offline.js", "/app.css"];
 
 self.addEventListener("install", (event) => {
-  // Take over from any previous version as soon as it's installed; there is no
-  // offline app state to preserve consistently across versions here (see above),
-  // so the usual "wait until all tabs close" caution for offline-first PWAs doesn't
-  // apply in the same way.
+  // Take over from any previous version as soon as it's installed; nothing in the static cache
+  // needs to stay consistent across versions, and the saved lessons live in their own cache.
   self.skipWaiting();
-  event.waitUntil(caches.open(CACHE_NAME));
+  event.waitUntil(
+    caches
+      .open(CACHE_NAME)
+      .then((cache) => cache.addAll(PRECACHE.map((path) => new Request(path, { cache: "reload" }))))
+  );
 });
 
 self.addEventListener("activate", (event) => {
@@ -40,23 +47,42 @@ self.addEventListener("activate", (event) => {
       .keys()
       .then((keys) =>
         Promise.all(
-          keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
+          keys
+            .filter((key) => key.startsWith(STATIC_PREFIX) && key !== CACHE_NAME)
+            .map((key) => caches.delete(key))
         )
       )
       .then(() => self.clients.claim())
   );
 });
 
+async function lessonFile(request) {
+  try {
+    return await fetch(request);
+  } catch (error) {
+    const saved = await caches.open(LESSONS_CACHE).then((cache) => cache.match(request.url, { ignoreVary: true }));
+    if (saved) {
+      return saved;
+    }
+    if (request.mode === "navigate") {
+      return offlinePage(error);
+    }
+    throw error;
+  }
+}
+
+async function offlinePage(error) {
+  const page = await caches.open(CACHE_NAME).then((cache) => cache.match(OFFLINE_PAGE));
+  if (page) {
+    return page;
+  }
+  throw error;
+}
+
 self.addEventListener("fetch", (event) => {
   const request = event.request;
 
   if (request.method !== "GET") {
-    return;
-  }
-
-  // Never intercept navigation (the server-rendered document) or anything
-  // cross-origin — only same-origin static assets are candidates for caching.
-  if (request.mode === "navigate") {
     return;
   }
 
@@ -68,6 +94,18 @@ self.addEventListener("fetch", (event) => {
   }
 
   if (url.origin !== self.location.origin) {
+    return;
+  }
+
+  if (LESSON_FILE.test(url.pathname)) {
+    event.respondWith(lessonFile(request));
+    return;
+  }
+
+  // The server-rendered document is dynamic per request (auth state, antiforgery tokens): always
+  // the network, and the offline page only when there is no connection at all.
+  if (request.mode === "navigate") {
+    event.respondWith(fetch(request).catch(offlinePage));
     return;
   }
 
