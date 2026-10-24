@@ -487,6 +487,19 @@
 
     /* ---- Phase 6 shared patterns ---- */
 
+    /* Narrow blocks sit at the left of the content column, not centred in it. */
+    main > :is(p, .form, .data-table, dl, ul, ol, fieldset, h2, h3, details) {
+        margin-left: max(0px, calc(50% - var(--content-max) / 2)); margin-right: auto;
+    }
+    main > p { max-width: var(--measure); }
+    .person-list { list-style: none; margin: 0 0 var(--s-4); padding: 0; }
+    .person-list li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s-2) var(--s-4); padding-block: var(--s-1); border-bottom: 1px solid var(--line); max-width: 40rem; }
+    .panel.section h3 { margin-top: 0; }
+    /* A heading focused after navigation is not a control: no ring. */
+    h1[tabindex="-1"]:focus { outline: none; box-shadow: none; }
+    details.fold > summary { display: flex; align-items: center; min-height: var(--target); cursor: pointer; font-weight: 600; color: var(--lapis-700); }
+    details.fold[open] > summary { margin-bottom: var(--s-2); }
+
     /* Messages written as plain paragraphs (pinned by markup tests) take the notice look: tint, edge, glyph. */
     main p.error[role=alert], main p[role=alert], main p[role=status]:not(:empty) {
         position: relative; max-width: none;
@@ -578,6 +591,11 @@
     .data-table ul { margin: 0; padding-left: var(--s-4); }
     .proposal { margin-bottom: var(--s-5); }
     .proposal h2 { margin-top: 0; font-size: var(--step-2); }
+    .data-table:not(:has(th:nth-child(4))) { max-width: 44rem; }
+    .section-title { margin-top: 0; font-size: var(--step-2); }
+    .application { margin-bottom: var(--s-5); }
+    .application h2 { margin-top: 0; font-size: var(--step-2); }
+    .panel.section h2 { margin-top: 0; font-size: var(--step-2); }
     .btn-row { display: flex; flex-wrap: wrap; gap: var(--s-2); }
     .status-line { display: flex; flex-wrap: wrap; gap: var(--s-2); align-items: center; }
 

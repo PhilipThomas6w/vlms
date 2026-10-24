@@ -30,7 +30,7 @@
 
 @if (_selected is { } selected)
 {
-    <section aria-labelledby="reviewHeading">
+    <section class="panel section" aria-labelledby="reviewHeading">
         <h2 id="reviewHeading">Application to register @selected.ChildName</h2>
         <ApplicationSummary Application="selected" ShowApplicant="true" />
 
@@ -41,9 +41,11 @@
                     <label for="message">Comments, or the information you need from the parent (required to reject or to ask for more information)</label>
                     <InputTextArea id="message" rows="5" maxlength="4000" @bind-Value="Input.Message" />
                 </div>
-                <button type="submit" name="Input.Action" value="approve">Approve and pass to an Admin</button>
-                <button type="submit" name="Input.Action" value="more-information">Ask the parent for more information</button>
-                <button type="submit" name="Input.Action" value="reject">Reject</button>
+                <div class="form-actions">
+                    <button type="submit" name="Input.Action" value="approve">Approve and pass to an Admin</button>
+                    <button type="submit" class="btn--secondary" name="Input.Action" value="more-information">Ask the parent for more information</button>
+                    <button type="submit" class="btn--secondary" name="Input.Action" value="reject">Reject</button>
+                </div>
             </EditForm>
         }
         <p><a href="/registration/review">Back to the list</a></p>

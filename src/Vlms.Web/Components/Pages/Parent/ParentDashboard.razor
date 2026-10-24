@@ -83,6 +83,8 @@ else
             }
             else
             {
+                <details class="fold">
+                <summary>Show certificates (@student.Certificates.Count)</summary>
                 <ul class="rows">
                     @foreach (var certificate in student.Certificates)
                     {
@@ -95,6 +97,7 @@ else
                         </li>
                     }
                 </ul>
+                </details>
             }
         </section>
     }

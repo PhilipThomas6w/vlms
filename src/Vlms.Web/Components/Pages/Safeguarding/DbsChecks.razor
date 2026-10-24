@@ -50,13 +50,15 @@
                 <td data-label="Certificate number">@check.CertificateNumber</td>
                 <td data-label="Status">@check.Status</td>
                 <td>
+                    <div class="cell-actions">
                     @foreach (var status in Enum.GetValues<DbsCheckStatus>())
                     {
                         @if (status != check.Status)
                         {
-                            <button aria-label="@($"Mark {status} for {_teacherNames.GetValueOrDefault(check.TeacherUserId)}")" @onclick="() => UpdateStatusAsync(check.Id, status)">Mark @status</button>
+                            <button class="btn--secondary" aria-label="@($"Mark {status} for {_teacherNames.GetValueOrDefault(check.TeacherUserId)}")" @onclick="() => UpdateStatusAsync(check.Id, status)">Mark @status</button>
                         }
                     }
+                    </div>
                 </td>
             </tr>
         }

@@ -43,7 +43,7 @@
 @foreach (var chapter in _chapters)
 {
     var edit = _edits[chapter.Id];
-    <section aria-labelledby="chapter-@chapter.Id-heading">
+    <section class="panel section" aria-labelledby="chapter-@chapter.Id-heading">
         <h3 id="chapter-@chapter.Id-heading">@chapter.Name@(chapter.IsActive ? "" : " (closed)")</h3>
         <p>Created @chapter.CreatedAt.ToString("dd/MM/yyyy")</p>
         <form class="form" @onsubmit="() => UpdateAsync(chapter.Id)" @onsubmit:preventDefault>
@@ -69,20 +69,22 @@
         }
         else
         {
-            <ul>
+            <ul class="person-list">
                 @foreach (var admin in _admins[chapter.Id])
                 {
                     <li>
                         @admin.DisplayName (@admin.Email)@(admin.HasLeft ? " (left)" : "")
-                        <button type="button" aria-label="@($"Remove {admin.DisplayName} as Admin of {chapter.Name}")"
+                        <button type="button" class="btn--secondary" aria-label="@($"Remove {admin.DisplayName} as Admin of {chapter.Name}")"
                                 @onclick="() => RemoveAdminAsync(chapter, admin)">Remove</button>
                     </li>
                 }
             </ul>
         }
-        <form class="form" @onsubmit="() => AppointAdminAsync(chapter)" @onsubmit:preventDefault>
-            <label for="admin-email-@chapter.Id">Email address of a new Admin for @chapter.Name</label>
-            <input id="admin-email-@chapter.Id" type="email" autocomplete="off" @bind="edit.AdminEmail" />
+        <form class="field-row" @onsubmit="() => AppointAdminAsync(chapter)" @onsubmit:preventDefault>
+            <div class="field">
+                <label for="admin-email-@chapter.Id">Email address of a new Admin for @chapter.Name</label>
+                <input id="admin-email-@chapter.Id" type="email" autocomplete="off" @bind="edit.AdminEmail" />
+            </div>
             <button type="submit" aria-label="@($"Appoint Admin of {chapter.Name}")">Appoint Admin</button>
         </form>
     </section>
@@ -91,7 +93,7 @@
 <h2>National roles</h2>
 @foreach (var role in NationalRoles)
 {
-    <section aria-labelledby="role-@role-heading">
+    <section class="panel section" aria-labelledby="role-@role-heading">
         <h3 id="role-@role-heading">@role.DisplayName()</h3>
         @if (role == Role.Approver)
         {
@@ -107,20 +109,22 @@
         }
         else
         {
-            <ul>
+            <ul class="person-list">
                 @foreach (var holder in _holders[role])
                 {
                     <li>
                         @holder.DisplayName (@holder.Email)
-                        <button type="button" aria-label="@($"Remove {role.DisplayName()} from {holder.DisplayName}")"
+                        <button type="button" class="btn--secondary" aria-label="@($"Remove {role.DisplayName()} from {holder.DisplayName}")"
                                 @onclick="() => RevokeNationalAsync(role, holder)">Remove</button>
                     </li>
                 }
             </ul>
         }
-        <form class="form" @onsubmit="() => GrantNationalAsync(role)" @onsubmit:preventDefault>
-            <label for="grant-@role">Email address of a new @role.DisplayName()</label>
-            <input id="grant-@role" type="email" autocomplete="off" @bind="_nationalEmails[role]" />
+        <form class="field-row" @onsubmit="() => GrantNationalAsync(role)" @onsubmit:preventDefault>
+            <div class="field">
+                <label for="grant-@role">Email address of a new @role.DisplayName()</label>
+                <input id="grant-@role" type="email" autocomplete="off" @bind="_nationalEmails[role]" />
+            </div>
             <button type="submit" aria-label="@($"Grant {role.DisplayName()}")">Grant</button>
         </form>
     </section>

@@ -32,7 +32,7 @@
 @if (_selected is { } selected)
 {
     var application = selected.Application;
-    <section aria-labelledby="approveHeading">
+    <section class="panel section" aria-labelledby="approveHeading">
         <h2 id="approveHeading">Application to register @application.ChildName</h2>
         <ApplicationSummary Application="application" ShowApplicant="true" />
 
@@ -44,14 +44,14 @@
                     <fieldset>
                         <legend>Existing students with the same name and date of birth</legend>
                         <p>Children of different families can share a name and date of birth. Link only if this is the same child.</p>
-                        <div>
+                        <div class="field--check">
                             <input id="createNew" type="radio" name="Input.ExistingStudentId" value="" checked="@(Input.ExistingStudentId is null)" />
                             <label for="createNew">Create a new student record</label>
                         </div>
                         @foreach (var match in selected.SameNameAndDateOfBirth)
                         {
                             var studentId = match.StudentId;
-                            <div>
+                            <div class="field--check">
                                 <input id="existing@(studentId)" type="radio" name="Input.ExistingStudentId" value="@studentId" checked="@(Input.ExistingStudentId == studentId)" />
                                 <label for="existing@(studentId)">
                                     Link to @match.Name (student @studentId, born @match.DateOfBirth.ToString("d MMMM yyyy"), @match.CurrentRankName, @match.Status;
@@ -75,8 +75,10 @@
                     <label for="comments">Comments (required to reject; shown to the parent)</label>
                     <InputTextArea id="comments" rows="4" maxlength="4000" @bind-Value="Input.Comments" />
                 </div>
-                <button type="submit" name="Input.Action" value="approve">Approve and register</button>
-                <button type="submit" name="Input.Action" value="reject">Reject</button>
+                <div class="form-actions">
+                    <button type="submit" name="Input.Action" value="approve">Approve and register</button>
+                    <button type="submit" class="btn--secondary" name="Input.Action" value="reject">Reject</button>
+                </div>
             </EditForm>
         }
         <p><a href="/registration/approve">Back to the list</a></p>

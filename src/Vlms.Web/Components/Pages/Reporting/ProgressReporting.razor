@@ -10,8 +10,7 @@
 
 <p class="intro">
     Core progress reports, and flags for students who may be at risk of disengaging.
-    Admin-only — see <code>ProgressReportingService</code>'s doc comment for why this isn't gated the
-    same way as the consent/DBS pages.
+    Admin only.
 </p>
 
 @if (_errorMessage is not null)
@@ -44,11 +43,11 @@ else
     </table>
 
     <h2>Students by status</h2>
-    <ul>
-        <li>Active: @_stats.StatusCounts.ActiveCount</li>
-        <li>Inactive: @_stats.StatusCounts.InactiveCount</li>
-        <li>Graduated: @_stats.StatusCounts.GraduatedCount</li>
-    </ul>
+    <dl class="facts">
+        <dt>Active</dt><dd>@_stats.StatusCounts.ActiveCount</dd>
+        <dt>Inactive</dt><dd>@_stats.StatusCounts.InactiveCount</dd>
+        <dt>Graduated</dt><dd>@_stats.StatusCounts.GraduatedCount</dd>
+    </dl>
 
     <h2>Completion stats</h2>
     <p>Total lesson completions recorded (non-reversed): @_stats.TotalLessonCompletions</p>

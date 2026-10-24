@@ -57,7 +57,7 @@ else
                     <td data-label="Submitted by">@_guardianNames.GetValueOrDefault(record.SubmittedByParentId)@(record.SubmittedByUserId is { } enteredBy && _parentUserIds.Contains(enteredBy) ? "" : " (entered by staff)")</td>
                     <td data-label="Submitted">@record.SubmittedAt?.ToString("d MMMM yyyy HH:mm")</td>
                     <td data-label="Period">@record.PeriodStart - @record.PeriodEnd</td>
-                    <td><button aria-label="@($"Review submission for {_studentNames.GetValueOrDefault(record.StudentId)}")" @onclick="() => StartReview(record.Id)">Review</button></td>
+                    <td><button class="btn--secondary" aria-label="@($"Review submission for {_studentNames.GetValueOrDefault(record.StudentId)}")" @onclick="() => StartReview(record.Id)">Review</button></td>
                 </tr>
             }
         </tbody>
@@ -72,7 +72,7 @@ else
     var inForce = ConsentReviewComparison.FindInForce(_records, review.StudentId, DateOnly.FromDateTime(DateTime.UtcNow));
     var inForceChanges = ConsentReviewComparison.CompareWithInForce(
         review, details, inForce, inForce is null ? null : _sensitiveDetailsByRecordId.GetValueOrDefault(inForce.Id));
-    <section aria-labelledby="reviewHeading">
+    <section class="panel section" aria-labelledby="reviewHeading">
         <h2 id="reviewHeading">Review submission for @_studentNames.GetValueOrDefault(review.StudentId)</h2>
         @if (studentChanges.Any(f => f.Changed))
         {
@@ -136,9 +136,11 @@ else
             <label for="decisionComments">Comments (required to reject; the parent will see them)</label>
             <InputTextArea id="decisionComments" @bind-Value="_decisionComments" />
         </div>
-        <button @onclick="() => DecideAsync(review.Id, approve: true)">Approve</button>
-        <button @onclick="() => DecideAsync(review.Id, approve: false)">Reject</button>
-        <button @onclick="CancelReview" class="btn--secondary">Cancel</button>
+        <div class="form-actions">
+            <button @onclick="() => DecideAsync(review.Id, approve: true)">Approve</button>
+            <button class="btn--secondary" @onclick="() => DecideAsync(review.Id, approve: false)">Reject</button>
+            <button class="btn--secondary" @onclick="CancelReview">Cancel</button>
+        </div>
     </section>
 }
 
@@ -205,18 +207,22 @@ else
         <label for="expiryDate">Expiry date</label>
         <InputDate id="expiryDate" @bind-Value="_form.ExpiryDate" />
     </div>
-    <div class="field">
-        <label for="photoMediaConsent"><InputCheckbox id="photoMediaConsent" @bind-Value="_form.PhotoMediaConsent" /> Photo/media consent</label>
-    </div>
-    <div class="field">
-        <label for="transportConsent"><InputCheckbox id="transportConsent" @bind-Value="_form.TransportConsent" /> Transport between our sites</label>
-    </div>
-    <div class="field">
-        <label for="offsiteTripConsent"><InputCheckbox id="offsiteTripConsent" @bind-Value="_form.OffsiteTripConsent" /> Off-site trips and outings</label>
-    </div>
-    <div class="field">
-        <label for="dataSharingConsent"><InputCheckbox id="dataSharingConsent" @bind-Value="_form.DataSharingConsent" /> Data-sharing consent</label>
-    </div>
+    <div class="field--check">
+                <InputCheckbox id="photoMediaConsent" @bind-Value="_form.PhotoMediaConsent" />
+                <label for="photoMediaConsent">Photo/media consent</label>
+            </div>
+    <div class="field--check">
+                <InputCheckbox id="transportConsent" @bind-Value="_form.TransportConsent" />
+                <label for="transportConsent">Transport between our sites</label>
+            </div>
+    <div class="field--check">
+                <InputCheckbox id="offsiteTripConsent" @bind-Value="_form.OffsiteTripConsent" />
+                <label for="offsiteTripConsent">Off-site trips and outings</label>
+            </div>
+    <div class="field--check">
+                <InputCheckbox id="dataSharingConsent" @bind-Value="_form.DataSharingConsent" />
+                <label for="dataSharingConsent">Data-sharing consent</label>
+            </div>
     <div class="field">
         <label for="emergencyContact">Emergency contact</label>
         <InputText id="emergencyContact" @bind-Value="_form.EmergencyContact" />

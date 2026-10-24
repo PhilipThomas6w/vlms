@@ -63,7 +63,7 @@
                 <td>
                     @if (!completion.IsReversed)
                     {
-                        <button type="button" aria-label="@($"Reverse completion of {completion.Lesson?.Title} for {completion.Student?.Name}")" @onclick="() => StartReverse(completion)">Reverse</button>
+                        <button type="button" class="btn--secondary" aria-label="@($"Reverse completion of {completion.Lesson?.Title} for {completion.Student?.Name}")" @onclick="() => StartReverse(completion)">Reverse</button>
                     }
                 </td>
             </tr>
@@ -83,8 +83,10 @@
             <InputTextArea id="reversalNote" @bind-Value="_reversalForm.Note" />
         </div>
 
-        <button type="submit">Confirm reversal</button>
-        <button type="button" @onclick="CancelReverse" class="btn--secondary">Cancel</button>
+        <div class="form-actions">
+            <button type="submit">Confirm reversal</button>
+            <button type="button" @onclick="CancelReverse" class="btn--secondary">Cancel</button>
+        </div>
     </EditForm>
 }
 

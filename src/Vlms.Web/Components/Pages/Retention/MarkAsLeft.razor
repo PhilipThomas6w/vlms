@@ -56,7 +56,7 @@ else
                 <tr>
                     <td data-label="Student">@student.Name</td>
                     <td data-label="Enrolment date">@student.EnrolmentDate.ToString("d MMMM yyyy")</td>
-                    <td><button aria-label="@($"Mark {student.Name} as left")" @onclick="() => MarkStudentInactiveAsync(student.Id)">Mark as left</button></td>
+                    <td><button class="btn--secondary" aria-label="@($"Mark {student.Name} as left")" @onclick="() => MarkStudentInactiveAsync(student.Id)">Mark as left</button></td>
                 </tr>
             }
         </tbody>
@@ -90,12 +90,12 @@ else
                         @if (_confirmingUserId == member.User.Id)
                         {
                             <p role="alert">Mark @member.User.DisplayName as left? They lose all staff access at once, and you cannot undo this in the app.</p>
-                            <button aria-label="@($"Confirm: mark {member.User.DisplayName} as left")" @onclick="() => MarkStaffLeftAsync(member.User.Id)">Confirm</button>
+                            <button class="btn--danger" aria-label="@($"Confirm: mark {member.User.DisplayName} as left")" @onclick="() => MarkStaffLeftAsync(member.User.Id)">Confirm</button>
                             <button aria-label="@($"Cancel marking {member.User.DisplayName} as left")" @onclick="CancelConfirm" class="btn--secondary">Cancel</button>
                         }
                         else
                         {
-                            <button aria-label="@($"Mark {member.User.DisplayName} as left")" @onclick="() => AskToConfirm(member.User.Id)">Mark as left</button>
+                            <button class="btn--secondary" aria-label="@($"Mark {member.User.DisplayName} as left")" @onclick="() => AskToConfirm(member.User.Id)">Mark as left</button>
                         }
                     </td>
                 </tr>
