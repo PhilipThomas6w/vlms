@@ -1,6 +1,6 @@
 # Chapters and attendance: plan
 
-Status: **decided in part**, 24/10/2026 (Philip's answers in section 5; one question still open). Requirements: `requirements/functional.md` FR-020 (attendance) and FR-021 (chapters); merchandise is deferred (`requirements/business-requirements.md`). Each decision below is a draft answer for Philip to confirm or change; nothing here is built yet.
+Status: **decided**, 24/10/2026 (Philip's answers in section 5 override the drafts in sections 2 and 3). Requirements: `requirements/functional.md` FR-020 (attendance) and FR-021 (chapters); merchandise is deferred (`requirements/business-requirements.md`). Each decision below is a draft answer for Philip to confirm or change; nothing here is built yet.
 
 ## 1. Why this needs deciding now
 
@@ -73,10 +73,10 @@ Recorded as deferred. When designed:
 
 ## 5. Decisions (Philip, 24/10/2026)
 
-1. **Data responsibility: still open.** Philip's answers assume each chapter runs itself (3 and 4 below), which fits model A, but A or B is not yet confirmed. It does not change the build: chapter separation is the same either way. It changes the DPIA, the privacy notice and whether data processing agreements are needed.
+1. **Data responsibility (Philip, 24/10/2026):** Philip, as the app's maintainer, is responsible for securing the data stored in it; he is not responsible for what people enter into it, which rests with each chapter. **What the app holds:** no safeguarding incident reports, ever, and no DBS certificates or disclosures, ever. It only tracks each person's DBS status (check date, expiry, certificate number, status) so renewals are not missed. Wording elsewhere that says "safeguarding records" means consent forms and this DBS status tracking, nothing more.
 2. **Build chapters now.** Add a second chapter for testing: **the Greek Orthodox Church of the Holy Transfiguration, Coventry**, alongside Shrewsbury.
 3. **Roles.** Philip is the **national administrator**. The national administrator sets up chapters and assigns each chapter's Admins. A chapter's Admins then have admin powers over their own chapter, including appointing other Admins and Safeguarding Officers (and Teachers). Assumption kept from the draft, not contradicted: the national administrator sees no chapter's children, consent or DBS records without also holding a role in that chapter (Philip holds Shrewsbury roles).
-4. **The register is self-contained in each chapter.** Only the chapter's own staff take and see its registers. Nationally, attendance is available only as **anonymous** figures (for example per chapter per month: sessions held, students on roll, attendance rate), never names. Not yet confirmed, kept as drafts: the marks (present, absent, absent with apology) and the at-risk rule (two consecutive absences, or 8 weeks without a completion).
+4. **The register is self-contained in each chapter.** Only the chapter's own staff take and see its registers. Nationally, attendance is available only as **anonymous** figures (for example per chapter per month: sessions held, students on roll, attendance rate), never names. **Marks: present or absent only** (no "absent with apology"). **At-risk flag: two absences in a row** (Philip, 24/10/2026).
 5. **Parents see their own child's attendance and progress** on the parent dashboard.
 
 ## 6. Build order
