@@ -9,7 +9,8 @@
 
 <PageTitle>Confirm email</PageTitle>
 
-<h1>Confirm email</h1>
+<div class="auth">
+<PageHeader Title="Confirm email" />
 
 @if (_confirmed)
 {
@@ -19,6 +20,7 @@ else
 {
     <p role="alert">This confirmation link is invalid or has expired. <a href="Account/ResendEmailConfirmation">Send a new one.</a></p>
 }
+</div>
 
 @code {
     [SupplyParameterFromQuery]

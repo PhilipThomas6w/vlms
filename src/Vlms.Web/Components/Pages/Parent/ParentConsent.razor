@@ -8,9 +8,9 @@
 
 <PageTitle>Consent forms</PageTitle>
 
-<h1>Consent forms</h1>
+<PageHeader Title="Consent forms" />
 
-<p>
+<p class="intro">
     Complete the annual consent form for each child linked to your account.
     A Safeguarding Officer or Admin reviews each form. Until a new form is approved, the last
     approved one stays in place. Your child's teachers can see the medical, dietary, special educational needs and
@@ -78,7 +78,7 @@
 {
     <section aria-labelledby="formHeading">
         <h2 id="formHeading">Consent form for @_formStudentName</h2>
-        <EditForm Model="_form" OnValidSubmit="SubmitAsync">
+        <EditForm class="form" Model="_form" OnValidSubmit="SubmitAsync">
             <DataAnnotationsValidator />
             <ValidationSummary role="alert" />
 
@@ -88,49 +88,49 @@
             </p>
 
             <h3>Your child's details</h3>
-            <div>
+            <div class="field">
                 <label for="studentName">Full name</label>
                 <InputText id="studentName" @bind-Value="_form.StudentName" autocomplete="off" />
             </div>
-            <div>
+            <div class="field">
                 <label for="dateOfBirth">Date of birth</label>
                 <InputDate id="dateOfBirth" @bind-Value="_form.DateOfBirth" />
             </div>
 
             <h3>Consent</h3>
-            <div>
+            <div class="field">
                 <label for="photoMediaConsent"><InputCheckbox id="photoMediaConsent" @bind-Value="_form.PhotoMediaConsent" /> I consent to photos and media of my child</label>
             </div>
-            <div>
+            <div class="field">
                 <label for="transportConsent"><InputCheckbox id="transportConsent" @bind-Value="_form.TransportConsent" /> I consent to my child being transported between our sites (this can be a short trip)</label>
             </div>
-            <div>
+            <div class="field">
                 <label for="offsiteTripConsent"><InputCheckbox id="offsiteTripConsent" @bind-Value="_form.OffsiteTripConsent" /> I consent to my child going on off-site trips and outings</label>
             </div>
-            <div>
+            <div class="field">
                 <label for="dataSharingConsent"><InputCheckbox id="dataSharingConsent" @bind-Value="_form.DataSharingConsent" /> I consent to data sharing</label>
             </div>
 
             <h3>Medical, dietary and emergency details</h3>
-            <div>
+            <div class="field">
                 <label for="emergencyContact">Emergency contact (name and phone number)</label>
                 <InputText id="emergencyContact" @bind-Value="_form.EmergencyContact" />
             </div>
-            <div>
+            <div class="field">
                 <label for="medicalInfo">Emergency medical information (optional)</label>
                 <InputTextArea id="medicalInfo" @bind-Value="_form.EmergencyMedicalInfo" />
             </div>
-            <div>
+            <div class="field">
                 <label for="dietaryRequirements">Dietary requirements, including allergies (optional)</label>
                 <InputTextArea id="dietaryRequirements" rows="4" maxlength="4000" @bind-Value="_form.DietaryRequirements" />
             </div>
-            <div>
+            <div class="field">
                 <label for="specialEducationalNeeds">Special educational needs (optional)</label>
                 <InputTextArea id="specialEducationalNeeds" rows="4" maxlength="4000" @bind-Value="_form.SpecialEducationalNeeds" />
             </div>
 
             <button type="submit">Submit for review</button>
-            <button type="button" @onclick="CancelForm">Cancel</button>
+            <button type="button" @onclick="CancelForm" class="btn--secondary">Cancel</button>
         </EditForm>
     </section>
 }

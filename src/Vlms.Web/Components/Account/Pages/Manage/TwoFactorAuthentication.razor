@@ -25,7 +25,8 @@
 
 <PageTitle>Two-factor authentication</PageTitle>
 
-<h1>Two-factor authentication</h1>
+<div class="auth">
+<PageHeader Title="Two-factor authentication" />
 
 @if (_errorMessage is not null)
 {
@@ -45,14 +46,14 @@ else if (_user.TwoFactorEnabled)
     <p>Two-factor authentication is <strong>enabled</strong> for your account.</p>
     <p>Recovery codes remaining: @_recoveryCodesLeft</p>
 
-    <form method="post" @formname="regenerate-codes" @onsubmit="RegenerateRecoveryCodesAsync">
+    <form class="form" method="post" @formname="regenerate-codes" @onsubmit="RegenerateRecoveryCodesAsync">
         <AntiforgeryToken />
-        <button type="submit">Generate new recovery codes</button>
+        <button type="submit" class="btn--secondary">Generate new recovery codes</button>
     </form>
 
-    <form method="post" @formname="disable-2fa" @onsubmit="Disable2faAsync">
+    <form class="form" method="post" @formname="disable-2fa" @onsubmit="Disable2faAsync">
         <AntiforgeryToken />
-        <button type="submit">Disable two-factor authentication</button>
+        <button type="submit" class="btn--danger">Disable two-factor authentication</button>
     </form>
 }
 else
@@ -67,6 +68,7 @@ else
     }
     <p><a href="Account/Manage/EnableAuthenticator">Set up an authenticator app</a></p>
 }
+</div>
 
 @code {
     private VlmsIdentityUser? _user;

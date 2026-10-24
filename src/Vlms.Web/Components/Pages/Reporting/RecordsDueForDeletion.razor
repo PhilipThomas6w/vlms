@@ -6,9 +6,9 @@
 
 <PageTitle>Records due for deletion</PageTitle>
 
-<h1>Records due for deletion</h1>
+<PageHeader Title="Records due for deletion" />
 
-<p>
+<p class="intro">
     Student, DBS check and registration application records past their UK GDPR retention period
     (student records 3 years after leaving or graduating; DBS checks 6 years after expiry;
     registration applications 1 year after the decision). This is a flagging report only — deletion itself
@@ -38,7 +38,7 @@ else
     }
     else
     {
-        <table>
+        <table class="data-table">
             <thead>
                 <tr>
                     <th>Student</th>
@@ -51,10 +51,10 @@ else
                 @foreach (var flag in _report.Students)
                 {
                     <tr>
-                        <td>@flag.StudentName</td>
-                        <td>@flag.Reason</td>
-                        <td>@flag.AnchorDate.ToString("d MMMM yyyy")</td>
-                        <td>@flag.DaysPastRetention</td>
+                        <td data-label="Student">@flag.StudentName</td>
+                        <td data-label="Reason">@flag.Reason</td>
+                        <td data-label="Date">@flag.AnchorDate.ToString("d MMMM yyyy")</td>
+                        <td data-label="Days past retention">@flag.DaysPastRetention</td>
                     </tr>
                 }
             </tbody>
@@ -72,7 +72,7 @@ else
     }
     else
     {
-        <table>
+        <table class="data-table">
             <thead>
                 <tr>
                     <th>Teacher</th>
@@ -86,11 +86,11 @@ else
                 @foreach (var flag in _report.DbsChecks)
                 {
                     <tr>
-                        <td>@flag.TeacherName</td>
-                        <td>@flag.ExpiryDate.ToString("d MMMM yyyy")</td>
-                        <td>@flag.Reason</td>
-                        <td>@flag.AnchorDate.ToString("d MMMM yyyy")</td>
-                        <td>@flag.DaysPastRetention</td>
+                        <td data-label="Teacher">@flag.TeacherName</td>
+                        <td data-label="Expiry">@flag.ExpiryDate.ToString("d MMMM yyyy")</td>
+                        <td data-label="Reason">@flag.Reason</td>
+                        <td data-label="Retention anchor date">@flag.AnchorDate.ToString("d MMMM yyyy")</td>
+                        <td data-label="Days past retention">@flag.DaysPastRetention</td>
                     </tr>
                 }
             </tbody>
@@ -109,7 +109,7 @@ else
     }
     else
     {
-        <table>
+        <table class="data-table">
             <thead>
                 <tr>
                     <th>Child</th>
@@ -122,10 +122,10 @@ else
                 @foreach (var flag in _report.Applications)
                 {
                     <tr>
-                        <td>@flag.ChildName</td>
-                        <td>@flag.Status</td>
-                        <td>@flag.DecidedAt.ToString("d MMMM yyyy")</td>
-                        <td>@flag.DaysPastRetention</td>
+                        <td data-label="Child">@flag.ChildName</td>
+                        <td data-label="Outcome">@flag.Status</td>
+                        <td data-label="Decided">@flag.DecidedAt.ToString("d MMMM yyyy")</td>
+                        <td data-label="Days past retention">@flag.DaysPastRetention</td>
                     </tr>
                 }
             </tbody>

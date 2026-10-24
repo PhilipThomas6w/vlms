@@ -19,9 +19,9 @@
 
 <PageTitle>Register a child</PageTitle>
 
-<h1>Register a child</h1>
+<PageHeader Title="Register a child" />
 
-<p>
+<p class="intro">
     Apply to register one or more of your children with the Varangians. Choose the chapter at your
     parish, fill in your details, then a consent form for each child. That chapter's Safeguarding
     Officer reviews the application and may ask you for more information; its Admin then gives final
@@ -45,9 +45,9 @@
 }
 else
 {
-<EditForm Model="Input" method="post" OnSubmit="HandleAsync" FormName="apply-registration">
+<EditForm class="form" Model="Input" method="post" OnSubmit="HandleAsync" FormName="apply-registration">
     <h2>Your chapter</h2>
-    <div>
+    <div class="field">
         <label for="chapter">The chapter at your parish</label>
         <select id="chapter" name="Input.ChapterId" aria-required="true" aria-invalid="@_errors.Invalid("chapter")" aria-describedby="@_errors.DescribedBy("chapter")">
             @if (_chapters.Count != 1)
@@ -66,7 +66,7 @@ else
     </div>
 
     <h2>Your details</h2>
-    <div>
+    <div class="field">
         <label for="phone">Your phone number</label>
         <input id="phone" type="tel" autocomplete="tel" name="Input.Phone" value="@Input.Phone" aria-required="true" aria-invalid="@_errors.Invalid("phone")" aria-describedby="@_errors.DescribedBy("phone")" />
         @if (_errors.For("phone") is { } phoneError)
@@ -74,7 +74,7 @@ else
             <p class="field-error" id="phone-error">@phoneError</p>
         }
     </div>
-    <div>
+    <div class="field">
         <label for="postalAddress">Your postal address</label>
         <textarea id="postalAddress" rows="4" autocomplete="street-address" name="Input.PostalAddress" aria-required="true" aria-invalid="@_errors.Invalid("postalAddress")" aria-describedby="@_errors.DescribedBy("postalAddress")">@Input.PostalAddress</textarea>
         @if (_errors.For("postalAddress") is { } addressError)
@@ -95,7 +95,7 @@ else
             <legend>Child @(n + 1)</legend>
 
             <h3>About the child</h3>
-            <div>
+            <div class="field">
                 <label for="childName@(n)">Child's full name</label>
                 <input id="childName@(n)" name="Input.Children[@(n)].Name" value="@child.Name" autocomplete="off" aria-required="true" aria-invalid="@_errors.Invalid(nameId)" aria-describedby="@_errors.DescribedBy(nameId)" />
                 @if (_errors.For(nameId) is { } nameError)
@@ -103,7 +103,7 @@ else
                     <p class="field-error" id="childName@(n)-error">@nameError</p>
                 }
             </div>
-            <div>
+            <div class="field">
                 <label for="childDateOfBirth@(n)">Child's date of birth</label>
                 <input id="childDateOfBirth@(n)" type="date" name="Input.Children[@(n)].DateOfBirth" value="@child.DateOfBirth" aria-required="true" aria-invalid="@_errors.Invalid(dobId)" aria-describedby="@_errors.DescribedBy(dobId)" />
                 @if (_errors.For(dobId) is { } dobError)
@@ -111,7 +111,7 @@ else
                     <p class="field-error" id="childDateOfBirth@(n)-error">@dobError</p>
                 }
             </div>
-            <div>
+            <div class="field">
                 <label for="relationship@(n)">Your relationship to the child (for example mother, father, grandparent, carer)</label>
                 <input id="relationship@(n)" name="Input.Children[@(n)].Relationship" value="@child.Relationship" aria-required="true" aria-invalid="@_errors.Invalid(relationshipId)" aria-describedby="@_errors.DescribedBy(relationshipId)" />
                 @if (_errors.For(relationshipId) is { } relationshipError)
@@ -121,25 +121,25 @@ else
             </div>
 
             <h3>Consent</h3>
-            <div>
+            <div class="field--check">
                 <input id="photo@(n)" type="checkbox" name="Input.Children[@(n)].PhotoMediaConsent" value="true" checked="@child.PhotoMediaConsent" />
                 <label for="photo@(n)">I consent to photos and media of my child</label>
             </div>
-            <div>
+            <div class="field--check">
                 <input id="transport@(n)" type="checkbox" name="Input.Children[@(n)].TransportConsent" value="true" checked="@child.TransportConsent" />
                 <label for="transport@(n)">I consent to my child being transported between our sites (this can be a short trip)</label>
             </div>
-            <div>
+            <div class="field--check">
                 <input id="offsite@(n)" type="checkbox" name="Input.Children[@(n)].OffsiteTripConsent" value="true" checked="@child.OffsiteTripConsent" />
                 <label for="offsite@(n)">I consent to my child going on off-site trips and outings</label>
             </div>
-            <div>
+            <div class="field--check">
                 <input id="dataSharing@(n)" type="checkbox" name="Input.Children[@(n)].DataSharingConsent" value="true" checked="@child.DataSharingConsent" />
                 <label for="dataSharing@(n)">I consent to data sharing</label>
             </div>
 
             <h3>Medical, dietary and emergency details</h3>
-            <div>
+            <div class="field">
                 <label for="emergencyContact@(n)">Emergency contact (name and phone number)</label>
                 <input id="emergencyContact@(n)" name="Input.Children[@(n)].EmergencyContact" value="@child.EmergencyContact" aria-required="true" aria-invalid="@_errors.Invalid(emergencyId)" aria-describedby="@_errors.DescribedBy(emergencyId)" />
                 @if (_errors.For(emergencyId) is { } emergencyError)
@@ -147,7 +147,7 @@ else
                     <p class="field-error" id="emergencyContact@(n)-error">@emergencyError</p>
                 }
             </div>
-            <div>
+            <div class="field">
                 <label for="medical@(n)">Emergency medical information (optional)</label>
                 <textarea id="medical@(n)" name="Input.Children[@(n)].EmergencyMedicalInfo" rows="3" maxlength="4000" aria-invalid="@_errors.Invalid($"medical{n}")" aria-describedby="@_errors.DescribedBy($"medical{n}")">@child.EmergencyMedicalInfo</textarea>
                 @if (_errors.For($"medical{n}") is { } medicalError)
@@ -155,7 +155,7 @@ else
                     <p class="field-error" id="medical@(n)-error">@medicalError</p>
                 }
             </div>
-            <div>
+            <div class="field">
                 <label for="dietary@(n)">Dietary requirements, including allergies (optional)</label>
                 <textarea id="dietary@(n)" name="Input.Children[@(n)].DietaryRequirements" rows="4" maxlength="4000" aria-invalid="@_errors.Invalid($"dietary{n}")" aria-describedby="@_errors.DescribedBy($"dietary{n}")">@child.DietaryRequirements</textarea>
                 @if (_errors.For($"dietary{n}") is { } dietaryError)
@@ -163,7 +163,7 @@ else
                     <p class="field-error" id="dietary@(n)-error">@dietaryError</p>
                 }
             </div>
-            <div>
+            <div class="field">
                 <label for="sen@(n)">Special educational needs (optional)</label>
                 <textarea id="sen@(n)" name="Input.Children[@(n)].SpecialEducationalNeeds" rows="4" maxlength="4000" aria-invalid="@_errors.Invalid($"sen{n}")" aria-describedby="@_errors.DescribedBy($"sen{n}")">@child.SpecialEducationalNeeds</textarea>
                 @if (_errors.For($"sen{n}") is { } senError)
@@ -174,14 +174,16 @@ else
         </fieldset>
     }
 
-    <p>
-        <button type="submit" name="Input.Command" value="add">Add another child</button>
+    <div class="form-actions">
+        <button type="submit" class="btn--secondary" name="Input.Command" value="add">Add another child</button>
         @if (Input.Children.Count > 1)
         {
-            <button type="submit" name="Input.Command" value="remove" aria-label="Remove child @(Input.Children.Count)">Remove the last child</button>
+            <button type="submit" class="btn--secondary" name="Input.Command" value="remove" aria-label="Remove child @(Input.Children.Count)">Remove the last child</button>
         }
-    </p>
-    <button type="submit" name="Input.Command" value="submit">Send application</button>
+    </div>
+    <div class="form-actions">
+        <button type="submit" name="Input.Command" value="submit">Send application</button>
+    </div>
 </EditForm>
 }
 

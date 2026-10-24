@@ -14,9 +14,9 @@
 
 <PageTitle>Propose a lesson change</PageTitle>
 
-<h1>Curriculum: propose a lesson change</h1>
+<PageHeader Title="Curriculum: propose a lesson change" />
 
-<p>
+<p class="intro">
     Any Teacher can propose that a lesson be created, edited, or retired. An Approver then
     approves or rejects the proposal (with comments). A rejected proposal can be revised and
     resubmitted.
@@ -32,7 +32,7 @@
 }
 
 <h2>Lessons</h2>
-<table>
+<table class="data-table data-table--wide">
     <thead>
         <tr>
             <th>Rank</th>
@@ -48,36 +48,38 @@
         @foreach (var lesson in _lessons)
         {
             <tr>
-                <td>@lesson.Rank?.Name</td>
-                <td>@lesson.Order</td>
-                <td>@lesson.Code</td>
-                <td>@lesson.Title</td>
-                <td>@string.Join(", ", lesson.Tags.Select(t => TagLabel(t.Tag)).Order())</td>
-                <td>@(lesson.IsActive ? "Active" : "Retired")</td>
+                <td data-label="Rank">@lesson.Rank?.Name</td>
+                <td data-label="Order">@lesson.Order</td>
+                <td data-label="Code">@lesson.Code</td>
+                <td data-label="Title">@lesson.Title</td>
+                <td data-label="Tags">@string.Join(", ", lesson.Tags.Select(t => TagLabel(t.Tag)).Order())</td>
+                <td data-label="Status">@(lesson.IsActive ? "Active" : "Retired")</td>
                 <td>
-                    <button type="button" aria-label="@($"Propose edit to {lesson.Title}")" @onclick="() => StartEdit(lesson)">Propose edit</button>
-                    @if (lesson.IsActive)
-                    {
-                        <button type="button" aria-label="@($"Propose retirement of {lesson.Title}")" @onclick="() => StartRetire(lesson)">Propose retirement</button>
-                    }
+                    <div class="cell-actions">
+                        <button type="button" class="btn--secondary" aria-label="@($"Propose edit to {lesson.Title}")" @onclick="() => StartEdit(lesson)">Propose edit</button>
+                        @if (lesson.IsActive)
+                        {
+                            <button type="button" class="btn--secondary" aria-label="@($"Propose retirement of {lesson.Title}")" @onclick="() => StartRetire(lesson)">Propose retirement</button>
+                        }
+                    </div>
                 </td>
             </tr>
         }
     </tbody>
 </table>
 
-<button type="button" @onclick="StartCreate">Propose new lesson</button>
+<p class="section"><button type="button" @onclick="StartCreate">Propose new lesson</button></p>
 
 @if (_form is not null)
 {
     <h2>@_formTitle</h2>
-    <EditForm Model="_form" OnValidSubmit="SubmitProposalAsync">
+    <EditForm class="form form--wide" Model="_form" OnValidSubmit="SubmitProposalAsync">
         <DataAnnotationsValidator />
         <ValidationSummary role="alert" />
 
         @if (_form.ChangeType == LessonChangeType.Create)
         {
-            <div>
+            <div class="field">
                 <label for="rank">Rank</label>
                 <InputSelect id="rank" @bind-Value="_form.RankId">
                     @foreach (var rank in _ranks)
@@ -88,17 +90,17 @@
             </div>
         }
 
-        <div>
+        <div class="field">
             <label for="code">Code</label>
             <InputText id="code" @bind-Value="_form.Code" disabled="@(_form.ChangeType == LessonChangeType.Retire)" />
         </div>
-        <div>
+        <div class="field">
             <label for="title">Title</label>
             <InputText id="title" @bind-Value="_form.Title" disabled="@(_form.ChangeType == LessonChangeType.Retire)" />
         </div>
         @if (_form.ChangeType != LessonChangeType.Retire)
         {
-            <div>
+            <div class="field">
                 <label for="order">Delivery order within the rank</label>
                 <InputNumber id="order" @bind-Value="_form.Order" min="1" />
             </div>
@@ -106,7 +108,7 @@
                 <legend>Tags (at least one)</legend>
                 @foreach (var tag in Enum.GetValues<LessonTag>())
                 {
-                    <label>
+                    <label class="check">
                         <input type="checkbox" checked="@_form.Tags.Contains(tag)" @onchange="e => ToggleTag(tag, (bool)e.Value!)" />
                         @TagLabel(tag)
                     </label>
@@ -120,22 +122,24 @@
                 }
                 else
                 {
-                    <ol>
+                    <ol class="file-list">
                         @for (var i = 0; i < _form.Files.Count; i++)
                         {
                             var index = i;
                             var file = _form.Files[i];
                             var n = i + 1;
                             <li>
-                                @file.FileName (@(IsNewUpload(file) ? "new upload" : "current file"))
-                                <button type="button" disabled="@(index == 0)" @onclick="() => MoveFile(index, -1)">Move file @n up</button>
-                                <button type="button" disabled="@(index == _form.Files.Count - 1)" @onclick="() => MoveFile(index, 1)">Move file @n down</button>
-                                <button type="button" @onclick="() => _form.Files.Remove(file)">Remove file @n</button>
+                                <span>@file.FileName (@(IsNewUpload(file) ? "new upload" : "current file"))</span>
+                                <span class="cell-actions">
+                                    <button type="button" class="btn--secondary" disabled="@(index == 0)" @onclick="() => MoveFile(index, -1)">Move file @n up</button>
+                                    <button type="button" class="btn--secondary" disabled="@(index == _form.Files.Count - 1)" @onclick="() => MoveFile(index, 1)">Move file @n down</button>
+                                    <button type="button" class="btn--secondary" @onclick="() => _form.Files.Remove(file)">Remove file @n</button>
+                                </span>
                             </li>
                         }
                     </ol>
                 }
-                <div>
+                <div class="field">
                     <label for="fileUpload">Upload files</label>
                     <InputFile id="fileUpload" OnChange="OnFilesSelectedAsync" multiple aria-describedby="fileUploadHelp" />
                     <p id="fileUploadHelp">
@@ -145,18 +149,20 @@
                     </p>
                 </div>
             </fieldset>
-            <div>
+            <div class="field">
                 <label><InputCheckbox @bind-Value="_form.IsActive" /> Active</label>
             </div>
         }
 
-        <button type="submit">Submit proposal</button>
-        <button type="button" @onclick="CancelForm">Cancel</button>
+        <div class="form-actions">
+            <button type="submit">Submit proposal</button>
+            <button type="button" @onclick="CancelForm" class="btn--secondary">Cancel</button>
+        </div>
     </EditForm>
 }
 
 <h2>My proposals</h2>
-<table>
+<table class="data-table data-table--wide">
     <thead>
         <tr>
             <th>Lesson</th>
@@ -172,11 +178,11 @@
         @foreach (var proposal in _myProposals)
         {
             <tr>
-                <td>@(proposal.Lesson?.Title ?? "(new lesson)")</td>
-                <td>@proposal.ChangeType</td>
-                <td>@proposal.Status</td>
-                <td>@proposal.SubmittedAt.ToString("g")</td>
-                <td>
+                <td data-label="Lesson">@(proposal.Lesson?.Title ?? "(new lesson)")</td>
+                <td data-label="Type">@proposal.ChangeType</td>
+                <td data-label="Status">@proposal.Status</td>
+                <td data-label="Submitted">@proposal.SubmittedAt.ToString("g")</td>
+                <td data-label="Files">
                     @{
                         var proposalFiles = FilesOfProposal(proposal);
                     }
@@ -190,11 +196,11 @@
                         </ul>
                     }
                 </td>
-                <td>@proposal.ApprovalComments</td>
+                <td data-label="Approver comments">@proposal.ApprovalComments</td>
                 <td>
                     @if (proposal.Status == ProposalStatus.Rejected)
                     {
-                        <button type="button" aria-label="@($"Resubmit proposal {proposal.Id}")" @onclick="() => StartResubmit(proposal)">Resubmit</button>
+                        <button type="button" class="btn--secondary" aria-label="@($"Resubmit proposal {proposal.Id}")" @onclick="() => StartResubmit(proposal)">Resubmit</button>
                     }
                 </td>
             </tr>

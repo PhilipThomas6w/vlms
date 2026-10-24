@@ -20,99 +20,102 @@
         </section>
     </NotAuthorized>
     <Authorized>
-        <h1>Home</h1>
-        <h2>What to do next</h2>
+        <PageHeader Title="Home" />
+        <h2 class="section-title">What to do next</h2>
 
         <PendingWorkNotices />
 
+        <div class="card-grid">
+
         <AuthorizeView Policy="RequireTeacher" Context="roleContext">
-            <section aria-labelledby="home-teacher">
+            <section class="action-card" aria-labelledby="home-teacher">
                 <h3 id="home-teacher">Teacher</h3>
-                <ul>
-                    <li><a href="/lessons">Lesson library</a></li>
-                    <li><a href="/students">Students</a></li>
-                    <li><a href="/progress/record">Record completions</a></li>
-                    <li><a href="/curriculum/teacher">Propose lesson changes</a></li>
-                    <li><a href="/progress/completions">Correct a completion</a></li>
-                    <li><a href="/students/consent">Student consent and medical details</a></li>
+                <ul class="action-list">
+                    <li><a href="/lessons"><Icon Name="book" />Lesson library</a></li>
+                    <li><a href="/students"><Icon Name="users" />Students</a></li>
+                    <li><a href="/progress/record"><Icon Name="record" />Record completions</a></li>
+                    <li><a href="/curriculum/teacher"><Icon Name="pencil" />Propose lesson changes</a></li>
+                    <li><a href="/progress/completions"><Icon Name="undo" />Correct a completion</a></li>
+                    <li><a href="/students/consent"><Icon Name="shield" />Student consent and medical details</a></li>
                 </ul>
             </section>
         </AuthorizeView>
         <AuthorizeView Policy="RequireApprover" Context="roleContext">
-            <section aria-labelledby="home-approver">
+            <section class="action-card" aria-labelledby="home-approver">
                 <h3 id="home-approver">Approver</h3>
-                <ul>
-                    <li><a href="/curriculum/approver">Pending proposals</a></li>
-                    <li><a href="/lessons">Lesson library</a></li>
+                <ul class="action-list">
+                    <li><a href="/curriculum/approver"><Icon Name="inbox" />Pending proposals</a></li>
+                    <li><a href="/lessons"><Icon Name="book" />Lesson library</a></li>
                 </ul>
             </section>
         </AuthorizeView>
         <AuthorizeView Policy="RequireParent" Context="roleContext">
-            <section aria-labelledby="home-parent">
+            <section class="action-card" aria-labelledby="home-parent">
                 <h3 id="home-parent">Parent</h3>
-                <ul>
-                    <li><a href="/parent/dashboard">Parent dashboard</a></li>
-                    <li><a href="/parent/consent">Consent form</a></li>
-                    <li><a href="/lessons">Lesson library</a></li>
+                <ul class="action-list">
+                    <li><a href="/parent/dashboard"><Icon Name="home" />Parent dashboard</a></li>
+                    <li><a href="/parent/consent"><Icon Name="clipboard" />Consent form</a></li>
+                    <li><a href="/lessons"><Icon Name="book" />Lesson library</a></li>
                 </ul>
             </section>
         </AuthorizeView>
         <AuthorizeView Policy="RequireStudent" Context="roleContext">
-            <section aria-labelledby="home-student">
+            <section class="action-card" aria-labelledby="home-student">
                 <h3 id="home-student">Student</h3>
-                <ul>
-                    <li><a href="/student">My progress</a></li>
-                    <li><a href="/lessons">Lesson library</a></li>
+                <ul class="action-list">
+                    <li><a href="/student"><Icon Name="rank" />My progress</a></li>
+                    <li><a href="/lessons"><Icon Name="book" />Lesson library</a></li>
                 </ul>
             </section>
         </AuthorizeView>
         <AuthorizeView Policy="RequireSafeguardingOfficer" Context="roleContext">
-            <section aria-labelledby="home-safeguarding">
+            <section class="action-card" aria-labelledby="home-safeguarding">
                 <h3 id="home-safeguarding">Safeguarding Officer</h3>
-                <ul>
-                    <li><a href="/registration/review">Review registration applications</a></li>
-                    <li><a href="/safeguarding/consent">Consent records</a></li>
-                    <li><a href="/safeguarding/dbs">DBS checks</a></li>
+                <ul class="action-list">
+                    <li><a href="/registration/review"><Icon Name="inbox" />Review registration applications</a></li>
+                    <li><a href="/safeguarding/consent"><Icon Name="clipboard" />Consent records</a></li>
+                    <li><a href="/safeguarding/dbs"><Icon Name="id-card" />DBS checks</a></li>
                 </ul>
             </section>
         </AuthorizeView>
         <AuthorizeView Policy="RequireAdmin" Context="roleContext">
-            <section aria-labelledby="home-admin">
+            <section class="action-card" aria-labelledby="home-admin">
                 <h3 id="home-admin">Admin</h3>
-                <ul>
-                    <li><a href="/administration/students">Manage students</a></li>
-                    <li><a href="/administration/user-roles">User roles</a></li>
-                    <li><a href="/registration/approve">Approve registration applications</a></li>
-                    <li><a href="/registration/students">Register student</a></li>
-                    <li><a href="/guardianship/links">Guardian links</a></li>
-                    <li><a href="/reporting">Reporting</a></li>
-                    <li><a href="/reporting/records-due-for-deletion">Records due for deletion</a></li>
-                    <li><a href="/retention/mark-as-left">Mark as left</a></li>
-                    <li><a href="/safeguarding/consent">Consent records</a></li>
-                    <li><a href="/safeguarding/dbs">DBS checks</a></li>
-                    <li><a href="/lessons">Lesson library</a></li>
+                <ul class="action-list">
+                    <li><a href="/administration/students"><Icon Name="users" />Manage students</a></li>
+                    <li><a href="/administration/user-roles"><Icon Name="shield" />User roles</a></li>
+                    <li><a href="/registration/approve"><Icon Name="inbox" />Approve registration applications</a></li>
+                    <li><a href="/registration/students"><Icon Name="user-plus" />Register student</a></li>
+                    <li><a href="/guardianship/links"><Icon Name="link" />Guardian links</a></li>
+                    <li><a href="/reporting"><Icon Name="chart" />Reporting</a></li>
+                    <li><a href="/reporting/records-due-for-deletion"><Icon Name="clock" />Records due for deletion</a></li>
+                    <li><a href="/retention/mark-as-left"><Icon Name="user-minus" />Mark as left</a></li>
+                    <li><a href="/safeguarding/consent"><Icon Name="clipboard" />Consent records</a></li>
+                    <li><a href="/safeguarding/dbs"><Icon Name="id-card" />DBS checks</a></li>
+                    <li><a href="/lessons"><Icon Name="book" />Lesson library</a></li>
                 </ul>
             </section>
         </AuthorizeView>
         <AuthorizeView Policy="RequireNationalAdministrator" Context="roleContext">
-            <section aria-labelledby="home-national">
+            <section class="action-card" aria-labelledby="home-national">
                 <h3 id="home-national">National Administrator</h3>
-                <ul>
-                    <li><a href="/administration/chapters">Chapters</a></li>
-                    <li><a href="/reporting/national">National figures</a></li>
-                    <li><a href="/administration/rank-badges">Rank badges</a></li>
+                <ul class="action-list">
+                    <li><a href="/administration/chapters"><Icon Name="home" />Chapters</a></li>
+                    <li><a href="/reporting/national"><Icon Name="chart" />National figures</a></li>
+                    <li><a href="/administration/rank-badges"><Icon Name="image" />Rank badges</a></li>
                 </ul>
             </section>
         </AuthorizeView>
         <AuthorizeView Policy="RequireSignedIn" Context="applyContext">
-            <section aria-labelledby="home-register">
+            <section class="action-card" aria-labelledby="home-register">
                 <h3 id="home-register">Register your child</h3>
                 <p>Parents: apply to register your children with the Varangians, then follow your applications.</p>
-                <ul>
-                    <li><a href="/registration/apply">Register a child</a></li>
-                    <li><a href="/registration/my-applications">My applications</a></li>
+                <ul class="action-list">
+                    <li><a href="/registration/apply"><Icon Name="user-plus" />Register a child</a></li>
+                    <li><a href="/registration/my-applications"><Icon Name="clipboard" />My applications</a></li>
                 </ul>
             </section>
         </AuthorizeView>
+        </div>
     </Authorized>
 </AuthorizeView>

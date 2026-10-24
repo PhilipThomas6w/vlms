@@ -5,7 +5,7 @@ using Vlms.Infrastructure.Authorization;
 namespace Vlms.Infrastructure.Engagement;
 
 /// <summary>One rank badge awarded to a student, for display on the parent dashboard.</summary>
-public sealed record ParentDashboardBadge(string RankName, DateTime AwardedAt, int RankId, bool HasImage);
+public sealed record ParentDashboardBadge(string RankName, DateTime AwardedAt, int RankId, bool HasImage, int RankOrder = 0);
 
 /// <summary>One certificate earned by a student, for display on the parent dashboard.</summary>
 public sealed record ParentDashboardCertificate(int CertificateId, string LessonTitle, DateTime GeneratedAt, string BlobKey);
@@ -23,7 +23,10 @@ public sealed record ParentDashboardStudent(
     IReadOnlyList<ParentDashboardBadge> Badges,
     IReadOnlyList<ParentDashboardCertificate> Certificates,
     ConsentStatus? ConsentStatus,
-    DateOnly? ConsentExpiryDate);
+    DateOnly? ConsentExpiryDate,
+    int CurrentRankId = 0,
+    int CurrentRankOrder = 0,
+    bool CurrentRankHasBadgeImage = false);
 
 /// <summary>
 /// Builds the Parent dashboard (STATE.md, functional.md "Parent engagement": "Parents get... an
@@ -86,7 +89,7 @@ public sealed class ParentDashboardService
 
         var students = await _db.Students
             .Where(s => studentIds.Contains(s.Id))
-            .Join(_db.Ranks, s => s.CurrentRankId, r => r.Id, (s, r) => new { s.Id, s.Name, CurrentRankName = r.Name })
+            .Join(_db.Ranks, s => s.CurrentRankId, r => r.Id, (s, r) => new { s.Id, s.Name, CurrentRankName = r.Name, CurrentRankId = r.Id, CurrentRankOrder = r.Order })
             .ToListAsync(ct);
 
         var openProgressByStudent = await _db.StudentRankProgresses
@@ -97,7 +100,7 @@ public sealed class ParentDashboardService
         var badges = await _db.StudentBadges
             .Where(b => studentIds.Contains(b.StudentId))
             .Join(_db.RankBadges, b => b.RankBadgeId, rb => rb.Id, (b, rb) => new { b.StudentId, b.AwardedAt, rb.RankId, rb.ImageBlobKey })
-            .Join(_db.Ranks, x => x.RankId, r => r.Id, (x, r) => new { x.StudentId, x.AwardedAt, x.RankId, RankName = r.Name, HasImage = x.ImageBlobKey != null })
+            .Join(_db.Ranks, x => x.RankId, r => r.Id, (x, r) => new { x.StudentId, x.AwardedAt, x.RankId, RankName = r.Name, RankOrder = r.Order, HasImage = x.ImageBlobKey != null })
             .ToListAsync(ct);
 
         // Filters out certificates whose underlying StudentLessonCompletion has IsReversed == true.
@@ -118,6 +121,9 @@ public sealed class ParentDashboardService
             .Join(_db.Lessons, x => x.LessonId, l => l.Id, (x, l) => new { x.StudentId, x.CertificateId, x.GeneratedAt, x.BlobKey, LessonTitle = l.Title })
             .ToListAsync(ct);
 
+        // Whether the current rank's badge image has been uploaded (the same RankBadge rows the badges above use).
+        var badgeRankIds = (await _db.RankBadges.Where(rb => rb.ImageBlobKey != null).Select(rb => rb.RankId).ToListAsync(ct)).ToHashSet();
+
         var consents = await _db.ConsentRecords
             .Where(c => studentIds.Contains(c.StudentId))
             .Select(c => new { c.StudentId, c.Status, c.ExpiryDate })
@@ -128,7 +134,7 @@ public sealed class ParentDashboardService
         {
             var studentBadges = badges
                 .Where(b => b.StudentId == student.Id)
-                .Select(b => new ParentDashboardBadge(b.RankName, b.AwardedAt, b.RankId, b.HasImage))
+                .Select(b => new ParentDashboardBadge(b.RankName, b.AwardedAt, b.RankId, b.HasImage, b.RankOrder))
                 .ToList();
 
             var studentCertificates = certificates
@@ -156,7 +162,10 @@ public sealed class ParentDashboardService
                 studentBadges,
                 studentCertificates,
                 latestConsent?.Status,
-                latestConsent?.ExpiryDate));
+                latestConsent?.ExpiryDate,
+                student.CurrentRankId,
+                student.CurrentRankOrder,
+                badgeRankIds.Contains(student.CurrentRankId)));
         }
 
         return result;

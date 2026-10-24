@@ -27,7 +27,8 @@
 
 <PageTitle>Configure authenticator app</PageTitle>
 
-<h1>Configure authenticator app</h1>
+<div class="auth">
+<PageHeader Title="Configure authenticator app" />
 
 @if (_errorMessage is not null)
 {
@@ -41,7 +42,7 @@
         <strong>Put these codes in a safe place.</strong> If you lose your authenticator device and
         don't have an unused recovery code, you will lose access to your account.
     </p>
-    <ul>
+    <ul class="recovery-codes">
         @foreach (var recoveryCode in _recoveryCodes)
         {
             <li><code>@recoveryCode</code></li>
@@ -58,22 +59,23 @@ else
         </li>
         <li>
             <p>Enter this key into your authenticator app (spaces and casing don't matter):</p>
-            <p><kbd>@_sharedKey</kbd></p>
+            <p><kbd class="shared-key">@_sharedKey</kbd></p>
         </li>
         <li>
             <p>Once you have added the key, enter the 6-digit code the app displays below.</p>
-            <EditForm Model="Input" method="post" OnValidSubmit="OnValidSubmitAsync" FormName="send-code">
+            <EditForm class="form" Model="Input" method="post" OnValidSubmit="OnValidSubmitAsync" FormName="send-code">
                 <DataAnnotationsValidator />
                 <ValidationSummary role="alert" />
-                <div>
+                <div class="field">
                     <label for="code">Verification code</label>
                     <InputText id="code" @bind-Value="Input.Code" autocomplete="off" aria-required="true" />
                 </div>
-                <button type="submit">Verify and enable</button>
+                <div class="form-actions"><button type="submit">Verify and enable</button></div>
             </EditForm>
         </li>
     </ol>
 }
+</div>
 
 @code {
     private VlmsIdentityUser? _user;

@@ -29,13 +29,14 @@ public sealed class DesignCapture
     /// <summary>Persona → pages. "anonymous" is not signed in.</summary>
     private static readonly (string Persona, string[] Paths)[] Plan =
     [
-        ("anonymous", ["/", "/Account/Login", "/Account/Register", "/Account/ForgotPassword"]),
+        ("anonymous", ["/", "/Account/Login", "/Account/Register", "/Account/ForgotPassword", "/Account/ResendEmailConfirmation", "/Account/ResetPassword?code=abc", "/Account/AccessDenied", "/not-found", "/guardianship/accept-invite"]),
         ("student-1", ["/", "/student", "/lessons"]),
         ("parent", ["/", "/parent/dashboard", "/parent/consent", "/parent/student-sign-ins", "/registration/apply", "/registration/my-applications", "/Account/Manage/ChangePassword"]),
         ("teacher", ["/", "/students", "/students/1", "/students/consent", "/students/1/consent", "/progress/record", "/progress/record#lesson", "/progress/completions", "/curriculum/teacher", "/lessons"]),
         ("approver", ["/", "/curriculum/approver"]),
         ("safeguarding", ["/", "/safeguarding/consent", "/safeguarding/dbs", "/registration/review"]),
-        ("admin", ["/", "/administration/students", "/administration/user-roles", "/administration/student-sign-ins", "/administration/rank-badges", "/guardianship/links", "/registration/approve", "/registration/students", "/reporting", "/reporting/records-due-for-deletion", "/retention/mark-as-left", "/Account/Manage/TwoFactorAuthentication"]),
+        ("admin", ["/", "/administration/students", "/administration/user-roles", "/administration/student-sign-ins", "/guardianship/links", "/registration/approve", "/registration/students", "/reporting", "/reporting/records-due-for-deletion", "/retention/mark-as-left", "/Account/Manage/TwoFactorAuthentication", "/Account/Manage/EnableAuthenticator"]),
+        ("national", ["/", "/administration/chapters", "/administration/rank-badges", "/reporting/national", "/Error"]),
         ("admin-teacher", ["/"]),
     ];
 
@@ -151,7 +152,7 @@ public sealed class DesignCapture
 
     private static string Slug(string path)
     {
-        var slug = path.Trim('/').Replace('/', '_').Replace("#", "__");
+        var slug = path.Trim('/').Replace('/', '_').Replace("#", "__").Replace('?', '_').Replace('=', '_');
         return slug.Length == 0 ? "home" : slug;
     }
 }

@@ -7,9 +7,9 @@
 
 <PageTitle>User roles</PageTitle>
 
-<h1>User roles</h1>
+<PageHeader Title="User roles" />
 
-<p>
+<p class="intro">
     This page is for Admins only, and covers this chapter only: the roles shown and granted here are
     held in this chapter, and roles someone holds in another chapter are not shown. A new account has no
     roles and can do nothing until a role is granted here. Admin, Safeguarding Officer and Teacher holders
@@ -25,146 +25,202 @@
 }
 <p role="status">@_statusMessage</p>
 
-<h2>Waiting for approval</h2>
-@if (_awaiting.Count == 0)
+@if (_confirm is not null)
 {
-    <p>No accounts are waiting for approval.</p>
-}
-else
-{
-    <p>
-        These guardians accepted one of this chapter's invites but are not yet a Parent here (some
-        already hold other roles, such as a Teacher who is also a parent). Approve a guardian by
-        granting Parent, which adds to any roles they already hold.
-    </p>
-    <table>
-        <thead>
-            <tr>
-                <th>User</th>
-                <th>Email</th>
-                <th>Came from</th>
-                <th>Linked students</th>
-                <th>Current roles</th>
-                <th></th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var waiting in _awaiting)
-            {
-                <tr>
-                    <td>@waiting.DisplayName</td>
-                    <td>@waiting.Email</td>
-                    <td>@(waiting.FromGuardianInvite ? "Guardian invite" : "Self-registration")</td>
-                    <td>@(waiting.LinkedStudentNames.Count == 0 ? "None" : string.Join(", ", waiting.LinkedStudentNames))</td>
-                    <td>@(waiting.CurrentRoles.Count == 0 ? "None" : string.Join(", ", waiting.CurrentRoles.Select(r => r.DisplayName())))</td>
-                    <td>
-                        @if (waiting.FromGuardianInvite)
-                        {
-                            <button type="button" aria-label="@($"Approve {waiting.DisplayName} as Parent")"
-                                    @onclick="() => ApproveAsParentAsync(waiting)">Approve as Parent</button>
-                        }
-                    </td>
-                </tr>
-            }
-        </tbody>
-    </table>
+    <Notice Kind="warning" Role="alert">
+        <p><strong>@_confirm.Question</strong></p>
+        <div class="btn-row confirm-actions">
+            <button type="button" class="@(_confirm.Destructive ? "btn--danger" : null)" @onclick="ConfirmAsync">@_confirm.ConfirmLabel</button>
+            <button type="button" class="btn--secondary" @onclick="CancelConfirm">Cancel</button>
+        </div>
+    </Notice>
 }
 
-<h2>Give someone a role</h2>
-<p>
-    Someone new to this chapter (for example a teacher who has just registered) is found by the email
-    address they registered with.
-</p>
-<form @onsubmit="FindAsync" @onsubmit:preventDefault>
-    <label for="find-email">Their email address</label>
-    <input id="find-email" type="email" autocomplete="off" @bind="_findEmail" />
-    <button type="submit">Find</button>
-</form>
-@if (_found is { } found)
-{
-    var foundSelectId = $"grant-role-found-{found.UserId}";
-    <p>
-        @found.DisplayName (@found.Email)@(found.HasLeft ? " has left." : "")
-        @if (!found.HasLeft && GrantableRoles(found) is { Count: > 0 } foundRoles)
-        {
-            <label for="@foundSelectId">Role for @found.DisplayName</label>
-            <select id="@foundSelectId" @bind="_foundRole">
-                @foreach (var role in foundRoles)
+<section class="section" aria-labelledby="awaiting-heading">
+    <h2 id="awaiting-heading">Waiting for approval</h2>
+    @if (_awaiting.Count == 0)
+    {
+        <p>No accounts are waiting for approval.</p>
+    }
+    else
+    {
+        <p>
+            These guardians accepted one of this chapter's invites but are not yet a Parent here (some
+            already hold other roles, such as a Teacher who is also a parent). Approve a guardian by
+            granting Parent, which adds to any roles they already hold.
+        </p>
+        <table class="data-table data-table--wide">
+            <thead>
+                <tr>
+                    <th>User</th>
+                    <th>Email</th>
+                    <th>Came from</th>
+                    <th>Linked students</th>
+                    <th>Current roles</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var waiting in _awaiting)
                 {
-                    <option value="@role">@role.DisplayName()</option>
-                }
-            </select>
-            <button type="button" aria-label="@($"Grant selected role to {found.DisplayName}")" @onclick="GrantFoundAsync">Grant</button>
-        }
-    </p>
-}
-
-<h2>People in this chapter</h2>
-
-@if (_users.Count == 0)
-{
-    <p>Nobody holds a role in this chapter yet.</p>
-}
-else
-{
-    <table>
-        <thead>
-            <tr>
-                <th>User</th>
-                <th>Email</th>
-                <th>Roles</th>
-                <th>Grant a role</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var user in _users)
-            {
-                <tr>
-                    <td>@user.DisplayName@(user.HasLeft ? " (left)" : "")</td>
-                    <td>@user.Email</td>
-                    <td>
-                        @if (user.Roles.Count == 0)
-                        {
-                            <span>None</span>
-                        }
-                        @foreach (var role in user.Roles)
-                        {
-                            <span>
-                                @role.DisplayName()
-                                <button type="button" aria-label="@($"Revoke {role.DisplayName()} from {user.DisplayName}")"
-                                        @onclick="() => RevokeAsync(user, role)">Revoke</button>
-                            </span>
-                        }
-                    </td>
-                    <td>
-                        @if (!user.HasLeft)
-                        {
-                            var available = GrantableRoles(user);
-                            if (available.Count > 0)
+                    <tr>
+                        <td data-label="User">@waiting.DisplayName</td>
+                        <td data-label="Email">@waiting.Email</td>
+                        <td data-label="Came from">@(waiting.FromGuardianInvite ? "Guardian invite" : "Self-registration")</td>
+                        <td data-label="Linked students">@(waiting.LinkedStudentNames.Count == 0 ? "None" : string.Join(", ", waiting.LinkedStudentNames))</td>
+                        <td data-label="Current roles">@(waiting.CurrentRoles.Count == 0 ? "None" : string.Join(", ", waiting.CurrentRoles.Select(r => r.DisplayName())))</td>
+                        <td>
+                            @if (waiting.FromGuardianInvite)
                             {
-                                var selectId = $"grant-role-{user.UserId}";
-                                <label for="@selectId">Role for @user.DisplayName</label>
-                                <select id="@selectId" @bind="_selectedRoles[user.UserId]">
-                                    @foreach (var role in available)
-                                    {
-                                        <option value="@role">@role.DisplayName()</option>
-                                    }
-                                </select>
-                                <button type="button" aria-label="@($"Grant selected role to {user.DisplayName}")"
-                                        @onclick="() => GrantAsync(user)">Grant</button>
+                                <button type="button" aria-label="@($"Approve {waiting.DisplayName} as Parent")"
+                                        @onclick="() => ApproveAsParentAsync(waiting)">Approve as Parent</button>
                             }
-                        }
-                    </td>
-                </tr>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</section>
+
+<section class="section" aria-labelledby="give-heading">
+    <h2 id="give-heading">Give someone a role</h2>
+    <p>
+        Someone new to this chapter (for example a teacher who has just registered) is found by the email
+        address they registered with.
+    </p>
+    <form class="field-row" @onsubmit="FindAsync" @onsubmit:preventDefault>
+        <div class="field">
+            <label for="find-email">Their email address</label>
+            <input id="find-email" type="email" autocomplete="off" @bind="_findEmail" />
+        </div>
+        <div class="form-actions"><button type="submit">Find</button></div>
+    </form>
+    @if (_found is { } found)
+    {
+        var foundSelectId = $"grant-role-found-{found.UserId}";
+        <div class="panel">
+            <p><strong>@found.DisplayName</strong> (@found.Email)@(found.HasLeft ? " has left." : "")</p>
+            @if (!found.HasLeft && GrantableRoles(found) is { Count: > 0 } foundRoles)
+            {
+                <div class="field-row">
+                    <div class="field">
+                        <label for="@foundSelectId">Role for @found.DisplayName</label>
+                        <select id="@foundSelectId" @bind="_foundRole">
+                            <option value="">Choose a role</option>
+                            @foreach (var role in foundRoles)
+                            {
+                                <option value="@role">@role.DisplayName()</option>
+                            }
+                        </select>
+                    </div>
+                    <button type="button" aria-label="@($"Grant selected role to {found.DisplayName}")" disabled="@(_foundRole is null)" @onclick="GrantFoundAsync">Grant</button>
+                </div>
             }
-        </tbody>
-    </table>
-}
+        </div>
+    }
+</section>
+
+<section class="section" aria-labelledby="people-heading">
+    <h2 id="people-heading">People in this chapter</h2>
+
+    @if (_users.Count == 0)
+    {
+        <p>Nobody holds a role in this chapter yet.</p>
+    }
+    else
+    {
+        <table class="data-table data-table--wide">
+            <thead>
+                <tr>
+                    <th>User</th>
+                    <th>Email</th>
+                    <th>Roles</th>
+                    <th>Grant a role</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var user in _users)
+                {
+                    <tr>
+                        <td data-label="User">@user.DisplayName@(user.HasLeft ? " (left)" : "")</td>
+                        <td data-label="Email">@user.Email</td>
+                        <td data-label="Roles">
+                            @if (user.Roles.Count == 0)
+                            {
+                                <span>None</span>
+                            }
+                            <div class="cell-actions">
+                                @foreach (var role in user.Roles)
+                                {
+                                    <span class="role-chip">
+                                        @role.DisplayName()
+                                        <button type="button" class="btn--quiet" aria-label="@($"Revoke {role.DisplayName()} from {user.DisplayName}")"
+                                                @onclick="() => AskRevoke(user, role)">Revoke</button>
+                                    </span>
+                                }
+                            </div>
+                        </td>
+                        <td data-label="Grant a role">
+                            @if (!user.HasLeft)
+                            {
+                                var available = GrantableRoles(user);
+                                if (available.Count > 0)
+                                {
+                                    var selectId = $"grant-role-{user.UserId}";
+                                    <div class="cell-form">
+                                        <div class="field">
+                                            <label for="@selectId">Role for @user.DisplayName</label>
+                                            <select id="@selectId" @bind="_selectedRoles[user.UserId]">
+                                                <option value="">Choose a role</option>
+                                                @foreach (var role in available)
+                                                {
+                                                    <option value="@role">@role.DisplayName()</option>
+                                                }
+                                            </select>
+                                        </div>
+                                        <button type="button" aria-label="@($"Grant selected role to {user.DisplayName}")"
+                                                disabled="@(!_selectedRoles.TryGetValue(user.UserId, out var chosen) || chosen is null)"
+                                                @onclick="() => AskGrant(user)">Grant</button>
+                                    </div>
+                                }
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</section>
 
 @code {
     private IReadOnlyList<RoleAssignmentService.UserWithRoles> _users = [];
     private IReadOnlyList<RoleAssignmentService.AwaitingApproval> _awaiting = [];
-    private readonly Dictionary<int, Role> _selectedRoles = new();
+    private readonly Dictionary<int, Role?> _selectedRoles = new();
+    private PendingConfirm? _confirm;
+
+    // A grant or a revoke changes what a person can do, so each is confirmed, naming the person and the role.
+    private sealed record PendingConfirm(string Question, string ConfirmLabel, bool Destructive, Func<Task> Action);
+
+    private void AskGrant(RoleAssignmentService.UserWithRoles user)
+    {
+        if (_selectedRoles.TryGetValue(user.UserId, out var chosen) && chosen is Role role)
+        {
+            _confirm = new($"Grant {role.DisplayName()} to {user.DisplayName}?", $"Grant {role.DisplayName()}", false, () => GrantAsync(user));
+        }
+    }
+
+    private void AskRevoke(RoleAssignmentService.UserWithRoles user, Role role) =>
+        _confirm = new($"Revoke {role.DisplayName()} from {user.DisplayName}?", $"Revoke {role.DisplayName()}", true, () => RevokeAsync(user, role));
+
+    private async Task ConfirmAsync()
+    {
+        var pending = _confirm;
+        _confirm = null;
+        if (pending is not null) await pending.Action();
+    }
+
+    private void CancelConfirm() => _confirm = null;
     private string? _errorMessage;
     private string? _statusMessage;
 
@@ -180,7 +236,7 @@ else
 
     private string? _findEmail;
     private RoleAssignmentService.UserWithRoles? _found;
-    private Role _foundRole;
+    private Role? _foundRole;
 
     private async Task FindAsync()
     {
@@ -193,7 +249,7 @@ else
             return;
         }
 
-        _foundRole = GrantableRoles(_found).FirstOrDefault();
+        _foundRole = null;
     }
 
     private async Task GrantFoundAsync()
@@ -203,7 +259,22 @@ else
             return;
         }
 
-        _selectedRoles[found.UserId] = _foundRole;
+        if (_foundRole is not Role foundRole)
+        {
+            return;
+        }
+
+        _selectedRoles[found.UserId] = foundRole;
+        _confirm = new($"Grant {foundRole.DisplayName()} to {found.DisplayName}?", $"Grant {foundRole.DisplayName()}", false, GrantFoundConfirmedAsync);
+    }
+
+    private async Task GrantFoundConfirmedAsync()
+    {
+        if (_found is not { } found)
+        {
+            return;
+        }
+
         await GrantAsync(found);
         if (_errorMessage is null)
         {
@@ -217,14 +288,11 @@ else
         _awaiting = await RoleAssignmentService.ListAwaitingApprovalAsync();
         _users = await RoleAssignmentService.ListUsersAsync();
 
+        // No role is pre-selected: a grant is always a deliberate choice.
         _selectedRoles.Clear();
         foreach (var user in _users)
         {
-            var firstAvailable = GrantableRoles(user).Cast<Role?>().FirstOrDefault();
-            if (firstAvailable is Role role)
-            {
-                _selectedRoles[user.UserId] = role;
-            }
+            _selectedRoles[user.UserId] = null;
         }
     }
 
@@ -233,7 +301,7 @@ else
         _errorMessage = null;
         _statusMessage = null;
 
-        if (!_selectedRoles.TryGetValue(user.UserId, out var role))
+        if (!_selectedRoles.TryGetValue(user.UserId, out var chosen) || chosen is not Role role)
         {
             return;
         }

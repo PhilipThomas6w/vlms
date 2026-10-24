@@ -11,9 +11,9 @@
 
 <PageTitle>Approve registrations</PageTitle>
 
-<h1>Approve registration applications</h1>
+<PageHeader Title="Approve registration applications" />
 
-<p>
+<p class="intro">
     Applications that a Safeguarding Officer has approved. Choose the rank the child starts at and
     approve, or reject with comments for the parent. If the child may already be registered (for
     example by another parent), the matching students are listed and you can link this parent to
@@ -38,7 +38,7 @@
 
         @if (application.Status == StudentApplicationStatus.AwaitingAdminApproval)
         {
-            <EditForm Model="Input" method="post" OnSubmit="DecideAsync" FormName="admin-approval">
+            <EditForm class="form" Model="Input" method="post" OnSubmit="DecideAsync" FormName="admin-approval">
                 @if (selected.SameNameAndDateOfBirth.Count > 0)
                 {
                     <fieldset>
@@ -61,7 +61,7 @@
                         }
                     </fieldset>
                 }
-                <div>
+                <div class="field">
                     <label for="startingRank">Starting rank (for a new student record)</label>
                     <select id="startingRank" name="Input.StartingRankId">
                         <option value="">Choose a rank</option>
@@ -71,7 +71,7 @@
                         }
                     </select>
                 </div>
-                <div>
+                <div class="field">
                     <label for="comments">Comments (required to reject; shown to the parent)</label>
                     <InputTextArea id="comments" rows="4" maxlength="4000" @bind-Value="Input.Comments" />
                 </div>
@@ -90,7 +90,7 @@
 }
 else
 {
-    <table>
+    <table class="data-table data-table--wide">
         <thead>
             <tr><th scope="col">Child</th><th scope="col">Parent</th><th scope="col">Safeguarding review</th><th scope="col"><span class="visually-hidden">Action</span></th></tr>
         </thead>
@@ -98,10 +98,10 @@ else
             @foreach (var application in _applications)
             {
                 <tr>
-                    <td>@application.ChildName</td>
-                    <td>@application.ApplicantName</td>
-                    <td>@application.SafeguardingReviewerName, @application.SafeguardingReviewedAt?.ToString("d MMMM yyyy")</td>
-                    <td><a href="/registration/approve?id=@application.Id" aria-label="Open the application for @application.ChildName">Open</a></td>
+                    <td data-label="Child">@application.ChildName</td>
+                    <td data-label="Parent">@application.ApplicantName</td>
+                    <td data-label="Safeguarding review">@application.SafeguardingReviewerName, @application.SafeguardingReviewedAt?.ToString("d MMMM yyyy")</td>
+                    <td data-label="Action"><a href="/registration/approve?id=@application.Id" aria-label="Open the application for @application.ChildName">Open</a></td>
                 </tr>
             }
         </tbody>

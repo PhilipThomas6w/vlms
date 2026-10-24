@@ -6,9 +6,9 @@
 
 <PageTitle>Student sign-ins</PageTitle>
 
-<h1>Student sign-ins</h1>
+<PageHeader Title="Student sign-ins" />
 
-<p>
+<p class="intro">
     Students whose parent has created a sign-in for them. An Admin can reset a student's
     password, and turn a sign-in off or back on, here; only a linked parent can create a sign-in.
     Turning a sign-in off signs the student out on every device. A parent's password reset does not
@@ -32,7 +32,7 @@ else if (_students.Count == 0)
 }
 else
 {
-    <table>
+    <table class="data-table data-table--wide">
         <caption>Students with a sign-in</caption>
         <thead>
             <tr>
@@ -47,15 +47,15 @@ else
             @foreach (var student in _students)
             {
                 <tr>
-                    <th scope="row">@student.StudentName</th>
-                    <td>@student.Username</td>
-                    <td>@(student.SignInDisabled ? "Turned off" : "Active")</td>
-                    <td>
+                    <th scope="row" data-label="Student">@student.StudentName</th>
+                    <td data-label="Username">@student.Username</td>
+                    <td data-label="Status">@(student.SignInDisabled ? "Turned off" : "Active")</td>
+                    <td data-label="Reset password">
                         <label for="password@(student.StudentId)">New password for @student.StudentName</label>
                         <input type="password" id="password@(student.StudentId)" @bind="_passwords[student.StudentId]" autocomplete="new-password" />
                         <button type="button" aria-label="@($"Reset password for {student.StudentName}")" @onclick="() => ResetAsync(student)">Reset password</button>
                     </td>
-                    <td>
+                    <td data-label="Sign-in">
                         @if (student.SignInDisabled)
                         {
                             <button type="button" aria-label="@($"Turn on sign-in for {student.StudentName}")" @onclick="() => SetDisabledAsync(student, false)">Turn on</button>

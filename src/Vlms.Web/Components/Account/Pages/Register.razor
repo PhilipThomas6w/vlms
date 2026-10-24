@@ -27,7 +27,8 @@
 
 <PageTitle>Register</PageTitle>
 
-<h1>Register</h1>
+<div class="auth">
+<PageHeader Title="Register" />
 
 @if (_errorMessage is not null)
 {
@@ -41,32 +42,33 @@
 }
 else
 {
-<EditForm Model="Input" method="post" OnValidSubmit="RegisterUser" FormName="register">
+<EditForm class="form panel" Model="Input" method="post" OnValidSubmit="RegisterUser" FormName="register">
     <DataAnnotationsValidator />
     <ValidationSummary role="alert" />
 
-    <div>
+    <div class="field">
         <label for="displayName">Name</label>
         <InputText id="displayName" @bind-Value="Input.DisplayName" aria-required="true" />
     </div>
-    <div>
+    <div class="field">
         <label for="email">Email</label>
         <InputText id="email" @bind-Value="Input.Email" autocomplete="username" aria-required="true" />
     </div>
-    <div>
+    <div class="field">
         <label for="password">Password</label>
         <InputText id="password" type="password" @bind-Value="Input.Password" autocomplete="new-password" aria-required="true" />
     </div>
-    <div>
+    <div class="field">
         <label for="confirmPassword">Confirm password</label>
         <InputText id="confirmPassword" type="password" @bind-Value="Input.ConfirmPassword" autocomplete="new-password" aria-required="true" />
     </div>
 
-    <button type="submit">Register</button>
+    <div class="form-actions"><button type="submit">Register</button></div>
 </EditForm>
 }
 
-<p><a href="Account/Login">Already have an account? Log in</a></p>
+<div class="auth-links"><a href="Account/Login">Already have an account? Log in</a></div>
+</div>
 
 @code {
     // No property initializer — BL0008 (learn.microsoft.com/aspnet/core/diagnostics/bl0008): see

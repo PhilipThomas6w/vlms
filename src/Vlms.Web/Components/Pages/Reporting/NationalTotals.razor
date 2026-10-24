@@ -8,9 +8,9 @@
 
 <PageTitle>National figures</PageTitle>
 
-<h1>National figures</h1>
+<PageHeader Title="National figures" />
 
-<p>
+<p class="intro">
     The number of students on roll (active) at each rank in each chapter. These are counts only:
     no child is named. Each chapter's Admins see their own chapter's full reports.
 </p>
@@ -19,7 +19,7 @@
 {
     <h2>@chapter.ChapterName@(chapter.IsActive ? "" : " (closed)")</h2>
     <p>Students on roll: @chapter.StudentsOnRoll</p>
-    <table>
+    <table class="data-table">
         <caption>Students on roll at each rank, @chapter.ChapterName</caption>
         <thead>
             <tr>
@@ -31,8 +31,8 @@
             @foreach (var rank in chapter.ByRank)
             {
                 <tr>
-                    <th scope="row">@rank.RankName</th>
-                    <td>@rank.Students</td>
+                    <th scope="row" data-label="Rank">@rank.RankName</th>
+                    <td data-label="Students">@rank.Students</td>
                 </tr>
             }
         </tbody>

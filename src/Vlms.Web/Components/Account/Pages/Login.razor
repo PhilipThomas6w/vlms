@@ -21,39 +21,45 @@
 
 <PageTitle>Log in</PageTitle>
 
-<h1>Log in</h1>
+<div class="auth">
+<PageHeader Title="Log in" />
 
 @if (_errorMessage is not null)
 {
     <p class="error" role="alert">@_errorMessage</p>
 }
 
-<EditForm Model="Input" method="post" OnValidSubmit="LoginUser" FormName="login">
+<EditForm class="form panel" Model="Input" method="post" OnValidSubmit="LoginUser" FormName="login">
     <DataAnnotationsValidator />
     <ValidationSummary role="alert" />
 
-    <div>
+    <div class="field">
         @* Adults sign in with their email; students with the username their parent created
            (FR-011, adr/0007). Both are Identity user names, so one field serves both. *@
         <label for="username">Email or student username</label>
         <InputText id="username" @bind-Value="Input.UserName" autocomplete="username" aria-required="true" />
     </div>
-    <div>
+    <div class="field">
         <label for="password">Password</label>
         <InputText id="password" type="password" @bind-Value="Input.Password" autocomplete="current-password" aria-required="true" />
     </div>
-    <div>
-        <label for="rememberMe"><InputCheckbox id="rememberMe" @bind-Value="Input.RememberMe" /> Remember me</label>
+    <div class="field--check">
+        <InputCheckbox id="rememberMe" @bind-Value="Input.RememberMe" />
+        <label for="rememberMe">Remember me</label>
     </div>
     @* Students always stay signed in on their own device (VlmsSignInManager, adr/0007). *@
-    <p>Students stay signed in on this device for up to 90 days between visits. On a shared device, log out when you finish.</p>
+    <p class="muted">Students stay signed in on this device for up to 90 days between visits. On a shared device, log out when you finish.</p>
 
-    <button type="submit">Log in</button>
+    <div class="form-actions"><button type="submit">Log in</button></div>
 </EditForm>
 
-<p><a href="Account/ForgotPassword">Forgot your password?</a> Students: ask your parent to reset it.</p>
-<p><a href="Account/ResendEmailConfirmation">Resend email confirmation</a></p>
-<p><a href="Account/Register">Register a new account</a></p>
+<div class="auth-links">
+    <a href="Account/ForgotPassword">Forgot your password?</a>
+    <p class="muted">Students: ask your parent to reset it.</p>
+    <a href="Account/ResendEmailConfirmation">Resend email confirmation</a>
+    <a href="Account/Register">Register a new account</a>
+</div>
+</div>
 
 @code {
     // No property initializer here — BL0008 (learn.microsoft.com/aspnet/core/diagnostics/bl0008):

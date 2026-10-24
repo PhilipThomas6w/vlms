@@ -5,9 +5,9 @@
 
 <PageTitle>Lesson library</PageTitle>
 
-<h1>Lesson library</h1>
+<PageHeader Title="Lesson library" />
 
-<p>Every active lesson, rank by rank, in the order it is taught. PDFs and images open in your browser; other files, such as Word documents, download.</p>
+<p class="intro">Every active lesson, rank by rank, in the order it is taught. PDFs and images open in your browser; other files, such as Word documents, download.</p>
 
 @foreach (var rank in _ranks)
 {
@@ -19,7 +19,7 @@
         }
         else
         {
-            <table>
+            <table class="data-table">
                 <caption>Lessons in @rank.Name</caption>
                 <thead>
                     <tr>
@@ -34,10 +34,10 @@
                     {
                         @* Anchored by lesson code so the student page can link to a lesson (redesign; lesson pages come later). *@
                         <tr id="lesson-@lesson.Code">
-                            <td>@lesson.Code</td>
-                            <td>@lesson.Title</td>
-                            <td>@string.Join(", ", lesson.Tags)</td>
-                            <td>
+                            <td data-label="Code">@lesson.Code</td>
+                            <td data-label="Title">@lesson.Title</td>
+                            <td data-label="Tags">@string.Join(", ", lesson.Tags)</td>
+                            <td data-label="Files">
                                 @if (lesson.Files.Count == 0)
                                 {
                                     <text>No files</text>

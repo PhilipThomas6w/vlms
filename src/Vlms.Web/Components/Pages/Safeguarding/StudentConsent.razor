@@ -10,18 +10,18 @@
 
 @if (_errorMessage is not null)
 {
-    <h1>Student consent</h1>
+    <PageHeader Title="Student consent" />
     <p class="error" role="alert">@_errorMessage</p>
 }
 else if (StudentId is null)
 {
-    <h1>Student consent</h1>
-    <p>
+    <PageHeader Title="Student consent" />
+    <p class="intro">
         Consent status for every active student. Open a student to see the medical, dietary, special educational needs and
         emergency contact details from their approved consent form (read only; every view is
         recorded in the safeguarding audit log).
     </p>
-    <table>
+    <table class="data-table">
         <thead>
             <tr>
                 <th>Student</th>
@@ -34,9 +34,9 @@ else if (StudentId is null)
             @foreach (var student in _students)
             {
                 <tr>
-                    <td>@student.StudentName</td>
-                    <td>@(student.CurrentConsent is null ? "None in place — completions blocked" : "Approved")@(student.LatestSubmissionStatus == ConsentStatus.Pending ? " (new form awaiting review)" : "")</td>
-                    <td>@student.CurrentConsent?.ExpiryDate.ToString("d MMMM yyyy")</td>
+                    <td data-label="Student">@student.StudentName</td>
+                    <td data-label="Consent">@(student.CurrentConsent is null ? "None in place — completions blocked" : "Approved")@(student.LatestSubmissionStatus == ConsentStatus.Pending ? " (new form awaiting review)" : "")</td>
+                    <td data-label="Expires">@student.CurrentConsent?.ExpiryDate.ToString("d MMMM yyyy")</td>
                     <td><a href="/students/@student.StudentId/consent">Details for @student.StudentName</a></td>
                 </tr>
             }
@@ -45,15 +45,15 @@ else if (StudentId is null)
 }
 else if (_detail is null)
 {
-    <h1>Student consent</h1>
-    <p>Student not found.</p>
+    <PageHeader Title="Student consent" />
+    <p class="intro">Student not found.</p>
     <p><a href="/students/consent">Back to student consent</a></p>
 }
 else
 {
-    <h1>Consent for @_detail.StudentName</h1>
-    <p><a href="/students/consent">Back to student consent</a></p>
-    <dl>
+    <PageHeader Title="@($"Consent for {_detail.StudentName}")" />
+    <p class="intro"><a href="/students/consent">Back to student consent</a></p>
+    <dl class="facts">
         <dt>Date of birth</dt>
         <dd>@_detail.DateOfBirth.ToString("d MMMM yyyy")</dd>
         <dt>Consent</dt>
@@ -87,7 +87,7 @@ else
     @if (_detail.CurrentDetails is { } details)
     {
         <h2>Medical, dietary and emergency details</h2>
-        <dl>
+        <dl class="facts">
             <dt>Emergency contact</dt>
             <dd>@details.EmergencyContact</dd>
             <dt>Emergency medical information</dt>

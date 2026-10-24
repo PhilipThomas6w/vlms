@@ -6,9 +6,9 @@
 
 <PageTitle>Children's sign-ins</PageTitle>
 
-<h1>Children's sign-ins</h1>
+<PageHeader Title="Children's sign-ins" />
 
-<p>
+<p class="intro">
     Create a sign-in for each of your children so they can see their progress and the lesson library.
     A sign-in is a username and password: no email address is needed. Your child signs in on the normal
     log-in page with that username. Only a parent linked to the child can create or reset it.
@@ -41,15 +41,15 @@ else
             @if (student.Username is null)
             {
                 <p>No sign-in yet.</p>
-                <div>
+                <div class="field">
                     <label for="username@(student.StudentId)">Username for @student.StudentName</label>
                     <input type="text" id="username@(student.StudentId)" @bind="form.Username" autocomplete="off" aria-required="true" aria-describedby="@ErrorIdFor(student.StudentId)" />
                 </div>
-                <div>
+                <div class="field">
                     <label for="password@(student.StudentId)">Password for @student.StudentName</label>
                     <input type="password" id="password@(student.StudentId)" @bind="form.Password" autocomplete="new-password" aria-required="true" aria-describedby="@ErrorIdFor(student.StudentId)" />
                 </div>
-                <div>
+                <div class="field">
                     <label for="confirm@(student.StudentId)">Confirm password for @student.StudentName</label>
                     <input type="password" id="confirm@(student.StudentId)" @bind="form.Confirm" autocomplete="new-password" aria-required="true" aria-describedby="@ErrorIdFor(student.StudentId)" />
                 </div>
@@ -62,11 +62,11 @@ else
                 {
                     <p>This sign-in has been turned off by the school, so @student.StudentName can't log in. Resetting the password won't turn it back on; contact the school.</p>
                 }
-                <div>
+                <div class="field">
                     <label for="password@(student.StudentId)">New password for @student.StudentName</label>
                     <input type="password" id="password@(student.StudentId)" @bind="form.Password" autocomplete="new-password" aria-required="true" aria-describedby="@ErrorIdFor(student.StudentId)" />
                 </div>
-                <div>
+                <div class="field">
                     <label for="confirm@(student.StudentId)">Confirm new password for @student.StudentName</label>
                     <input type="password" id="confirm@(student.StudentId)" @bind="form.Confirm" autocomplete="new-password" aria-required="true" aria-describedby="@ErrorIdFor(student.StudentId)" />
                 </div>

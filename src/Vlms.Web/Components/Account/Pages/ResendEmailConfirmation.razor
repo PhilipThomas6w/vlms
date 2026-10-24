@@ -12,7 +12,8 @@
 
 <PageTitle>Resend email confirmation</PageTitle>
 
-<h1>Resend email confirmation</h1>
+<div class="auth">
+<PageHeader Title="Resend email confirmation" />
 
 @if (_submitted)
 {
@@ -21,18 +22,19 @@
 }
 else
 {
-    <EditForm Model="Input" method="post" OnValidSubmit="Resend" FormName="resend-confirmation">
+    <EditForm class="form panel" Model="Input" method="post" OnValidSubmit="Resend" FormName="resend-confirmation">
         <DataAnnotationsValidator />
         <ValidationSummary role="alert" />
 
-        <div>
+        <div class="field">
             <label for="email">Email</label>
             <InputText id="email" @bind-Value="Input.Email" autocomplete="username" aria-required="true" />
         </div>
 
-        <button type="submit">Resend</button>
+        <div class="form-actions"><button type="submit">Resend</button></div>
     </EditForm>
 }
+</div>
 
 @code {
     // No property initializer — BL0008: see Login.razor's identical comment.

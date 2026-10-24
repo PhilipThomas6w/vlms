@@ -74,6 +74,7 @@ public static class CaptureSeed
         await AddUser("approver", "Elizabeth Approver", "approver@capture.test", "approver@capture.test", false, Role.Approver);
         await AddUser("safeguarding", "Barbara Safeguarding", "safeguarding@capture.test", "safeguarding@capture.test", true, Role.SafeguardingOfficer);
         var parent = await AddUser("parent", "Rachel Hughes", "parent@capture.test", "parent@capture.test", false, Role.Parent);
+        await AddUser("national", "Nina National", "national@capture.test", "national@capture.test", true, Role.NationalAdministrator);
         await AddUser("admin-teacher", "Philip Combined", "combined@capture.test", "combined@capture.test", true, Role.Admin, Role.Teacher, Role.SafeguardingOfficer, Role.Parent);
 
         // Curriculum: the real ladder and titles.

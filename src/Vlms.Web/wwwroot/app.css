@@ -477,11 +477,122 @@
     .data-table tbody tr:last-child td { border-bottom: 0; }
     @media (max-width: 40rem) {
         .data-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
-        .data-table, .data-table tbody, .data-table tr, .data-table td { display: block; width: 100%; }
+        .data-table, .data-table tbody, .data-table tr, .data-table td, .data-table tbody th { display: block; width: 100%; }
         .data-table tr { border-bottom: 1px solid var(--line); padding: var(--s-2) 0; }
-        .data-table td { border: 0; padding: var(--s-1) var(--s-3); }
-        .data-table td[data-label]::before { content: attr(data-label); display: block; font-size: var(--step--1); font-weight: 700; color: var(--ink-soft); }
+        .data-table td, .data-table tbody th { border: 0; padding: var(--s-1) var(--s-3); }
+        .data-table tbody th { font-size: var(--step-0); color: var(--ink); background: none; }
+        .data-table :is(td, th)[data-label]::before { content: attr(data-label); display: block; font-size: var(--step--1); font-weight: 700; color: var(--ink-soft); }
     }
+
+
+    /* ---- Phase 6 shared patterns ---- */
+
+    /* Messages written as plain paragraphs (pinned by markup tests) take the notice look: tint, edge, glyph. */
+    main p.error[role=alert], main p[role=alert], main p[role=status]:not(:empty) {
+        position: relative; max-width: none;
+        padding: var(--s-3) var(--s-4) var(--s-3) calc(var(--s-4) + 1.9rem);
+        margin: 0 0 var(--s-4);
+        border-radius: var(--r-control); border-left: 4px solid var(--danger);
+        background: var(--danger-tint); color: var(--ink); font-weight: 600;
+    }
+    main p[role=status]:not(:empty) { border-left-color: var(--success); background: var(--success-tint); }
+    main p.error[role=alert]::before, main p[role=alert]::before, main p[role=status]:not(:empty)::before {
+        content: "!" / ""; position: absolute; left: var(--s-4); top: 50%; translate: 0 -50%;
+        display: grid; place-items: center; width: 1.375rem; height: 1.375rem; border-radius: 50%;
+        background: var(--danger); color: #FFFFFF; font-size: 0.875rem; font-weight: 800; line-height: 1;
+    }
+    main p[role=status]:not(:empty)::before { content: "¹3" / ""; background: var(--success); }
+    .error.field-error, .validation-message { background: none; }
+
+    /* One form pattern: a single column of .field blocks, then .form-actions. */
+    .form { max-width: 34rem; }
+    .form--wide { max-width: 52rem; }
+    .form .field input, .form .field select, .form .field textarea { max-width: none; }
+    .form-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-3); margin-top: var(--s-5); }
+    .form-section { margin: 0 0 var(--s-6); }
+    .form-section > h2, .form-section > h3 { margin-top: 0; }
+    .check-list { list-style: none; margin: 0 0 var(--s-4); padding: 0; }
+    .field--check { display: flex; align-items: flex-start; gap: var(--s-3); min-height: var(--target); padding-block: var(--s-2); }
+    .field--check > label { font-weight: 600; }
+    .field--check input { margin-top: 0.15rem; }
+    .field > label:has(> input[type=radio], > input[type=checkbox]) { display: flex; align-items: center; gap: var(--s-3); min-height: var(--target); }
+    .field-row { display: flex; flex-wrap: wrap; gap: var(--s-3) var(--s-4); align-items: flex-end; margin-bottom: var(--s-4); }
+    .field-row > .field { margin: 0; flex: 1 1 14rem; }
+    .field-row .btn, .field-row button { flex: none; }
+
+    /* Page structure */
+    .section { margin-block: var(--s-6); }
+    .section > h2:first-child, .section > h3:first-child { margin-top: 0; }
+    .intro { color: var(--ink-soft); max-width: var(--measure); }
+    .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-3) var(--s-5); margin-bottom: var(--s-4); }
+    .facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--s-1) var(--s-5); margin: 0 0 var(--s-4); }
+    .facts dt { font-weight: 700; color: var(--ink-soft); }
+    .facts dd { margin: 0; }
+    @media (max-width: 40rem) { .facts { grid-template-columns: minmax(0, 1fr); gap: 0; } .facts dd { margin-bottom: var(--s-3); } }
+
+    /* Tables: controls inside a cell, and a wider stacking threshold for tables with many columns. */
+    .data-table caption { padding: var(--s-3) var(--s-3) var(--s-2); font-family: var(--font-display); font-size: var(--step-1); color: var(--lapis-900); }
+    .data-table td > label { display: block; font-size: var(--step--1); font-weight: 600; color: var(--ink-soft); margin-bottom: var(--s-1); }
+    .data-table td select, .data-table td input[type=text], .data-table td input[type=password], .data-table td input[type=date] { max-width: 16rem; }
+    .cell-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--s-2); }
+    .cell-form > div { flex: 1 1 10rem; }
+    .cell-actions { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+    .data-table .btn, .data-table button { padding-inline: var(--s-4); }
+    .table-scroll { overflow-x: auto; }
+    @media (max-width: 63.99rem) {
+        .data-table--wide thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+        .data-table--wide, .data-table--wide tbody, .data-table--wide tr, .data-table--wide td, .data-table--wide tbody th { display: block; width: 100%; }
+        .data-table--wide tr { border-bottom: 1px solid var(--line); padding: var(--s-2) 0; }
+        .data-table--wide td, .data-table--wide tbody th { border: 0; padding: var(--s-1) var(--s-3); }
+        .data-table--wide tbody th { font-size: var(--step-0); color: var(--ink); background: none; }
+        .data-table--wide :is(td, th)[data-label]::before { content: attr(data-label); display: block; font-size: var(--step--1); font-weight: 700; color: var(--ink-soft); }
+    }
+    @media (max-width: 40rem) { .data-table td select, .data-table td input { max-width: none; } }
+
+    /* Action lists and cards (home, hubs) */
+    .card-grid { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-4); grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr)); }
+    .action-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-panel); padding: var(--s-4) var(--s-5); }
+    .action-card h2, .action-card h3 { margin: 0 0 var(--s-2); font-size: var(--step-1); }
+    .action-list { list-style: none; margin: 0; padding: 0; }
+    .action-list a { display: flex; align-items: center; gap: var(--s-3); min-height: var(--target); padding: var(--s-2) var(--s-2); border-radius: var(--r-control); font-weight: 600; text-decoration: none; }
+    .action-list a:hover { background: var(--lapis-50); }
+    .action-list a svg { width: 1.25rem; height: 1.25rem; color: var(--ink-soft); flex: none; }
+    .action-list li + li { border-top: 1px solid var(--line); }
+
+    /* Narrow centred page for sign-in and account forms */
+    .auth { max-width: 30rem; margin-inline: auto; }
+    .auth .panel { padding: var(--s-5); }
+    .auth-links { display: flex; flex-direction: column; gap: 0; margin-top: var(--s-4); }
+    .auth-links a { display: flex; align-items: center; min-height: var(--target); }
+    .auth .field input, .auth .field select { max-width: none; }
+    .auth .form { max-width: none; }
+    .shared-key { display: inline-block; padding: var(--s-2) var(--s-3); border: 1px solid var(--line-strong); border-radius: var(--r-control); background: var(--surface); font-size: var(--step-1); letter-spacing: 0.05em; overflow-wrap: anywhere; }
+    .recovery-codes { columns: 2 12rem; list-style: none; padding: var(--s-4); background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-panel); }
+    .recovery-codes code { font-size: var(--step-0); }
+
+    .role-chip { display: inline-flex; align-items: center; gap: var(--s-1); padding-left: var(--s-3); border: 1px solid var(--line); border-radius: 999px; background: var(--surface); font-weight: 600; }
+    .role-chip button { min-height: var(--target); }
+    .confirm-actions { margin-top: var(--s-3); }
+    .file-list { list-style: none; margin: 0 0 var(--s-4); padding: 0; }
+    .file-list li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s-2) var(--s-4); padding-block: var(--s-2); border-bottom: 1px solid var(--line); }
+    .data-table ul { margin: 0; padding-left: var(--s-4); }
+    .proposal { margin-bottom: var(--s-5); }
+    .proposal h2 { margin-top: 0; font-size: var(--step-2); }
+    .btn-row { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+    .status-line { display: flex; flex-wrap: wrap; gap: var(--s-2); align-items: center; }
+
+
+    /* Parent dashboard: each child on a panel with their rank's colour as a band. */
+    .children { display: grid; gap: var(--s-5); }
+    .child { background: var(--surface); border: 1px solid var(--line); border-top: 6px solid var(--rank-field, var(--lapis-700)); border-radius: var(--r-panel); padding: var(--s-5); }
+    .child__head { display: flex; align-items: center; gap: var(--s-5); margin-bottom: var(--s-3); background: var(--rank-tint, var(--lapis-50)); margin: calc(-1 * var(--s-5)) calc(-1 * var(--s-5)) var(--s-4); padding: var(--s-5); border-radius: var(--r-panel) var(--r-panel) 0 0; }
+    .child__head h2 { margin: 0 0 var(--s-1); font-size: var(--step-3); }
+    .child__head p { margin: 0; }
+    .child__consent { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-3); }
+    .child h3 { font-size: var(--step-1); margin-top: var(--s-5); }
+    .badge-row { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--s-4) var(--s-5); }
+    .badge-row li { display: flex; align-items: center; gap: var(--s-3); }
+    .cert-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s-1) var(--s-4); padding-block: var(--s-1); }
 
     /* Helpers kept from the template-era stylesheet. */
     /* Approver proposal review (FR-007): a change is marked by text as well as this background. */

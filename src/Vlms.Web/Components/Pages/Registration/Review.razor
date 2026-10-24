@@ -11,9 +11,9 @@
 
 <PageTitle>Review registrations</PageTitle>
 
-<h1>Review registration applications</h1>
+<PageHeader Title="Review registration applications" />
 
-<p>
+<p class="intro">
     Parents' applications to register a child. Check the consent form and the medical, dietary and
     special educational needs details. Approve to pass the application to an Admin for final
     approval, ask the parent for more information, or reject it with comments for the parent.
@@ -36,8 +36,8 @@
 
         @if (selected.Status == StudentApplicationStatus.AwaitingSafeguardingReview)
         {
-            <EditForm Model="Input" method="post" OnSubmit="DecideAsync" FormName="safeguarding-review">
-                <div>
+            <EditForm class="form" Model="Input" method="post" OnSubmit="DecideAsync" FormName="safeguarding-review">
+                <div class="field">
                     <label for="message">Comments, or the information you need from the parent (required to reject or to ask for more information)</label>
                     <InputTextArea id="message" rows="5" maxlength="4000" @bind-Value="Input.Message" />
                 </div>
@@ -57,7 +57,7 @@
 }
 else
 {
-    <table>
+    <table class="data-table data-table--wide">
         <thead>
             <tr><th scope="col">Child</th><th scope="col">Parent</th><th scope="col">Submitted</th><th scope="col">Status</th><th scope="col"><span class="visually-hidden">Action</span></th></tr>
         </thead>
@@ -65,11 +65,11 @@ else
             @foreach (var application in _applications)
             {
                 <tr>
-                    <td>@application.ChildName</td>
-                    <td>@application.ApplicantName</td>
-                    <td>@application.LastSubmittedAt.ToString("d MMMM yyyy")</td>
-                    <td>@ApplicationSummary.StatusText(application.Status)</td>
-                    <td><a href="/registration/review?id=@application.Id" aria-label="Review the application for @application.ChildName">Review</a></td>
+                    <td data-label="Child">@application.ChildName</td>
+                    <td data-label="Parent">@application.ApplicantName</td>
+                    <td data-label="Submitted">@application.LastSubmittedAt.ToString("d MMMM yyyy")</td>
+                    <td data-label="Status">@ApplicationSummary.StatusText(application.Status)</td>
+                    <td data-label="Action"><a href="/registration/review?id=@application.Id" aria-label="Review the application for @application.ChildName">Review</a></td>
                 </tr>
             }
         </tbody>
