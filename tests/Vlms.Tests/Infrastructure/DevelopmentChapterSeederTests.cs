@@ -11,7 +11,7 @@ using Xunit;
 namespace Vlms.Tests.Infrastructure;
 
 /// <summary>
-/// The Development seed for the Coventry test chapter (FR-021, docs/adr/0010-chapters.md; TC-058):
+/// The Development seed for the Coventry test chapter (FR-021, docs/adr/0010-chapters.md; TC-051):
 /// its own Admin, Teacher, Safeguarding Officer, parent and student, all in Coventry, and a second
 /// run changes nothing.
 /// </summary>

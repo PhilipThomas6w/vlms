@@ -16,7 +16,7 @@ using Xunit;
 namespace Vlms.Tests.Infrastructure;
 
 /// <summary>
-/// Chapter separation (functional.md FR-021, docs/adr/0010-chapters.md; test-plan.md TC-050 to TC-058).
+/// Chapter separation (functional.md FR-021, docs/adr/0010-chapters.md; test-plan.md TC-043 to TC-051).
 /// Two chapters, each with one record of every chapter-owned entity, built by the real
 /// <see cref="VlmsDbContext"/> (its chapter query filters and write rules) on SQLite in memory.
 /// The reflection tests fail if a new entity is added without being classified as chapter-owned
@@ -205,7 +205,7 @@ public sealed class ChapterSeparationTests : IDisposable
     private static List<int> VisibleChaptersOf<T>(VlmsDbContext db) where T : class, IChapterOwned =>
         db.Set<T>().AsNoTracking().ToList().Select(x => x.ChapterId).ToList();
 
-    // ------------------------------------------------------------------ TC-050: every entity classified and filtered
+    // ------------------------------------------------------------------ TC-043: every entity classified and filtered
 
     [Fact]
     public void EveryChapterOwnedEntity_HasTheChapterQueryFilter_AndAForeignKeyToChapter()
@@ -251,7 +251,7 @@ public sealed class ChapterSeparationTests : IDisposable
         }
     }
 
-    // ------------------------------------------------------------------ TC-051: per entity, chapter A sees none of B
+    // ------------------------------------------------------------------ TC-044: per entity, chapter A sees none of B
 
     [Theory]
     [MemberData(nameof(ChapterOwnedEntityNames))]
@@ -284,7 +284,7 @@ public sealed class ChapterSeparationTests : IDisposable
         Assert.Empty(VisibleChapters(db, entityName));
     }
 
-    // ------------------------------------------------------------------ TC-052: parents keep their own children
+    // ------------------------------------------------------------------ TC-045: parents keep their own children
 
     [Fact]
     public void Parent_SeesTheirOwnChildInAnotherChapter_ButNoOtherChildThere()
@@ -329,7 +329,7 @@ public sealed class ChapterSeparationTests : IDisposable
         Assert.Equal([Chapter.ShrewsburyId * 100 + 95], listed);
     }
 
-    // ------------------------------------------------------------------ TC-053: write rules
+    // ------------------------------------------------------------------ TC-046: write rules
 
     [Fact]
     public void AChildRecord_ForAnotherChaptersStudent_IsRefused()
@@ -406,7 +406,7 @@ public sealed class ChapterSeparationTests : IDisposable
         Assert.True(db.Students.Max(s => s.Id) < UnlinkedCoventryStudent);
     }
 
-    // ------------------------------------------------------------------ TC-054: roles per chapter, active chapter
+    // ------------------------------------------------------------------ TC-047: roles per chapter, active chapter
 
     private sealed class FixedAuthenticationStateProvider(ClaimsPrincipal principal) : AuthenticationStateProvider
     {
@@ -478,7 +478,7 @@ public sealed class ChapterSeparationTests : IDisposable
         Assert.Equal(Coventry, current.ActiveChapterId);
     }
 
-    // ------------------------------------------------------------------ TC-055: chapter Admins manage their own chapter only
+    // ------------------------------------------------------------------ TC-048: chapter Admins manage their own chapter only
 
     private RoleAssignmentService RolesAs(int chapterId, out ServiceProvider provider)
     {
@@ -519,7 +519,7 @@ public sealed class ChapterSeparationTests : IDisposable
         await Assert.ThrowsAsync<InvalidOperationException>(() => shrewsburyAdmin.RevokeAsync(Chapter.ShrewsburyId * 100 + Staff, Role.Admin));
     }
 
-    // ------------------------------------------------------------------ TC-056: national administrator, least privilege
+    // ------------------------------------------------------------------ TC-049: national administrator, least privilege
 
     private ChapterService ChaptersAs(ICurrentUserContext user, out ServiceProvider provider)
     {
@@ -608,7 +608,7 @@ public sealed class ChapterSeparationTests : IDisposable
         Assert.Equal([(101, (int?)null)], again.UserRoles.Where(r => r.Role == Role.NationalAdministrator).Select(r => new { r.UserId, r.ChapterId }).AsEnumerable().Select(r => (r.UserId, r.ChapterId)).ToList());
     }
 
-    // ------------------------------------------------------------------ TC-057: notifications go to the chapter's own staff
+    // ------------------------------------------------------------------ TC-050: notifications go to the chapter's own staff
 
     [Fact]
     public async Task ConsentSubmittedAlert_GoesOnlyToTheStudentsChaptersStaff()
