@@ -410,6 +410,7 @@ app.UseAntiforgery();
 
 app.MapStaticAssets();
 app.MapLessonFileEndpoint();
+app.MapSavedLessonsEndpoint();
 app.MapRankBadgeEndpoint();
 app.MapCertificateEndpoint();
 app.MapCalendarFeedEndpoint();

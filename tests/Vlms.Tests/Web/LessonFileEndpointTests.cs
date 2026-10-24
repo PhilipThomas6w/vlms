@@ -73,6 +73,7 @@ public sealed class LessonFileEndpointTests : IAsyncLifetime
         _app.UseAuthentication();
         _app.UseAuthorization();
         _app.MapLessonFileEndpoint();
+        _app.MapSavedLessonsEndpoint();
         await _app.StartAsync();
         _client = _app.GetTestClient();
 
@@ -150,6 +151,84 @@ public sealed class LessonFileEndpointTests : IAsyncLifetime
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal([1, 2, 3], await response.Content.ReadAsByteArrayAsync());
+    }
+
+    private Task<HttpResponseMessage> GetSavedAsync(string query, string? roles, bool mfa = true)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, "/lessons/saved" + query);
+        if (roles is not null)
+        {
+            request.Headers.Add(RolesHeader, roles);
+        }
+
+        if (!mfa)
+        {
+            request.Headers.Add(MfaHeader, "off");
+        }
+
+        return _client.SendAsync(request);
+    }
+
+    [Theory]
+    [InlineData("Teacher")]
+    [InlineData("Approver")]
+    [InlineData("Admin")]
+    [InlineData("Student")]
+    [InlineData("Parent")]
+    public async Task Saved_AllowedRole_GetsTheLessonWithItsFiles(string role)
+    {
+        var response = await GetSavedAsync("?id=1", role);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var json = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var lesson = Assert.Single(json.RootElement.EnumerateArray());
+        Assert.Equal(1, lesson.GetProperty("id").GetInt32());
+        Assert.Equal("Active", lesson.GetProperty("title").GetString());
+        Assert.Equal("R1: First", lesson.GetProperty("rank").GetString());
+        Assert.Equal([1, 2, 3, 4], lesson.GetProperty("files").EnumerateArray().Select(f => f.GetProperty("id").GetInt32()));
+    }
+
+    [Fact]
+    public async Task Saved_RetiredAndUnknownLessons_AreAbsent()
+    {
+        var response = await GetSavedAsync("?id=2&id=9999&id=1", "Teacher");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var json = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal([1], json.RootElement.EnumerateArray().Select(l => l.GetProperty("id").GetInt32()));
+    }
+
+    [Fact]
+    public async Task Saved_NoIds_IsAnEmptyList()
+    {
+        var response = await GetSavedAsync("", "Teacher");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("[]", await response.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
+    public async Task Saved_Anonymous_IsRefused()
+    {
+        var response = await GetSavedAsync("?id=1", roles: null);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Saved_SafeguardingOfficerOnly_IsForbidden()
+    {
+        var response = await GetSavedAsync("?id=1", "SafeguardingOfficer");
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Saved_TeacherWithoutMfa_IsForbidden()
+    {
+        var response = await GetSavedAsync("?id=1", "Teacher", mfa: false);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
     [Fact]

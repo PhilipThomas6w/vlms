@@ -60,13 +60,41 @@ live connection to the server there is no app. This increment therefore builds o
    background_color/icons) linked from `Components/App.razor` via `<link rel="manifest">`, plus a
    registered service worker (a standard installability signal, alongside the manifest).
 2. **App-shell asset caching for faster repeat loads** — `wwwroot/service-worker.js` is a
-   hand-written, minimal service worker (not the WASM template's generated one, which doesn't apply
+   hand-written service worker (not the WASM template's generated one, which doesn't apply
    here): cache-first, populate-as-you-go caching of same-origin static assets whose
-   `request.destination` is `style`/`script`/`image`/`font`/`manifest`. It never intercepts
-   navigation requests (`request.mode === 'navigate'`) — the server-rendered HTML document is
-   dynamic per-request (auth state, antiforgery tokens) and must never be served stale from a
-   cache — and it doesn't need to explicitly exclude the SignalR circuit, since a WebSocket upgrade
-   never dispatches a `fetch` event in the first place.
+   `request.destination` is `style`/`script`/`image`/`font`/`manifest`, in a cache named
+   `vlms-static-<build id>`. `App.razor` registers `service-worker.js?v=<assembly MVID>`, so every
+   build gets a new cache name and activation deletes the old `vlms-static-*` caches (an
+   unversioned asset such as `manifest.json` can no longer be served stale for ever). Navigation
+   requests are network first, never served stale while online (the document is dynamic per request:
+   auth state, antiforgery tokens); the SignalR circuit needs no exclusion, since a WebSocket
+   upgrade never dispatches a `fetch` event.
+
+### Lessons saved for offline use (FR-023, adr/0011)
+
+The only thing that works with no connection. The pieces:
+
+- **Buttons** — `Pages/Lessons/LessonLibrary.razor` (static SSR) renders, per lesson with files, a
+  hidden `div[data-offline-lesson]` holding the lesson id, code, title, rank, positions and file
+  ids/names in data attributes, a `role="status"` span and one `button`. `wwwroot/offline-lessons.js`
+  (loaded from `App.razor`, delegated click handler, re-scan on Blazor's `enhancedload`) shows it,
+  and flips the button between "Save to this device" and "Saved on this device" + "Remove". On
+  iOS/iPadOS outside the home-screen app it replaces the button with a link to
+  `wwwroot/add-to-home-screen.html`.
+- **Storage** — Cache Storage `vlms-lessons`: each file fetched from `/lessons/files/{id}` with the
+  user's cookies, plus an index entry `/vlms-saved-index.json` (lessons, rank, positions, files).
+  `navigator.storage.persist()` is asked for on the first save. The static cache and the lessons cache
+  are separate; the worker's activate step deletes only `vlms-static-*`. Nothing is removed at sign-out.
+- **Worker** — `/lessons/files/{id}`: network first, falling back to the saved copy. Navigation:
+  network first, falling back to the precached `/offline.html` (plus `/offline.js`, `/app.css`, from the
+  static cache), whose script lists the saved lessons by rank with links to their files.
+- **Updating** — once per page load, online, `offline-lessons.js` calls
+  `GET /lessons/saved?id=..` (`LessonFileEndpoint.MapSavedLessonsEndpoint`, `RequireLessonLibrary`,
+  `LessonLibraryService.GetSavedLessonsAsync`), drops lessons and files no longer in the library,
+  fetches new files and updates titles. A non-JSON answer (lapsed sign-in) leaves everything as is.
+- **Tests** — `LessonFileEndpointTests` and `LessonLibraryServiceTests` (endpoint and service),
+  `PwaAssetsTests` (cache naming, the lessons cache never deleted), `Vlms.UiTests/OfflineLessonsJourneyTests`
+  (Chromium: save, go offline, saved list, file from the device, remove).
 
 Registration is the standard web-platform pattern (`navigator.serviceWorker.register('service-worker.js')`
 in a `<script>` after `App.razor`'s `blazor.web.js` tag) — this part is not Blazor-specific, so no

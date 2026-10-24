@@ -169,6 +169,10 @@
     button:hover, .btn:hover { background: var(--lapis-800); border-color: var(--lapis-800); }
     button:disabled, button[aria-disabled=true] { background: #E6E9EF; border-color: #C3CAD5; color: #5B6577; cursor: not-allowed; }
 
+    /* Save a lesson for offline use (LessonLibrary.razor, offline-lessons.js). */
+    .offline-save { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-3); margin-top: var(--s-2); }
+    .offline-save[hidden] { display: none; }
+
     table { border-collapse: collapse; width: 100%; }
     caption { text-align: left; font-weight: 700; padding-bottom: var(--s-2); }
     th, td { text-align: left; vertical-align: top; padding: var(--s-2) var(--s-3); border-bottom: 1px solid var(--line); }

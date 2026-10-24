@@ -73,6 +73,35 @@ public class PwaAssetsTests
         Assert.Contains("service-worker.js", content);
     }
 
+    [Fact]
+    public void ServiceWorker_StaticCacheNameChangesPerBuild_AndNeverDeletesSavedLessons()
+    {
+        var serviceWorker = File.ReadAllText(Path.Combine(WwwrootPath(), "service-worker.js"));
+        var appRazor = File.ReadAllText(Path.Combine(RepoRoot(), "src", "Vlms.Web", "Components", "App.razor"));
+
+        // The cache name takes the build id from the script URL, which App.razor sets from the assembly's MVID.
+        Assert.Contains("searchParams.get(\"v\")", serviceWorker);
+        Assert.Contains("service-worker.js?v=@BuildId", appRazor);
+        Assert.Contains("ModuleVersionId", appRazor);
+
+        // Activate deletes old static caches only (FR-023: saved lessons live in "vlms-lessons").
+        Assert.Contains("key.startsWith(STATIC_PREFIX)", serviceWorker);
+        Assert.DoesNotContain("keys.filter((key) => key !== CACHE_NAME)", serviceWorker);
+    }
+
+    [Fact]
+    public void OfflinePages_ExistAndTheLibraryLoadsTheSaveScript()
+    {
+        var wwwroot = WwwrootPath();
+        foreach (var file in new[] { "offline.html", "offline.js", "offline-lessons.js", "add-to-home-screen.html" })
+        {
+            Assert.True(File.Exists(Path.Combine(wwwroot, file)), $"Expected {file} in wwwroot");
+        }
+
+        Assert.Contains("No internet connection", File.ReadAllText(Path.Combine(wwwroot, "offline.html")));
+        Assert.Contains("offline-lessons.js", File.ReadAllText(Path.Combine(RepoRoot(), "src", "Vlms.Web", "Components", "App.razor")));
+    }
+
     private static string WwwrootPath() => Path.Combine(RepoRoot(), "src", "Vlms.Web", "wwwroot");
 
     /// <summary>
