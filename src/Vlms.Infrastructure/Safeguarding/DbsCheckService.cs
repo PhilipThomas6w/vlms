@@ -51,7 +51,9 @@ public sealed class DbsCheckService
 
         _ = await _db.AppUsers.SingleAsync(u => u.Id == teacherUserId, ct);
 
-        var isTeacher = await _db.UserRoles.AnyAsync(r => r.UserId == teacherUserId && r.Role == Role.Teacher, ct);
+        // A teacher of this chapter (FR-021, docs/adr/0010-chapters.md): each chapter tracks its own teachers' DBS status.
+        var isTeacher = await _db.UserRoles.AnyAsync(
+            r => r.UserId == teacherUserId && r.Role == Role.Teacher && r.ChapterId == _currentUser.ActiveChapterId, ct);
         if (!isTeacher)
         {
             throw new InvalidOperationException(
@@ -107,6 +109,6 @@ public sealed class DbsCheckService
     }
 
     // Same application-assigned-id pattern as LessonProposalService.NextId — see its comment.
-    private static async Task<int> NextId(DbSet<DbsCheck> set, CancellationToken ct) =>
-        (await set.Select(x => (int?)x.Id).MaxAsync(ct) ?? 0) + 1;
+    // Allocated over the whole table, not through the chapter query filter (VlmsDbContext.NextIdAsync, docs/adr/0010-chapters.md).
+    private Task<int> NextId(DbSet<DbsCheck> _, CancellationToken ct) => _db.NextIdAsync<DbsCheck>(ct);
 }

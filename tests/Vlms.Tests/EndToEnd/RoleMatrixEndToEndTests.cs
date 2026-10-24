@@ -19,7 +19,7 @@ public sealed class RoleMatrixEndToEndTests(RoleMatrixEndToEndTests.Sessions ses
     : IClassFixture<RoleMatrixEndToEndTests.Sessions>
 {
     /// <summary>Roles that must hold MFA (MfaRequirementHandler); every profile holding one is seeded with TOTP.</summary>
-    private static readonly Role[] MfaGatedRoles = [Role.Admin, Role.SafeguardingOfficer, Role.Teacher];
+    private static readonly Role[] MfaGatedRoles = [Role.Admin, Role.SafeguardingOfficer, Role.Teacher, Role.NationalAdministrator];
 
     /// <summary>Policy name to the roles that satisfy it (before the MFA requirement every policy carries).</summary>
     private static readonly Dictionary<string, Role[]> PolicyRoles = new()
@@ -30,6 +30,7 @@ public sealed class RoleMatrixEndToEndTests(RoleMatrixEndToEndTests.Sessions ses
         ["RequireParent"] = [Role.Parent],
         ["RequireStudent"] = [Role.Student],
         ["RequireSafeguardingOfficer"] = [Role.SafeguardingOfficer],
+        ["RequireNationalAdministrator"] = [Role.NationalAdministrator],
         ["RequireAdminOrTeacher"] = [Role.Admin, Role.Teacher],
         ["RequireAdminOrSafeguardingOfficer"] = [Role.Admin, Role.SafeguardingOfficer],
         ["RequireLessonLibrary"] = [Role.Teacher, Role.Approver, Role.Admin, Role.Student, Role.Parent],
@@ -39,7 +40,7 @@ public sealed class RoleMatrixEndToEndTests(RoleMatrixEndToEndTests.Sessions ses
 
     public static TheoryData<string> Profiles => new()
     {
-        "Admin", "Teacher", "Approver", "Parent", "Student", "SafeguardingOfficer", "Teacher+Admin", "Teacher+Parent",
+        "Admin", "Teacher", "Approver", "Parent", "Student", "SafeguardingOfficer", "Teacher+Admin", "Teacher+Parent", "NationalAdministrator",
     };
 
     /// <summary>One factory for the class: every profile is seeded and signed in once.</summary>

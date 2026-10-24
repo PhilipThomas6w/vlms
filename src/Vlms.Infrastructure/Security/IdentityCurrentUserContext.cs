@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Vlms.Domain;
+using Vlms.Infrastructure.Chapters;
 using Vlms.Infrastructure.Identity;
 
 namespace Vlms.Infrastructure.Security;
@@ -55,19 +56,30 @@ namespace Vlms.Infrastructure.Security;
 /// handful per page) is small for this application. Role changes also rotate the user's security
 /// stamp (<see cref="SecurityStamps"/>), so their sessions are re-validated; that is a second layer,
 /// not what makes the change immediate.
+///
+/// <b>Chapters (docs/adr/0010-chapters.md).</b> <see cref="ActiveChapterId"/> is the chapter the
+/// caller last chose with the chapter switcher (<see cref="ActiveChapterChoice"/>) if they still hold
+/// a role there, otherwise the lowest-numbered chapter they hold a role in; it is worked out again on
+/// every read, like the roles, so a removed role or a switch takes effect on the next action. A
+/// chapter role counts in <see cref="HasRole"/> only when held in that chapter. While a
+/// <see cref="ChapterScopeOverride"/> is entered (guardian invite acceptance only), the active
+/// chapter is the invite's.
 /// </summary>
 public sealed class IdentityCurrentUserContext : ICurrentUserContext
 {
     private readonly Func<ClaimsPrincipal> _principal;
     private readonly DbContextOptions<VlmsDbContext> _dbContextOptions;
+    private readonly ChapterScopeOverride? _scopeOverride;
 
-    public IdentityCurrentUserContext(ClaimsPrincipal principal, DbContextOptions<VlmsDbContext> dbContextOptions)
+    public IdentityCurrentUserContext(
+        ClaimsPrincipal principal, DbContextOptions<VlmsDbContext> dbContextOptions, ChapterScopeOverride? scopeOverride = null)
     {
         ArgumentNullException.ThrowIfNull(principal);
         ArgumentNullException.ThrowIfNull(dbContextOptions);
 
         _principal = () => principal;
         _dbContextOptions = dbContextOptions;
+        _scopeOverride = scopeOverride;
     }
 
     /// <summary>
@@ -78,13 +90,15 @@ public sealed class IdentityCurrentUserContext : ICurrentUserContext
     /// era rather than reinvented.
     /// </summary>
     public IdentityCurrentUserContext(
-        AuthenticationStateProvider authenticationStateProvider, DbContextOptions<VlmsDbContext> dbContextOptions)
+        AuthenticationStateProvider authenticationStateProvider, DbContextOptions<VlmsDbContext> dbContextOptions,
+        ChapterScopeOverride? scopeOverride = null)
     {
         ArgumentNullException.ThrowIfNull(authenticationStateProvider);
         ArgumentNullException.ThrowIfNull(dbContextOptions);
 
         _principal = () => AuthenticationStatePrincipalResolver.Resolve(authenticationStateProvider);
         _dbContextOptions = dbContextOptions;
+        _scopeOverride = scopeOverride;
     }
 
     /// <summary>
@@ -111,7 +125,8 @@ public sealed class IdentityCurrentUserContext : ICurrentUserContext
     /// account has left, its Teacher, Admin and Safeguarding Officer rows no longer count
     /// (<see cref="LeftStaffPolicy"/>, FR-017), so a still-open session loses every staff page,
     /// staff service and staff route of the sensitive-data query filters the moment the account is
-    /// marked as left; a Parent role it also holds still counts.
+    /// marked as left; a Parent role it also holds still counts. A chapter role counts only when held
+    /// in <see cref="ActiveChapterId"/> (docs/adr/0010-chapters.md); a national role has no chapter.
     /// </summary>
     public bool HasRole(Role role)
     {
@@ -122,9 +137,48 @@ public sealed class IdentityCurrentUserContext : ICurrentUserContext
 
         // UserRole.UserId is a foreign key to AppUser, so a matching row also proves the AppUser exists.
         using var db = NewLookupContext();
-        return db.UserRoles.Any(r => r.UserId == userId && r.Role == role)
+        if (role.IsNationalRole())
+        {
+            return db.UserRoles.Any(r => r.UserId == userId && r.Role == role && r.ChapterId == null);
+        }
+
+        if (ActiveChapter(db, userId) is not int chapterId)
+        {
+            return false;
+        }
+
+        return db.UserRoles.Any(r => r.UserId == userId && r.Role == role && r.ChapterId == chapterId)
             && (!LeftStaffPolicy.IsStaffRole(role) || LeftStaffPolicy.StaffRoleCounts(db, userId));
     }
+
+    /// <summary>
+    /// The chapter the caller is working in, re-read on every access (see the class doc comment).
+    /// Null for an anonymous caller or one with no chapter role that still counts.
+    /// </summary>
+    public int? ActiveChapterId
+    {
+        get
+        {
+            if (_scopeOverride?.ChapterId is int overridden)
+            {
+                return overridden;
+            }
+
+            if (ClaimedUserId() is not int userId)
+            {
+                return null;
+            }
+
+            using var db = NewLookupContext();
+            return ChapterMembership.ResolveActiveChapter(db, userId);
+        }
+    }
+
+    /// <summary>Never true for a signed-in person (only <see cref="SystemCurrentUserContext"/>).</summary>
+    public bool SeesAllChapters => false;
+
+    private int? ActiveChapter(VlmsDbContext db, int userId) =>
+        _scopeOverride?.ChapterId ?? ChapterMembership.ResolveActiveChapter(db, userId);
 
     /// <summary>Whether the caller has TOTP MFA enabled right now. Re-read on every access.</summary>
     public bool HasMfaEnabled

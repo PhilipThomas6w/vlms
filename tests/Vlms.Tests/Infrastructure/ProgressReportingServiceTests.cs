@@ -87,7 +87,7 @@ public sealed class ProgressReportingServiceTests : IDisposable
     /// </summary>
     private void SeedProgressStatsScenario()
     {
-        using var seed = CreateContext(SystemCurrentUserContext.Instance);
+        using var seed = CreateContext(TestSeedUserContext.Instance);
         var db = seed.Context;
         db.Database.EnsureCreated();
 
@@ -166,7 +166,7 @@ public sealed class ProgressReportingServiceTests : IDisposable
     [Fact]
     public async Task GetProgressStatsAsync_TotalLessonCompletions_DropsAfterGenuineReversal_ViaCompletionServiceReverseAsync()
     {
-        using (var seed = CreateContext(SystemCurrentUserContext.Instance))
+        using (var seed = CreateContext(TestSeedUserContext.Instance))
         {
             var db = seed.Context;
             db.Database.EnsureCreated();
@@ -198,7 +198,7 @@ public sealed class ProgressReportingServiceTests : IDisposable
             completionId = completion.Id;
         }
 
-        using (var before = CreateContext(SystemCurrentUserContext.Instance))
+        using (var before = CreateContext(TestSeedUserContext.Instance))
         {
             var admin = new FakeCurrentUserContext(userId: 1, Role.Admin);
             var reportBefore = await before.Service(admin).GetProgressStatsAsync();
@@ -267,7 +267,7 @@ public sealed class ProgressReportingServiceTests : IDisposable
     {
         var now = DateTime.UtcNow;
 
-        using (var seed = CreateContext(SystemCurrentUserContext.Instance))
+        using (var seed = CreateContext(TestSeedUserContext.Instance))
         {
             var db = seed.Context;
             db.Database.EnsureCreated();

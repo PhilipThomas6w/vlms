@@ -196,8 +196,8 @@ public sealed class ConsentRecordService
         _currentUser.UserId ?? throw new UnauthorizedAccessException("Caller has no resolved UserId.");
 
     // Same application-assigned-id pattern as LessonProposalService.NextId — see its comment.
-    private static async Task<int> NextId(DbSet<ConsentRecord> set, CancellationToken ct) =>
-        (await set.Select(x => (int?)x.Id).MaxAsync(ct) ?? 0) + 1;
+    // Allocated over the whole table, not through the chapter query filter (VlmsDbContext.NextIdAsync, docs/adr/0010-chapters.md).
+    private Task<int> NextId(DbSet<ConsentRecord> _, CancellationToken ct) => _db.NextIdAsync<ConsentRecord>(ct);
 
     /// <summary>
     /// A <see cref="ConsentSensitiveDetails"/> row takes its <see cref="ConsentRecord"/>'s own id

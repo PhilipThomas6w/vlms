@@ -35,12 +35,12 @@ public sealed class GuardianInviteServiceTests : IDisposable
 
         using var schemaContext = new VlmsDbContext(
             new DbContextOptionsBuilder<VlmsDbContext>().UseSqlite(_connectionString).Options,
-            NullCurrentUserContext.Instance);
+            TestSeedUserContext.Instance);
         schemaContext.Database.EnsureCreated();
 
         using var seed = new VlmsDbContext(
             new DbContextOptionsBuilder<VlmsDbContext>().UseSqlite(_connectionString).Options,
-            NullCurrentUserContext.Instance);
+            TestSeedUserContext.Instance);
         seed.Ranks.Add(new Rank { Id = 1, Order = 1, Code = "R1", Name = "Recruit" });
         seed.AppUsers.Add(new AppUser { Id = 1000, DisplayName = "Admin One", Email = "admin@example.com" });
         seed.AppUsers.Add(new AppUser { Id = 1099, DisplayName = "Parent One", Email = "parent1@example.com" });

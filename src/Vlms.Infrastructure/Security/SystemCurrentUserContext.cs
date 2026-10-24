@@ -38,4 +38,13 @@ public sealed class SystemCurrentUserContext : ICurrentUserContext
     public bool HasRole(Role role) => role is Role.Admin or Role.SafeguardingOfficer;
 
     public bool HasMfaEnabled => true;
+
+    /// <summary>
+    /// The daily sweep covers every chapter (docs/adr/0010-chapters.md), so this principal passes
+    /// every chapter query filter; it has no active chapter, so it can never create a top-level
+    /// chapter record, and every notification it causes is addressed to the affected chapter's staff.
+    /// </summary>
+    public bool SeesAllChapters => true;
+
+    public int? ActiveChapterId => null;
 }

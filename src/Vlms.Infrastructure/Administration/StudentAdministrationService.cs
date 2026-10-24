@@ -80,8 +80,9 @@ public sealed class StudentAdministrationService
     {
         RequireAdmin();
 
+        // This chapter's teachers only (FR-021, docs/adr/0010-chapters.md).
         var teacherIds = await _db.UserRoles
-            .Where(r => r.Role == Role.Teacher)
+            .Where(r => r.Role == Role.Teacher && r.ChapterId == _currentUser.ActiveChapterId)
             .Select(r => r.UserId)
             .ToListAsync(ct);
 
@@ -108,7 +109,8 @@ public sealed class StudentAdministrationService
             var teacher = await _db.AppUsers.SingleOrDefaultAsync(u => u.Id == teacherId, ct)
                 ?? throw new InvalidOperationException($"AppUser {teacherId} does not exist.");
 
-            var isTeacher = await _db.UserRoles.AnyAsync(r => r.UserId == teacherId && r.Role == Role.Teacher, ct);
+            var isTeacher = await _db.UserRoles.AnyAsync(
+                r => r.UserId == teacherId && r.Role == Role.Teacher && r.ChapterId == student.ChapterId, ct);
             if (!isTeacher)
             {
                 throw new InvalidOperationException(

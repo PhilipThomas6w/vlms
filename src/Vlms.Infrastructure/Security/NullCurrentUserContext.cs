@@ -17,4 +17,8 @@ public sealed class NullCurrentUserContext : ICurrentUserContext
     public bool HasRole(Role role) => false;
 
     public bool HasMfaEnabled => false;
+
+    public int? ActiveChapterId => null;
+
+    public bool SeesAllChapters => false;
 }

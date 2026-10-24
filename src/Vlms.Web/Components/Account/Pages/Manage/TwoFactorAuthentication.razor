@@ -96,7 +96,8 @@ else
             // lookup for display purposes only, not an authorization decision.
             _holdsMfaGatedRole = await Db.UserRoles.AnyAsync(
                 r => r.UserId == _user.Id
-                    && (r.Role == Role.Admin || r.Role == Role.SafeguardingOfficer || r.Role == Role.Teacher));
+                    && (r.Role == Role.Admin || r.Role == Role.SafeguardingOfficer || r.Role == Role.Teacher
+                        || r.Role == Role.NationalAdministrator));
         }
     }
 

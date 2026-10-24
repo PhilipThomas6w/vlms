@@ -7,6 +7,7 @@ using Vlms.Domain;
 using Vlms.Infrastructure;
 using Vlms.Infrastructure.Authorization;
 using Vlms.Infrastructure.Badges;
+using Vlms.Infrastructure.Chapters;
 using Vlms.Infrastructure.Curriculum;
 using Vlms.Infrastructure.Engagement;
 using Vlms.Infrastructure.Guardianship;
@@ -72,11 +73,15 @@ builder.Services.AddDbContext<VlmsDbContext>(options =>
 // rendered Razor component's DI scope, and eagerly resolving here throws) — the same architecture is
 // retained under Identity for the same reason. IdentityCurrentUserContext's AuthenticationStateProvider
 // constructor defers the resolve to first read of UserId/HasRole/HasMfaEnabled — see its doc comment.
+// The ChapterScopeOverride is the one per-scope object that lets GuardianInviteService read an
+// invite's chapter for a caller not working in it (docs/adr/0010-chapters.md).
+builder.Services.AddScoped<ChapterScopeOverride>();
 builder.Services.AddScoped<ICurrentUserContext>(sp =>
 {
     var authenticationStateProvider = sp.GetRequiredService<AuthenticationStateProvider>();
     var dbContextOptions = sp.GetRequiredService<DbContextOptions<VlmsDbContext>>();
-    return new IdentityCurrentUserContext(authenticationStateProvider, dbContextOptions);
+    return new IdentityCurrentUserContext(
+        authenticationStateProvider, dbContextOptions, sp.GetRequiredService<ChapterScopeOverride>());
 });
 
 // --- Account creation (STATE.md "Identity" item) — creates the paired VlmsIdentityUser/AppUser row
@@ -90,6 +95,12 @@ builder.Services.AddScoped<AppUserProvisioningService>();
 // FirstAdminBootstrapService is deliberately NOT registered here: it is wired only into the
 // Vlms.Jobs console host (see its doc comment and FirstAdminBootstrapWiringTests).
 builder.Services.AddScoped<RoleAssignmentService>();
+
+// --- Chapters (FR-021, docs/adr/0010-chapters.md): the chapter switcher, open chapters for
+// applicants, and the National Administrator's chapter and national-role pages; the anonymous
+// national totals (counts per chapter per rank, never names).
+builder.Services.AddScoped<ChapterService>();
+builder.Services.AddScoped<NationalTotalsService>();
 
 // --- Curriculum management workflow (docs/design/low-level-design.md "LessonProposalService")
 builder.Services.AddScoped<LessonProposalService>();
@@ -380,6 +391,7 @@ app.MapLessonFileEndpoint();
 app.MapRankBadgeEndpoint();
 app.MapCertificateEndpoint();
 app.MapProposalFileEndpoint();
+app.MapChapterSwitchEndpoint();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 

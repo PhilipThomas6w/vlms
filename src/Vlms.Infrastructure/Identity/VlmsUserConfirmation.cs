@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 
 namespace Vlms.Infrastructure.Identity;
 
@@ -53,6 +54,12 @@ public sealed class VlmsUserConfirmation : IUserConfirmation<VlmsIdentityUser>
             return await manager.IsEmailConfirmedAsync(user);
         }
 
-        return await _db.Students.AnyAsync(s => s.AppUserId == user.Id);
+        // At sign-in the caller is anonymous, so the chapter query filter (docs/adr/0010-chapters.md)
+        // would hide every student. Ask as the account itself: the filter's own-record arm shows a
+        // student their own record and nothing else, so this sees exactly the one row it needs.
+        var options = _db.GetService<IDbContextOptions>() as DbContextOptions<VlmsDbContext>
+            ?? throw new InvalidOperationException("VlmsDbContext options are not available.");
+        await using var asAccount = new VlmsDbContext(options, new Security.AccountLookupUserContext(user.Id));
+        return await asAccount.Students.AnyAsync(s => s.AppUserId == user.Id);
     }
 }

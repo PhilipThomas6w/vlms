@@ -37,7 +37,7 @@ public sealed class RecordsDueForDeletionServiceTests : IDisposable
         _anchorConnection = new SqliteConnection(_connectionString);
         _anchorConnection.Open();
 
-        using var schema = CreateContext(SystemCurrentUserContext.Instance);
+        using var schema = CreateContext(TestSeedUserContext.Instance);
         schema.Context.Database.EnsureCreated();
         schema.Context.Ranks.Add(new Rank { Id = 1, Order = 1, Code = "R1", Name = "Recruit" });
         schema.Context.SaveChanges();
@@ -118,7 +118,7 @@ public sealed class RecordsDueForDeletionServiceTests : IDisposable
     /// </summary>
     private void SeedScenario(DateTime now)
     {
-        using var seed = CreateContext(SystemCurrentUserContext.Instance);
+        using var seed = CreateContext(TestSeedUserContext.Instance);
         var db = seed.Context;
 
         db.Students.Add(NewStudent(100, "Graduated Long Ago", StudentStatus.Graduated, DateOnly.FromDateTime(now.AddYears(-6))));
@@ -212,6 +212,7 @@ public sealed class RecordsDueForDeletionServiceTests : IDisposable
     {
         Id = id,
         ApplicantUserId = 50,
+        ChapterId = Chapter.ShrewsburyId,
         ParentPhone = "07000 000000",
         ParentPostalAddress = "1 Church Lane",
         Relationship = "Mother",
@@ -237,7 +238,7 @@ public sealed class RecordsDueForDeletionServiceTests : IDisposable
     public async Task GetReportAsync_ByAdmin_FlagsApplicationsDecidedMoreThanOneYearAgo()
     {
         var now = DateTime.UtcNow;
-        using (var seed = CreateContext(SystemCurrentUserContext.Instance))
+        using (var seed = CreateContext(TestSeedUserContext.Instance))
         {
             seed.Context.AppUsers.Add(new AppUser { Id = 50, DisplayName = "Applicant", Email = "applicant@example.com" });
             seed.Context.StudentApplications.AddRange(
@@ -301,7 +302,7 @@ public sealed class RecordsDueForDeletionServiceTests : IDisposable
 
         await run.Service(admin).GetReportAsync();
 
-        using var verify = CreateContext(SystemCurrentUserContext.Instance);
+        using var verify = CreateContext(TestSeedUserContext.Instance);
         var logEntries = verify.Context.SensitiveDataAccessLogs
             .Where(l => l.Entity == nameof(DbsCheck))
             .OrderBy(l => l.EntityId)

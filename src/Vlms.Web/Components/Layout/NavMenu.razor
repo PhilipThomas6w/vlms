@@ -50,6 +50,10 @@
             <li><a href="/reporting/records-due-for-deletion" aria-current="@Current("/reporting/records-due-for-deletion")">Records due for deletion</a></li>
             <li><a href="/retention/mark-as-left" aria-current="@Current("/retention/mark-as-left")">Mark as left</a></li>
         </AuthorizeView>
+        <AuthorizeView Policy="RequireNationalAdministrator">
+            <li><a href="/administration/chapters" aria-current="@Current("/administration/chapters")">Chapters</a></li>
+            <li><a href="/reporting/national" aria-current="@Current("/reporting/national")">National figures</a></li>
+        </AuthorizeView>
     </ul>
 </nav>
 

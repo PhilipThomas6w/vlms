@@ -1,0 +1,46 @@
+@page "/reporting/national"
+@attribute [Authorize(Policy = "RequireNationalAdministrator")]
+@using Vlms.Infrastructure.Chapters
+@inject NationalTotalsService Totals
+
+@* National Administrator only (FR-021, docs/adr/0010-chapters.md): anonymous counts per chapter,
+   never names. Each chapter's own Admins see their named reports on /reporting. *@
+
+<PageTitle>National figures</PageTitle>
+
+<h1>National figures</h1>
+
+<p>
+    The number of students on roll (active) at each rank in each chapter. These are counts only:
+    no child is named. Each chapter's Admins see their own chapter's full reports.
+</p>
+
+@foreach (var chapter in _chapters)
+{
+    <h2>@chapter.ChapterName@(chapter.IsActive ? "" : " (closed)")</h2>
+    <p>Students on roll: @chapter.StudentsOnRoll</p>
+    <table>
+        <caption>Students on roll at each rank, @chapter.ChapterName</caption>
+        <thead>
+            <tr>
+                <th scope="col">Rank</th>
+                <th scope="col">Students</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var rank in chapter.ByRank)
+            {
+                <tr>
+                    <th scope="row">@rank.RankName</th>
+                    <td>@rank.Students</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private IReadOnlyList<ChapterTotals> _chapters = [];
+
+    protected override async Task OnInitializedAsync() => _chapters = await Totals.GetAsync();
+}

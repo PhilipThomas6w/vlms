@@ -34,4 +34,13 @@ public sealed class FakeCurrentUserContext : ICurrentUserContext
     public bool HasRole(Role role) => _roles.Contains(role);
 
     public bool HasMfaEnabled { get; }
+
+    /// <summary>
+    /// Defaults to Shrewsbury (<see cref="Chapter.ShrewsburyId"/>, the chapter every test database
+    /// already has from the model's seed row), so tests written before chapters keep testing what
+    /// they were written for. Chapter-separation tests set it explicitly (docs/adr/0010-chapters.md).
+    /// </summary>
+    public int? ActiveChapterId { get; init; } = Chapter.ShrewsburyId;
+
+    public bool SeesAllChapters { get; init; }
 }

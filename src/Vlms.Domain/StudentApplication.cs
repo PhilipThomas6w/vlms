@@ -35,8 +35,11 @@ public enum StudentApplicationStatus
 /// restricted and read-audited like <see cref="ConsentSensitiveDetails"/>. This row holds only what
 /// is needed to list and route applications.
 /// </summary>
-public sealed class StudentApplication
+public sealed class StudentApplication : IChapterOwned
 {
+    /// <summary>The chapter this record belongs to (docs/adr/0010-chapters.md). Left at 0, it is set on save to the caller's active chapter.</summary>
+    public int ChapterId { get; init; }
+
     public const int MaxShortTextLength = 200;
     public const int MaxAddressLength = 1000;
 

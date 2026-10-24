@@ -91,7 +91,7 @@ public sealed class StudentAccountServiceTests : IDisposable
 
     private VlmsDbContext NewContext() => new(
         new DbContextOptionsBuilder<VlmsDbContext>().UseSqlite(_connectionString).Options,
-        NullCurrentUserContext.Instance);
+        TestSeedUserContext.Instance);
 
     private sealed class Caller(ServiceProvider provider, IServiceScope scope) : IDisposable
     {
