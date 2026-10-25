@@ -1,14 +1,129 @@
 date,name
+01/01,Maelrhys of Bardsey
+01/01,"Elvan and Mydwyn, missionaries of Britain"
+01/01,"Beoc, Abbot of Lough Derg"
+01/01,"Connat, Abbess of Kildare"
+01/01,Cuan
+01/01,"Fanchea, Abbess of Rossory"
+02/01,Seiriol
+03/01,Hywyn
+03/01,Finlay
+03/01,Fintan
+03/01,"Fugatus and Damian, missionaries to Britain"
+03/01,Wenog
+06/01,Edeyrn
+06/01,Eigrad
+06/01,Merinus
+06/01,Diman
+06/01,Schotin
+06/01,"Peter, Abbot of Canterbury"
+07/01,Brannock of Braunton
+07/01,"Cronan Beg, Bishop of Aendrum"
+07/01,"Kentigerna, mother of St Foellan"
+08/01,Ergnad of Ulster
+08/01,Albert of Cashel
+08/01,"Athelhelm, Archbishop of Canterbury"
+08/01,"Wulsin, Bishop of Sherborne"
 31/01,"Melangell, Abbess of Pennant"
+31/01,"Aidan (Maedoc), Bishop of Ferns"
+31/01,"Adamnan of Coldingham, monk"
+31/01,"Wilgils, hermit of the Humber"
+31/01,"Eusebius the Scot, Martyr"
 03/02,"Werburgh, Abbess of Mercia"
+06/02,"Mael and Mun, bishops and nephews of St Patrick"
+19/02,Odran the Martyr
 23/02,"Milburga, Abbess of Wenlock"
+01/03,Marnock of Kilmarnock
+01/03,"Swithbert the Elder of Northumbria, Bishop of the Frisians"
+01/03,"Monan of St Andrews, Martyr"
 05/03,Owain of Lichfield
 19/03,Alchmund of Derby
 07/04,Gwrnerth and Llewellyn
 27/05,"Melangell, Abbess of Pennant"
 25/06,Milburga of Wenlock
+02/07,"Eddogwy, Bishop at Llandaff"
+01/09,Drythelm
+01/09,Lythan and Silin
+02/09,"Hieu, Abbess of Tadcaster"
+02/09,Lolanus
+03/09,"MacNisse, Abbot of Kells"
+03/09,"Hereswith, sister of St Hilda"
+04/09,"Monessa, disciple of St Patrick"
+04/09,Ultan of Ardbraccan
+04/09,Rhuddlad of Llanrhyddlad
+06/09,"Bega, first Abbess of Copeland in Cumbria"
+06/09,"MacCallin, Bishop of Lusk"
+06/09,"Felix and Augebert, English slaves ransomed by St Gregory"
+07/09,"Alcmund and Tilbert, Bishops of Hexham"
+07/09,"Balin, monk"
+09/09,Modwenna of Polesworth
+09/09,Ciaran the Younger of Clonmacnoise
+09/09,"Bettelin of Crowland, hermit"
+09/09,"Wulfhild, Abbess of Barking and Horton"
+10/09,"Finian of Ulster, Abbot"
+10/09,"Frithestan, Bishop of Winchester"
+11/09,"Deiniol, Abbot of Bangor"
+12/09,"Ailbe, Bishop of Emly"
+12/09,Eanswith of Folkestone
+13/09,"Wilfrida, Abbess of Wilton"
+15/09,"Hernan, hermit"
+15/09,"Merryn, Bishop of Bangor"
+16/09,"Enshrinement of the Relics of St Edward the Martyr, King of England"
+17/09,"Socrates and Stephen, martyred in Monmouthshire"
 19/09,Winifred (translation of relics)
+21/09,Mabyn
+23/09,"Adomnan, Abbot of Iona"
+23/09,"Cissa of Crowland, hermit"
+25/09,"Ceolfrid, Abbot of Wearmouth"
+25/09,Caian of Anglesey
+25/09,"Egelred of Crowland, martyr"
+25/09,"Fymbert, Bishop in the west of Scotland"
+26/09,"Mawgan, Abbot-Bishop of Bardsey"
+26/09,"Colman Elo, Abbot of Muckamore"
+27/09,"Barrog, hermit of Barry"
+27/09,"Sigebert, King of the East Angles and Martyr"
+28/09,"Conval, disciple of St Kentigern"
+28/09,"Tetta, Abbess of Wimborne"
+28/09,"Lioba, Abbess and missionary"
+28/09,"Machan, monk"
+30/09,"Honorius, Archbishop of Canterbury"
+30/09,Midan of Anglesey
+30/09,Enghenedl of Anglesey
+30/09,"Tancred, Torthred and Tova, hermits and martyrs"
 01/11,"Cadfan, founder of monasteries"
 03/11,Gwyddfarch
 08/11,"Tyssilio, Abbot of Caer Meguaidd"
 20/11,"Edmund, King and Martyr"
+08/12,Gunthild of Wimborne
+09/12,Budoc
+09/12,"Ethelgifu, Abbess of Shaftesbury"
+09/12,"Wolfeius, hermit of St Benet Hulme, Norfolk"
+11/12,Cian the Hermit
+11/12,Peris of Llanberis
+12/12,"Finnian, Bishop of Clonard"
+12/12,Colman of Glendalough
+12/12,Columba of Leinster
+12/12,"Cormac, Abbot"
+12/12,Agatha of Wimborne
+13/12,Edburgh of Lyminge
+13/12,"Edburgh, Abbess of Minster-in-Thanet"
+14/12,"Hygbald, Abbot of Hibaldstow"
+14/12,"Fingar and Phiala, and their companions, martyrs"
+15/12,"Offa, King of Essex, monk"
+15/12,"Flann, Abbot of Bangor"
+16/12,Beoc of Lough Derg
+17/12,Tydecho
+17/12,"Briach, disciple of St Tudwal"
+18/12,"Winebald, Abbot and missionary in England and Heidenheim"
+18/12,"Samthan, foundress of Clonbroney"
+18/12,"Flannan, first Bishop of Killaloe"
+19/12,"Manirus, Bishop and Apostle of the north of Scotland"
+20/12,"Urscinus, disciple of St Columbanus"
+21/12,Bernwald of Bampton
+23/12,"Frithebert, Bishop of Hexham"
+23/12,Mazota of Abernethy
+24/12,"Caran, missionary"
+25/12,"Alburgh of Wilton, nun"
+26/12,Tathai of Glamorgan
+26/12,Maethlu of Anglesey
+30/12,"Egwin, Bishop of Worcester"
