@@ -117,6 +117,10 @@ public sealed record LibraryLesson(int Id, string Code, string Title, IReadOnlyL
 /// <summary>A lesson as a device that saved it needs to know it: <c>Rank</c> reads like "R1: First", the two positions give the delivery order.</summary>
 public sealed record SavedLesson(int Id, string Code, string Title, string Rank, int RankPosition, int Position, IReadOnlyList<LibraryFile> Files);
 
-public sealed record LibraryFile(int Id, string FileName);
+public sealed record LibraryFile(int Id, string FileName)
+{
+    /// <summary>The name shown to people: the stored name without its extension (FR-006).</summary>
+    public string DisplayName => LessonFileNames.DisplayName(FileName);
+}
 
 public sealed record LessonFileContent(string FileName, byte[] Content);

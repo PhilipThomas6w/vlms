@@ -42,8 +42,9 @@ public sealed class OfflineLessonsJourneyTests
             for (var i = 0; i < await fileLinks.CountAsync(); i++)
             {
                 var id = int.Parse((await fileLinks.Nth(i).GetAttributeAsync("href"))!.Split('/').Last());
-                var extension = Path.GetExtension((await fileLinks.Nth(i).InnerTextAsync()).Trim());
-                await blobs.UploadAsync($"capture/missing-{id}{extension}", System.Text.Encoding.UTF8.GetBytes($"saved lesson file {id}"));
+                // The link text no longer carries the extension (FR-006), so take the key from the file row.
+                var blobKey = scope.ServiceProvider.GetRequiredService<Vlms.Infrastructure.VlmsDbContext>().LessonFiles.Single(f => f.Id == id).BlobKey;
+                await blobs.UploadAsync(blobKey, System.Text.Encoding.UTF8.GetBytes($"saved lesson file {id}"));
                 fileIds.Add(id);
             }
         }

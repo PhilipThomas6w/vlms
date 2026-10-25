@@ -128,7 +128,7 @@
     }
 
     function lessonRecord(l) {
-        return { id: l.id, code: l.code, title: l.title, rank: l.rank, rankPosition: l.rankPosition, position: l.position, files: l.files.map(function (f) { return { id: f.id, name: f.name || f.fileName }; }) };
+        return { id: l.id, code: l.code, title: l.title, rank: l.rank, rankPosition: l.rankPosition, position: l.position, files: l.files.map(function (f) { return { id: f.id, name: f.displayName || f.name || f.fileName }; }) };
     }
 
     // ---- The buttons ----
