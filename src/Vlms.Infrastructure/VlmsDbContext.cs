@@ -69,6 +69,7 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
     public DbSet<LiturgicalDay> LiturgicalDays => Set<LiturgicalDay>();
     public DbSet<LiturgicalReading> LiturgicalReadings => Set<LiturgicalReading>();
     public DbSet<CalendarFeedToken> CalendarFeedTokens => Set<CalendarFeedToken>();
+    public DbSet<CalendarViewChoice> CalendarViewChoices => Set<CalendarViewChoice>();
 
     /// <summary>The name of the query filter every <see cref="IChapterOwned"/> entity carries (docs/adr/0010-chapters.md).</summary>
     public const string ChapterFilter = "Chapter";
@@ -272,6 +273,13 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
             e.HasIndex(x => new { x.UserId, x.ChapterId }).IsUnique();
             e.HasOne<AppUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne<Chapter>().WithMany().HasForeignKey(x => x.ChapterId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // The calendar view each person last chose (FR-022): one row per person, removed with them.
+        modelBuilder.Entity<CalendarViewChoice>(e =>
+        {
+            e.HasKey(x => x.UserId);
+            e.HasOne<AppUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
         });
 
         // Attendance (FR-020, FR-022): one register per event per class (rank), one mark per student on it,

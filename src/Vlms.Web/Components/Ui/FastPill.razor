@@ -1,13 +1,24 @@
 @using Vlms.Domain
 
-@* A day's fasting status from the liturgical calendar; nothing on a day the feed states no fast. *@
+@* A day's fasting status from the liturgical calendar; nothing on a day the feed states no fast.
+   Short: one word for a calendar grid cell, with the full wording for screen readers. *@
 @if (Label is not null)
 {
-    <span class="pill @(Fast == LiturgicalFast.FastFree ? "pill--success" : "pill--info")">@Label</span>
+    <span class="pill @(Fast == LiturgicalFast.FastFree ? "pill--success" : "pill--info")">
+        @if (Short)
+        {
+            <span aria-hidden="true">@ShortLabel</span><span class="visually-hidden">@Label</span>
+        }
+        else
+        {
+            @Label
+        }
+    </span>
 }
 
 @code {
     [Parameter, EditorRequired] public LiturgicalFast Fast { get; set; }
+    [Parameter] public bool Short { get; set; }
 
     private string? Label => Fast switch
     {
@@ -17,5 +28,12 @@
         LiturgicalFast.DairyEggsAndFish => "Fast: dairy, eggs and fish allowed",
         LiturgicalFast.Strict => "Strict fast",
         _ => null,
+    };
+
+    private string ShortLabel => Fast switch
+    {
+        LiturgicalFast.FastFree => "Free",
+        LiturgicalFast.Strict => "Strict",
+        _ => "Fast",
     };
 }

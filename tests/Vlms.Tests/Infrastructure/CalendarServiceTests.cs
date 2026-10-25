@@ -127,6 +127,31 @@ public sealed class CalendarServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task TheCalendarView_IsRememberedPerPerson_AndUnsetUntilChosen()
+    {
+        Assert.Null(await Calendar(As(Parent, Role.Parent), s => s.GetViewAsync()));
+
+        await Calendar(As(Parent, Role.Parent), s => s.SetViewAsync(CalendarView.Grid));
+        Assert.Equal(CalendarView.Grid, await Calendar(As(Parent, Role.Parent), s => s.GetViewAsync()));
+        await Calendar(As(Parent, Role.Parent), s => s.SetViewAsync(CalendarView.List));
+        Assert.Equal(CalendarView.List, await Calendar(As(Parent, Role.Parent), s => s.GetViewAsync()));
+
+        // Another person's choice is their own; the same person's choice follows them to another chapter.
+        Assert.Null(await Calendar(As(Teacher, Role.Teacher), s => s.GetViewAsync()));
+        Assert.Equal(CalendarView.List, await Calendar(As(Parent, Role.Parent, Coventry), s => s.GetViewAsync()));
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => Calendar(As(Parent, Role.Parent), s => s.SetViewAsync((CalendarView)99)));
+    }
+
+    [Theory]
+    [InlineData(Role.Approver)]
+    [InlineData(Role.NationalAdministrator)]
+    public async Task ARoleWithNoChapterStanding_CannotChooseACalendarView(Role role)
+    {
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => Calendar(As(Officer, role, chapterId: null), s => s.GetViewAsync()));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => Calendar(As(Officer, role, chapterId: null), s => s.SetViewAsync(CalendarView.Grid)));
+    }
+
+    [Fact]
     public async Task AnotherChapter_NeitherSeesNorChangesThisChaptersEvents()
     {
         var id = await Create(Today);

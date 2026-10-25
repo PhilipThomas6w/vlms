@@ -75,6 +75,38 @@ public sealed class CalendarService
         return new CalendarMonth(year, month, days);
     }
 
+    /// <summary>The view the caller last chose for the calendar page, or null if they have not chosen.</summary>
+    public async Task<CalendarView?> GetViewAsync(CancellationToken ct = default)
+    {
+        var userId = RequireReaderId();
+        return await _db.CalendarViewChoices.AsNoTracking()
+            .Where(c => c.UserId == userId)
+            .Select(c => (CalendarView?)c.View)
+            .SingleOrDefaultAsync(ct);
+    }
+
+    /// <summary>Remembers <paramref name="view"/> as the caller's calendar view, on every device.</summary>
+    public async Task SetViewAsync(CalendarView view, CancellationToken ct = default)
+    {
+        var userId = RequireReaderId();
+        if (!Enum.IsDefined(view))
+        {
+            throw new ArgumentOutOfRangeException(nameof(view));
+        }
+
+        var choice = await _db.CalendarViewChoices.SingleOrDefaultAsync(c => c.UserId == userId, ct);
+        if (choice is null)
+        {
+            _db.CalendarViewChoices.Add(new CalendarViewChoice { UserId = userId, View = view });
+        }
+        else
+        {
+            choice.View = view;
+        }
+
+        await _db.SaveChangesAsync(ct);
+    }
+
     /// <summary>The chapter's events from <paramref name="from"/> onwards, soonest first.</summary>
     public async Task<IReadOnlyList<CalendarEventItem>> GetUpcomingAsync(DateOnly from, int take = 5, CancellationToken ct = default)
     {
@@ -227,6 +259,12 @@ public sealed class CalendarService
         {
             throw new UnauthorizedAccessException("Caller must hold a role in the chapter they are working in to see its calendar.");
         }
+    }
+
+    private int RequireReaderId()
+    {
+        RequireReader();
+        return _currentUser.UserId ?? throw new UnauthorizedAccessException("Caller has no resolved UserId.");
     }
 
     private int RequireAdmin()

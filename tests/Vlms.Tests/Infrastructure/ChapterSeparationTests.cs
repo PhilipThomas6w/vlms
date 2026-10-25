@@ -45,7 +45,7 @@ public sealed class ChapterSeparationTests : IDisposable
         typeof(Rank), typeof(Lesson), typeof(LessonTagAssignment), typeof(LessonFile), typeof(LessonChangeProposal),
         typeof(RankBadge), typeof(AppUser), typeof(UserRole), typeof(Chapter), typeof(ActiveChapterChoice),
         typeof(SensitiveDataAccessLog), typeof(VlmsIdentityUser),
-        typeof(LiturgicalDay), typeof(LiturgicalReading), typeof(CalendarFeedToken),
+        typeof(LiturgicalDay), typeof(LiturgicalReading), typeof(CalendarFeedToken), typeof(CalendarViewChoice),
         typeof(IdentityUserClaim<int>), typeof(IdentityUserLogin<int>), typeof(IdentityUserToken<int>)
     ];
 

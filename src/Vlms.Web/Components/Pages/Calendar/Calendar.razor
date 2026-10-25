@@ -10,7 +10,8 @@
 
 @* The calendar (docs/requirements/functional.md, the calendar requirement): each day's main feast and
    fast from the Church's calendar, with the chapter's own events; saints and readings open from the
-   day. Admins add events; everyone in the chapter can make a private subscribe link. *@
+   day. Shown as a list or a month grid, as each person last chose. Admins add events; everyone in the
+   chapter can make a private subscribe link. *@
 
 <PageTitle>Calendar – Varangians</PageTitle>
 
@@ -44,6 +45,13 @@
     }
     else
     {
+        @* Until the person chooses, both views are rendered and the width picks one (the list on phones,
+           the grid on wider screens); once chosen, only that view is rendered, at every width. *@
+        <div class="calendar__views @(_view is null ? "calendar__views--auto" : null)">
+        @if (_view != CalendarView.Grid)
+        {
+        <div class="calendar__view calendar__view--list">
+        @ViewSwitch(CalendarView.List)
         <ol class="calendar__days" aria-labelledby="month-heading">
             @foreach (var day in _month.Days)
             {
@@ -106,6 +114,104 @@
                 </li>
             }
         </ol>
+        </div>
+        }
+        @if (_view != CalendarView.List)
+        {
+        <div class="calendar__view calendar__view--grid">
+        @ViewSwitch(CalendarView.Grid)
+        <div class="month-grid__scroll">
+        <table class="month-grid" aria-labelledby="month-heading">
+            <thead>
+                <tr>
+                    @foreach (var weekday in Weekdays)
+                    {
+                        <th scope="col"><span aria-hidden="true">@weekday[..3]</span><span class="visually-hidden">@weekday</span></th>
+                    }
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var week in Weeks(_month))
+                {
+                    <tr>
+                        @foreach (var day in week)
+                        {
+                            if (day is null)
+                            {
+                                <td class="cell cell--blank"></td>
+                                continue;
+                            }
+
+                            var isToday = day.Date == Today;
+                            var isSelected = day.Date == _selected;
+                            <td class="cell @(isToday ? "cell--today" : null) @(day.Events.Count > 0 ? "cell--event" : null) @(isSelected ? "cell--selected" : null)"
+                                aria-current="@(isToday ? "date" : null)">
+                                <button type="button" class="cell__button" aria-expanded="@(isSelected ? "true" : "false")"
+                                        aria-controls="selected-day" @onclick="() => SelectAsync(day.Date)">
+                                    <span class="cell__number">@day.Date.Day<span class="visually-hidden"> @day.Date.ToString("MMMM", Uk)</span></span>
+                                    @foreach (var item in day.Events)
+                                    {
+                                        <span class="cell__event"><span class="cell__dot" aria-hidden="true"></span><span class="cell__text">@item.Title</span></span>
+                                    }
+                                    @if (day.Feast is not null)
+                                    {
+                                        <span class="cell__feast cell__text">@day.Feast</span>
+                                    }
+                                    <FastPill Fast="day.Fast" Short="true" />
+                                </button>
+                            </td>
+                        }
+                    </tr>
+                }
+            </tbody>
+        </table>
+        </div>
+        @if (_selected is { } selected && _month.Days.FirstOrDefault(d => d.Date == selected) is { } chosen)
+        {
+            <section id="selected-day" class="panel selected-day" aria-labelledby="selected-day-heading">
+                <h3 id="selected-day-heading">@selected.ToString("dddd d MMMM yyyy", Uk)</h3>
+                @foreach (var item in chosen.Events)
+                {
+                    <p class="day__event">
+                        <Icon Name="calendar" />
+                        <a href="/calendar/events/@item.Id">@item.Title</a>
+                        @if (item.StartTime is { } start)
+                        {
+                            <span class="day__time">@Times(start, item.EndTime)</span>
+                        }
+                    </p>
+                }
+                @if (chosen.Feast is not null)
+                {
+                    <p class="day__feast">
+                        <span>@chosen.Feast</span>
+                        <FastPill Fast="chosen.Fast" />
+                    </p>
+                }
+                @if (_selectedLoading)
+                {
+                    <p class="muted">Loading…</p>
+                }
+                else if (_selectedDetail is { } detail)
+                {
+                    <h4>Saints and feasts</h4>
+                    <ul class="day__saints">
+                        @foreach (var saint in detail.Saints)
+                        {
+                            <li>@saint</li>
+                        }
+                    </ul>
+                    @foreach (var reading in detail.Readings)
+                    {
+                        <h4>@reading.Heading: @reading.Reference</h4>
+                        <p class="preserve-lines">@reading.Text</p>
+                    }
+                }
+            </section>
+        }
+        </div>
+        }
+        </div>
     }
 
     <section class="section panel calendar__subscribe" aria-labelledby="subscribe-heading">
@@ -139,9 +245,15 @@
 
     [SupplyParameterFromQuery(Name = "month")] public string? Month { get; set; }
 
+    private static readonly string[] Weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+
     private DateOnly _first;
     private CalendarMonth? _month;
+    private CalendarView? _view;
     private readonly Dictionary<DateOnly, LiturgicalDayDetail?> _open = new();
+    private DateOnly? _selected;
+    private LiturgicalDayDetail? _selectedDetail;
+    private bool _selectedLoading;
     private DateTime? _linkCreatedAt;
     private string? _newLink;
     private string? _errorMessage;
@@ -154,6 +266,7 @@
         try
         {
             _linkCreatedAt = await Feeds.GetLinkCreatedAtAsync();
+            _view = await CalendarService.GetViewAsync();
         }
         catch (UnauthorizedAccessException ex)
         {
@@ -165,6 +278,8 @@
     {
         _first = FirstOfMonth(Month);
         _open.Clear();
+        _selected = null;
+        _selectedDetail = null;
         try
         {
             _month = await CalendarService.GetMonthAsync(_first.Year, _first.Month);
@@ -195,6 +310,57 @@
         _open[date] = null;
         _open[date] = await CalendarService.GetLiturgicalDayAsync(date);
     }
+
+    // The grid's weeks, Monday first, with null for the days outside the month.
+    private static IEnumerable<CalendarDay?[]> Weeks(CalendarMonth month)
+    {
+        var lead = ((int)month.Days[0].Date.DayOfWeek + 6) % 7;
+        var cells = Enumerable.Repeat<CalendarDay?>(null, lead).Concat(month.Days).ToList();
+        while (cells.Count % 7 != 0)
+        {
+            cells.Add(null);
+        }
+
+        return cells.Chunk(7);
+    }
+
+    // A day tapped in the grid opens below it; tapping it again closes it.
+    private async Task SelectAsync(DateOnly date)
+    {
+        _selectedDetail = null;
+        if (_selected == date)
+        {
+            _selected = null;
+            return;
+        }
+
+        _selected = date;
+        _selectedLoading = true;
+        try
+        {
+            var detail = await CalendarService.GetLiturgicalDayAsync(date);
+            if (_selected == date)
+            {
+                _selectedDetail = detail;
+            }
+        }
+        finally
+        {
+            _selectedLoading = false;
+        }
+    }
+
+    private async Task ChooseAsync(CalendarView view)
+    {
+        _view = view;
+        await CalendarService.SetViewAsync(view);
+    }
+
+    private RenderFragment ViewSwitch(CalendarView shown) =>
+        @<div class="view-switch" role="group" aria-label="Show the month as">
+            <button type="button" aria-pressed="@(shown == CalendarView.List ? "true" : "false")" @onclick="() => ChooseAsync(CalendarView.List)">List</button>
+            <button type="button" aria-pressed="@(shown == CalendarView.Grid ? "true" : "false")" @onclick="() => ChooseAsync(CalendarView.Grid)">Grid</button>
+        </div>;
 
     private async Task CreateLinkAsync()
     {

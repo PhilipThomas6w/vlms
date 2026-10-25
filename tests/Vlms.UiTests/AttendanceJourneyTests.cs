@@ -30,9 +30,11 @@ public sealed class AttendanceJourneyTests
         var page = await context.NewPageAsync();
         await DesignCapture.SignInAsync(page, baseUrl, personas["teacher"]);
 
-        // From the calendar, open today's meeting day: the Shield-bearer class (the teacher's own) is first.
+        // From the calendar (the grid, on a wide screen), open today's meeting day: the Shield-bearer
+        // class (the teacher's own) is first.
         await page.GotoAsync(baseUrl + "/calendar", new PageGotoOptions { WaitUntil = WaitUntilState.NetworkIdle });
-        await page.Locator(".day--today .day__event a").ClickAsync();
+        await page.Locator(".cell--today .cell__button").ClickAsync();
+        await page.Locator("#selected-day .day__event a").ClickAsync();
         await page.WaitForLoadStateAsync(LoadState.NetworkIdle);
         await Assertions.Expect(page.Locator(".class-row").First).ToContainTextAsync("Your class");
         await Assertions.Expect(page.Locator(".event__total")).ToContainTextAsync("Day total: 17 present, 1 absent");

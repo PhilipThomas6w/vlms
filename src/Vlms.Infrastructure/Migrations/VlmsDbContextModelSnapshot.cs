@@ -264,6 +264,21 @@ namespace Vlms.Infrastructure.Migrations
                     b.ToTable("calendar_feed_tokens");
                 });
 
+            modelBuilder.Entity("Vlms.Domain.CalendarViewChoice", b =>
+                {
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("user_id");
+
+                    b.Property<int>("View")
+                        .HasColumnType("integer")
+                        .HasColumnName("view");
+
+                    b.HasKey("UserId");
+
+                    b.ToTable("calendar_view_choices");
+                });
+
             modelBuilder.Entity("Vlms.Domain.Certificate", b =>
                 {
                     b.Property<int>("Id")
@@ -1592,6 +1607,15 @@ namespace Vlms.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("Vlms.Domain.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Vlms.Domain.CalendarViewChoice", b =>
+                {
                     b.HasOne("Vlms.Domain.AppUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
