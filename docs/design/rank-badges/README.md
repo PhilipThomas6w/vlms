@@ -155,7 +155,9 @@ Avoided by rule: no domes, skylines or Hagia Sophia; no grid or grout textures (
 
 Nothing was installed and nothing paid was used. What a paid tool could add: Recraft could generate raster or vector concepts quickly, but would still need hand redrawing for clean, legible 33 px vectors and lettering. Hand-authored SVG gives exact control at the sizes that matter, so no paid tool is recommended.
 
-## 9. Decisions for Philip (drafts to confirm)
+## 9. Decisions (confirmed by Philip, 25/10/2026)
+
+Philip, 25/10/2026: "I'm happy with these, certainly as a MVP. We can always review them at a later date, but this is a good start." D1 approved; D2, D3, D5 and D6 agreed; D4 left as proposed (the chalice). The drafts as put to him follow.
 
 - **D1. Approve the collection** as on the contact sheet: Recruit star, Guardsman helmet, Shield-bearer kite shield, Sword-bearer sword and Gospel, Herald trumpet, Torch-bearer candle, Standard-bearer labarum, Cross-bearer processional cross, Christ-bearer chalice, Akolouthos eagle.
 - **D2. No rank names on the badges.** The rank name is always written beside the medallion, and lettering at 33 to 49 px is illegible. This changes the agreed Akolouthos patch ("AKOLOUTHOS around a stitched gold rim", 23/10/2026) for the on-screen badge only; a lettered version can be made for a real embroidered patch.
