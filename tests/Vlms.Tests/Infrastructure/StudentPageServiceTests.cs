@@ -21,12 +21,16 @@ public sealed class StudentPageServiceTests : IDisposable
 
     private readonly SqliteConnection _anchorConnection;
     private readonly string _connectionString;
+    private readonly InMemoryBlobStorage _blobs = new();
 
     public StudentPageServiceTests()
     {
         _connectionString = $"Data Source=file:vlms-studentpage-test-{Guid.NewGuid():N};Mode=Memory;Cache=Shared";
         _anchorConnection = new SqliteConnection(_connectionString);
         _anchorConnection.Open();
+
+        // Rank 1's badge row points at a blob that is actually in storage, so it counts as having an image.
+        _blobs.UploadAsync("badges/1.png", [0x89, 0x50, 0x4E, 0x47]).Wait();
 
         using var db = NewContext(TestSeedUserContext.Instance);
         db.Database.EnsureCreated();
@@ -81,7 +85,7 @@ public sealed class StudentPageServiceTests : IDisposable
     private async Task<StudentRecord?> PageFor(ICurrentUserContext user)
     {
         using var db = NewContext(user);
-        return await new StudentPageService(db, user).GetOwnRecordAsync();
+        return await new StudentPageService(db, user, _blobs).GetOwnRecordAsync();
     }
 
     [Fact]
@@ -138,7 +142,7 @@ public sealed class StudentPageServiceTests : IDisposable
     private async Task<StudentJourney?> JourneyFor(ICurrentUserContext user)
     {
         using var db = NewContext(user);
-        return await new StudentPageService(db, user).GetOwnJourneyAsync();
+        return await new StudentPageService(db, user, _blobs).GetOwnJourneyAsync();
     }
 
     [Fact]

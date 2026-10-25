@@ -102,7 +102,7 @@ public sealed class ParentDashboardServiceTests : IDisposable
     private sealed class CallerContext(ServiceProvider provider, IServiceScope scope, VlmsDbContext context) : IDisposable
     {
         public VlmsDbContext Context { get; } = context;
-        public ParentDashboardService Service(ICurrentUserContext currentUser) => new(Context, currentUser);
+        public ParentDashboardService Service(ICurrentUserContext currentUser) => new(Context, currentUser, new InMemoryBlobStorage());
 
         public void Dispose()
         {

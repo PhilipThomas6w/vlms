@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Vlms.Domain;
+using Vlms.Infrastructure.Badges;
 
 namespace Vlms.Infrastructure.Engagement;
 
@@ -57,11 +58,13 @@ public sealed class StudentRosterService
 
     private readonly VlmsDbContext _db;
     private readonly ICurrentUserContext _currentUser;
+    private readonly IBlobStorage _blobs;
 
-    public StudentRosterService(VlmsDbContext db, ICurrentUserContext currentUser)
+    public StudentRosterService(VlmsDbContext db, ICurrentUserContext currentUser, IBlobStorage blobs)
     {
         _db = db;
         _currentUser = currentUser;
+        _blobs = blobs;
     }
 
     public async Task<IReadOnlyList<StudentListItem>> ListActiveStudentsAsync(bool assignedToMeOnly = false, CancellationToken ct = default)
@@ -129,7 +132,8 @@ public sealed class StudentRosterService
     public async Task<StudentRecord?> GetRecordAsync(int studentId, CancellationToken ct = default)
     {
         RequireStaff();
-        return await LoadRecordAsync(_db, studentId, activeOnly: true, ct);
+        var badgeImageRankIds = await RankBadgeService.RankIdsWithImageAsync(_db, _blobs, ct);
+        return await LoadRecordAsync(_db, badgeImageRankIds, studentId, activeOnly: true, ct);
     }
 
     /// <summary>
@@ -140,7 +144,13 @@ public sealed class StudentRosterService
     {
         RequireStaff();
         var active = await _db.Students.AnyAsync(s => s.Id == studentId && s.Status == StudentStatus.Active, ct);
-        return active ? await StudentJourney.LoadAsync(_db, studentId, ct) : null;
+        if (!active)
+        {
+            return null;
+        }
+
+        var badgeImageRankIds = await RankBadgeService.RankIdsWithImageAsync(_db, _blobs, ct);
+        return await StudentJourney.LoadAsync(_db, badgeImageRankIds, studentId, ct);
     }
 
     /// <summary>
@@ -148,7 +158,7 @@ public sealed class StudentRosterService
     /// <see cref="StudentPageService"/> (FR-011), which resolves the caller's own student id first;
     /// every caller must do its own authorization before calling this.
     /// </summary>
-    internal static async Task<StudentRecord?> LoadRecordAsync(VlmsDbContext db, int studentId, bool activeOnly, CancellationToken ct)
+    internal static async Task<StudentRecord?> LoadRecordAsync(VlmsDbContext db, IReadOnlySet<int> badgeImageRankIds, int studentId, bool activeOnly, CancellationToken ct)
     {
         var student = await db.Students
             .Where(s => s.Id == studentId && (!activeOnly || s.Status == StudentStatus.Active))
@@ -176,11 +186,11 @@ public sealed class StudentRosterService
 
         var badges = (await db.StudentBadges
                 .Where(b => b.StudentId == studentId)
-                .Join(db.RankBadges, b => b.RankBadgeId, rb => rb.Id, (b, rb) => new { b.AwardedAt, rb.RankId, rb.ImageBlobKey })
-                .Join(db.Ranks, x => x.RankId, r => r.Id, (x, r) => new { x.AwardedAt, x.RankId, HasImage = x.ImageBlobKey != null, RankName = r.Name })
+                .Join(db.RankBadges, b => b.RankBadgeId, rb => rb.Id, (b, rb) => new { b.AwardedAt, rb.RankId })
+                .Join(db.Ranks, x => x.RankId, r => r.Id, (x, r) => new { x.AwardedAt, x.RankId, RankName = r.Name })
                 .ToListAsync(ct))
             .OrderBy(b => b.AwardedAt)
-            .Select(b => new StudentRecordBadge(b.RankName, b.AwardedAt, b.RankId, b.HasImage))
+            .Select(b => new StudentRecordBadge(b.RankName, b.AwardedAt, b.RankId, badgeImageRankIds.Contains(b.RankId)))
             .ToList();
 
         var certificateRows = await db.Certificates
