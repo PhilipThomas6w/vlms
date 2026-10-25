@@ -9,5 +9,8 @@ artifacts/
 !/seed/curriculum.json
 !/seed/file-names.json
 
+# Local file storage (Storage:LocalRootPath, App_Data/blobs relative to the working directory): uploaded and seeded files
+App_Data/
+
 # Subagent worktrees
 /.claude/worktrees/
