@@ -36,7 +36,7 @@ else
                 aria-current="@(rank.State == JourneyRankState.Current ? "step" : null)">
                 <RankMedallion RankId="rank.RankId" Order="rank.Order" RankName="@rank.Name"
                                HasBadgeImage="rank.HasBadgeImage" Earned="@(rank.BadgeAwardedAt is not null)"
-                               Ahead="@(rank.State == JourneyRankState.Ahead)" Size="sm" Alt="" />
+                               Ahead="@(rank.State == JourneyRankState.Ahead)" Current="@(rank.State == JourneyRankState.Current)" Size="sm" Alt="" />
                 <div class="the-way__text">
                     <span class="the-way__name">@rank.Name</span>
                     <span class="the-way__meta">@StationText(rank)</span>
