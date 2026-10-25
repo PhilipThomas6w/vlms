@@ -164,7 +164,14 @@ public sealed class CalendarService
             return null;
         }
 
-        var saints = day.Saints.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        // Added British and Irish saints follow the feed's, except any the feed already lists that day.
+        var feedSaints = AddedSaintService.SplitSaints(day.Saints);
+        var added = await _db.AddedSaints.AsNoTracking()
+            .Where(s => s.Month == date.Month && s.Day == date.Day)
+            .Select(s => s.Name)
+            .ToListAsync(ct);
+        added.Sort(StringComparer.OrdinalIgnoreCase);
+        var saints = feedSaints.Concat(added.Where(a => !feedSaints.Any(f => AddedSaintService.SameName(f, a)))).ToList();
         var readings = day.Readings.OrderBy(r => r.Order).Select(r => new ParsedReading(r.Heading, r.Reference, r.Text)).ToList();
         return new LiturgicalDayDetail(day.Date, day.Title, day.Fast, saints, readings);
     }

@@ -115,6 +115,44 @@ namespace Vlms.Infrastructure.Migrations
                     b.ToTable("active_chapter_choices");
                 });
 
+            modelBuilder.Entity("Vlms.Domain.AddedSaint", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("AddedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("added_at");
+
+                    b.Property<int?>("AddedByUserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("added_by_user_id");
+
+                    b.Property<int>("Day")
+                        .HasColumnType("integer")
+                        .HasColumnName("day");
+
+                    b.Property<int>("Month")
+                        .HasColumnType("integer")
+                        .HasColumnName("month");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("name");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AddedByUserId");
+
+                    b.HasIndex("Month", "Day", "Name")
+                        .IsUnique();
+
+                    b.ToTable("added_saints");
+                });
+
             modelBuilder.Entity("Vlms.Domain.AppUser", b =>
                 {
                     b.Property<int>("Id")
@@ -1559,6 +1597,14 @@ namespace Vlms.Infrastructure.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("Vlms.Domain.AddedSaint", b =>
+                {
+                    b.HasOne("Vlms.Domain.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("AddedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
                 });
 
             modelBuilder.Entity("Vlms.Domain.AttendanceMark", b =>

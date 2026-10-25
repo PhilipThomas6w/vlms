@@ -169,6 +169,7 @@ builder.Services.AddScoped<ClassTeacherService>();
 // --- Calendar (functional.md FR-022): the liturgical calendar (imported by Vlms.Jobs), the
 // chapter's events, and each person's private subscribe link.
 builder.Services.AddScoped<CalendarService>();
+builder.Services.AddScoped<AddedSaintService>();
 builder.Services.AddScoped<CalendarFeedService>();
 builder.Services.AddScoped(sp => new AttendanceNotificationService(
     sp.GetRequiredService<VlmsDbContext>(), sp.GetRequiredService<ICurrentUserContext>(), sp.GetRequiredService<INotificationService>(),

@@ -36,7 +36,7 @@ public sealed class DesignCapture
         ("approver", ["/", "/curriculum/approver"]),
         ("safeguarding", ["/", "/safeguarding/consent", "/safeguarding/dbs", "/registration/review"]),
         ("admin", ["/", "/calendar", "/calendar/events/new", "/calendar/events/5/edit", "/calendar/events/1", "/attendance", "/administration/students", "/administration/user-roles", "/administration/student-sign-ins", "/guardianship/links", "/registration/approve", "/registration/students", "/reporting", "/reporting/records-due-for-deletion", "/retention/mark-as-left", "/Account/Manage/TwoFactorAuthentication", "/Account/Manage/EnableAuthenticator"]),
-        ("national", ["/", "/administration/chapters", "/administration/rank-badges", "/reporting/national", "/Error"]),
+        ("national", ["/", "/administration/chapters", "/administration/rank-badges", "/administration/saints", "/reporting/national", "/Error"]),
         ("admin-teacher", ["/"]),
     ];
 

@@ -134,4 +134,50 @@ public sealed class CalendarJourneyTests
         await Assertions.Expect(page.Locator(".register__saved")).ToContainTextAsync("Register saved");
         await Assertions.Expect(page.Locator(".register__saved")).Not.ToContainTextAsync("Record the lessons");
     }
+
+    [Fact]
+    public async Task A_national_administrator_adds_and_imports_saints_that_show_in_a_chapters_calendar()
+    {
+        using var factory = new UiWebFactory();
+        factory.StartServer();
+        var baseUrl = factory.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.First().TrimEnd('/');
+        var personas = await CaptureSeed.SeedAsync(factory);
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        using var playwright = await Playwright.CreateAsync();
+        await using var browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions { Headless = true });
+        await using var national = await browser.NewContextAsync(new BrowserNewContextOptions { Locale = "en-GB" });
+        var page = await national.NewPageAsync();
+        await DesignCapture.SignInAsync(page, baseUrl, personas["national"]);
+
+        await page.GotoAsync(baseUrl + "/administration/saints", new PageGotoOptions { WaitUntil = WaitUntilState.NetworkIdle });
+        await page.GetByLabel("Day").SelectOptionAsync(today.Day.ToString());
+        await page.GetByLabel("Month").SelectOptionAsync(today.Month.ToString());
+        await page.GetByLabel("Name", new() { Exact = true }).FillAsync("Winefride");
+        await page.GetByRole(AriaRole.Button, new() { Name = "Add the saint" }).ClickAsync();
+        await Assertions.Expect(page.GetByRole(AriaRole.Status)).ToContainTextAsync("Winefride added");
+
+        // An import: one new saint, one the Church calendar already lists that day (left unticked), one error.
+        var dayText = today.ToString("dd/MM");
+        var csv = string.Join("\r\n", "date,name", $"{dayText},Beuno", $"{dayText},Tabitha the Merciful", "31/04,Nobody", "");
+        await page.GetByLabel("A .csv file").SetInputFilesAsync(new FilePayload { Name = "saints.csv", MimeType = "text/csv", Buffer = System.Text.Encoding.UTF8.GetBytes(csv) });
+        await page.GetByRole(AriaRole.Button, new() { Name = "Preview the file" }).ClickAsync();
+        await Assertions.Expect(page.Locator("main")).ToContainTextAsync("Already lists Tabitha the Merciful.");
+        await Assertions.Expect(page.Locator("main")).ToContainTextAsync("Can't add:");
+        await Assertions.Expect(page.GetByLabel("Add Tabitha the Merciful")).Not.ToBeCheckedAsync();
+        await page.GetByRole(AriaRole.Button, new() { Name = "Add 1 saint" }).ClickAsync();
+        await Assertions.Expect(page.GetByRole(AriaRole.Status)).ToContainTextAsync("1 saint added.");
+        await Assertions.Expect(page.Locator("#list-heading")).ToHaveTextAsync("Saints added (2)");
+
+        await using var parent = await browser.NewContextAsync(new BrowserNewContextOptions
+        {
+            Locale = "en-GB", ViewportSize = new ViewportSize { Width = 375, Height = 812 }
+        });
+        var parentPage = await parent.NewPageAsync();
+        await DesignCapture.SignInAsync(parentPage, baseUrl, personas["parent"]);
+        await parentPage.GotoAsync(baseUrl + "/calendar", new PageGotoOptions { WaitUntil = WaitUntilState.NetworkIdle });
+        await parentPage.Locator(".day--today .day__toggle").ClickAsync();
+        var saints = parentPage.Locator(".day--today .day__saints li");
+        await Assertions.Expect(saints).ToHaveTextAsync(["Martyrs Marcian and Martyrius", "Tabitha the Merciful", "Beuno", "Winefride"]);
+    }
 }

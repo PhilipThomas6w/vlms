@@ -1,0 +1,334 @@
+@page "/administration/saints"
+@attribute [Authorize(Policy = "RequireNationalAdministrator")]
+@rendermode InteractiveServer
+@using System.Globalization
+@using Vlms.Infrastructure.Calendar
+@inject AddedSaintService Saints
+
+@* National Administrator only (FR-022): British, Welsh and Irish saints added to the saints of the
+   day in every chapter, one by one or imported from a .csv file. An import is previewed first, with
+   each row's errors and that date's saints in the Church calendar, and saves only the ticked rows.
+   AddedSaintService repeats the role and MFA check. *@
+
+<PageTitle>Added saints – Varangians</PageTitle>
+
+<PageHeader Title="Added saints" />
+
+<p class="intro">
+    British and Irish saints shown in every chapter's calendar, after the saints of the Church calendar.
+    A saint the Church calendar already lists that day isn't shown twice.
+</p>
+
+@if (_errorMessage is not null)
+{
+    <Notice Kind="danger" Role="alert"><p>@_errorMessage</p></Notice>
+}
+<p role="status">@_statusMessage</p>
+
+<section class="section" aria-labelledby="add-heading">
+    <h2 id="add-heading">Add a saint</h2>
+    <form class="form" @onsubmit="AddAsync" @onsubmit:preventDefault>
+        <div class="field-row">
+            <div class="field">
+                <label for="saint-day">Day</label>
+                <select id="saint-day" @bind="_day">
+                    @for (var d = 1; d <= 31; d++)
+                    {
+                        <option value="@d">@d</option>
+                    }
+                </select>
+            </div>
+            <div class="field">
+                <label for="saint-month">Month</label>
+                <select id="saint-month" @bind="_month">
+                    @for (var m = 1; m <= 12; m++)
+                    {
+                        <option value="@m">@Uk.DateTimeFormat.GetMonthName(m)</option>
+                    }
+                </select>
+            </div>
+        </div>
+        <div class="field">
+            <label for="saint-name">Name</label>
+            <input id="saint-name" type="text" required maxlength="@AddedSaintService.NameMaxLength" @bind="_name" />
+        </div>
+        <div class="form-actions btn-row">
+            <button type="submit">Add the saint</button>
+        </div>
+    </form>
+</section>
+
+<section class="section" aria-labelledby="import-heading">
+    <h2 id="import-heading">Import from a file</h2>
+    @if (_preview is null)
+    {
+        <form class="form" @onsubmit="PreviewAsync" @onsubmit:preventDefault>
+            <div class="field">
+                <label for="saint-file">A .csv file with two columns: date (DD/MM) and name</label>
+                <InputFile id="saint-file" accept=".csv,text/csv" OnChange="SelectFile" />
+            </div>
+            <div class="form-actions btn-row">
+                <button type="submit" disabled="@(_file is null)">Preview the file</button>
+            </div>
+        </form>
+    }
+    else
+    {
+        <p>
+            @_preview.Count(r => r.CanAdd) of @_preview.Count rows can be added.
+            Untick any you don't want before adding them.
+        </p>
+        <div class="table-scroll">
+            <table class="data-table data-table--wide">
+                <thead>
+                    <tr>
+                        <th scope="col">Add</th>
+                        <th scope="col">Line</th>
+                        <th scope="col">Date</th>
+                        <th scope="col">Name</th>
+                        <th scope="col">Church calendar that day</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in _preview)
+                    {
+                        <tr>
+                            <td data-label="Add">
+                                @if (row.Error is not null)
+                                {
+                                    <span>Can't add: @row.Error</span>
+                                }
+                                else if (row.AlreadyAdded)
+                                {
+                                    <span>Already added</span>
+                                }
+                                else
+                                {
+                                    <div class="check">
+                                        <input type="checkbox" id="import-@row.Line" checked="@_chosen.Contains(row.Line)"
+                                               @onchange="e => Choose(row.Line, e.Value is true)" />
+                                        <label for="import-@row.Line">Add <span class="visually-hidden">@row.Name</span></label>
+                                    </div>
+                                }
+                            </td>
+                            <td data-label="Line">@row.Line</td>
+                            <td data-label="Date">@(row.Month is int m && row.Day is int d ? AddedSaintService.DateLabel(m, d) : row.Date)</td>
+                            <th scope="row" data-label="Name">@row.Name</th>
+                            <td data-label="Church calendar that day">
+                                @if (row.InFeed)
+                                {
+                                    <strong>Already lists @row.Name.</strong>
+                                }
+                                @if (row.FeedSaints.Count > 0)
+                                {
+                                    <span>@string.Join("; ", row.FeedSaints)</span>
+                                }
+                                else
+                                {
+                                    <span class="muted">Nothing for that date</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <div class="form-actions btn-row">
+            <button type="button" disabled="@(_chosen.Count == 0)" @onclick="ImportAsync">
+                Add @_chosen.Count @(_chosen.Count == 1 ? "saint" : "saints")
+            </button>
+            <button type="button" class="btn--secondary" @onclick="CancelImport">Cancel</button>
+        </div>
+    }
+</section>
+
+<section class="section" aria-labelledby="list-heading">
+    <h2 id="list-heading">Saints added (@_saints.Count)</h2>
+    @if (_saints.Count == 0)
+    {
+        <div class="empty"><p>No saints added yet.</p></div>
+    }
+    else
+    {
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th scope="col">Date</th>
+                    <th scope="col">Name</th>
+                    <th scope="col"><span class="visually-hidden">Remove</span></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var saint in _saints)
+                {
+                    <tr>
+                        <td data-label="Date">@AddedSaintService.DateLabel(saint.Month, saint.Day)</td>
+                        <th scope="row" data-label="Name">@saint.Name</th>
+                        <td>
+                            @if (_confirmRemove == saint.Id)
+                            {
+                                <span>Remove @saint.Name from @AddedSaintService.DateLabel(saint.Month, saint.Day)?</span>
+                                <button type="button" class="btn--danger" @onclick="() => RemoveAsync(saint)">Remove</button>
+                                <button type="button" class="btn--secondary" @onclick="() => _confirmRemove = null">Keep</button>
+                            }
+                            else
+                            {
+                                <button type="button" class="btn--secondary" @onclick="() => _confirmRemove = saint.Id">
+                                    Remove <span class="visually-hidden">@saint.Name, @AddedSaintService.DateLabel(saint.Month, saint.Day)</span>
+                                </button>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</section>
+
+@code {
+    private static readonly CultureInfo Uk = CultureInfo.GetCultureInfo("en-GB");
+
+    private IReadOnlyList<AddedSaintItem> _saints = [];
+    private IReadOnlyList<SaintImportRow>? _preview;
+    private readonly HashSet<int> _chosen = [];
+    private IBrowserFile? _file;
+    private int _day = 1;
+    private int _month = 1;
+    private string _name = "";
+    private int? _confirmRemove;
+    private string? _errorMessage;
+    private string? _statusMessage;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            _saints = await Saints.ListAsync();
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+
+    private async Task AddAsync()
+    {
+        Clear();
+        try
+        {
+            await Saints.AddAsync(_month, _day, _name);
+            _statusMessage = $"{_name.Trim()} added on {AddedSaintService.DateLabel(_month, _day)}.";
+            _name = "";
+            await LoadAsync();
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or UnauthorizedAccessException)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+
+    private void SelectFile(InputFileChangeEventArgs e)
+    {
+        Clear();
+        _file = e.File;
+    }
+
+    private async Task PreviewAsync()
+    {
+        Clear();
+        if (_file is null)
+        {
+            return;
+        }
+
+        if (_file.Size > AddedSaintService.MaxImportBytes)
+        {
+            _errorMessage = "The file is larger than 256 KB.";
+            return;
+        }
+
+        try
+        {
+            using var reader = new StreamReader(_file.OpenReadStream(AddedSaintService.MaxImportBytes));
+            _preview = await Saints.PreviewImportAsync(await reader.ReadToEndAsync());
+            _chosen.Clear();
+            foreach (var row in _preview.Where(r => r.CanAdd && !r.InFeed))
+            {
+                _chosen.Add(row.Line);
+            }
+        }
+        catch (Exception ex) when (ex is ArgumentException or IOException or UnauthorizedAccessException)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+
+    private void Choose(int line, bool chosen)
+    {
+        if (chosen)
+        {
+            _chosen.Add(line);
+        }
+        else
+        {
+            _chosen.Remove(line);
+        }
+    }
+
+    private async Task ImportAsync()
+    {
+        if (_preview is null)
+        {
+            return;
+        }
+
+        Clear();
+        try
+        {
+            var rows = _preview.Where(r => r.CanAdd && _chosen.Contains(r.Line))
+                .Select(r => new SaintToAdd(r.Month!.Value, r.Day!.Value, r.Name))
+                .ToList();
+            var result = await Saints.ImportAsync(rows);
+            _statusMessage = result.Skipped == 0
+                ? $"{result.Added} {(result.Added == 1 ? "saint" : "saints")} added."
+                : $"{result.Added} added; {result.Skipped} skipped as already added.";
+            CancelImport();
+            await LoadAsync();
+        }
+        catch (Exception ex) when (ex is ArgumentException or UnauthorizedAccessException)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+
+    private void CancelImport()
+    {
+        _preview = null;
+        _file = null;
+        _chosen.Clear();
+    }
+
+    private async Task RemoveAsync(AddedSaintItem saint)
+    {
+        Clear();
+        try
+        {
+            await Saints.RemoveAsync(saint.Id);
+            _statusMessage = $"{saint.Name} removed from {AddedSaintService.DateLabel(saint.Month, saint.Day)}.";
+            _confirmRemove = null;
+            await LoadAsync();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+
+    private void Clear()
+    {
+        _errorMessage = null;
+        _statusMessage = null;
+    }
+}

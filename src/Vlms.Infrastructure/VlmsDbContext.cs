@@ -70,6 +70,7 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
     public DbSet<LiturgicalReading> LiturgicalReadings => Set<LiturgicalReading>();
     public DbSet<CalendarFeedToken> CalendarFeedTokens => Set<CalendarFeedToken>();
     public DbSet<CalendarViewChoice> CalendarViewChoices => Set<CalendarViewChoice>();
+    public DbSet<AddedSaint> AddedSaints => Set<AddedSaint>();
 
     /// <summary>The name of the query filter every <see cref="IChapterOwned"/> entity carries (docs/adr/0010-chapters.md).</summary>
     public const string ChapterFilter = "Chapter";
@@ -263,6 +264,17 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
             e.HasIndex(x => new { x.Date, x.Order }).IsUnique();
+        });
+
+        // Added British and Irish saints (FR-022): national, kept each year on a month and day; a name
+        // once per date.
+        modelBuilder.Entity<AddedSaint>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Name).HasMaxLength(200);
+            e.HasIndex(x => new { x.Month, x.Day, x.Name }).IsUnique();
+            e.HasOne<AppUser>().WithMany().HasForeignKey(x => x.AddedByUserId).OnDelete(DeleteBehavior.SetNull);
         });
 
         // Subscribe links (FR-022): one per person per chapter, found by the hash of its secret.
