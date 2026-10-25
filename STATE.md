@@ -112,13 +112,14 @@ Full narrative for Done/Log items to 12/08/2026: `docs/harness/STATE-archive.md`
 
 - [x] Calendar: added British and Irish saints (FR-022; Philip, 25/10/2026): national `AddedSaint` (migration `AddAddedSaints`) and `AddedSaintService` (National Administrator with MFA); `/administration/saints` (nav National "Added saints"): add a saint on a day and month, import a .csv with a preview (errors, already added, that date's GOARCH saints; rows the feed already lists left unticked), save only ticked rows, remove with confirmation. Shown in every chapter after GOARCH's saints, alphabetically, hidden where GOARCH lists the same name (ignoring case). The starting list `seed/british-saints.csv` previews with no errors (test); Philip imports it on the page. Commit 459a73b. Gate: `pwsh -File build/verify.ps1` full, verify OK (build 0 warnings; 1258 tests passed; secrets clean; ASVS and WCAG checklists current; ui-tests 23 passed, 1 skipped capture). Design capture of `/administration/saints`: axe none, no overflow.
 
+- [x] Calendar: chapter subscribe link (FR-022; Philip, 25/10/2026): `ChapterPublicFeed` (migration `AddChapterPublicFeed`) and anonymous `GET /calendar/chapter/{key}.ics`, serving an open chapter's services and parish meetings only, never classes or excursions; the chapter's Admins make, replace or stop it on `/calendar` (confirmed), everyone in the chapter sees it. Commit 5f83f6b. Gate: `pwsh -File build/verify.ps1` full, verify OK (build 0 warnings; 1261 tests passed; secrets clean; ASVS and WCAG checklists current; ui-tests 24 passed, 1 skipped capture). Design capture of the calendar pages: axe none, no overflow, every persona.
+
 ## In progress
 
 ## Next
 Fit-for-purpose build plan (Philip, 22/10/2026; `docs/delivery-plan.md` phase 2, `docs/governance/raid.md` I-001). Acceptance for every item below: tests, gate exits 0, **and** the matching steps in `docs/requirements/user-journeys.md` work in the running app for each named role (checked by running it, not inferred from service tests), with their status updated there.
 
 
-- **Calendar: chapter subscribe link** (FR-022; Philip, 25/10/2026). A unique .ics link per chapter: public, parish events only; Varangians events stay on each person's private link (Philip confirmed 25/10/2026, safeguarding).
 
 Delegation (Philip, 22/10/2026): each item runs as a subagent in its own worktree, model in brackets. Items in a wave run in parallel; a wave starts when the items it depends on are merged into `master`.
 

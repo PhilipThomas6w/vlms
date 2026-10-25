@@ -233,3 +233,6 @@ date_utc,session,actor,model,head,head_advanced,input,cache_write,cache_read,out
 2026-10-25T17:15:36Z,b004ecc7-beac-4625-8079-c51ae862a297,main,claude-opus-5-5,b28cd55,true,10,18014,1272060,9804,0.5946,pass
 2026-10-25T17:32:00Z,b004ecc7-beac-4625-8079-c51ae862a297,main,claude-opus-5-5,b9878bb,true,4,453,533842,443,0.1193,pass
 2026-10-25T17:51:58Z,b004ecc7-beac-4625-8079-c51ae862a297,main,claude-opus-5-5,0f29e9a,true,122,171727,14774604,66714,5.6635,skipped
+2026-10-25T18:06:26Z,b004ecc7-beac-4625-8079-c51ae862a297,main,claude-opus-5-5,f2e0ac4,true,108,83181,8578396,39924,3.1800,skipped
+2026-10-25T18:18:28Z,b004ecc7-beac-4625-8079-c51ae862a297,main,claude-opus-5-5,f2e0ac4,false,6,2225,601032,1565,0.1693,pass
+2026-10-25T18:22:04Z,b004ecc7-beac-4625-8079-c51ae862a297,main,claude-opus-5-5,f2e0ac4,false,4,291,405834,294,0.0894,pass
