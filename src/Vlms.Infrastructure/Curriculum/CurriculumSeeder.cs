@@ -117,10 +117,7 @@ public sealed class CurriculumSeeder
         var plan = Validate(manifest, contentRoot, errors);
         var warnings = new List<string>();
         var namesAdded = 0;
-        if (errors.Count > 0)
-        {
-            return Failed(errors);
-        }
+        // Lesson text is read even when the manifest has errors, so one run reports every problem.
         ReadLessonTexts(plan, Path.Combine(contentRoot, LessonsFolderName), errors, warnings);
         if (errors.Count > 0)
         {

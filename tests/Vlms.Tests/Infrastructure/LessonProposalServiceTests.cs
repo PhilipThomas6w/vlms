@@ -211,6 +211,36 @@ public sealed class LessonProposalServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task ApproveAsync_EditProposal_KeepsTheLessonTextAndItsPictures()
+    {
+        // Proposals do not carry lesson text yet (adr/0012 decision 8): approving one must not clear it.
+        using (var admin = CreateContext(1, Role.Admin))
+        {
+            var lesson = await admin.Context.Lessons.SingleAsync(l => l.Id == 1);
+            admin.Context.Entry(lesson).Property(l => l.Body).CurrentValue = "## Knots\n\n![A knot](knot.jpg)";
+            admin.Context.Entry(lesson).Property(l => l.ContentVersion).CurrentValue = "v1";
+            admin.Context.LessonPictures.Add(new LessonPicture { Id = 1, LessonId = 1, Order = 1, FileName = "knot.jpg", BlobKey = "lesson-pictures/L1/knot.jpg" });
+            await admin.Context.SaveChangesAsync();
+        }
+
+        int proposalId;
+        using (var teacher = CreateContext(10, Role.Teacher))
+        {
+            proposalId = (await teacher.Service.ProposeAsync(lessonId: 1, LessonChangeType.Edit, EditedLesson(), CancellationToken.None)).Id;
+        }
+
+        using (var approver = CreateContext(20, Role.Approver))
+        {
+            await approver.Service.ApproveAsync(proposalId, CancellationToken.None);
+        }
+
+        using var verify = CreateContext(1, Role.Admin);
+        var edited = await verify.Context.Lessons.SingleAsync(l => l.Id == 1);
+        Assert.Equal(("Knots 101 (revised)", "## Knots\n\n![A knot](knot.jpg)", "v1"), (edited.Title, edited.Body, edited.ContentVersion));
+        Assert.Equal(["knot.jpg"], await verify.Context.LessonPictures.Where(p => p.LessonId == 1).Select(p => p.FileName).ToListAsync());
+    }
+
+    [Fact]
     public async Task ProposeAsync_WithNoTags_Throws()
     {
         using var teacher = CreateContext(10, Role.Teacher);
