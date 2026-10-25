@@ -30,4 +30,4 @@ The app has not been released: no teachers or students use it, so nothing has to
 - The curriculum becomes editable text in the app, accessible and readable on a phone, and much smaller to save offline.
 - Converting is real work per lesson: checking Pandoc's output, typing up scanned pages, writing text alternatives and citations, then Philip's review.
 - `Lesson` gains a body and a content version; `ProposedLessonContent` carries the body. One EF migration.
-- **Open: permission to reproduce texts.** Some scanned pages may reproduce published service books or translations. Before such text goes into the app, the source and its terms must be identified; the citation in decision 3 records it. Flagged per lesson at conversion for Philip's review.
+- **Permission to reproduce texts: settled** (Philip, 25/10/2026): all the scanned pages have been vetted and may be used. Citations (decision 3) are still added where possible and appropriate.
