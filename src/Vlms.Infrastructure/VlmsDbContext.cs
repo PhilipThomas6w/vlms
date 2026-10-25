@@ -42,6 +42,8 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
     public DbSet<Lesson> Lessons => Set<Lesson>();
     public DbSet<LessonTagAssignment> LessonTagAssignments => Set<LessonTagAssignment>();
     public DbSet<LessonFile> LessonFiles => Set<LessonFile>();
+    public DbSet<LessonPicture> LessonPictures => Set<LessonPicture>();
+    public DbSet<TeachersInformationPicture> TeachersInformationPictures => Set<TeachersInformationPicture>();
     public DbSet<LessonChangeProposal> LessonChangeProposals => Set<LessonChangeProposal>();
     public DbSet<Student> Students => Set<Student>();
     public DbSet<ParentGuardian> ParentGuardians => Set<ParentGuardian>();
@@ -133,6 +135,7 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
             e.Property(x => x.Id).ValueGeneratedNever();
             e.HasMany(x => x.Lessons).WithOne(x => x.Rank).HasForeignKey(x => x.RankId).OnDelete(DeleteBehavior.Cascade);
             e.HasMany(x => x.RankBadges).WithOne(x => x.Rank).HasForeignKey(x => x.RankId).OnDelete(DeleteBehavior.Cascade);
+            e.HasMany(x => x.TeachersInformationPictures).WithOne(x => x.Rank).HasForeignKey(x => x.RankId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<Lesson>(e =>
@@ -143,7 +146,24 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
             e.HasMany(x => x.Completions).WithOne(x => x.Lesson).HasForeignKey(x => x.LessonId).OnDelete(DeleteBehavior.Restrict);
             e.HasMany(x => x.Tags).WithOne(x => x.Lesson).HasForeignKey(x => x.LessonId).OnDelete(DeleteBehavior.Cascade);
             e.HasMany(x => x.Files).WithOne(x => x.Lesson).HasForeignKey(x => x.LessonId).OnDelete(DeleteBehavior.Cascade);
+            e.HasMany(x => x.Pictures).WithOne(x => x.Lesson).HasForeignKey(x => x.LessonId).OnDelete(DeleteBehavior.Cascade);
+            e.Property(x => x.ContentVersion).HasMaxLength(64);
             e.HasIndex(x => new { x.RankId, x.Order });
+        });
+
+        // App-hosted lesson pictures (adr/0012): unique per lesson/rank by the name the text uses.
+        modelBuilder.Entity<LessonPicture>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.HasIndex(x => new { x.LessonId, x.FileName }).IsUnique();
+        });
+
+        modelBuilder.Entity<TeachersInformationPicture>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.HasIndex(x => new { x.RankId, x.FileName }).IsUnique();
         });
 
         modelBuilder.Entity<LessonTagAssignment>(e =>

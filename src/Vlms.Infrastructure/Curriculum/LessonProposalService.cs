@@ -206,7 +206,10 @@ public sealed class LessonProposalService
             Code = content.Code,
             Title = content.Title,
             Order = content.Order,
-            IsActive = content.IsActive
+            IsActive = content.IsActive,
+            // Proposals do not carry the lesson text yet (adr/0012 decision 8); keep it and its pictures.
+            Body = lesson.Body,
+            ContentVersion = lesson.ContentVersion
         });
         await ReplaceTagsAndFilesAsync(lesson.Id, content, ct);
         return lesson.Id;

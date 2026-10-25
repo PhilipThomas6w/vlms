@@ -732,10 +732,19 @@ namespace Vlms.Infrastructure.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("id");
 
+                    b.Property<string>("Body")
+                        .HasColumnType("text")
+                        .HasColumnName("body");
+
                     b.Property<string>("Code")
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("code");
+
+                    b.Property<string>("ContentVersion")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("content_version");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean")
@@ -850,6 +859,38 @@ namespace Vlms.Infrastructure.Migrations
                     b.HasIndex("LessonId");
 
                     b.ToTable("lesson_files");
+                });
+
+            modelBuilder.Entity("Vlms.Domain.LessonPicture", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    b.Property<string>("BlobKey")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("blob_key");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("file_name");
+
+                    b.Property<int>("LessonId")
+                        .HasColumnType("integer")
+                        .HasColumnName("lesson_id");
+
+                    b.Property<int>("Order")
+                        .HasColumnType("integer")
+                        .HasColumnName("order");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LessonId", "FileName")
+                        .IsUnique();
+
+                    b.ToTable("lesson_pictures");
                 });
 
             modelBuilder.Entity("Vlms.Domain.LessonTagAssignment", b =>
@@ -993,6 +1034,10 @@ namespace Vlms.Infrastructure.Migrations
                     b.Property<int>("Order")
                         .HasColumnType("integer")
                         .HasColumnName("order");
+
+                    b.Property<string>("TeachersInformation")
+                        .HasColumnType("text")
+                        .HasColumnName("teachers_information");
 
                     b.HasKey("Id");
 
@@ -1431,6 +1476,38 @@ namespace Vlms.Infrastructure.Migrations
                     b.HasIndex("StudentId");
 
                     b.ToTable("student_rank_progresses");
+                });
+
+            modelBuilder.Entity("Vlms.Domain.TeachersInformationPicture", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    b.Property<string>("BlobKey")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("blob_key");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("file_name");
+
+                    b.Property<int>("Order")
+                        .HasColumnType("integer")
+                        .HasColumnName("order");
+
+                    b.Property<int>("RankId")
+                        .HasColumnType("integer")
+                        .HasColumnName("rank_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RankId", "FileName")
+                        .IsUnique();
+
+                    b.ToTable("teachers_information_pictures");
                 });
 
             modelBuilder.Entity("Vlms.Domain.UserRole", b =>
@@ -1912,6 +1989,17 @@ namespace Vlms.Infrastructure.Migrations
                     b.Navigation("Lesson");
                 });
 
+            modelBuilder.Entity("Vlms.Domain.LessonPicture", b =>
+                {
+                    b.HasOne("Vlms.Domain.Lesson", "Lesson")
+                        .WithMany("Pictures")
+                        .HasForeignKey("LessonId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Lesson");
+                });
+
             modelBuilder.Entity("Vlms.Domain.LessonTagAssignment", b =>
                 {
                     b.HasOne("Vlms.Domain.Lesson", "Lesson")
@@ -2168,6 +2256,17 @@ namespace Vlms.Infrastructure.Migrations
                     b.Navigation("Student");
                 });
 
+            modelBuilder.Entity("Vlms.Domain.TeachersInformationPicture", b =>
+                {
+                    b.HasOne("Vlms.Domain.Rank", "Rank")
+                        .WithMany("TeachersInformationPictures")
+                        .HasForeignKey("RankId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Rank");
+                });
+
             modelBuilder.Entity("Vlms.Domain.UserRole", b =>
                 {
                     b.HasOne("Vlms.Domain.Chapter", null)
@@ -2212,6 +2311,8 @@ namespace Vlms.Infrastructure.Migrations
 
                     b.Navigation("Files");
 
+                    b.Navigation("Pictures");
+
                     b.Navigation("Tags");
                 });
 
@@ -2232,6 +2333,8 @@ namespace Vlms.Infrastructure.Migrations
                     b.Navigation("Lessons");
 
                     b.Navigation("RankBadges");
+
+                    b.Navigation("TeachersInformationPictures");
                 });
 
             modelBuilder.Entity("Vlms.Domain.RankBadge", b =>
