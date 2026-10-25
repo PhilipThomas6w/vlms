@@ -467,36 +467,6 @@ namespace Vlms.Infrastructure.Migrations
                     b.ToTable("chapter_events");
                 });
 
-            modelBuilder.Entity("Vlms.Domain.ChapterPublicFeed", b =>
-                {
-                    b.Property<int>("ChapterId")
-                        .HasColumnType("integer")
-                        .HasColumnName("chapter_id");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<int?>("CreatedByUserId")
-                        .HasColumnType("integer")
-                        .HasColumnName("created_by_user_id");
-
-                    b.Property<string>("Key")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)")
-                        .HasColumnName("key");
-
-                    b.HasKey("ChapterId");
-
-                    b.HasIndex("CreatedByUserId");
-
-                    b.HasIndex("Key")
-                        .IsUnique();
-
-                    b.ToTable("chapter_public_feeds");
-                });
-
             modelBuilder.Entity("Vlms.Domain.ClassTeacher", b =>
                 {
                     b.Property<int>("Id")
@@ -1748,20 +1718,6 @@ namespace Vlms.Infrastructure.Migrations
                         .HasForeignKey("CreatedByUserId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
-                });
-
-            modelBuilder.Entity("Vlms.Domain.ChapterPublicFeed", b =>
-                {
-                    b.HasOne("Vlms.Domain.Chapter", null)
-                        .WithMany()
-                        .HasForeignKey("ChapterId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Vlms.Domain.AppUser", null)
-                        .WithMany()
-                        .HasForeignKey("CreatedByUserId")
-                        .OnDelete(DeleteBehavior.SetNull);
                 });
 
             modelBuilder.Entity("Vlms.Domain.ClassTeacher", b =>

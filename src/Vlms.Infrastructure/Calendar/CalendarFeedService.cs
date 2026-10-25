@@ -24,11 +24,6 @@ namespace Vlms.Infrastructure.Calendar;
 /// filters show it nothing). That context is created here, used for the one query of events, and
 /// disposed. The feed holds events only (date, name, times, place), never a child's or anyone's
 /// personal data.
-///
-/// <b>The chapter's public link</b> (<see cref="ChapterPublicFeed"/>, Philip 25/10/2026): one per
-/// chapter, made, replaced or stopped by its Admins and shown to everyone in the chapter, carrying its
-/// parish events only (services, parish meetings), never a class or excursion, whose dates and places
-/// say where children will be.
 /// </summary>
 public sealed class CalendarFeedService
 {
@@ -84,68 +79,6 @@ public sealed class CalendarFeedService
         var (userId, chapterId) = RequireReader();
         _db.CalendarFeedTokens.RemoveRange(_db.CalendarFeedTokens.Where(t => t.UserId == userId && t.ChapterId == chapterId));
         await _db.SaveChangesAsync(ct);
-    }
-
-    /// <summary>The key of the active chapter's public link to its parish events, or null if it has none. Anyone in the chapter.</summary>
-    public async Task<string?> GetPublicLinkKeyAsync(CancellationToken ct = default)
-    {
-        var (_, chapterId) = RequireReader();
-        return await _db.ChapterPublicFeeds.AsNoTracking()
-            .Where(f => f.ChapterId == chapterId)
-            .Select(f => f.Key)
-            .SingleOrDefaultAsync(ct);
-    }
-
-    /// <summary>Makes the active chapter's public link, replacing any earlier one (which stops working); returns its key. Admin only.</summary>
-    public async Task<string> CreatePublicLinkAsync(CancellationToken ct = default)
-    {
-        var (userId, chapterId) = RequireAdmin();
-        _db.ChapterPublicFeeds.RemoveRange(_db.ChapterPublicFeeds.Where(f => f.ChapterId == chapterId));
-        await _db.SaveChangesAsync(ct);
-
-        var key = Base64Url(RandomNumberGenerator.GetBytes(32));
-        _db.ChapterPublicFeeds.Add(new ChapterPublicFeed { ChapterId = chapterId, Key = key, CreatedAt = DateTime.UtcNow, CreatedByUserId = userId });
-        await _db.SaveChangesAsync(ct);
-        return key;
-    }
-
-    /// <summary>Stops the active chapter's public link working. Admin only.</summary>
-    public async Task RemovePublicLinkAsync(CancellationToken ct = default)
-    {
-        var (_, chapterId) = RequireAdmin();
-        _db.ChapterPublicFeeds.RemoveRange(_db.ChapterPublicFeeds.Where(f => f.ChapterId == chapterId));
-        await _db.SaveChangesAsync(ct);
-    }
-
-    /// <summary>
-    /// The iCalendar text for the public link with key <paramref name="key"/>: its chapter's parish
-    /// events (services, parish meetings) from <see cref="FeedMonthsBack"/> months ago, never a class or
-    /// excursion. Null if no such link exists or the chapter is closed. Needs no signed-in caller.
-    /// </summary>
-    public async Task<string?> BuildPublicFeedAsync(string key, CancellationToken ct = default)
-    {
-        if (string.IsNullOrWhiteSpace(key) || key.Length > 64)
-        {
-            return null;
-        }
-
-        var feed = await _db.ChapterPublicFeeds.AsNoTracking().SingleOrDefaultAsync(f => f.Key == key, ct);
-        var chapter = feed is null
-            ? null
-            : await _db.Chapters.AsNoTracking().Where(c => c.Id == feed.ChapterId && c.IsActive).Select(c => new { c.Id, c.Name }).SingleOrDefaultAsync(ct);
-        if (chapter is null)
-        {
-            return null;
-        }
-
-        var since = DateOnly.FromDateTime(DateTime.UtcNow).AddMonths(-FeedMonthsBack);
-        await using var asFeed = new VlmsDbContext(_options, new CalendarFeedUserContext(chapter.Id));
-        var events = await asFeed.ChapterEvents.AsNoTracking()
-            .Where(e => e.Date >= since && (e.Kind == ChapterEventKind.Service || e.Kind == ChapterEventKind.ParishMeeting))
-            .OrderBy(e => e.Date)
-            .ToListAsync(ct);
-
-        return ToICalendar(chapter.Name, events, DateTime.UtcNow);
     }
 
     /// <summary>
@@ -272,16 +205,6 @@ public sealed class CalendarFeedService
         if (!reader.CanRead || _currentUser.UserId is not int userId || _currentUser.ActiveChapterId is not int chapterId)
         {
             throw new UnauthorizedAccessException("Caller must hold a role in the chapter they are working in to subscribe to its calendar.");
-        }
-
-        return (userId, chapterId);
-    }
-
-    private (int UserId, int ChapterId) RequireAdmin()
-    {
-        if (!_currentUser.HasRole(Role.Admin) || _currentUser.UserId is not int userId || _currentUser.ActiveChapterId is not int chapterId)
-        {
-            throw new UnauthorizedAccessException("Caller must be an Admin of the chapter to manage its public calendar link.");
         }
 
         return (userId, chapterId);
