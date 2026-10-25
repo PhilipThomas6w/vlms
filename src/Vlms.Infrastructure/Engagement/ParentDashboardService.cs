@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Vlms.Domain;
 using Vlms.Infrastructure.Attendance;
+using Vlms.Infrastructure.Badges;
 using Vlms.Infrastructure.Authorization;
 
 namespace Vlms.Infrastructure.Engagement;
@@ -63,11 +64,13 @@ public sealed class ParentDashboardService
 {
     private readonly VlmsDbContext _db;
     private readonly ICurrentUserContext _currentUser;
+    private readonly IBlobStorage _blobs;
 
-    public ParentDashboardService(VlmsDbContext db, ICurrentUserContext currentUser)
+    public ParentDashboardService(VlmsDbContext db, ICurrentUserContext currentUser, IBlobStorage blobs)
     {
         _db = db;
         _currentUser = currentUser;
+        _blobs = blobs;
     }
 
     public async Task<IReadOnlyList<ParentDashboardStudent>> GetDashboardAsync(CancellationToken ct = default)
@@ -100,8 +103,8 @@ public sealed class ParentDashboardService
 
         var badges = await _db.StudentBadges
             .Where(b => studentIds.Contains(b.StudentId))
-            .Join(_db.RankBadges, b => b.RankBadgeId, rb => rb.Id, (b, rb) => new { b.StudentId, b.AwardedAt, rb.RankId, rb.ImageBlobKey })
-            .Join(_db.Ranks, x => x.RankId, r => r.Id, (x, r) => new { x.StudentId, x.AwardedAt, x.RankId, RankName = r.Name, RankOrder = r.Order, HasImage = x.ImageBlobKey != null })
+            .Join(_db.RankBadges, b => b.RankBadgeId, rb => rb.Id, (b, rb) => new { b.StudentId, b.AwardedAt, rb.RankId })
+            .Join(_db.Ranks, x => x.RankId, r => r.Id, (x, r) => new { x.StudentId, x.AwardedAt, x.RankId, RankName = r.Name, RankOrder = r.Order })
             .ToListAsync(ct);
 
         // Filters out certificates whose underlying StudentLessonCompletion has IsReversed == true.
@@ -123,7 +126,7 @@ public sealed class ParentDashboardService
             .ToListAsync(ct);
 
         // Whether the current rank's badge image has been uploaded (the same RankBadge rows the badges above use).
-        var badgeRankIds = (await _db.RankBadges.Where(rb => rb.ImageBlobKey != null).Select(rb => rb.RankId).ToListAsync(ct)).ToHashSet();
+        var badgeRankIds = await RankBadgeService.RankIdsWithImageAsync(_db, _blobs, ct);
 
         var consents = await _db.ConsentRecords
             .Where(c => studentIds.Contains(c.StudentId))
@@ -135,7 +138,7 @@ public sealed class ParentDashboardService
         {
             var studentBadges = badges
                 .Where(b => b.StudentId == student.Id)
-                .Select(b => new ParentDashboardBadge(b.RankName, b.AwardedAt, b.RankId, b.HasImage, b.RankOrder))
+                .Select(b => new ParentDashboardBadge(b.RankName, b.AwardedAt, b.RankId, badgeRankIds.Contains(b.RankId), b.RankOrder))
                 .ToList();
 
             var studentCertificates = certificates
@@ -190,9 +193,10 @@ public sealed class ParentDashboardService
 
         var studentIds = await ParentGuardianLinkage.LinkedStudentIds(_db, userId).ToListAsync(ct);
         var journeys = new Dictionary<int, StudentJourney>();
+        var badgeImageRankIds = await RankBadgeService.RankIdsWithImageAsync(_db, _blobs, ct);
         foreach (var studentId in studentIds.Distinct())
         {
-            if (await StudentJourney.LoadAsync(_db, studentId, ct) is { } journey)
+            if (await StudentJourney.LoadAsync(_db, badgeImageRankIds, studentId, ct) is { } journey)
             {
                 journeys[studentId] = journey;
             }

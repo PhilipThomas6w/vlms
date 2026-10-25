@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Vlms.Domain;
+using Vlms.Infrastructure.Badges;
 
 namespace Vlms.Infrastructure.Engagement;
 
@@ -53,9 +54,10 @@ public sealed record StudentJourney(
     /// <summary>
     /// Builds a journey with no caller check of its own: every caller must authorize first (as
     /// <see cref="StudentPageService"/> does by resolving the caller's own student, the roster and the
-    /// parent dashboard by their own role and scope checks).
+    /// parent dashboard by their own role and scope checks). <paramref name="badgeImageRankIds"/> is
+    /// <see cref="RankBadgeService.RankIdsWithImageAsync"/>, computed once by the caller per page load.
     /// </summary>
-    internal static async Task<StudentJourney?> LoadAsync(VlmsDbContext db, int studentId, CancellationToken ct)
+    internal static async Task<StudentJourney?> LoadAsync(VlmsDbContext db, IReadOnlySet<int> badgeImageRankIds, int studentId, CancellationToken ct)
     {
         var student = await db.Students
             .Where(s => s.Id == studentId)
@@ -91,7 +93,6 @@ public sealed record StudentJourney(
                 .ToListAsync(ct))
             .GroupBy(b => b.RankId)
             .ToDictionary(g => g.Key, g => g.Min(b => b.AwardedAt));
-        var badgeImages = (await db.RankBadges.Select(rb => rb.RankId).ToListAsync(ct)).ToHashSet();
 
         var graduated = student.Status == StudentStatus.Graduated;
         var currentOrder = ranks.FirstOrDefault(r => r.Id == student.CurrentRankId)?.Order ?? 0;
@@ -116,7 +117,7 @@ public sealed record StudentJourney(
                     })
                     .ToList(),
                 badges.TryGetValue(r.Id, out var awardedAt) ? awardedAt : null,
-                badgeImages.Contains(r.Id)))
+                badgeImageRankIds.Contains(r.Id)))
             .ToList();
 
         return new StudentJourney(student.Id, student.Name, graduated, journeyRanks);

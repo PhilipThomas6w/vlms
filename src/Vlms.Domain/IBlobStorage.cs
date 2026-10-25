@@ -21,4 +21,10 @@ public interface IBlobStorage
     /// <see cref="ArgumentException"/> rather than returning null.
     /// </summary>
     Task<byte[]?> ReadAsync(string blobKey, CancellationToken ct = default);
+
+    /// <summary>
+    /// Whether a blob exists at <paramref name="blobKey"/>, without reading it. Same key validation
+    /// as <see cref="ReadAsync"/>.
+    /// </summary>
+    Task<bool> ExistsAsync(string blobKey, CancellationToken ct = default);
 }

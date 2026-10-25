@@ -43,6 +43,25 @@ public sealed class RankBadgeServiceTests : IDisposable
 
     public void Dispose() => _anchorConnection.Dispose();
 
+    [Fact]
+    public async Task RowWithMissingBlob_CountsAsNoImage_WhileRowWithPresentBlobStillDoes()
+    {
+        using var admin = CreateCaller(userId: 1, Role.NationalAdministrator);
+
+        await _blobs.UploadAsync("rank-badges/1.png", PngSignature);
+        admin.Context.RankBadges.Add(new RankBadge { Id = 1, RankId = 1, ImageBlobKey = "rank-badges/1.png" });
+        // Rank 2 has a row whose image was never written (or was lost): the row alone must not count.
+        admin.Context.RankBadges.Add(new RankBadge { Id = 2, RankId = 2, ImageBlobKey = "rank-badges/2.png" });
+        await admin.Context.SaveChangesAsync();
+
+        var ranks = await admin.Service.ListRanksAsync();
+        Assert.True(ranks.Single(r => r.RankId == 1).HasImage);
+        Assert.False(ranks.Single(r => r.RankId == 2).HasImage);
+
+        var withImage = await RankBadgeService.RankIdsWithImageAsync(admin.Context, _blobs);
+        Assert.Equal([1], withImage.Order());
+    }
+
     private sealed class Caller(ServiceProvider provider, IServiceScope scope, VlmsDbContext context, RankBadgeService service) : IDisposable
     {
         public VlmsDbContext Context { get; } = context;

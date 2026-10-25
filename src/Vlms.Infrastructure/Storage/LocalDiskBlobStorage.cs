@@ -61,6 +61,9 @@ public sealed class LocalDiskBlobStorage : IBlobStorage
         return File.Exists(path) ? await File.ReadAllBytesAsync(path, ct) : null;
     }
 
+    public Task<bool> ExistsAsync(string blobKey, CancellationToken ct = default) =>
+        Task.FromResult(File.Exists(ResolvePath(blobKey)));
+
     /// <summary>
     /// Maps a blob key onto a real filesystem path under <see cref="_rootPath"/>, rejecting any key
     /// that could otherwise escape it. <see cref="IBlobStorage.UploadAsync"/>'s contract accepts any

@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Vlms.Domain;
+using Vlms.Infrastructure.Badges;
 
 namespace Vlms.Infrastructure.Engagement;
 
@@ -19,11 +20,13 @@ public sealed class StudentPageService
 {
     private readonly VlmsDbContext _db;
     private readonly ICurrentUserContext _currentUser;
+    private readonly IBlobStorage _blobs;
 
-    public StudentPageService(VlmsDbContext db, ICurrentUserContext currentUser)
+    public StudentPageService(VlmsDbContext db, ICurrentUserContext currentUser, IBlobStorage blobs)
     {
         _db = db;
         _currentUser = currentUser;
+        _blobs = blobs;
     }
 
     /// <summary>The caller's own record, or null if no student record is linked to their sign-in.</summary>
@@ -44,9 +47,13 @@ public sealed class StudentPageService
             .Select(s => (int?)s.Id)
             .SingleOrDefaultAsync(ct);
 
-        return studentId is int id
-            ? await StudentRosterService.LoadRecordAsync(_db, id, activeOnly: false, ct)
-            : null;
+        if (studentId is not int id)
+        {
+            return null;
+        }
+
+        var badgeImageRankIds = await RankBadgeService.RankIdsWithImageAsync(_db, _blobs, ct);
+        return await StudentRosterService.LoadRecordAsync(_db, badgeImageRankIds, id, activeOnly: false, ct);
     }
 
     /// <summary>
@@ -70,6 +77,12 @@ public sealed class StudentPageService
             .Select(s => (int?)s.Id)
             .SingleOrDefaultAsync(ct);
 
-        return studentId is int id ? await StudentJourney.LoadAsync(_db, id, ct) : null;
+        if (studentId is not int id)
+        {
+            return null;
+        }
+
+        var badgeImageRankIds = await RankBadgeService.RankIdsWithImageAsync(_db, _blobs, ct);
+        return await StudentJourney.LoadAsync(_db, badgeImageRankIds, id, ct);
     }
 }

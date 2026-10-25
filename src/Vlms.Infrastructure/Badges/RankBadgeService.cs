@@ -61,10 +61,36 @@ public sealed class RankBadgeService
     {
         RequireAdmin();
 
-        return await _db.Ranks.AsNoTracking()
+        var withImage = await RankIdsWithImageAsync(_db, _blobStorage, ct);
+        var ranks = await _db.Ranks.AsNoTracking()
             .OrderBy(r => r.Order)
-            .Select(r => new RankBadgeRow(r.Id, r.Name, r.RankBadges.Any()))
+            .Select(r => new { r.Id, r.Name })
             .ToListAsync(ct);
+        return ranks.Select(r => new RankBadgeRow(r.Id, r.Name, withImage.Contains(r.Id))).ToList();
+    }
+
+    /// <summary>
+    /// The ids of the ranks that have a badge image: the rank's <see cref="RankBadge"/> row exists AND
+    /// its blob is in storage. A row whose blob is missing does not count, so the medallion shows the
+    /// rank's number rather than a broken image. Checks that each candidate blob exists (without
+    /// reading it), so callers should compute this once per page load, not once per image request.
+    /// </summary>
+    public static async Task<HashSet<int>> RankIdsWithImageAsync(VlmsDbContext db, IBlobStorage blobStorage, CancellationToken ct = default)
+    {
+        var rows = await db.RankBadges.AsNoTracking()
+            .Select(b => new { b.RankId, b.ImageBlobKey })
+            .ToListAsync(ct);
+
+        var rankIds = new HashSet<int>();
+        foreach (var row in rows)
+        {
+            if (await blobStorage.ExistsAsync(row.ImageBlobKey, ct))
+            {
+                rankIds.Add(row.RankId);
+            }
+        }
+
+        return rankIds;
     }
 
     /// <summary>

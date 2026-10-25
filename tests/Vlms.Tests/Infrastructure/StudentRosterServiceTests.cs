@@ -79,7 +79,7 @@ public sealed class StudentRosterServiceTests : IDisposable
     private async Task<T> Run<T>(ICurrentUserContext user, Func<StudentRosterService, Task<T>> action)
     {
         using var db = CreateDb(user);
-        return await action(new StudentRosterService(db, user));
+        return await action(new StudentRosterService(db, user, new InMemoryBlobStorage()));
     }
 
     [Fact]
