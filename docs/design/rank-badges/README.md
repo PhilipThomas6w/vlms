@@ -72,7 +72,7 @@ Shared threads (every badge): ink `#1F1828`, gold `#EDB637`, gold shade `#B47C17
 | Guardsman | `#1E7B4F` malachite | `#0E3F28` | Steadfast green behind silver armour |
 | Shield-bearer | `#2346A8` lapis | `#122459` | Faith and heaven; the crimson-and-gold shield stands out on it |
 | Sword-bearer | `#C8431F` vermilion | `#6A200C` | Courage, warm and bright without being blood red |
-| Herald | `#178AA0` turquoise | `#0B4652` | Open sky: proclaiming outwards |
+| Herald | `#137B93` turquoise (was `#178AA0`; darkened in Phase E, section 10) | `#0B4652` | Open sky: proclaiming outwards |
 | Torch-bearer | `#1C1E4C` midnight | `#0B0C24` | Light shines in the darkness: the flame needs a dark ground |
 | Standard-bearer | `#DE9A1E` saffron | `#7A4C06` | Red banner on gold: the Byzantine imperial colours (as in the group's flag asset) |
 | Cross-bearer | `#F3E6C6` ivory | `#7A1424` | Paschal white: the one light field, so the Cross stands out in the set |
@@ -166,4 +166,29 @@ Philip, 25/10/2026: "I'm happy with these, certainly as a MVP. We can always rev
 - **D5. Phase E: let the badge fill the whole medallion.** Today the badge is shown at 76% inside a second coloured ring, so it appears at 33 px. Draft: when a rank has a badge, `RankMedallion` shows it at 100% with no extra ring or dashed stitch (the badge has its own rim); that is 44 px and 64 px, a third larger. Shown on the contact sheet as "option: badge fills".
 - **D6. Phase E: update the rank colour tokens** (`.rank-1` … `.rank-10` in `app.css`) to the fields above, so the rings, pills, tints and hero bars match the badges. Each needs a contrast check for `--rank-on` text (saffron and ivory fields take ink text).
 
-Not done in this phase, by instruction: replacing or uploading badges, changing `RankMedallion` or tokens, and inspecting the badges in the running application (Phase F).
+Not done in Phase D, by instruction: replacing or uploading badges, changing `RankMedallion` or tokens, and inspecting the badges in the running application. All three were done in Phases E and F (section 10).
+
+## 10. What was built (Phases E and F, 25/10/2026)
+
+**D5, the medallion.** `RankMedallion.razor` adds `medallion--badge` when the rank has an uploaded badge; `app.css` then drops the medallion's own fill, ring and stitch and shows the badge at 100% (44 px small, 64 px medium; it was 33/49 px). The not-yet-earned treatment is unchanged: the rank being worked towards is faded, ranks ahead are greyscale and faded. Ranks without an uploaded badge keep the numbered fallback.
+
+**D6, the tokens.** `.rank-1` to `.rank-10` in `app.css` take the badge field colours. A new `--rank-edge` token carries every border and indicator drawn in the rank colour (rank pill, hero bar, next-lesson bar, the current station in "Through the ranks", the outlined medallion, the tesserae). It equals the field except on the two light ranks, where saffron and ivory fail 3:1 against white. The Herald field failed 4.5:1 with both white (4.05:1) and ink (4.01:1), so it was darkened from `#178AA0` to `#137B93` in the tokens and in the badge itself.
+
+| Rank | `--rank-field` | `--rank-on` | Text on field (4.5:1) | `--rank-edge` | Edge vs white / paper / tint (3:1) | Ink on `--rank-tint` |
+|---|---|---|---|---|---|---|
+| 1 Recruit | `#A51C2E` | white | 7.49 | field | 7.49 / 7.04 / 5.86 | 12.73 |
+| 2 Guardsman | `#1E7B4F` | white | 5.25 | field | 5.25 / 4.94 / 4.35 | 13.47 |
+| 3 Shield-bearer | `#2346A8` | white | 8.36 | field | 8.36 / 7.86 / 6.63 | 12.92 |
+| 4 Sword-bearer | `#C8431F` | white | 4.91 | field | 4.91 / 4.62 / 4.03 | 13.35 |
+| 5 Herald | `#137B93` | white | 4.90 | field | 4.90 / 4.61 / 4.08 | 13.54 |
+| 6 Torch-bearer | `#1C1E4C` | white | 15.68 | field | 15.68 / 14.75 / 11.82 | 12.27 |
+| 7 Standard-bearer | `#DE9A1E` | ink `#172033` | 6.78 | `#7A4C06` | 7.33 / 6.90 / 6.53 | 14.50 |
+| 8 Cross-bearer | `#F3E6C6` | ink `#172033` | 13.13 | `#7A1424` | 10.75 / 10.12 / 9.72 | 14.71 |
+| 9 Christ-bearer | `#7A1736` | white | 10.48 | field | 10.48 / 9.86 / 8.10 | 12.57 |
+| 10 Akolouthos | `#4A2A74` | white | 11.20 | field | 11.20 / 10.54 / 8.72 | 12.66 |
+
+Paper is `#F7F8FA`; white is the surface. Ratios are WCAG 2.2 relative-luminance contrast, computed from the hex values.
+
+**Loading the badges.** The final SVGs are in `seed/rank-badges/{order:00}-{code}.svg`, written by `build_badges.py` alongside `proposed/`. Production loading is unchanged: a National Administrator uploads each file on `/administration/rank-badges`, which stores it through `RankBadgeService` (SVG, under 2 MB). The service needed no change. `RankBadgeServiceTests.DesignedBadges_OnePerRank_AreAcceptedAndSelfContained` checks three things: there is one file per rank code in `seed/curriculum.json`; the service accepts each file; and no file holds script, event handlers, embedded images, `foreignObject` or external references. No loading command was added, because `Vlms.Jobs` runs without an Admin identity and a command would need an authorisation change. Locally, the design capture seed (`tests/Vlms.UiTests/Capture/CaptureSeed.cs`) uploads the same files for all ten ranks.
+
+**Checked in the running app** with the design capture at phone (375 px), tablet (768 px) and desktop (1280 px) widths, on `/student`, `/parent/dashboard`, `/students`, `/students/1` and `/administration/rank-badges`. There were no axe violations (WCAG 2.0 to 2.2 A and AA tags) and no horizontal overflow. The badges are round, unclipped and legible at 44 and 64 px, and the greyscale ranks ahead stay distinguishable by their symbols.

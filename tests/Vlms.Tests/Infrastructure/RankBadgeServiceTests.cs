@@ -265,4 +265,50 @@ public sealed class RankBadgeServiceTests : IDisposable
 
         Assert.Null(await admin.Service.OpenImageAsync(2));
     }
+
+    /// <summary>
+    /// The ten designed badges in <c>seed/rank-badges/</c> (docs/design/rank-badges/README.md) are what a
+    /// National Administrator uploads: one per rank code in <c>seed/curriculum.json</c>, each accepted by the
+    /// service as it stands, and each free of script and external references (the endpoint's CSP would
+    /// block them anyway; the files should not depend on that).
+    /// </summary>
+    [Fact]
+    public async Task DesignedBadges_OnePerRank_AreAcceptedAndSelfContained()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root is not null && !File.Exists(Path.Combine(root.FullName, "Vlms.slnx")))
+        {
+            root = root.Parent;
+        }
+        Assert.NotNull(root);
+
+        using var manifest = System.Text.Json.JsonDocument.Parse(File.ReadAllText(Path.Combine(root.FullName, "seed", "curriculum.json")));
+        var codes = manifest.RootElement.GetProperty("ranks").EnumerateArray()
+            .Select(r => (Order: r.GetProperty("order").GetInt32(), Code: r.GetProperty("code").GetString()!.ToLowerInvariant()))
+            .OrderBy(r => r.Order)
+            .ToList();
+        Assert.Equal(10, codes.Count);
+
+        using var admin = CreateCaller(userId: 1, Role.NationalAdministrator);
+        foreach (var (order, code) in codes)
+        {
+            var path = Path.Combine(root.FullName, "seed", "rank-badges", $"{order:00}-{code}.svg");
+            Assert.True(File.Exists(path), $"Missing designed badge {path}");
+            var bytes = await File.ReadAllBytesAsync(path);
+            var text = Encoding.UTF8.GetString(bytes);
+
+            Assert.DoesNotContain("<script", text, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("<image", text, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("<foreignObject", text, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotMatch(@"\son[a-z]+\s*=", text);
+            Assert.DoesNotMatch(@"(href|src)\s*=\s*""(?!#)", text);
+            Assert.DoesNotMatch(@"url\((?!#)", text);
+            Assert.Contains("viewBox=\"0 0 512 512\"", text);
+
+            // Rank 1 exists in this fixture; the service's checks do not depend on which rank.
+            await admin.Service.SetImageAsync(1, Path.GetFileName(path), bytes);
+        }
+
+        Assert.Single(admin.Context.RankBadges);
+    }
 }

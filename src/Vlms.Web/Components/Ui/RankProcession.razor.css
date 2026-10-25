@@ -34,7 +34,7 @@
 .the-way__station.is-current {
     background: var(--rank-tint);
     margin-left: -0.5rem; padding-left: 0.5rem;
-    box-shadow: inset 4px 0 0 var(--rank-field);
+    box-shadow: inset 4px 0 0 var(--rank-edge);
 }
 .the-way__station.is-current .the-way__name { font-family: var(--font-display); font-size: var(--step-1); color: var(--lapis-900); }
 .the-way__station.is-current .the-way__meta { color: var(--ink); font-weight: 600; }
