@@ -69,18 +69,20 @@
         --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
     }
 
-    /* Rank colours, from the embroidered patches (direction doc, section 3). field = strong colour,
-       on = text on the field, tint = light ground, accent = second patch colour for ornament. */
-    .rank-1  { --rank-field: #E2B33C; --rank-on: var(--ink); --rank-tint: #FDF3D1; --rank-accent: #B3261E; }
-    .rank-2  { --rank-field: #B3261E; --rank-on: #FFFFFF;   --rank-tint: #FBE4E1; --rank-accent: #E2B33C; }
-    .rank-3  { --rank-field: #1E2F8F; --rank-on: #FFFFFF;   --rank-tint: #E3E7F8; --rank-accent: #E2B33C; }
-    .rank-4  { --rank-field: #1C7A3E; --rank-on: #FFFFFF;   --rank-tint: #DFF3E6; --rank-accent: #D9DEE5; }
-    .rank-5  { --rank-field: #1A6FA8; --rank-on: #FFFFFF;   --rank-tint: #DDEFFA; --rank-accent: #D63A2F; }
-    .rank-6  { --rank-field: #2A211C; --rank-on: #FFFFFF;   --rank-tint: #FDE6D8; --rank-accent: #E8590C; }
-    .rank-7  { --rank-field: #4D7C0F; --rank-on: #FFFFFF;   --rank-tint: #ECF7D9; --rank-accent: #D63A2F; }
-    .rank-8  { --rank-field: #233B8C; --rank-on: #FFFFFF;   --rank-tint: #FFF3C4; --rank-accent: #F2C744; }
-    .rank-9  { --rank-field: #9B2C2C; --rank-on: #FFFFFF;   --rank-tint: #F6E9D6; --rank-accent: #D9B98C; }
-    .rank-10 { --rank-field: #14254F; --rank-on: #FFFFFF;   --rank-tint: #F7EBC8; --rank-accent: #E2B33C; }
+    /* Rank colours, from the rank badges (docs/design/rank-badges/README.md, sections 3 and 10).
+       field = the badge's field colour; on = text on the field (4.5:1 or better); edge = the rank colour
+       for borders and progress marks on white or the tint (3:1 or better: the field itself, except
+       where the field is light); tint = light ground (ink text 12:1 or better); accent = ornament ring. */
+    .rank-1  { --rank-field: #A51C2E; --rank-on: #FFFFFF;   --rank-edge: var(--rank-field); --rank-tint: #F2DFE2; --rank-accent: #EDB637; }
+    .rank-2  { --rank-field: #1E7B4F; --rank-on: #FFFFFF;   --rank-edge: var(--rank-field); --rank-tint: #DFEDE6; --rank-accent: #EDB637; }
+    .rank-3  { --rank-field: #2346A8; --rank-on: #FFFFFF;   --rank-edge: var(--rank-field); --rank-tint: #E0E5F3; --rank-accent: #EDB637; }
+    .rank-4  { --rank-field: #C8431F; --rank-on: #FFFFFF;   --rank-edge: var(--rank-field); --rank-tint: #F7E5E0; --rank-accent: #EDB637; }
+    .rank-5  { --rank-field: #137B93; --rank-on: #FFFFFF;   --rank-edge: var(--rank-field); --rank-tint: #DEEDF0; --rank-accent: #EDB637; }
+    .rank-6  { --rank-field: #1C1E4C; --rank-on: #FFFFFF;   --rank-edge: var(--rank-field); --rank-tint: #DFDFE6; --rank-accent: #EDB637; }
+    .rank-7  { --rank-field: #DE9A1E; --rank-on: var(--ink); --rank-edge: #7A4C06;          --rank-tint: #FAF1DF; --rank-accent: #A51C2E; }
+    .rank-8  { --rank-field: #F3E6C6; --rank-on: var(--ink); --rank-edge: #7A1424;          --rank-tint: #FBF3DF; --rank-accent: #A51C2E; }
+    .rank-9  { --rank-field: #7A1736; --rank-on: #FFFFFF;   --rank-edge: var(--rank-field); --rank-tint: #ECDFE3; --rank-accent: #EDB637; }
+    .rank-10 { --rank-field: #4A2A74; --rank-on: #FFFFFF;   --rank-edge: var(--rank-field); --rank-tint: #E6E1EC; --rank-accent: #EDB637; }
 }
 
 @layer base {
@@ -406,7 +408,7 @@
         padding: 0.0625rem var(--s-2) 0.0625rem 0.3rem;
         border-radius: 999px;
         background: var(--rank-tint); color: var(--ink);
-        border: 1px solid color-mix(in srgb, var(--rank-field) 55%, transparent);
+        border: 1px solid color-mix(in srgb, var(--rank-edge) 55%, transparent);
         font-size: var(--step--1); font-weight: 600; line-height: 1.5; white-space: nowrap;
     }
     .rank-pill::before {
@@ -438,14 +440,20 @@
     .medallion--lg { --size: 7.5rem; }
     .medallion--sm { --size: 2.75rem; box-shadow: 0 0 0 2px var(--rank-accent); }
     .medallion--sm::after { border-width: 1.5px; }
-    .medallion--ahead { background: var(--surface); color: var(--rank-field); box-shadow: 0 0 0 2px var(--rank-field); }
-    .medallion--ahead::after { border-color: color-mix(in srgb, var(--rank-field) 45%, transparent); }
+    .medallion--ahead { background: var(--surface); color: var(--rank-edge); box-shadow: 0 0 0 2px var(--rank-edge); }
+    .medallion--ahead::after { border-color: color-mix(in srgb, var(--rank-edge) 45%, transparent); }
+    /* With an uploaded badge (decision D5, docs/design/rank-badges/README.md): the badge is itself a
+       complete patch with its own rim, so it fills the medallion with no second ring or stitch. The
+       faded and greyed states above still apply to the image. */
+    .medallion--badge, .medallion--badge.medallion--sm, .medallion--badge.medallion--ahead { background: none; box-shadow: none; }
+    .medallion--badge::after { content: none; }
+    .medallion--badge img { width: 100%; height: 100%; }
 
     /* Tesserae: one square tile per lesson in the rank; filled tiles have a gold edge. */
     .tesserae { display: flex; flex-wrap: wrap; gap: 0.375rem; list-style: none; padding: 0; margin: 0; }
     .tesserae li {
         width: 1.5rem; height: 1.5rem; border-radius: var(--r-tessera);
-        border: 2px solid color-mix(in srgb, var(--tile-on, var(--rank-field)) 50%, transparent);
+        border: 2px solid color-mix(in srgb, var(--tile-on, var(--rank-edge)) 50%, transparent);
     }
     .tesserae li.done {
         background: var(--tile-fill, var(--gold-500));
@@ -456,7 +464,7 @@
     .tesserae li.done:nth-child(3n+1) { transform: rotate(-3deg); }
     .tesserae li.done:nth-child(3n+2) { transform: rotate(2deg) translateY(1px); }
     .tesserae li.done:nth-child(4n) { transform: rotate(-1.5deg) translateY(-1px); }
-    .tesserae li.next { border-style: dashed; border-color: var(--tile-on, var(--rank-field)); }
+    .tesserae li.next { border-style: dashed; border-color: var(--tile-on, var(--rank-edge)); }
     .tesserae--sm { gap: 0.25rem; }
     .tesserae--sm li { width: 0.875rem; height: 0.875rem; border-width: 1.5px; }
 
@@ -468,7 +476,7 @@
         mask: url("img/eagle.svg") center / contain no-repeat;
     }
     .medallion .medallion__eagle { width: 70%; color: var(--gold-500); position: relative; z-index: 1; }
-    .medallion--ahead .medallion__eagle { color: var(--rank-field); opacity: 0.55; }
+    .medallion--ahead .medallion__eagle { color: var(--rank-edge); opacity: 0.55; }
 
 
     /* Empty states: say what will appear and what to do. */
@@ -608,7 +616,7 @@
 
     /* Parent dashboard: each child on a panel with their rank's colour as a band. */
     .children { display: grid; gap: var(--s-5); }
-    .child { background: var(--surface); border: 1px solid var(--line); border-top: 6px solid var(--rank-field, var(--lapis-700)); border-radius: var(--r-panel); padding: var(--s-5); }
+    .child { background: var(--surface); border: 1px solid var(--line); border-top: 6px solid var(--rank-edge, var(--lapis-700)); border-radius: var(--r-panel); padding: var(--s-5); }
     .child__head { display: flex; align-items: center; gap: var(--s-5); margin-bottom: var(--s-3); background: var(--rank-tint, var(--lapis-50)); margin: calc(-1 * var(--s-5)) calc(-1 * var(--s-5)) var(--s-4); padding: var(--s-5); border-radius: var(--r-panel) var(--r-panel) 0 0; }
     .child__head h2 { margin: 0 0 var(--s-1); font-size: var(--step-3); }
     .child__head p { margin: 0; }

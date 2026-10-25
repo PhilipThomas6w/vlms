@@ -40,7 +40,7 @@ RANKS = [
     (2, "guardsman", "Guardsman", "#1E7B4F", "#0E3F28", "cable"),
     (3, "shield-bearer", "Shield-bearer", "#2346A8", "#122459", "cable"),
     (4, "sword-bearer", "Sword-bearer", "#C8431F", "#6A200C", "cable"),
-    (5, "herald", "Herald", "#178AA0", "#0B4652", "notched"),
+    (5, "herald", "Herald", "#137B93", "#0B4652", "notched"),  # darkened from #178AA0 for 4.9:1 with white text (Phase E)
     (6, "torch-bearer", "Torch-bearer", "#1C1E4C", "#0B0C24", "pearls"),
     (7, "standard-bearer", "Standard-bearer", "#DE9A1E", "#7A4C06", "pearls"),
     (8, "cross-bearer", "Cross-bearer", "#F3E6C6", "#7A1424", "pearls"),
@@ -703,6 +703,8 @@ def main():
         sym, note = PROPOSED[order]
         svg = badge(field, shade, band, sym, f"{name} badge", note)
         write(os.path.join(OUT, "proposed", f"{order:02d}-{code}.svg"), svg)
+        # the production copy, uploaded through /administration/rank-badges (seed/rank-badges/README.md)
+        write(os.path.join(ROOT, "seed", "rank-badges", f"{order:02d}-{code}.svg"), svg)
         proposed[order] = svg
     explored = []
     for fname, order, override, sym, label in EXPLORATION:

@@ -116,26 +116,31 @@ public static class CaptureSeed
 
         await db.SaveChangesAsync();
 
-        // A plain placeholder badge per written rank (the real designs are uploaded by an Admin).
+        // A badge per rank: the designed badges in seed/rank-badges/ (docs/design/rank-badges/README.md), which
+        // an Admin uploads in production. VLMS_CAPTURE_BADGES: a local folder of rank-<order>.png images (for
+        // example photographs of the real patches, never committed) takes precedence when set.
+        var designed = FindRepoFile("seed/rank-badges");
         var badges = new Dictionary<int, RankBadge>();
-        foreach (var rank in ranks.Where(r => lessonsByRank[r.Id].Count > 0))
+        foreach (var rank in ranks)
         {
-            // VLMS_CAPTURE_BADGES: a local folder of rank-<order>.png images (for example photographs of the
-            // real patches, never committed); otherwise a plain numbered placeholder.
             var photo = Environment.GetEnvironmentVariable("VLMS_CAPTURE_BADGES") is { Length: > 0 } dir
                 ? Path.Combine(dir, $"rank-{rank.Order}.png")
                 : null;
+            var svgPath = Path.Combine(designed, $"{rank.Order:00}-{rank.Code.ToLowerInvariant()}.svg");
             string key;
             if (photo is not null && File.Exists(photo))
             {
                 key = $"badges/capture-{rank.Id}.png";
                 await blobs.UploadAsync(key, await File.ReadAllBytesAsync(photo));
             }
-            else
+            else if (File.Exists(svgPath))
             {
                 key = $"badges/capture-{rank.Id}.svg";
-                var svg = $"<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 64 64\"><circle cx=\"32\" cy=\"32\" r=\"30\" fill=\"#334\"/><text x=\"32\" y=\"40\" font-size=\"22\" text-anchor=\"middle\" fill=\"#fff\">{rank.Order}</text></svg>";
-                await blobs.UploadAsync(key, Encoding.UTF8.GetBytes(svg));
+                await blobs.UploadAsync(key, await File.ReadAllBytesAsync(svgPath));
+            }
+            else
+            {
+                continue;
             }
             var badge = new RankBadge { Id = rank.Id, RankId = rank.Id, ImageBlobKey = key };
             badges[rank.Id] = badge;

@@ -4,7 +4,7 @@
 .rank-hero {
     background: var(--surface);
     border: 1px solid var(--line);
-    border-top: 6px solid var(--rank-field);
+    border-top: 6px solid var(--rank-edge);
     border-radius: 12px;
     padding: var(--s-5);
     margin-bottom: var(--s-6);
@@ -65,7 +65,7 @@
 .next-lesson__card {
     background: var(--surface);
     border: 1px solid var(--line);
-    border-left: 6px solid var(--rank-field);
+    border-left: 6px solid var(--rank-edge);
     border-radius: var(--r-panel);
     padding: var(--s-5);
 }
@@ -87,7 +87,7 @@
 }
 .lesson-list .is-done .lesson-list__mark { background: var(--success); border-color: var(--success); color: #FFFFFF; }
 .lesson-list .is-done .lesson-list__mark ::deep svg { width: 1.125rem; height: 1.125rem; stroke-width: 3; }
-.lesson-list .is-next .lesson-list__mark { border-style: dashed; border-color: var(--rank-field); color: var(--ink); }
+.lesson-list .is-next .lesson-list__mark { border-style: dashed; border-color: var(--rank-edge); color: var(--ink); }
 .lesson-list__text { display: flex; flex-direction: column; min-width: 0; }
 .lesson-list__title { font-weight: 700; font-size: var(--step-0); }
 .lesson-list__title:hover { color: var(--lapis-700); }
