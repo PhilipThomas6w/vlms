@@ -250,4 +250,117 @@ public sealed class CurriculumSeederTests : IDisposable
         Assert.All(lessons.SelectMany(l => l.GetProperty("tags").EnumerateArray()),
             t => Assert.Contains(new string(t.GetString()!.Where(char.IsLetter).ToArray()), validTags));
     }
+
+    // --- Clean file names (FR-006) ------------------------------------------------------------
+
+    private string NamesPath => Path.Combine(_tempRoot, "file-names.json");
+
+    private async Task<CurriculumSeedResult> RunWithNamesAsync(bool namesOnly = false)
+    {
+        var manifestPath = Path.Combine(_tempRoot, "manifest.json");
+        await File.WriteAllTextAsync(manifestPath, Manifest());
+        using var db = CreateContext();
+        return await new CurriculumSeeder(db, _blobStorage)
+            .SeedAsync(manifestPath, Path.Combine(_tempRoot, "content"), default, NamesPath, namesOnly);
+    }
+
+    private void WriteScannerContent()
+    {
+        WriteContent("Recruits (1)/1. Intro/Varangian Guard.docx");
+        WriteContent("Recruits (1)/1. Intro/Images/St Theodore1_ Icon 07102022_095055_000113.jpg");
+    }
+
+    [Fact]
+    public async Task WithFileNames_StoresCleanNameWithOriginalExtension_AndWritesTheList()
+    {
+        WriteScannerContent();
+
+        var result = await RunWithNamesAsync();
+
+        Assert.True(result.Succeeded);
+        Assert.Equal(2, result.FileNamesAdded);
+        using var db = CreateContext();
+        Assert.Equal(["Varangian Guard.docx", "St Theodore 1 – Icon.jpg"], (await db.LessonFiles.OrderBy(f => f.Order).ToListAsync()).Select(f => f.FileName));
+        var json = await File.ReadAllTextAsync(NamesPath);
+        Assert.Contains("\"lessons/R1-01/Images/St Theodore1_ Icon 07102022_095055_000113.jpg\"", json);
+        Assert.Contains("St Theodore 1 – Icon", json);
+        // The blob key stays the real path, whatever the name.
+        Assert.True(_blobStorage.TryGetBlob("lessons/R1-01/Images/St Theodore1_ Icon 07102022_095055_000113.jpg", out _));
+    }
+
+    [Fact]
+    public async Task NamesOnly_WritesTheListAndNothingElse()
+    {
+        WriteScannerContent();
+
+        var result = await RunWithNamesAsync(namesOnly: true);
+
+        Assert.True(result.Succeeded);
+        Assert.Equal(2, result.FileNamesAdded);
+        Assert.Equal(0, result.FilesUploaded);
+        Assert.True(File.Exists(NamesPath));
+        using var db = CreateContext();
+        Assert.Empty(await db.Lessons.ToListAsync());
+    }
+
+    [Fact]
+    public async Task HandEditedName_WinsOnLaterRuns_AndIsRenamedInPlaceKeepingIds()
+    {
+        WriteScannerContent();
+        await RunAsync(Manifest()); // seeded earlier with the raw scanner names
+        using var before = CreateContext();
+        var idsBefore = (await before.LessonFiles.OrderBy(f => f.Order).ToListAsync()).Select(f => f.Id).ToList();
+
+        var first = await RunWithNamesAsync();
+        Assert.Equal(1, first.FilesRenamed); // only the scanner-named image differs
+        Assert.Equal(1, first.LessonsUpdated);
+
+        // Philip corrects one name by hand.
+        var json = (await File.ReadAllTextAsync(NamesPath)).Replace("\"St Theodore 1 – Icon\"", "\"St Theodore – Icon (1)\"");
+        await File.WriteAllTextAsync(NamesPath, json);
+        var second = await RunWithNamesAsync();
+
+        Assert.True(second.Succeeded);
+        Assert.Equal((0, 1), (second.FileNamesAdded, second.FilesRenamed));
+        using var db = CreateContext();
+        var files = await db.LessonFiles.OrderBy(f => f.Order).ToListAsync();
+        Assert.Equal(idsBefore, files.Select(f => f.Id));
+        Assert.Equal(["Varangian Guard.docx", "St Theodore – Icon (1).jpg"], files.Select(f => f.FileName));
+
+        var third = await RunWithNamesAsync();
+        Assert.Equal((0, 0, 0), (third.FileNamesAdded, third.FilesRenamed, third.LessonsUpdated));
+        Assert.Contains("St Theodore – Icon (1)", await File.ReadAllTextAsync(NamesPath));
+    }
+
+    [Fact]
+    public async Task NewFile_GetsTheRuleName_AndMissingFileIsOnlyAWarning()
+    {
+        WriteScannerContent();
+        await RunWithNamesAsync();
+        File.Delete(Path.Combine(_tempRoot, "content", "Recruits (1)/1. Intro/Varangian Guard.docx"));
+        WriteContent("Recruits (1)/1. Intro/Feasts_07102022_101217_000123.jpg");
+
+        var result = await RunWithNamesAsync();
+
+        Assert.True(result.Succeeded);
+        Assert.Equal(1, result.FileNamesAdded);
+        Assert.Contains(result.Warnings, w => w.Contains("lessons/R1-01/Varangian Guard.docx") && w.Contains("no longer present"));
+        Assert.Contains("Varangian Guard", await File.ReadAllTextAsync(NamesPath)); // never removed
+        using var db = CreateContext();
+        Assert.Contains(await db.LessonFiles.ToListAsync(), f => f.FileName == "Feasts.jpg");
+    }
+
+    [Fact]
+    public async Task UnreadableList_RefusesAndWritesNothing()
+    {
+        WriteScannerContent();
+        await File.WriteAllTextAsync(NamesPath, "{ not json");
+
+        var result = await RunWithNamesAsync();
+
+        Assert.False(result.Succeeded);
+        using var db = CreateContext();
+        Assert.Empty(await db.Lessons.ToListAsync());
+        Assert.False(_blobStorage.TryGetBlob("lessons/R1-01/Varangian Guard.docx", out _));
+    }
 }

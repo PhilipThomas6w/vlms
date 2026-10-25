@@ -50,7 +50,7 @@
                                     <ul>
                                         @foreach (var file in lesson.Files)
                                         {
-                                            <li><a href="/lessons/files/@file.Id" data-enhance-nav="false">@file.FileName</a></li>
+                                            <li><a href="/lessons/files/@file.Id" data-enhance-nav="false">@file.DisplayName</a></li>
                                         }
                                     </ul>
                                     <div class="offline-save" hidden data-offline-lesson
@@ -75,7 +75,7 @@
 
     // The lesson's files as the script that saves them for offline use reads them (wwwroot/offline-lessons.js).
     private static string FilesJson(LibraryLesson lesson) =>
-        System.Text.Json.JsonSerializer.Serialize(lesson.Files.Select(f => new { id = f.Id, name = f.FileName }));
+        System.Text.Json.JsonSerializer.Serialize(lesson.Files.Select(f => new { id = f.Id, name = f.DisplayName }));
 
     protected override async Task OnInitializedAsync()
     {

@@ -221,7 +221,8 @@ if (seedCurriculumArgs is not null)
     try
     {
         var seed = await scope.ServiceProvider.GetRequiredService<CurriculumSeeder>()
-            .SeedAsync(seedCurriculumArgs.ManifestPath!, seedCurriculumArgs.ContentRoot!);
+            .SeedAsync(seedCurriculumArgs.ManifestPath!, seedCurriculumArgs.ContentRoot!, default,
+                seedCurriculumArgs.FileNamesPath, seedCurriculumArgs.NamesOnly);
         foreach (var warning in seed.Warnings)
         {
             seedLogger.LogWarning("seed-curriculum: {Warning}", warning);
@@ -239,8 +240,8 @@ if (seedCurriculumArgs is not null)
         }
 
         seedLogger.LogInformation(
-            "seed-curriculum done: ranks {RanksCreated} created / {RanksUpdated} updated; lessons {LessonsCreated} created / {LessonsUpdated} updated; {FilesUploaded} file(s) uploaded.",
-            seed.RanksCreated, seed.RanksUpdated, seed.LessonsCreated, seed.LessonsUpdated, seed.FilesUploaded);
+            "seed-curriculum done: ranks {RanksCreated} created / {RanksUpdated} updated; lessons {LessonsCreated} created / {LessonsUpdated} updated; {FilesUploaded} file(s) uploaded; {FileNamesAdded} file-name list entr(ies) added, {FilesRenamed} file(s) renamed.",
+            seed.RanksCreated, seed.RanksUpdated, seed.LessonsCreated, seed.LessonsUpdated, seed.FilesUploaded, seed.FileNamesAdded, seed.FilesRenamed);
     }
     catch (Exception ex)
     {

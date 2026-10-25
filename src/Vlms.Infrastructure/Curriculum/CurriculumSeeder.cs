@@ -8,7 +8,8 @@ namespace Vlms.Infrastructure.Curriculum;
 /// <summary>
 /// Outcome of a <see cref="CurriculumSeeder.SeedAsync"/> run. When <see cref="Errors"/> is non-empty
 /// nothing was written (no database rows, no blobs) and the counters are all zero.
-/// <see cref="Warnings"/> never block a run: they report lessons/ranks in the database that the
+/// <see cref="FileNamesAdded"/> counts new entries written to the file-name list; <see cref="FilesRenamed"/>
+/// counts existing file rows renamed in place. <see cref="Warnings"/> never block a run: they report lessons/ranks in the database that the
 /// manifest no longer mentions (left untouched, as lessons may have completions).
 /// </summary>
 public sealed record CurriculumSeedResult(
@@ -18,7 +19,9 @@ public sealed record CurriculumSeedResult(
     int RanksUpdated,
     int LessonsCreated,
     int LessonsUpdated,
-    int FilesUploaded)
+    int FilesUploaded,
+    int FileNamesAdded = 0,
+    int FilesRenamed = 0)
 {
     public bool Succeeded => Errors.Count == 0;
 }
@@ -39,7 +42,20 @@ public sealed record CurriculumSeedResult(
 /// (<c>lessons/{lessonCode}/{relative path}</c>) and uploads overwrite, so a changed file is applied.</item>
 /// <item><b>Never deletes.</b> Lessons absent from the manifest are reported as warnings only.</item>
 /// <item><b>Application-assigned Ids</b> (max + 1), as elsewhere in the codebase.</item>
+/// <item><b>File Ids are stable.</b> When only a lesson's file names differ (same order, same blob keys)
+/// the rows are renamed in place, because saved offline lessons and links refer to the Ids; the set is
+/// replaced only when the order or the blob keys change.</item>
+/// <item><b>Hand-corrected names win.</b> <c>seed/file-names.json</c> (keyed by blob key: original name
+/// and clean name) only ever gains entries for new files, made by <see cref="LessonFileNames.CleanName"/>;
+/// existing entries are never changed or removed, so a hand edit survives every run. An entry for a
+/// file no longer present is a warning, not an error. The stored name is the clean name plus the
+/// original extension (FR-006); only seeded files are named this way.</item>
 /// </list>
+///
+/// Running it: <c>Vlms.Jobs seed-curriculum --manifest seed/curriculum.json --content-root seed
+/// --file-names seed/file-names.json</c>. Add <c>--names-only</c> to write the list and stop (no
+/// uploads, no database), to review or hand-correct it first; run again without it to apply. With no
+/// <c>--file-names</c> the names are left exactly as the files are called (existing behaviour).
 ///
 /// Uploads happen before the single <c>SaveChanges</c>: a failed upload leaves the database untouched,
 /// and re-running simply overwrites the same keys.
@@ -65,7 +81,8 @@ public sealed class CurriculumSeeder
         _blobStorage = blobStorage;
     }
 
-    public async Task<CurriculumSeedResult> SeedAsync(string manifestPath, string contentRoot, CancellationToken ct = default)
+    public async Task<CurriculumSeedResult> SeedAsync(string manifestPath, string contentRoot, CancellationToken ct = default,
+        string? fileNamesPath = null, bool namesOnly = false)
     {
         var errors = new List<string>();
         var manifest = ReadManifest(manifestPath, errors);
@@ -75,9 +92,24 @@ public sealed class CurriculumSeeder
         }
 
         var plan = Validate(manifest, contentRoot, errors);
+        var warnings = new List<string>();
+        var namesAdded = 0;
         if (errors.Count > 0)
         {
             return Failed(errors);
+        }
+        if (fileNamesPath is not null)
+        {
+            namesAdded = ApplyFileNames(plan, fileNamesPath, errors, warnings);
+        }
+        if (errors.Count > 0)
+        {
+            return Failed(errors);
+        }
+
+        if (namesOnly)
+        {
+            return new CurriculumSeedResult(errors, warnings, 0, 0, 0, 0, 0, namesAdded);
         }
 
         // Uploads (deterministic keys, overwrite) come before any database write.
@@ -93,6 +125,7 @@ public sealed class CurriculumSeeder
         var ranksUpdated = 0;
         var lessonsCreated = 0;
         var lessonsUpdated = 0;
+        var filesRenamed = 0;
 
         var ranks = await _db.Ranks.ToDictionaryAsync(r => r.Code, ct);
         var lessons = await _db.Lessons.ToDictionaryAsync(l => l.Code, ct);
@@ -164,12 +197,21 @@ public sealed class CurriculumSeeder
                     changed = true;
                 }
 
-                // Files: an identical sequence leaves the rows (and Ids) alone; otherwise replace the set.
+                // Files: an identical sequence leaves the rows (and Ids) alone; the same order and blob keys
+                // with different names rename the rows in place (Ids stay stable); otherwise replace the set.
                 var existingFiles = files[lesson.Id].OrderBy(f => f.Order).ToList();
-                var sameFiles = existingFiles.Count == planLesson.Files.Count
-                    && existingFiles.Zip(planLesson.Files).All(p =>
-                        p.First.Order == p.Second.Order && p.First.FileName == p.Second.FileName && p.First.BlobKey == p.Second.BlobKey);
-                if (!sameFiles)
+                var sameKeys = existingFiles.Count == planLesson.Files.Count
+                    && existingFiles.Zip(planLesson.Files).All(p => p.First.Order == p.Second.Order && p.First.BlobKey == p.Second.BlobKey);
+                if (sameKeys)
+                {
+                    foreach (var (existing, planned) in existingFiles.Zip(planLesson.Files).Where(p => p.First.FileName != p.Second.FileName))
+                    {
+                        SetValue(existing, f => f.FileName, planned.FileName);
+                        filesRenamed++;
+                        changed = true;
+                    }
+                }
+                else
                 {
                     _db.LessonFiles.RemoveRange(existingFiles);
                     foreach (var file in planLesson.Files)
@@ -195,7 +237,6 @@ public sealed class CurriculumSeeder
 
         var manifestRankCodes = plan.Select(r => r.Code).ToHashSet(StringComparer.Ordinal);
         var manifestLessonCodes = plan.SelectMany(r => r.Lessons).Select(l => l.Code).ToHashSet(StringComparer.Ordinal);
-        var warnings = new List<string>();
         warnings.AddRange(lessons.Keys.Where(c => !manifestLessonCodes.Contains(c)).Order(StringComparer.Ordinal)
             .Select(c => $"Lesson '{c}' is in the database but not in the manifest; left untouched."));
         warnings.AddRange(ranks.Keys.Where(c => !manifestRankCodes.Contains(c)).Order(StringComparer.Ordinal)
@@ -203,7 +244,7 @@ public sealed class CurriculumSeeder
 
         await _db.SaveChangesAsync(ct);
 
-        return new CurriculumSeedResult(errors, warnings, ranksCreated, ranksUpdated, lessonsCreated, lessonsUpdated, filesUploaded);
+        return new CurriculumSeedResult(errors, warnings, ranksCreated, ranksUpdated, lessonsCreated, lessonsUpdated, filesUploaded, namesAdded, filesRenamed);
     }
 
     // Entities are init-only, so existing rows are changed through the change tracker.
@@ -213,6 +254,43 @@ public sealed class CurriculumSeeder
 
     private static async Task<int> NextIdAsync(IQueryable<int> ids, CancellationToken ct)
         => (await ids.Select(i => (int?)i).MaxAsync(ct) ?? 0) + 1;
+
+    /// <summary>
+    /// Reads the file-name list, adds entries for new files, saves it when it gained any, and gives every
+    /// planned file its listed clean name (plus its original extension). Returns the entries added.
+    /// Writes only the list, never the database or blobs, so it is safe before validation passes elsewhere.
+    /// </summary>
+    private static int ApplyFileNames(List<PlannedRank> plan, string fileNamesPath, List<string> errors, List<string> warnings)
+    {
+        var list = LessonFileNames.LoadList(fileNamesPath, errors);
+        if (errors.Count > 0)
+        {
+            return 0;
+        }
+
+        var planned = plan.SelectMany(r => r.Lessons).Select(l => l.Files).ToList();
+        var added = LessonFileNames.MergeList(list,
+            planned.SelectMany(f => f).Select(f => (f.BlobKey, f.FileName)), warnings);
+        if (added > 0)
+        {
+            LessonFileNames.SaveList(fileNamesPath, list);
+        }
+
+        foreach (var files in planned)
+        {
+            for (var i = 0; i < files.Count; i++)
+            {
+                files[i] = files[i] with { FileName = LessonFileNames.StoredName(list[files[i].BlobKey].Name, files[i].FileName) };
+            }
+
+            foreach (var duplicate in files.GroupBy(f => f.FileName, StringComparer.OrdinalIgnoreCase).Where(g => g.Count() > 1))
+            {
+                warnings.Add($"Two files of one lesson are both named '{duplicate.Key}' ({string.Join(", ", duplicate.Select(f => f.BlobKey))}); correct one in the file-name list.");
+            }
+        }
+
+        return added;
+    }
 
     private static CurriculumSeedResult Failed(List<string> errors) => new(errors, [], 0, 0, 0, 0, 0);
 
