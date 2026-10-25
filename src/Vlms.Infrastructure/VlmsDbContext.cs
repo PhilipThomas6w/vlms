@@ -71,6 +71,7 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
     public DbSet<CalendarFeedToken> CalendarFeedTokens => Set<CalendarFeedToken>();
     public DbSet<CalendarViewChoice> CalendarViewChoices => Set<CalendarViewChoice>();
     public DbSet<AddedSaint> AddedSaints => Set<AddedSaint>();
+    public DbSet<ChapterPublicFeed> ChapterPublicFeeds => Set<ChapterPublicFeed>();
 
     /// <summary>The name of the query filter every <see cref="IChapterOwned"/> entity carries (docs/adr/0010-chapters.md).</summary>
     public const string ChapterFilter = "Chapter";
@@ -275,6 +276,17 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
             e.Property(x => x.Name).HasMaxLength(200);
             e.HasIndex(x => new { x.Month, x.Day, x.Name }).IsUnique();
             e.HasOne<AppUser>().WithMany().HasForeignKey(x => x.AddedByUserId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // A chapter's public link to its parish events (FR-022): one per chapter, found by its key.
+        modelBuilder.Entity<ChapterPublicFeed>(e =>
+        {
+            e.HasKey(x => x.ChapterId);
+            e.Property(x => x.ChapterId).ValueGeneratedNever();
+            e.Property(x => x.Key).HasMaxLength(64);
+            e.HasIndex(x => x.Key).IsUnique();
+            e.HasOne<Chapter>().WithMany().HasForeignKey(x => x.ChapterId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<AppUser>().WithMany().HasForeignKey(x => x.CreatedByUserId).OnDelete(DeleteBehavior.SetNull);
         });
 
         // Subscribe links (FR-022): one per person per chapter, found by the hash of its secret.

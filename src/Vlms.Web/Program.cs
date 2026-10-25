@@ -415,6 +415,7 @@ app.MapSavedLessonsEndpoint();
 app.MapRankBadgeEndpoint();
 app.MapCertificateEndpoint();
 app.MapCalendarFeedEndpoint();
+app.MapPublicCalendarFeedEndpoint();
 app.MapProposalFileEndpoint();
 app.MapChapterSwitchEndpoint();
 app.MapRazorComponents<App>()

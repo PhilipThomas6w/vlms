@@ -11,7 +11,9 @@ namespace Vlms.Tests.Infrastructure;
 /// The private calendar subscription (functional.md FR-022, TC-055): the link's secret is kept only
 /// as a hash; the feed serves the link's chapter's events, nothing of another chapter and no personal
 /// data; a replaced or stopped link, or one whose owner no longer belongs to the chapter, serves
-/// nothing; and the iCalendar text is well formed (UK times in UTC, escaping, folding).
+/// nothing; and the iCalendar text is well formed (UK times in UTC, escaping, folding). The chapter's
+/// public link: only its Admins make, replace or stop it, everyone in the chapter reads it, and it
+/// serves the chapter's parish events only, never a class or excursion.
 /// </summary>
 public sealed class CalendarFeedServiceTests : IDisposable
 {
@@ -19,6 +21,7 @@ public sealed class CalendarFeedServiceTests : IDisposable
     private const int Parent = 20;
     private const int Teacher = 10;
     private const int CoventryAdmin = 13;
+    private const int Admin = 11;
 
     private static readonly DateOnly Today = DateOnly.FromDateTime(DateTime.UtcNow);
 
@@ -38,6 +41,7 @@ public sealed class CalendarFeedServiceTests : IDisposable
         AddUser(db, Parent, (Role.Parent, Chapter.ShrewsburyId));
         AddUser(db, Teacher, (Role.Teacher, Chapter.ShrewsburyId));
         AddUser(db, CoventryAdmin, (Role.Admin, Coventry));
+        AddUser(db, Admin, (Role.Admin, Chapter.ShrewsburyId));
         db.ChapterEvents.Add(new ChapterEvent
         {
             Id = 1, ChapterId = Chapter.ShrewsburyId, Date = Today.AddDays(7), Title = "Chapter meeting, with tea; all welcome",
@@ -157,5 +161,91 @@ public sealed class CalendarFeedServiceTests : IDisposable
         Assert.Contains("SUMMARY:Picnic\\, games\\; and", ics);
         Assert.All(ics.Split("\r\n"), line => Assert.True(System.Text.Encoding.UTF8.GetByteCount(line) <= 75, line));
         Assert.EndsWith("END:VCALENDAR\r\n", ics);
+    }
+
+    private Task<string?> FetchPublic(string key) =>
+        Feeds(new FakeCurrentUserContext(null) { ActiveChapterId = null }, s => s.BuildPublicFeedAsync(key));
+
+    private void AddEvent(int id, int chapterId, ChapterEventKind kind, string title, int days = 3)
+    {
+        using var db = new VlmsDbContext(_options, TestSeedUserContext.Instance);
+        db.ChapterEvents.Add(new ChapterEvent
+        {
+            Id = id, ChapterId = chapterId, Date = Today.AddDays(days), Title = title, Kind = kind,
+            CreatedByUserId = chapterId == Coventry ? CoventryAdmin : Admin, CreatedAt = DateTime.UtcNow
+        });
+        db.SaveChanges();
+    }
+
+    [Fact]
+    public async Task ThePublicLink_ServesTheChaptersParishEventsOnly_NeverAClassOrExcursion()
+    {
+        AddEvent(4, Chapter.ShrewsburyId, ChapterEventKind.Service, "Divine Liturgy");
+        AddEvent(5, Chapter.ShrewsburyId, ChapterEventKind.ParishMeeting, "Parish council", days: 4);
+        AddEvent(6, Chapter.ShrewsburyId, ChapterEventKind.Excursion, "Trip to Lichfield", days: 5);
+        AddEvent(7, Coventry, ChapterEventKind.Service, "Coventry vespers");
+        AddEvent(8, Chapter.ShrewsburyId, ChapterEventKind.Service, "Old service", days: -400);
+        var key = await Feeds(As(Admin, Role.Admin), s => s.CreatePublicLinkAsync());
+
+        var ics = await FetchPublic(key);
+
+        Assert.NotNull(ics);
+        Assert.Contains("SUMMARY:Divine Liturgy", ics);
+        Assert.Contains("SUMMARY:Parish council", ics);
+        Assert.DoesNotContain("Chapter meeting", ics);
+        Assert.DoesNotContain("Lichfield", ics);
+        Assert.DoesNotContain("Coventry", ics);
+        Assert.DoesNotContain("Old service", ics);
+        Assert.Contains("X-WR-CALNAME:", ics);
+    }
+
+    [Fact]
+    public async Task OnlyTheChaptersAdmins_MakeOrStopThePublicLink_AndEveryoneInTheChapterSeesIt()
+    {
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => Feeds(As(Teacher, Role.Teacher), s => s.CreatePublicLinkAsync()));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => Feeds(As(Parent, Role.Parent), s => s.CreatePublicLinkAsync()));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
+        {
+            await Feeds(As(Teacher, Role.Teacher), async s => { await s.RemovePublicLinkAsync(); return 0; });
+        });
+        Assert.Null(await Feeds(As(Parent, Role.Parent), s => s.GetPublicLinkKeyAsync()));
+
+        var key = await Feeds(As(Admin, Role.Admin), s => s.CreatePublicLinkAsync());
+
+        Assert.Equal(key, await Feeds(As(Parent, Role.Parent), s => s.GetPublicLinkKeyAsync()));
+        Assert.Equal(key, await Feeds(As(Teacher, Role.Teacher), s => s.GetPublicLinkKeyAsync()));
+        Assert.Null(await Feeds(As(CoventryAdmin, Role.Admin, Coventry), s => s.GetPublicLinkKeyAsync()));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            Feeds(new FakeCurrentUserContext(Parent, Role.NationalAdministrator) { ActiveChapterId = null }, s => s.GetPublicLinkKeyAsync()));
+    }
+
+    [Fact]
+    public async Task ANewPublicLink_StopsTheOldOne_AndStoppingItOrClosingTheChapterStopsIt()
+    {
+        var first = await Feeds(As(Admin, Role.Admin), s => s.CreatePublicLinkAsync());
+        var second = await Feeds(As(Admin, Role.Admin), s => s.CreatePublicLinkAsync());
+
+        Assert.Null(await FetchPublic(first));
+        Assert.NotNull(await FetchPublic(second));
+        Assert.Null(await FetchPublic(""));
+        Assert.Null(await FetchPublic("not-a-real-link"));
+
+        await using (var db = new VlmsDbContext(_options, TestSeedUserContext.Instance))
+        {
+            db.Entry(db.Chapters.Single(c => c.Id == Chapter.ShrewsburyId)).Property(c => c.IsActive).CurrentValue = false;
+            db.SaveChanges();
+        }
+
+        Assert.Null(await FetchPublic(second));
+
+        await using (var db = new VlmsDbContext(_options, TestSeedUserContext.Instance))
+        {
+            db.Entry(db.Chapters.Single(c => c.Id == Chapter.ShrewsburyId)).Property(c => c.IsActive).CurrentValue = true;
+            db.SaveChanges();
+        }
+
+        await Feeds(As(Admin, Role.Admin), async s => { await s.RemovePublicLinkAsync(); return 0; });
+        Assert.Null(await FetchPublic(second));
+        Assert.Null(await Feeds(As(Admin, Role.Admin), s => s.GetPublicLinkKeyAsync()));
     }
 }

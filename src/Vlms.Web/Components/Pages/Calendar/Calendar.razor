@@ -7,11 +7,13 @@
 @inject CalendarService CalendarService
 @inject CalendarFeedService Feeds
 @inject NavigationManager Navigation
+@inject ICurrentUserContext CurrentUser
 
 @* The calendar (docs/requirements/functional.md, the calendar requirement): each day's main feast and
    fast from the Church's calendar, with the chapter's own events; saints and readings open from the
    day. Shown as a list or a month grid, as each person last chose. Admins add events; everyone in the
-   chapter can make a private subscribe link. *@
+   chapter can make a private subscribe link, and sees the chapter's public link (parish events only),
+   which its Admins make, replace or stop. *@
 
 <PageTitle>Calendar – Varangians</PageTitle>
 
@@ -239,6 +241,46 @@
             }
         </div>
     </section>
+
+    @if (_publicKey is not null || _isAdmin)
+    {
+        <section class="section panel calendar__subscribe" aria-labelledby="public-heading">
+            <h2 id="public-heading">The chapter's public calendar</h2>
+            <p>A link anyone can subscribe to, with the chapter's parish events only: services and parish meetings, never classes or excursions.</p>
+            @if (_publicKey is not null)
+            {
+                <div class="field">
+                    <label for="public-link">Public link</label>
+                    <input id="public-link" type="text" readonly value="@PublicLink(_publicKey)" />
+                </div>
+            }
+            @if (_isAdmin)
+            {
+                @if (_confirmPublic is { } action)
+                {
+                    <p>@(action == PublicAction.Replace ? "Make a new public link? The old one stops working for everyone subscribed to it." : "Stop the public link? It stops working for everyone subscribed to it.")</p>
+                    <div class="btn-row">
+                        <button type="button" class="@(action == PublicAction.Stop ? "btn--danger" : null)" @onclick="ConfirmPublicAsync">@(action == PublicAction.Replace ? "Make a new public link" : "Stop the public link")</button>
+                        <button type="button" class="btn--secondary" @onclick="() => _confirmPublic = null">Keep it</button>
+                    </div>
+                }
+                else
+                {
+                    <div class="btn-row">
+                        @if (_publicKey is null)
+                        {
+                            <button type="button" @onclick="CreatePublicLinkAsync">Make the public link</button>
+                        }
+                        else
+                        {
+                            <button type="button" @onclick="() => _confirmPublic = PublicAction.Replace">Make a new public link</button>
+                            <button type="button" class="btn--secondary" @onclick="() => _confirmPublic = PublicAction.Stop">Stop the public link</button>
+                        }
+                    </div>
+                }
+            }
+        </section>
+    }
 </div>
 
 @code {
@@ -258,6 +300,11 @@
     private bool _selectedLoading;
     private DateTime? _linkCreatedAt;
     private string? _newLink;
+    private string? _publicKey;
+    private bool _isAdmin;
+    private PublicAction? _confirmPublic;
+
+    private enum PublicAction { Replace, Stop }
     private string? _errorMessage;
 
     protected override async Task OnInitializedAsync()
@@ -268,6 +315,8 @@
         try
         {
             _linkCreatedAt = await Feeds.GetLinkCreatedAtAsync();
+            _publicKey = await Feeds.GetPublicLinkKeyAsync();
+            _isAdmin = CurrentUser.HasRole(Role.Admin);
             _view = await CalendarService.GetViewAsync();
         }
         catch (UnauthorizedAccessException ex)
@@ -369,6 +418,25 @@
         var secret = await Feeds.CreateLinkAsync();
         _newLink = Navigation.ToAbsoluteUri($"/calendar/feed/{secret}.ics").ToString();
         _linkCreatedAt = null;
+    }
+
+    private string PublicLink(string key) => Navigation.ToAbsoluteUri($"/calendar/chapter/{key}.ics").ToString();
+
+    private async Task CreatePublicLinkAsync() => _publicKey = await Feeds.CreatePublicLinkAsync();
+
+    private async Task ConfirmPublicAsync()
+    {
+        if (_confirmPublic == PublicAction.Replace)
+        {
+            _publicKey = await Feeds.CreatePublicLinkAsync();
+        }
+        else
+        {
+            await Feeds.RemovePublicLinkAsync();
+            _publicKey = null;
+        }
+
+        _confirmPublic = null;
     }
 
     private async Task RemoveLinkAsync()
