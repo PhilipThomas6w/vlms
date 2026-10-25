@@ -30,14 +30,53 @@ const LESSON_FILE = /^\/lessons\/files\/\d+$/;
 const OFFLINE_PAGE = "/offline.html";
 const PRECACHE = [OFFLINE_PAGE, "/offline.js", "/app.css"];
 
+// The content type each kind of static request must come back with before it is cached. A server
+// fault can answer 200 with an empty or wrong body (seen 25/10/2026, a wrong content root); caching
+// that would keep the app broken in the browser after the server is fixed.
+const EXPECTED_TYPES = {
+  style: "text/css",
+  script: "javascript",
+  image: "image/",
+  font: "font/",
+  manifest: "json",
+  document: "text/html",
+};
+
+function expectedTypeFor(path) {
+  if (path.endsWith(".css")) return EXPECTED_TYPES.style;
+  if (path.endsWith(".js")) return EXPECTED_TYPES.script;
+  return EXPECTED_TYPES.document;
+}
+
+async function worthCaching(response, expectedType) {
+  if (!response.ok || response.type !== "basic") {
+    return false;
+  }
+  const contentType = response.headers.get("content-type") || "";
+  if (!expectedType || !contentType.includes(expectedType)) {
+    return false;
+  }
+  const body = await response.clone().arrayBuffer();
+  return body.byteLength > 0;
+}
+
 self.addEventListener("install", (event) => {
   // Take over from any previous version as soon as it's installed; nothing in the static cache
   // needs to stay consistent across versions, and the saved lessons live in their own cache.
+  // A precache file that comes back bad fails the install, so the previous worker stays in charge.
   self.skipWaiting();
   event.waitUntil(
-    caches
-      .open(CACHE_NAME)
-      .then((cache) => cache.addAll(PRECACHE.map((path) => new Request(path, { cache: "reload" }))))
+    caches.open(CACHE_NAME).then((cache) =>
+      Promise.all(
+        PRECACHE.map(async (path) => {
+          const response = await fetch(new Request(path, { cache: "reload" }));
+          if (!(await worthCaching(response, expectedTypeFor(path)))) {
+            throw new Error("Not caching a bad response for " + path);
+          }
+          await cache.put(path, response);
+        })
+      )
+    )
   );
 });
 
@@ -121,7 +160,7 @@ self.addEventListener("fetch", (event) => {
       }
 
       const response = await fetch(request);
-      if (response.ok) {
+      if (await worthCaching(response, EXPECTED_TYPES[request.destination])) {
         cache.put(request, response.clone());
       }
       return response;

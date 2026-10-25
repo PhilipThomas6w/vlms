@@ -90,6 +90,21 @@ public class PwaAssetsTests
     }
 
     [Fact]
+    public void ServiceWorker_CachesOnlyNonEmptyResponsesOfTheExpectedType()
+    {
+        var serviceWorker = File.ReadAllText(Path.Combine(WwwrootPath(), "service-worker.js"));
+
+        // Both the precache and the runtime static cache go through the check; no unchecked writes remain.
+        Assert.Contains("async function worthCaching(response, expectedType)", serviceWorker);
+        Assert.Contains("body.byteLength > 0", serviceWorker);
+        Assert.Contains("contentType.includes(expectedType)", serviceWorker);
+        Assert.Contains("worthCaching(response, expectedTypeFor(path))", serviceWorker);
+        Assert.Contains("worthCaching(response, EXPECTED_TYPES[request.destination])", serviceWorker);
+        Assert.DoesNotContain("cache.addAll(", serviceWorker);
+        Assert.DoesNotContain("if (response.ok) {", serviceWorker);
+    }
+
+    [Fact]
     public void OfflinePages_ExistAndTheLibraryLoadsTheSaveScript()
     {
         var wwwroot = WwwrootPath();

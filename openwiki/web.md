@@ -65,7 +65,10 @@ live connection to the server there is no app. This increment therefore builds o
    `request.destination` is `style`/`script`/`image`/`font`/`manifest`, in a cache named
    `vlms-static-<build id>`. `App.razor` registers `service-worker.js?v=<assembly MVID>`, so every
    build gets a new cache name and activation deletes the old `vlms-static-*` caches (an
-   unversioned asset such as `manifest.json` can no longer be served stale for ever). Navigation
+   unversioned asset such as `manifest.json` can no longer be served stale for ever). A response is
+   cached only if `worthCaching` passes: 200, same-origin, a non-empty body and the content type
+   expected for its destination; a precache file that fails it fails the install, so the previous
+   worker stays in charge (added 25/10/2026 after a wrong content root served empty assets). Navigation
    requests are network first, never served stale while online (the document is dynamic per request:
    auth state, antiforgery tokens); the SignalR circuit needs no exclusion, since a WebSocket
    upgrade never dispatches a `fetch` event.
