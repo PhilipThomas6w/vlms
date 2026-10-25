@@ -4,7 +4,7 @@ Plain C# entities and abstractions, no EF Core or ASP.NET Core dependency. Sourc
 
 ## Entities (17, one file each in `src/Vlms.Domain/`)
 
-`Rank`, `Lesson`, `LessonChangeProposal`, `Student`, `ParentGuardian`, `StudentGuardianLink`, `StudentLessonCompletion`, `Certificate`, `RankBadge`, `StudentBadge`, `StudentRankProgress`, `ConsentRecord`, `ConsentSensitiveDetails`, `DbsCheck`, `AppUser`, `UserRole`, `GuardianInvite`, `SensitiveDataAccessLog`.
+`Rank`, `Lesson`, `LessonPicture`, `TeachersInformationPicture`, `LessonChangeProposal`, `Student`, `ParentGuardian`, `StudentGuardianLink`, `StudentLessonCompletion`, `Certificate`, `RankBadge`, `StudentBadge`, `StudentRankProgress`, `ConsentRecord`, `ConsentSensitiveDetails`, `DbsCheck`, `AppUser`, `UserRole`, `GuardianInvite`, `SensitiveDataAccessLog`.
 
 Three things worth knowing that aren't obvious from `data-design.md` alone:
 

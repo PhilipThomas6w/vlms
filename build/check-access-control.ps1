@@ -153,6 +153,9 @@ $expectedMinimums = @{
     # private subscribe link served without signing in.
     "CalendarServiceTests.cs"           = 10
     "CalendarFeedServiceTests.cs"       = 6
+    # adr/0012 app-hosted lessons: the Teacher's Information for staff only, per role; lesson and
+    # Teacher's Information pictures by id; the converted lesson's offline details.
+    "LessonPageServiceTests.cs"         = 10
 }
 
 foreach ($testFileName in $expectedMinimums.Keys) {
@@ -227,6 +230,11 @@ $hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Web/ChapterSwitchEndpoin
 # FR-022 calendar: event and calendar role checks, the subscribe link and its anonymous endpoint.
 $hashedFiles += Get-ChildItem (Join-Path $repoRoot "src/Vlms.Infrastructure/Calendar") -Filter "*.cs"
 $hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Web/CalendarFeedEndpoint.cs")
+# FR-006/FR-024 lesson library and app-hosted lessons (adr/0012): the library role check, the
+# staff-only Teacher's Information, and the file, picture and offline-page endpoints.
+$hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Infrastructure/Curriculum/LessonLibraryService.cs")
+$hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Web/LessonFileEndpoint.cs")
+$hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Web/LessonPageEndpoint.cs")
 $hashedFiles += $pageFiles
 
 if ($PrintHash) {
