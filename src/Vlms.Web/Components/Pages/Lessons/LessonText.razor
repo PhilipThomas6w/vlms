@@ -1,0 +1,45 @@
+@page "/lessons/{Code}"
+@attribute [Authorize(Policy = "RequireLessonLibrary")]
+@using Vlms.Infrastructure.Curriculum
+@inject LessonLibraryService Library
+
+@* A converted lesson (docs/adr/0012-app-hosted-lessons.md decision 6). Static server rendering: the text is plain HTML.
+   The lesson text is HTML from LessonMarkdown (raw HTML disabled, links and pictures restricted), so it is
+   written as markup here. The Teacher's Information is only ever present for staff: LessonLibraryService leaves it out
+   for everyone else. *@
+
+@if (_page is null)
+{
+    <PageTitle>Lesson not found</PageTitle>
+    <PageHeader Title="Lesson not found" />
+    <p><a href="/lessons">Lesson library</a></p>
+}
+else
+{
+    <PageTitle>@_page.Title</PageTitle>
+    <p class="lesson-back"><a href="/lessons#lesson-@_page.Code">Lesson library</a></p>
+    <PageHeader Title="@_page.Title">
+        <Lead>@_page.Rank</Lead>
+    </PageHeader>
+
+    @if (_page.TeachersInformationHtml is not null)
+    {
+        <details class="teachers-information" data-teachers-information>
+            <summary>Teacher's Information</summary>
+            <div class="lesson-text">@((MarkupString)_page.TeachersInformationHtml)</div>
+        </details>
+    }
+
+    <article class="lesson-text" aria-label="@_page.Title">@((MarkupString)_page.Html)</article>
+}
+
+@code {
+    [Parameter] public string Code { get; set; } = "";
+
+    private LessonPage? _page;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _page = await Library.GetLessonPageAsync(Code);
+    }
+}

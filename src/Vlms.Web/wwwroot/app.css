@@ -657,6 +657,36 @@
     .shared-key { user-select: all; overflow-wrap: anywhere; }
 }
 
+@layer pages {
+    /* Lesson page (adr/0012): the lesson text at reading width, pictures and tables kept inside it on a phone. */
+    .lesson-back { margin: 0 0 var(--s-3); }
+    .lesson-back a { display: inline-flex; align-items: center; min-height: var(--target); }
+    .lesson-text { max-width: var(--measure); font-size: 1.0625rem; line-height: 1.6; }
+    .lesson-text h2 { font-size: var(--step-2); margin-top: var(--s-6); }
+    .lesson-text h3 { font-size: var(--step-1); margin-top: var(--s-5); }
+    .lesson-text img { display: block; height: auto; margin: var(--s-4) 0; border-radius: var(--r-tessera); }
+    .lesson-text table { display: block; width: auto; max-width: 100%; overflow-x: auto; margin: var(--s-4) 0; background: var(--surface); }
+    .lesson-text th, .lesson-text td { border: 1px solid var(--line-strong); }
+    .lesson-text th { color: var(--ink); font-size: inherit; background: var(--lapis-50); }
+    .lesson-text blockquote { margin: var(--s-4) 0; padding-left: var(--s-4); border-left: 4px solid var(--line-strong); }
+    .teachers-information { max-width: var(--measure); margin-bottom: var(--s-6); background: var(--gold-100); border: 1px solid var(--line); border-radius: var(--r-panel); padding: 0 var(--s-4); }
+    .teachers-information > summary { min-height: var(--target); display: flex; align-items: center; font-weight: 700; cursor: pointer; }
+    .teachers-information[open] { padding-bottom: var(--s-4); }
+}
+
+/* Print: the lesson page prints as the lesson alone (adr/0012 decision 6). */
+@media print {
+    .skip-link, .shell-bar, .chapter-bar, .site-nav, nav[aria-label="Main"], .lesson-back, #components-reconnect-modal, #blazor-error-ui { display: none !important; }
+    .teachers-information:not([open]) { display: none; }
+    body { background: #FFFFFF; }
+    main { padding: 0; }
+    .lesson-text, .teachers-information { max-width: none; font-size: 11pt; }
+    .lesson-text img { max-height: 18cm; break-inside: avoid; }
+    .lesson-text h2, .lesson-text h3 { break-after: avoid; }
+    .lesson-text table { display: table; }
+    .lesson-text a { color: inherit; }
+}
+
 @layer utilities {
     .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
     .muted { color: var(--ink-soft); }

@@ -1,4 +1,6 @@
 using System.Linq.Expressions;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Vlms.Domain;
@@ -11,6 +13,8 @@ namespace Vlms.Infrastructure.Curriculum;
 /// <see cref="FileNamesAdded"/> counts new entries written to the file-name list; <see cref="FilesRenamed"/>
 /// counts existing file rows renamed in place. <see cref="Warnings"/> never block a run: they report lessons/ranks in the database that the
 /// manifest no longer mentions (left untouched, as lessons may have completions).
+/// <see cref="LessonTextsUpdated"/> counts lessons and ranks whose text (lesson body or Teacher's Information) or
+/// pictures changed; <see cref="PicturesUploaded"/> counts resized pictures written to storage.
 /// </summary>
 public sealed record CurriculumSeedResult(
     IReadOnlyList<string> Errors,
@@ -21,7 +25,9 @@ public sealed record CurriculumSeedResult(
     int LessonsUpdated,
     int FilesUploaded,
     int FileNamesAdded = 0,
-    int FilesRenamed = 0)
+    int FilesRenamed = 0,
+    int LessonTextsUpdated = 0,
+    int PicturesUploaded = 0)
 {
     public bool Succeeded => Errors.Count == 0;
 }
@@ -52,6 +58,17 @@ public sealed record CurriculumSeedResult(
 /// original extension (FR-006); only seeded files are named this way.</item>
 /// </list>
 ///
+/// <b>App-hosted lessons</b> (docs/adr/0012-app-hosted-lessons.md): the folder <c>lessons</c> under the content root
+/// (<c>seed/lessons</c>, in git) holds the converted lessons: <c>{lesson code}.md</c> is the lesson text, its pictures in
+/// the folder <c>{lesson code}/</c>, referred to by bare file name. <c>R{rank order}-TI.md</c> (or
+/// <c>{rank code}-TI.md</c>) is a rank's Teacher's Information, pictures in the folder of the same name. Every picture
+/// the text refers to must exist and be a JPEG or PNG (an error otherwise); each is stored resized
+/// (<see cref="LessonPictureResizer"/>) as a <see cref="LessonPicture"/> or <see cref="TeachersInformationPicture"/>,
+/// matched on file name so Ids stay stable. The lesson's <see cref="Lesson.ContentVersion"/> is a hash of its text and
+/// its original pictures, so it changes exactly when either does, and a lesson's pictures are uploaded only when it
+/// changes or a picture is missing from storage. A lesson or rank with text in the database but no file keeps it
+/// (a warning): nothing is cleared by a missing file.
+///
 /// Running it: <c>Vlms.Jobs seed-curriculum --manifest seed/curriculum.json --content-root seed
 /// --file-names seed/file-names.json</c>. Add <c>--names-only</c> to write the list and stop (no
 /// uploads, no database), to review or hand-correct it first; run again without it to apply. With no
@@ -64,6 +81,12 @@ public sealed class CurriculumSeeder
 {
     /// <summary>Name of the per-lesson subfolder whose files follow the top-level documents.</summary>
     public const string ImagesFolderName = "Images";
+
+    /// <summary>Folder under the content root holding the converted lessons (adr/0012).</summary>
+    public const string LessonsFolderName = "lessons";
+
+    /// <summary>Suffix of a rank's Teacher's Information file: <c>R5-TI.md</c>.</summary>
+    public const string TeachersInformationSuffix = "-TI";
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -98,6 +121,11 @@ public sealed class CurriculumSeeder
         {
             return Failed(errors);
         }
+        ReadLessonTexts(plan, Path.Combine(contentRoot, LessonsFolderName), errors, warnings);
+        if (errors.Count > 0)
+        {
+            return Failed(errors);
+        }
         if (fileNamesPath is not null)
         {
             namesAdded = ApplyFileNames(plan, fileNamesPath, errors, warnings);
@@ -121,20 +149,46 @@ public sealed class CurriculumSeeder
             filesUploaded++;
         }
 
+        // Pictures: a lesson's only when its text or pictures changed (or one is missing from storage); the Teacher's
+        // Information pictures every run (few, and they carry no version). Still before any database write.
+        var picturesUploaded = 0;
+        var storedVersions = await _db.Lessons.AsNoTracking().ToDictionaryAsync(l => l.Code, l => l.ContentVersion, ct);
+        var texts = plan.SelectMany(r => r.Lessons).Where(l => l.Text is not null)
+            .Select(l => (Text: l.Text!, Unchanged: storedVersions.GetValueOrDefault(l.Code) == l.Text!.Version))
+            .Concat(plan.Where(r => r.TeachersInformation is not null).Select(r => (Text: r.TeachersInformation!, Unchanged: false)));
+        foreach (var (text, unchanged) in texts)
+        {
+            foreach (var picture in text.Pictures)
+            {
+                ct.ThrowIfCancellationRequested();
+                if (unchanged && await _blobStorage.ExistsAsync(picture.BlobKey, ct))
+                {
+                    continue;
+                }
+                await _blobStorage.UploadAsync(picture.BlobKey, picture.Content, ct);
+                picturesUploaded++;
+            }
+        }
+
         var ranksCreated = 0;
         var ranksUpdated = 0;
         var lessonsCreated = 0;
         var lessonsUpdated = 0;
         var filesRenamed = 0;
+        var textsUpdated = 0;
 
         var ranks = await _db.Ranks.ToDictionaryAsync(r => r.Code, ct);
         var lessons = await _db.Lessons.ToDictionaryAsync(l => l.Code, ct);
         var tags = (await _db.LessonTagAssignments.ToListAsync(ct)).ToLookup(t => t.LessonId);
         var files = (await _db.LessonFiles.ToListAsync(ct)).ToLookup(f => f.LessonId);
+        var lessonPictures = (await _db.LessonPictures.ToListAsync(ct)).ToLookup(p => p.LessonId);
+        var rankPictures = (await _db.TeachersInformationPictures.ToListAsync(ct)).ToLookup(p => p.RankId);
 
         var nextRankId = await NextIdAsync(_db.Ranks.Select(r => r.Id), ct);
         var nextLessonId = await NextIdAsync(_db.Lessons.Select(l => l.Id), ct);
         var nextFileId = await NextIdAsync(_db.LessonFiles.Select(f => f.Id), ct);
+        var nextLessonPictureId = await NextIdAsync(_db.LessonPictures.Select(p => p.Id), ct);
+        var nextRankPictureId = await NextIdAsync(_db.TeachersInformationPictures.Select(p => p.Id), ct);
 
         foreach (var planRank in plan)
         {
@@ -153,6 +207,26 @@ public sealed class CurriculumSeeder
                 _db.Ranks.Add(rank);
                 ranks[rank.Code] = rank;
                 ranksCreated++;
+            }
+
+            if (planRank.TeachersInformation is { } information)
+            {
+                var rankId = rank.Id;
+                var pictureChanged = SyncPictures(rankPictures[rankId].ToList(), information.Pictures, _db.TeachersInformationPictures,
+                    p => p.FileName, p => p.Order, p => p.BlobKey,
+                    planned => new TeachersInformationPicture
+                    {
+                        Id = nextRankPictureId++, RankId = rankId, Order = planned.Order, FileName = planned.FileName, BlobKey = planned.BlobKey
+                    });
+                if (rank.TeachersInformation != information.Body || pictureChanged)
+                {
+                    SetValue(rank, r => r.TeachersInformation, information.Body);
+                    textsUpdated++;
+                }
+            }
+            else if (rank.TeachersInformation is not null)
+            {
+                warnings.Add($"Rank '{rank.Code}' has Teacher's Information but no file in '{LessonsFolderName}'; left untouched.");
             }
 
             foreach (var planLesson in planRank.Lessons)
@@ -228,6 +302,28 @@ public sealed class CurriculumSeeder
                     changed = true;
                 }
 
+                // Lesson text and pictures (adr/0012).
+                if (planLesson.Text is { } text)
+                {
+                    var lessonId = lesson.Id;
+                    var pictureChanged = SyncPictures(lessonPictures[lessonId].ToList(), text.Pictures, _db.LessonPictures,
+                        p => p.FileName, p => p.Order, p => p.BlobKey,
+                        planned => new LessonPicture
+                        {
+                            Id = nextLessonPictureId++, LessonId = lessonId, Order = planned.Order, FileName = planned.FileName, BlobKey = planned.BlobKey
+                        });
+                    if (lesson.Body != text.Body || lesson.ContentVersion != text.Version || pictureChanged)
+                    {
+                        SetValue(lesson, l => l.Body, text.Body);
+                        SetValue(lesson, l => l.ContentVersion, text.Version);
+                        textsUpdated++;
+                    }
+                }
+                else if (lesson.Body is not null)
+                {
+                    warnings.Add($"Lesson '{lesson.Code}' has lesson text but no file in '{LessonsFolderName}'; left untouched.");
+                }
+
                 if (changed && !isNew)
                 {
                     lessonsUpdated++;
@@ -244,7 +340,145 @@ public sealed class CurriculumSeeder
 
         await _db.SaveChangesAsync(ct);
 
-        return new CurriculumSeedResult(errors, warnings, ranksCreated, ranksUpdated, lessonsCreated, lessonsUpdated, filesUploaded, namesAdded, filesRenamed);
+        return new CurriculumSeedResult(errors, warnings, ranksCreated, ranksUpdated, lessonsCreated, lessonsUpdated, filesUploaded, namesAdded,
+            filesRenamed, textsUpdated, picturesUploaded);
+    }
+
+    /// <summary>
+    /// Brings a set of stored pictures in line with the planned ones, matched on file name so Ids stay stable: a gone
+    /// picture is removed, a new one added, a moved or re-keyed one changed in place. Returns whether anything changed.
+    /// </summary>
+    private bool SyncPictures<TPicture>(List<TPicture> existing, List<PlannedPicture> planned, DbSet<TPicture> set,
+        Func<TPicture, string> fileName, Expression<Func<TPicture, int>> order, Expression<Func<TPicture, string>> blobKey,
+        Func<PlannedPicture, TPicture> create)
+        where TPicture : class
+    {
+        var changed = false;
+        var orderOf = order.Compile();
+        var keyOf = blobKey.Compile();
+        foreach (var gone in existing.Where(e => planned.All(p => p.FileName != fileName(e))))
+        {
+            set.Remove(gone);
+            changed = true;
+        }
+        foreach (var picture in planned)
+        {
+            var match = existing.FirstOrDefault(e => fileName(e) == picture.FileName);
+            if (match is null)
+            {
+                set.Add(create(picture));
+                changed = true;
+            }
+            else if (orderOf(match) != picture.Order || keyOf(match) != picture.BlobKey)
+            {
+                SetValue(match, order, picture.Order);
+                SetValue(match, blobKey, picture.BlobKey);
+                changed = true;
+            }
+        }
+        return changed;
+    }
+
+    // --- Lesson text (adr/0012) -----------------------------------------------------------------
+
+    /// <summary>
+    /// Reads each lesson's and rank's Markdown file, if any, and its pictures (resized here, so an unreadable picture is
+    /// a validation error before anything is written). Errors: a picture reference that is not a bare file name, not a
+    /// JPEG/PNG, missing, or unreadable; two Teacher's Information files for one rank. Warnings: a Markdown file that
+    /// matches no lesson or rank; a picture in a folder that the text never uses.
+    /// </summary>
+    private static void ReadLessonTexts(List<PlannedRank> plan, string lessonsRoot, List<string> errors, List<string> warnings)
+    {
+        if (!Directory.Exists(lessonsRoot))
+        {
+            return;
+        }
+
+        var used = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var rank in plan)
+        {
+            var candidates = new[] { $"R{rank.Order}{TeachersInformationSuffix}", $"{rank.Code}{TeachersInformationSuffix}" }
+                .Distinct(StringComparer.Ordinal)
+                .Where(stem => File.Exists(Path.Combine(lessonsRoot, stem + ".md")))
+                .ToList();
+            if (candidates.Count > 1)
+            {
+                errors.Add($"Rank '{rank.Code}': two Teacher's Information files ({string.Join(", ", candidates.Select(c => c + ".md"))}); keep one.");
+            }
+            else if (candidates.Count == 1)
+            {
+                used.Add(candidates[0]);
+                rank.TeachersInformation = ReadText(lessonsRoot, candidates[0], $"teachers-information/{rank.Code}",
+                    $"Rank '{rank.Code}' Teacher's Information", errors, warnings);
+            }
+
+            foreach (var lesson in rank.Lessons)
+            {
+                if (File.Exists(Path.Combine(lessonsRoot, lesson.Code + ".md")))
+                {
+                    used.Add(lesson.Code);
+                    lesson.Text = ReadText(lessonsRoot, lesson.Code, $"lesson-pictures/{lesson.Code}", $"Lesson '{lesson.Code}'", errors, warnings);
+                }
+            }
+        }
+
+        foreach (var stem in Directory.EnumerateFiles(lessonsRoot, "*.md").Select(p => Path.GetFileNameWithoutExtension(p))
+                     .Where(stem => !used.Contains(stem)).Order(StringComparer.Ordinal))
+        {
+            warnings.Add($"'{LessonsFolderName}/{stem}.md' matches no lesson or rank in the manifest; not imported.");
+        }
+    }
+
+    private static PlannedText? ReadText(string lessonsRoot, string stem, string blobPrefix, string label, List<string> errors, List<string> warnings)
+    {
+        var body = File.ReadAllText(Path.Combine(lessonsRoot, stem + ".md")).ReplaceLineEndings("\n");
+        var folder = Path.Combine(lessonsRoot, stem);
+        var available = Directory.Exists(folder)
+            ? Directory.EnumerateFiles(folder).Select(p => Path.GetFileName(p)).Where(n => !IsJunk(n)).ToHashSet(StringComparer.Ordinal)
+            : new HashSet<string>(StringComparer.Ordinal);
+
+        var pictures = new List<PlannedPicture>();
+        var errorCount = errors.Count;
+        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        hash.AppendData(Encoding.UTF8.GetBytes(body));
+
+        foreach (var reference in LessonMarkdown.PictureReferences(body).Distinct(StringComparer.Ordinal))
+        {
+            if (!LessonMarkdown.IsBareFileName(reference))
+            {
+                errors.Add($"{label}: picture '{reference}' must be a file name in '{LessonsFolderName}/{stem}/'.");
+                continue;
+            }
+            if (!LessonPictureResizer.SupportedExtensions.Contains(Path.GetExtension(reference)))
+            {
+                errors.Add($"{label}: picture '{reference}' is not a JPEG or PNG.");
+                continue;
+            }
+            if (!available.Contains(reference))
+            {
+                errors.Add($"{label}: picture '{reference}' not found in '{LessonsFolderName}/{stem}/'.");
+                continue;
+            }
+
+            var original = File.ReadAllBytes(Path.Combine(folder, reference));
+            var resized = LessonPictureResizer.Resize(original);
+            if (resized is null)
+            {
+                errors.Add($"{label}: picture '{reference}' could not be read as a picture.");
+                continue;
+            }
+
+            hash.AppendData(Encoding.UTF8.GetBytes("\0" + reference + "\0"));
+            hash.AppendData(SHA256.HashData(original));
+            pictures.Add(new PlannedPicture(pictures.Count + 1, reference, $"{blobPrefix}/{reference}", resized));
+        }
+
+        foreach (var unused in available.Where(a => pictures.All(p => p.FileName != a)).Order(StringComparer.Ordinal))
+        {
+            warnings.Add($"{label}: '{LessonsFolderName}/{stem}/{unused}' is not used in the text; not imported.");
+        }
+
+        return errors.Count > errorCount ? null : new PlannedText(body, Convert.ToHexStringLower(hash.GetHashAndReset()), pictures);
     }
 
     // Entities are init-only, so existing rows are changed through the change tracker.
@@ -446,8 +680,19 @@ public sealed class CurriculumSeeder
             || name.Equals("desktop.ini", StringComparison.OrdinalIgnoreCase);
     }
 
-    private sealed record PlannedRank(string Code, string Name, int Order, List<PlannedLesson> Lessons);
-    private sealed record PlannedLesson(string Code, string Title, int Order, HashSet<LessonTag> Tags, List<PlannedFile> Files);
+    private sealed record PlannedRank(string Code, string Name, int Order, List<PlannedLesson> Lessons)
+    {
+        public PlannedText? TeachersInformation { get; set; }
+    }
+
+    private sealed record PlannedLesson(string Code, string Title, int Order, HashSet<LessonTag> Tags, List<PlannedFile> Files)
+    {
+        public PlannedText? Text { get; set; }
+    }
+
+    private sealed record PlannedText(string Body, string Version, List<PlannedPicture> Pictures);
+
+    private sealed record PlannedPicture(int Order, string FileName, string BlobKey, byte[] Content);
     private sealed record PlannedFile(int Order, string FileName, string BlobKey, string FullPath);
 
     private sealed class ManifestDto

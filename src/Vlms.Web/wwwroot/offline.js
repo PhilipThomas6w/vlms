@@ -1,6 +1,7 @@
 // The page the service worker serves for any navigation with no connection (offline.html): the lessons
 // saved on this device (offline-lessons.js, functional.md FR-023), by rank, each with links to its files.
-// Links go to /lessons/files/{id}, which service-worker.js answers from the saved copy.
+// Links go to /lessons/files/{id}, or for a converted lesson (adr/0012) its page /lessons/{code}/offline,
+// which service-worker.js answers from the saved copy.
 (function () {
     var target = document.getElementById('saved-lessons');
 
@@ -25,11 +26,18 @@
                     target.appendChild(lessons);
                 }
                 var item = element('li');
+                if (lesson.page) {
+                    var page = element('a', lesson.title);
+                    page.href = lesson.page;
+                    item.appendChild(page);
+                    lessons.appendChild(item);
+                    return;
+                }
                 item.appendChild(element('strong', lesson.title));
                 var files = element('ul');
                 lesson.files.forEach(function (file) {
                     var link = element('a', file.name);
-                    link.href = '/lessons/files/' + file.id;
+                    link.href = file.url || '/lessons/files/' + file.id;
                     var fileItem = element('li');
                     fileItem.appendChild(link);
                     files.appendChild(fileItem);

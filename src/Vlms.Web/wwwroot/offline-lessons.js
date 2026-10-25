@@ -2,6 +2,10 @@
 // the lesson library: LessonLibrary.razor renders a hidden [data-offline-lesson] block per lesson with
 // its id, title, rank and files in data attributes; this script shows it, keeps the saved copies in the
 // "vlms-lessons" cache (read by service-worker.js and offline.js) and a small index of what is saved.
+// A converted lesson (adr/0012 decision 7) is saved as its self-contained page (data-page,
+// /lessons/{code}/offline) and its pictures, with its content version (data-version): when the
+// server's version differs, the page and pictures are fetched again. Each saved file carries its own
+// url; records saved before that have none and are files at /lessons/files/{id}.
 // Event delegation on the document plus a re-scan on Blazor's `enhancedload`, so it keeps working when
 // enhanced navigation replaces the page's DOM.
 (function () {
@@ -18,7 +22,14 @@
         return result;
     }
 
-    function fileUrl(id) { return '/lessons/files/' + id; }
+    function fileUrl(file) { return file.url || '/lessons/files/' + file.id; }
+
+    // Everything a saved lesson keeps in the cache: its files (or pictures) and, if converted, its page.
+    function urlsOf(lesson) {
+        var urls = lesson.files.map(fileUrl);
+        if (lesson.page) urls.push(lesson.page);
+        return urls;
+    }
 
     function readIndex(cache) {
         return cache.match(INDEX).then(function (r) { return r ? r.json() : { lessons: [] }; })
@@ -30,31 +41,31 @@
         return cache.put(INDEX, new Response(JSON.stringify(index), { headers: { 'Content-Type': 'application/json' } }));
     }
 
-    // One lesson file from the server into the cache; a redirect means the sign-in has lapsed.
-    function fetchFile(cache, id) {
-        return fetch(fileUrl(id), { credentials: 'same-origin' }).then(function (r) {
-            if (!r.ok || r.redirected) throw new Error('file ' + id);
-            return cache.put(fileUrl(id), r);
+    // One lesson file (or page, or picture) from the server into the cache; a redirect means the sign-in has lapsed.
+    function fetchUrl(cache, url) {
+        return fetch(url, { credentials: 'same-origin' }).then(function (r) {
+            if (!r.ok || r.redirected) throw new Error(url);
+            return cache.put(url, r);
         });
     }
 
-    function fetchFiles(cache, files) {
-        return files.reduce(function (done, file) {
-            return done.then(function () { return fetchFile(cache, file.id); });
+    function fetchUrls(cache, urls) {
+        return urls.reduce(function (done, url) {
+            return done.then(function () { return fetchUrl(cache, url); });
         }, Promise.resolve());
     }
 
-    function deleteFiles(cache, ids) {
-        return Promise.all(ids.map(function (id) { return cache.delete(fileUrl(id)); }));
+    function deleteUrls(cache, urls) {
+        return Promise.all(urls.map(function (url) { return cache.delete(url); }));
     }
 
     function save(lesson) {
         return serial(function () {
             var persist = navigator.storage && navigator.storage.persist ? navigator.storage.persist().catch(function () { }) : Promise.resolve();
             return persist.then(function () { return caches.open(CACHE); }).then(function (cache) {
-                return fetchFiles(cache, lesson.files)
+                return fetchUrls(cache, urlsOf(lesson))
                     .catch(function (error) {
-                        return deleteFiles(cache, lesson.files.map(function (f) { return f.id; })).then(function () { throw error; });
+                        return deleteUrls(cache, urlsOf(lesson)).then(function () { throw error; });
                     })
                     .then(function () { return readIndex(cache); })
                     .then(function (index) {
@@ -73,7 +84,7 @@
                     var gone = index.lessons.filter(function (l) { return l.id === id; });
                     index.lessons = index.lessons.filter(function (l) { return l.id !== id; });
                     return writeIndex(cache, index).then(function () {
-                        return Promise.all(gone.map(function (l) { return deleteFiles(cache, l.files.map(function (f) { return f.id; })); }));
+                        return Promise.all(gone.map(function (l) { return deleteUrls(cache, urlsOf(l)); }));
                     });
                 });
             });
@@ -81,7 +92,8 @@
     }
 
     // Saved lessons follow the library: a lesson that has gone is removed, a file that has gone is
-    // removed, a new file is fetched. Skipped with no connection, or if the sign-in has lapsed (the
+    // removed, a new file is fetched, and a converted lesson whose content version changed is fetched
+    // again in full. Skipped with no connection, or if the sign-in has lapsed (the
     // answer is then not JSON); saved lessons stay on the device after sign-out either way.
     function refresh() {
         if (!navigator.onLine) return Promise.resolve();
@@ -109,26 +121,33 @@
     }
 
     function sync(cache, index, saved, now) {
-        var savedIds = saved.files.map(function (f) { return f.id; });
+        var savedUrls = urlsOf(saved);
         if (!now) {
             index.lessons = index.lessons.filter(function (l) { return l.id !== saved.id; });
-            return deleteFiles(cache, savedIds);
+            return deleteUrls(cache, savedUrls);
         }
-        var nowIds = now.files.map(function (f) { return f.id; });
-        var removed = savedIds.filter(function (id) { return nowIds.indexOf(id) < 0; });
-        return deleteFiles(cache, removed)
+        var record = lessonRecord(now);
+        var nowUrls = urlsOf(record);
+        var changed = (record.version || null) !== (saved.version || null);
+        var removed = savedUrls.filter(function (url) { return nowUrls.indexOf(url) < 0; });
+        return deleteUrls(cache, removed)
             .then(function () {
-                // Fetch what is new, and anything the device has lost.
-                return Promise.all(now.files.map(function (f) { return cache.match(fileUrl(f.id)); })).then(function (found) {
-                    return fetchFiles(cache, now.files.filter(function (f, i) { return !found[i]; }));
+                // A changed lesson in full; otherwise what is new, and anything the device has lost.
+                if (changed) return fetchUrls(cache, nowUrls);
+                return Promise.all(nowUrls.map(function (url) { return cache.match(url); })).then(function (found) {
+                    return fetchUrls(cache, nowUrls.filter(function (url, i) { return !found[i]; }));
                 });
             })
-            .then(function () { Object.assign(saved, lessonRecord(now)); })
+            .then(function () { Object.assign(saved, record); })
             .catch(function () { /* keep what is saved; the next visit tries again */ });
     }
 
+    // A lesson as /lessons/saved describes it, in the form the index keeps.
     function lessonRecord(l) {
-        return { id: l.id, code: l.code, title: l.title, rank: l.rank, rankPosition: l.rankPosition, position: l.position, files: l.files.map(function (f) { return { id: f.id, name: f.displayName || f.name || f.fileName }; }) };
+        var files = l.page
+            ? (l.pictureIds || []).map(function (id) { return { id: id, name: '', url: '/lessons/pictures/' + id }; })
+            : l.files.map(function (f) { return { id: f.id, name: f.displayName || f.name || f.fileName, url: '/lessons/files/' + f.id }; });
+        return { id: l.id, code: l.code, title: l.title, rank: l.rank, rankPosition: l.rankPosition, position: l.position, files: files, page: l.page || null, version: l.version || null };
     }
 
     // ---- The buttons ----
@@ -145,7 +164,7 @@
         return {
             id: Number(block.dataset.id), code: block.dataset.code, title: block.dataset.title, rank: block.dataset.rank,
             rankPosition: Number(block.dataset.rankPosition), position: Number(block.dataset.position),
-            files: JSON.parse(block.dataset.files)
+            files: JSON.parse(block.dataset.files), page: block.dataset.page || null, version: block.dataset.version || null
         };
     }
 

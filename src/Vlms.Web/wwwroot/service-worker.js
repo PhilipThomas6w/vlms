@@ -13,8 +13,9 @@
 //      cache instead of the network. The cache name carries the build id (the `v` in this script's
 //      URL, set by App.razor), so every build starts with an empty cache and the old one is deleted
 //      on activate: an unversioned asset can never be served stale for ever.
-//   3. Lesson files (/lessons/files/{id}): network first, falling back to the copy saved on the
-//      device in the "vlms-lessons" cache. The page script (offline-lessons.js) writes and removes
+//   3. Lesson files (/lessons/files/{id}), and a converted lesson's pictures (/lessons/pictures/{id})
+//      and self-contained page (/lessons/{code}/offline, adr/0012): network first, falling back to the
+//      copy saved on the device in the "vlms-lessons" cache. The page script (offline-lessons.js) writes and removes
 //      that cache; this worker only reads it and must never delete it.
 //   4. Navigation: network first, so a page is never served stale while online; with no connection
 //      the precached /offline.html, which lists the saved lessons.
@@ -26,7 +27,7 @@ const STATIC_PREFIX = "vlms-static-";
 const CACHE_NAME = STATIC_PREFIX + BUILD;
 const LESSONS_CACHE = "vlms-lessons";
 const CACHEABLE_DESTINATIONS = ["style", "script", "image", "font", "manifest"];
-const LESSON_FILE = /^\/lessons\/files\/\d+$/;
+const LESSON_FILE = /^\/lessons\/(files\/\d+|pictures\/\d+|[^/]+\/offline)$/;
 const OFFLINE_PAGE = "/offline.html";
 const PRECACHE = [OFFLINE_PAGE, "/offline.js", "/app.css"];
 

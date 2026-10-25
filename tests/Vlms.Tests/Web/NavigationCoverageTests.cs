@@ -39,6 +39,8 @@ public class NavigationCoverageTests
         // Reached from the calendar: an event, its form, each class's register for it, and an excursion's one register.
         "/calendar/events/new", "/calendar/events/{EventId:int}", "/calendar/events/{EventId:int}/edit",
         "/attendance/{EventId:int}/{RankId:int}", "/attendance/{EventId:int}/everyone",
+        // A converted lesson (adr/0012), reached from the lesson library.
+        "/lessons/{Code}",
     ];
 
     // Routes linked ahead of their page being merged; empty since /student merged (FR-011).

@@ -40,6 +40,12 @@
     <!-- Lesson text (Markdown) to HTML, raw HTML disabled (adr/0012-app-hosted-lessons.md;
          Curriculum/LessonMarkdown.cs). 1.4.0 (20/09/2026): newest release at least two weeks old on 25/10/2026. -->
     <PackageReference Include="Markdig" Version="1.4.0" />
+    <!-- Lesson pictures resized to about 1,600 px on the long side at seed time (adr/0012 decision 4;
+         Curriculum/LessonPictureResizer.cs). SkiaSharp is MIT-licensed (nuget.org licence expression; github.com/mono/SkiaSharp),
+         so free for the charity's use with no revenue test, unlike ImageSharp's Split licence. 4.153.1 (30/09/2026): newest
+         release at least two weeks old on 25/10/2026. The Linux native library (no fontconfig dependency) is for the VPS. -->
+    <PackageReference Include="SkiaSharp" Version="4.153.1" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="4.153.1" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.13" />
     <!-- ASP.NET Core Identity (STATE.md "Identity" item, replacing Microsoft Entra External ID) —
          VlmsIdentityUser/UserManager<VlmsIdentityUser>/IdentityUserContext<TUser,TKey>. A standalone

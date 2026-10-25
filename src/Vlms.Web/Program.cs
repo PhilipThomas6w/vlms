@@ -276,6 +276,8 @@ builder.Services.AddAuthorization(options =>
 
     // Lesson library (FR-006): any of Teacher/Approver/Admin/Student/Parent, never SafeguardingOfficer alone.
     options.AddLessonLibraryPolicy();
+    // Teacher's Information pictures (adr/0012 decision 5): Teacher, Admin or National Administrator only.
+    options.AddTeachersInformationPolicy();
     // Pending proposal files (FR-007): Teacher/Approver at the door; the service limits Teachers to their own.
     options.AddProposalFilePolicy();
 
@@ -412,6 +414,7 @@ app.UseAntiforgery();
 app.MapStaticAssets();
 app.MapLessonFileEndpoint();
 app.MapSavedLessonsEndpoint();
+app.MapLessonPageEndpoints();
 app.MapRankBadgeEndpoint();
 app.MapCertificateEndpoint();
 app.MapCalendarFeedEndpoint();

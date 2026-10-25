@@ -240,8 +240,8 @@ if (seedCurriculumArgs is not null)
         }
 
         seedLogger.LogInformation(
-            "seed-curriculum done: ranks {RanksCreated} created / {RanksUpdated} updated; lessons {LessonsCreated} created / {LessonsUpdated} updated; {FilesUploaded} file(s) uploaded; {FileNamesAdded} file-name list entr(ies) added, {FilesRenamed} file(s) renamed.",
-            seed.RanksCreated, seed.RanksUpdated, seed.LessonsCreated, seed.LessonsUpdated, seed.FilesUploaded, seed.FileNamesAdded, seed.FilesRenamed);
+            "seed-curriculum done: ranks {RanksCreated} created / {RanksUpdated} updated; lessons {LessonsCreated} created / {LessonsUpdated} updated; {FilesUploaded} file(s) uploaded; {FileNamesAdded} file-name list entr(ies) added, {FilesRenamed} file(s) renamed; {LessonTextsUpdated} lesson text(s) updated, {PicturesUploaded} picture(s) uploaded.",
+            seed.RanksCreated, seed.RanksUpdated, seed.LessonsCreated, seed.LessonsUpdated, seed.FilesUploaded, seed.FileNamesAdded, seed.FilesRenamed, seed.LessonTextsUpdated, seed.PicturesUploaded);
     }
     catch (Exception ex)
     {

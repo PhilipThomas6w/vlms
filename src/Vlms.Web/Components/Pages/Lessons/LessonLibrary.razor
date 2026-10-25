@@ -35,28 +35,43 @@
                 <tbody>
                     @foreach (var (lesson, position) in rank.Lessons.Select((l, i) => (l, i)))
                     {
-                        @* Anchored by lesson code so the student page can link to a lesson (redesign; lesson pages come later). *@
+                        @* Anchored by lesson code so the student page and the lesson page can link to a lesson. *@
                         <tr id="lesson-@lesson.Code">
                             <td data-label="Code">@lesson.Code</td>
-                            <td data-label="Title">@lesson.Title</td>
+                            <td data-label="Title">
+                                @if (lesson.HasPage)
+                                {
+                                    <a href="/lessons/@Uri.EscapeDataString(lesson.Code)">@lesson.Title</a>
+                                }
+                                else
+                                {
+                                    @lesson.Title
+                                }
+                            </td>
                             <td data-label="Tags">@string.Join(", ", lesson.Tags)</td>
                             <td data-label="Files">
-                                @if (lesson.Files.Count == 0)
+                                @if (lesson.Files.Count == 0 && !lesson.HasPage)
                                 {
                                     <text>No files</text>
                                 }
                                 else
                                 {
-                                    <ul>
-                                        @foreach (var file in lesson.Files)
-                                        {
-                                            <li><a href="/lessons/files/@file.Id" data-enhance-nav="false">@file.DisplayName</a></li>
-                                        }
-                                    </ul>
+                                    @if (lesson.Files.Count > 0)
+                                    {
+                                        <ul>
+                                            @foreach (var file in lesson.Files)
+                                            {
+                                                <li><a href="/lessons/files/@file.Id" data-enhance-nav="false">@file.DisplayName</a></li>
+                                            }
+                                        </ul>
+                                    }
+                                    @* A converted lesson saves its page and pictures (adr/0012 decision 7); otherwise its files. *@
                                     <div class="offline-save" hidden data-offline-lesson
                                          data-id="@lesson.Id" data-code="@lesson.Code" data-title="@lesson.Title"
                                          data-rank="@(rank.Code + ": " + rank.Name)" data-rank-position="@rankPosition" data-position="@position"
-                                         data-files="@FilesJson(lesson)">
+                                         data-files="@FilesJson(lesson)"
+                                         data-page="@(lesson.HasPage ? LessonLibraryService.OfflinePageUrl(lesson.Code) : null)"
+                                         data-version="@lesson.ContentVersion">
                                         <span data-offline-status role="status"></span>
                                         <button type="button" data-offline-action="save">Save to this device</button>
                                     </div>
@@ -73,9 +88,12 @@
 @code {
     private IReadOnlyList<LibraryRank> _ranks = [];
 
-    // The lesson's files as the script that saves them for offline use reads them (wwwroot/offline-lessons.js).
+    // What the script that saves a lesson for offline use fetches (wwwroot/offline-lessons.js): a converted lesson's
+    // pictures, or the lesson's files.
     private static string FilesJson(LibraryLesson lesson) =>
-        System.Text.Json.JsonSerializer.Serialize(lesson.Files.Select(f => new { id = f.Id, name = f.DisplayName }));
+        lesson.HasPage
+            ? System.Text.Json.JsonSerializer.Serialize(lesson.PictureIds.Select(id => new { id, name = "", url = LessonLibraryService.PictureUrl(id) }))
+            : System.Text.Json.JsonSerializer.Serialize(lesson.Files.Select(f => new { id = f.Id, name = f.DisplayName, url = $"/lessons/files/{f.Id}" }));
 
     protected override async Task OnInitializedAsync()
     {
