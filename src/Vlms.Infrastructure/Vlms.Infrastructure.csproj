@@ -37,6 +37,9 @@
     <!-- ILogger<T> for ConsentExpiryJob's escalation logging (Safeguarding/ConsentExpiryJob.cs) —
          explicit reference (rather than relying on it arriving transitively via EF Core) so this
          class library's own dependencies are self-declared. -->
+    <!-- Lesson text (Markdown) to HTML, raw HTML disabled (adr/0012-app-hosted-lessons.md;
+         Curriculum/LessonMarkdown.cs). 1.4.0 (20/09/2026): newest release at least two weeks old on 25/10/2026. -->
+    <PackageReference Include="Markdig" Version="1.4.0" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.13" />
     <!-- ASP.NET Core Identity (STATE.md "Identity" item, replacing Microsoft Entra External ID) —
          VlmsIdentityUser/UserManager<VlmsIdentityUser>/IdentityUserContext<TUser,TKey>. A standalone

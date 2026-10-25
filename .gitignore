@@ -10,6 +10,7 @@ artifacts/
 !/seed/file-names.json
 !/seed/british-saints.csv
 !/seed/rank-badges/
+!/seed/lessons/
 
 # Local file storage (Storage:LocalRootPath, App_Data/blobs relative to the working directory): uploaded and seeded files
 App_Data/
