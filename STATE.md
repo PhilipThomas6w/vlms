@@ -106,13 +106,13 @@ Full narrative for Done/Log items to 12/08/2026: `docs/harness/STATE-archive.md`
 
 - [x] FR-022 Calendar and per-class registers (Philip, 24/10/2026): GOARCH liturgical calendar imported nightly by Vlms.Jobs (`LiturgicalFeedParser`, `LiturgicalCalendarImporter`; also `Vlms.Jobs import-calendar`), `/calendar` month list with feast and fast by default, saints and readings per day, private subscribe link (`/calendar/feed/{secret}.ics`, hash stored only); Admin-only chapter events (`ChapterEvent`, one a day); one register per class (rank) per event, collated per day on the event page and `/attendance`; any Teacher takes any class's register, own classes first; class teachers assigned on the staff page (`ClassTeacher`); migration `AddCalendarAndAttendance` replaces the never-applied `AddAttendance` — 7b5b733; full gate exit 0, 1188/1188 tests plus 15 UI tests (1 capture skipped), ASVS and WCAG checklists current; design capture of the calendar and register pages for student, parent, teacher and admin axe clean, no overflow.
 
+- [x] Calendar: list or grid view (FR-022 follow-up; Philip, 25/10/2026): a List/Grid switch on `/calendar` remembered per person (`CalendarViewChoice`, migration `AddCalendarViewChoice`); Monday-first table grid, a tapped day opens below it; on phones a cell shows the number, an event dot and a one-word fast pill; until chosen, list on phones and grid from 48rem — b9685b7; full gate exit 0, 1235/1235 tests plus 21 UI tests (capture skipped by design), including `CalendarJourneyTests` (list at 375 px, grid at 1280 px, remembered choice, no overflow with the grid at 375 px); design capture of `/calendar` for every persona axe clean, no overflow; phone grid screenshot checked. Built to Philip's draft as written; as-built additions (Monday first; event names and feast shown in wide cells) recorded in FR-022, for Philip to confirm. Local dev database: `AddCalendarViewChoice` not yet applied (`dotnet ef database update` could not connect with the available role); apply it before running the dev app.
+
 ## In progress
 
 ## Next
 Fit-for-purpose build plan (Philip, 22/10/2026; `docs/delivery-plan.md` phase 2, `docs/governance/raid.md` I-001). Acceptance for every item below: tests, gate exits 0, **and** the matching steps in `docs/requirements/user-journeys.md` work in the running app for each named role (checked by running it, not inferred from service tests), with their status updated there.
 
-
-- **Calendar: list or grid view** (FR-022 follow-up; Philip, 25/10/2026). A switch between the current list and a month grid, remembered per person. Draft to confirm: on phones the grid shows day numbers with a dot for an event and the fast as a text pill under the number, and tapping a day opens it below the grid; the list stays the default on phones and the grid on wider screens. Must keep WCAG 2.2 AA (a real table with day headers, no colour-only meaning, no overflow at 375 px).
 
 Delegation (Philip, 22/10/2026): each item runs as a subagent in its own worktree, model in brackets. Items in a wave run in parallel; a wave starts when the items it depends on are merged into `master`.
 
