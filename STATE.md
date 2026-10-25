@@ -113,6 +113,8 @@ Fit-for-purpose build plan (Philip, 22/10/2026; `docs/delivery-plan.md` phase 2,
 
 - **Calendar: list or grid view** (FR-022 follow-up; Philip, 25/10/2026). A switch between the current list and a month grid, remembered per person. Draft to confirm: on phones the grid shows day numbers with a dot for an event and the fast as a text pill under the number, and tapping a day opens it below the grid; the list stays the default on phones and the grid on wider screens. Must keep WCAG 2.2 AA (a real table with day headers, no colour-only meaning, no overflow at 375 px).
 
+- **Service worker: never cache a bad static response** (found 25/10/2026). The dev app was briefly started with the wrong content root, served every static asset as an empty 200, and the static cache (cache-first, `response.ok` only) can keep such responses until the next build id. Cache only responses with a body and the expected content type, and add a test. [Haiku]
+
 Delegation (Philip, 22/10/2026): each item runs as a subagent in its own worktree, model in brackets. Items in a wave run in parallel; a wave starts when the items it depends on are merged into `master`.
 
 
@@ -272,4 +274,5 @@ Ordered by go-live critical path.
 - 2026-10-25: "Saints and readings" did nothing for Philip once, then worked; likely the page's connection dropped when the app was restarted. Not reproduced; `CalendarJourneyTests` (parent, teacher, combined roles) added as a guard. Offline scope: lessons only, PWA workaround now (FR-023), MAUI kept on the roadmap (Philip)
 - 2026-10-25: FR-023 lessons saved for offline use merged (ff678f6); full gate on master exit 0, 1207 + 19. Two wording/placement choices put to Philip
 - 2026-10-25: FR-023 follow-up: one iPhone home-screen line at the top of the library (Philip accepted both recommendations and the three extra strings); emulated-iPhone browser test; full gate exit 0, 1207 + 20. Lesson files missing from local storage re-seeded. File-name clean-up drafted
-- 2026-10-25: Clean lesson file names merged (47be3ad), applied locally (204 renamed); full gate exit 0, 1231 + 20. Repo-root `App_Data/` git-ignored. Dev app now runs from a published copy in the scratchpad so the stop-hook gate can build
+- 2026-10-25: Clean lesson file names merged (47be3ad), applied locally (204 renamed); full gate exit 0, 1231 + 20. Repo-root `App_Data/` git-ignored. Dev app now runs from a published copy in the scratchpad so the stop-hook gate can build (start it from the published folder, with Storage__LocalRootPath set to the repo''s App_Data\blobs)
+- 2026-10-25: Dev app restarted from the published copy with the repo root as working directory, so its content root was wrong and every static asset came back empty (app unstyled and dead in the browser). Fixed: run from the published folder with `Storage__LocalRootPath=C:\dev\varangians-lms\App_Data\blobs`. Philip told to clear site data. Service-worker hardening queued
