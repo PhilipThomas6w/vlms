@@ -79,4 +79,30 @@ public sealed class OfflineLessonsJourneyTests
         var afterRemove = await page.EvaluateAsync<string>("async (id) => { try { const r = await fetch('/lessons/files/' + id); return String(r.status); } catch { return 'failed'; } }", firstId);
         Assert.Equal("failed", afterRemove);
     }
+
+    /// <summary>
+    /// iPhone Safari outside the home-screen app (FR-023 decision 5, as amended by Philip 25/10/2026):
+    /// one line at the top of the library, and no save buttons, since Safari may delete what a site saves.
+    /// </summary>
+    [Fact]
+    public async Task On_an_iPhone_in_Safari_shows_one_home_screen_line_and_no_save_buttons()
+    {
+        using var factory = new UiWebFactory();
+        factory.StartServer();
+        var baseUrl = factory.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.First().TrimEnd('/');
+        var personas = await CaptureSeed.SeedAsync(factory);
+
+        using var playwright = await Playwright.CreateAsync();
+        await using var browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions { Headless = true });
+        var iphone = new BrowserNewContextOptions(playwright.Devices["iPhone 13"]) { Locale = "en-GB" };
+        await using var context = await browser.NewContextAsync(iphone);
+        var page = await context.NewPageAsync();
+        await DesignCapture.SignInAsync(page, baseUrl, personas["teacher"]);
+
+        await page.GotoAsync(baseUrl + "/lessons", new PageGotoOptions { WaitUntil = WaitUntilState.NetworkIdle });
+        var line = page.GetByRole(AriaRole.Link, new() { Name = "To keep saved lessons, add this app to your home screen" });
+        await Assertions.Expect(line).ToHaveCountAsync(1);
+        await Assertions.Expect(line).ToBeVisibleAsync();
+        await Assertions.Expect(page.GetByRole(AriaRole.Button, new() { Name = "Save to this device" })).ToHaveCountAsync(0);
+    }
 }

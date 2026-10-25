@@ -9,6 +9,9 @@
 
 <p class="intro">Every active lesson, rank by rank, in the order it is taught. PDFs and images open in your browser; other files, such as Word documents, download.</p>
 
+@* Shown by wwwroot/offline-lessons.js on an iPhone or iPad outside the home-screen app, where saving is offered only once the app is added. *@
+<p data-offline-home-screen hidden><a href="/add-to-home-screen.html" data-enhance-nav="false">To keep saved lessons, add this app to your home screen</a></p>
+
 @foreach (var (rank, rankPosition) in _ranks.Select((r, i) => (r, i)))
 {
     <section>

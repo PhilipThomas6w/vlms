@@ -7,7 +7,6 @@
 (function () {
     var CACHE = 'vlms-lessons';
     var INDEX = '/vlms-saved-index.json';
-    var HELP = '/add-to-home-screen.html';
 
     if (!('caches' in window) || !('serviceWorker' in navigator)) return;
 
@@ -165,14 +164,10 @@
         var blocks = document.querySelectorAll('[data-offline-lesson]');
         if (blocks.length === 0) return Promise.resolve();
         if (isIos() && !isStandalone()) {
-            blocks.forEach(function (block) {
-                var link = document.createElement('a');
-                link.href = HELP;
-                link.setAttribute('data-enhance-nav', 'false');
-                link.textContent = 'To keep saved lessons, add this app to your home screen';
-                block.replaceChildren(link);
-                block.hidden = false;
-            });
+            // One line at the top of the page (LessonLibrary.razor); the save buttons stay hidden, because
+            // Safari may delete what a site saves unless the app is on the home screen.
+            var line = document.querySelector('[data-offline-home-screen]');
+            if (line) line.hidden = false;
             return Promise.resolve();
         }
         return caches.open(CACHE).then(readIndex).then(function (index) {
