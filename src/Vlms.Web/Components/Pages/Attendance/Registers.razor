@@ -2,11 +2,13 @@
 @attribute [Authorize(Policy = "RequireAdminOrTeacher")]
 @rendermode InteractiveServer
 @using System.Globalization
+@using Vlms.Domain
 @using Vlms.Infrastructure.Attendance
 @inject AttendanceService Attendance
 
-@* The chapter's meeting days with each day's registers collated (the calendar requirement): the
-   total attendance on any day. Each day opens its event, where every class's register is taken. *@
+@* The chapter's Varangians events (class days and excursions) with each day's registers collated
+   (the calendar requirement): the total attendance on any day. Each opens its event, where its
+   registers are taken. Parish events have no registers and are not listed. *@
 
 <PageTitle>Registers – Varangians</PageTitle>
 
@@ -38,7 +40,7 @@ else
             <ul class="action-list">
                 @foreach (var day in coming.OrderBy(d => d.Date))
                 {
-                    <li><a href="/calendar/events/@day.EventId"><Icon Name="calendar" /> @day.Date.ToString("dddd d MMMM yyyy", Uk): @day.Title</a></li>
+                    <li><a href="/calendar/events/@day.EventId"><Icon Name="calendar" /> @day.Date.ToString("dddd d MMMM yyyy", Uk): @day.Title@(day.Kind == ChapterEventKind.Excursion ? " (excursion)" : "")</a></li>
                 }
             </ul>
         </section>
@@ -59,7 +61,7 @@ else
                 @foreach (var day in _days.Where(d => d.Date <= Today))
                 {
                     <tr>
-                        <th scope="row" data-label="Day"><a href="/calendar/events/@day.EventId">@day.Date.ToString("d MMMM yyyy", Uk)</a></th>
+                        <th scope="row" data-label="Day"><a href="/calendar/events/@day.EventId">@day.Date.ToString("d MMMM yyyy", Uk)@(day.Kind == ChapterEventKind.Excursion ? " (excursion)" : "")</a></th>
                         <td data-label="Present">@day.Present</td>
                         <td data-label="Absent">@day.Absent</td>
                         <td data-label="Registers taken">@day.ClassesTaken</td>

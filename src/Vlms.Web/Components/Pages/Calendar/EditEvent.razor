@@ -3,13 +3,16 @@
 @attribute [Authorize(Policy = "RequireAdmin")]
 @rendermode InteractiveServer
 @using System.Globalization
+@using Vlms.Domain
 @using Vlms.Infrastructure.Calendar
 @inject CalendarService CalendarService
 @inject NavigationManager Navigation
 
-@* An Admin schedules, changes or removes one of the chapter's events (a day the chapter meets).
-   CalendarService refuses a second event on the same date, a date change once a register has been
-   taken, and removing an event with registers. *@
+@* An Admin schedules, changes or removes one of the chapter's events: a Varangians event (class,
+   excursion) or a parish event (service, parish meeting), one-off or repeating. Each date of a series
+   is then changed on its own, and removed on its own or with every later date. CalendarService refuses
+   a second class or excursion on the same date, a date or kind change once a register has been taken,
+   and removing an event with registers. *@
 
 <PageTitle>@(IsNew ? "Add an event" : "Change the event") – Varangians</PageTitle>
 
@@ -36,6 +39,21 @@ else if (_loaded)
                 <p class="muted" id="event-date-hint">A register has been taken at this event, so its date can't change.</p>
             }
         </div>
+        <fieldset class="field">
+            <legend>Kind of event</legend>
+            @if (_existing?.HasRegisters == true)
+            {
+                <p class="muted" id="event-kind-hint">A register has been taken at this event, so its kind can't change.</p>
+            }
+            @foreach (var (kind, hint) in Kinds)
+            {
+                <div class="check">
+                    <input type="radio" id="kind-@((int)kind)" name="event-kind" value="@kind" checked="@(_kind == kind)"
+                           disabled="@(_existing?.HasRegisters == true)" @onchange="() => _kind = kind" />
+                    <label for="kind-@((int)kind)">@kind.Label() <span class="muted">(@hint)</span></label>
+                </div>
+            }
+        </fieldset>
         <div class="field">
             <label for="event-title">Name</label>
             <input id="event-title" type="text" required maxlength="@CalendarService.TitleMaxLength" @bind="_title" />
@@ -54,6 +72,31 @@ else if (_loaded)
             <label for="event-location">Place (optional)</label>
             <input id="event-location" type="text" maxlength="@CalendarService.LocationMaxLength" @bind="_location" />
         </div>
+        @if (IsNew)
+        {
+            <div class="field-row">
+                <div class="field">
+                    <label for="event-repeat">Repeats</label>
+                    <select id="event-repeat" @bind="_repeat">
+                        <option value="">Does not repeat</option>
+                        <option value="@RepeatPattern.Weekly">Every week on @_date.ToString("dddd", Uk)</option>
+                        <option value="@RepeatPattern.MonthlyByWeekday">Every month on the @Ordinal((_date.Day - 1) / 7) @_date.ToString("dddd", Uk)</option>
+                        <option value="@RepeatPattern.Yearly">Every year on @_date.ToString("d MMMM", Uk)</option>
+                    </select>
+                </div>
+                @if (_repeat is not null)
+                {
+                    <div class="field">
+                        <label for="event-until">Last date</label>
+                        <input id="event-until" type="date" required @bind="_until" />
+                    </div>
+                }
+            </div>
+        }
+        else if (_existing?.SeriesId is not null)
+        {
+            <p class="muted">This date is part of a repeating event. Changes here apply to this date only.</p>
+        }
         <div class="form-actions btn-row">
             <button type="submit" disabled="@_busy">@(IsNew ? "Add the event" : "Save changes")</button>
             <a class="btn btn--secondary" href="@(IsNew ? "/calendar" : $"/calendar/events/{EventId}")">Cancel</a>
@@ -64,19 +107,33 @@ else if (_loaded)
     {
         <section class="section" aria-labelledby="remove-heading">
             <h2 id="remove-heading">Remove this event</h2>
-            @if (_confirmRemove)
+            @if (_confirmRemove is { } andLater)
             {
                 <Notice Kind="warning" Role="alert">
-                    <p><strong>Remove "@_existing.Title" on @_existing.Date.ToString("d MMMM yyyy", Uk) from the calendar?</strong></p>
+                    @if (andLater)
+                    {
+                        <p><strong>Remove "@_existing.Title" on @_existing.Date.ToString("d MMMM yyyy", Uk) and its @_existing.LaterInSeries later @(_existing.LaterInSeries == 1 ? "date" : "dates") from the calendar?</strong></p>
+                        <p>Any later date with a register already taken is kept.</p>
+                    }
+                    else
+                    {
+                        <p><strong>Remove "@_existing.Title" on @_existing.Date.ToString("d MMMM yyyy", Uk) from the calendar?</strong></p>
+                    }
                     <div class="btn-row confirm-actions">
-                        <button type="button" class="btn--danger" @onclick="RemoveAsync">Remove the event</button>
-                        <button type="button" class="btn--secondary" @onclick="() => _confirmRemove = false">Keep it</button>
+                        <button type="button" class="btn--danger" @onclick="() => RemoveAsync(andLater)">@(andLater ? "Remove these dates" : "Remove the event")</button>
+                        <button type="button" class="btn--secondary" @onclick="() => _confirmRemove = null">Keep @(andLater ? "them" : "it")</button>
                     </div>
                 </Notice>
             }
             else
             {
-                <button type="button" class="btn--secondary" @onclick="() => _confirmRemove = true">Remove the event</button>
+                <div class="btn-row">
+                    <button type="button" class="btn--secondary" @onclick="() => _confirmRemove = false">@(_existing.LaterInSeries > 0 ? "Remove this date only" : "Remove the event")</button>
+                    @if (_existing.LaterInSeries > 0)
+                    {
+                        <button type="button" class="btn--secondary" @onclick="() => _confirmRemove = true">Remove this and later dates</button>
+                    }
+                </div>
             }
         </section>
     }
@@ -84,6 +141,14 @@ else if (_loaded)
 
 @code {
     private static readonly CultureInfo Uk = CultureInfo.GetCultureInfo("en-GB");
+
+    private static readonly (ChapterEventKind Kind, string Hint)[] Kinds =
+    [
+        (ChapterEventKind.Class, "Varangians: every class meets, with a register for each"),
+        (ChapterEventKind.Excursion, "Varangians: one register for everyone; absences don't count towards at-risk"),
+        (ChapterEventKind.Service, "parish: no register"),
+        (ChapterEventKind.ParishMeeting, "parish: no register"),
+    ];
 
     [Parameter] public int? EventId { get; set; }
 
@@ -96,8 +161,11 @@ else if (_loaded)
     private TimeOnly? _start;
     private TimeOnly? _end;
     private string? _location;
+    private ChapterEventKind _kind = ChapterEventKind.Class;
+    private RepeatPattern? _repeat;
+    private DateOnly _until = DateOnly.FromDateTime(DateTime.UtcNow).AddMonths(9);
     private bool _busy;
-    private bool _confirmRemove;
+    private bool? _confirmRemove;
     private string? _errorMessage;
 
     protected override async Task OnParametersSetAsync()
@@ -107,7 +175,7 @@ else if (_loaded)
             _existing = await CalendarService.GetEventAsync(id);
             if (_existing is not null)
             {
-                (_date, _title, _start, _end, _location) = (_existing.Date, _existing.Title, _existing.StartTime, _existing.EndTime, _existing.Location);
+                (_date, _title, _start, _end, _location, _kind) = (_existing.Date, _existing.Title, _existing.StartTime, _existing.EndTime, _existing.Location, _existing.Kind);
             }
         }
 
@@ -120,11 +188,11 @@ else if (_loaded)
         _errorMessage = null;
         try
         {
-            var input = new EventInput(_date, _title, _start, _end, _location);
+            var input = new EventInput(_date, _title, _start, _end, _location, _kind);
             var id = EventId ?? 0;
             if (IsNew)
             {
-                id = await CalendarService.CreateEventAsync(input);
+                id = await CalendarService.CreateEventAsync(input, _repeat is { } pattern ? new EventRepeat(pattern, _until) : null);
             }
             else
             {
@@ -143,19 +211,28 @@ else if (_loaded)
         }
     }
 
-    private async Task RemoveAsync()
+    private async Task RemoveAsync(bool andLater)
     {
         _errorMessage = null;
         try
         {
             var month = _existing!.Date.ToString("yyyy-MM");
-            await CalendarService.DeleteEventAsync(EventId!.Value);
+            await CalendarService.DeleteEventAsync(EventId!.Value, andLater);
             Navigation.NavigateTo($"/calendar?month={month}");
         }
         catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException)
         {
-            _confirmRemove = false;
+            _confirmRemove = null;
             _errorMessage = ex.Message;
         }
     }
+
+    private static string Ordinal(int week) => week switch
+    {
+        0 => "first",
+        1 => "second",
+        2 => "third",
+        3 => "fourth",
+        _ => "fifth",
+    };
 }

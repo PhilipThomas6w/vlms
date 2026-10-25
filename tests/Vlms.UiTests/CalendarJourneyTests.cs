@@ -89,4 +89,49 @@ public sealed class CalendarJourneyTests
         var overflow = await page.EvaluateAsync<bool>("() => document.documentElement.scrollWidth > document.documentElement.clientWidth");
         Assert.False(overflow);
     }
+
+    [Fact]
+    public async Task An_admin_adds_a_weekly_service_and_an_excursion_whose_one_register_a_teacher_takes()
+    {
+        using var factory = new UiWebFactory();
+        factory.StartServer();
+        var baseUrl = factory.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.First().TrimEnd('/');
+        var personas = await CaptureSeed.SeedAsync(factory);
+
+        using var playwright = await Playwright.CreateAsync();
+        await using var browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions { Headless = true });
+        await using var context = await browser.NewContextAsync(new BrowserNewContextOptions { Locale = "en-GB" });
+        var page = await context.NewPageAsync();
+        await DesignCapture.SignInAsync(page, baseUrl, personas["admin-teacher"]);
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        // A weekly service: four dates, no register.
+        await page.GotoAsync(baseUrl + "/calendar/events/new", new PageGotoOptions { WaitUntil = WaitUntilState.NetworkIdle });
+        await page.GetByLabel("Service").CheckAsync();
+        await page.GetByLabel("Date").FillAsync(today.AddDays(1).ToString("yyyy-MM-dd"));
+        await page.GetByLabel("Name").FillAsync("Divine Liturgy");
+        await page.GetByLabel("Repeats").SelectOptionAsync("Weekly");
+        await page.GetByLabel("Last date").FillAsync(today.AddDays(22).ToString("yyyy-MM-dd"));
+        await page.GetByRole(AriaRole.Button, new() { Name = "Add the event" }).ClickAsync();
+        await page.WaitForURLAsync(new System.Text.RegularExpressions.Regex(@"/calendar/events/\d+$"));
+        await Assertions.Expect(page.Locator("h1")).ToHaveTextAsync("Divine Liturgy");
+        await Assertions.Expect(page.Locator("#registers-heading")).ToHaveCountAsync(0);
+        await page.GotoAsync(baseUrl + "/attendance", new PageGotoOptions { WaitUntil = WaitUntilState.NetworkIdle });
+        await Assertions.Expect(page.Locator("main")).Not.ToContainTextAsync("Divine Liturgy");
+
+        // An excursion three days ago: one register for everyone.
+        await page.GotoAsync(baseUrl + "/calendar/events/new", new PageGotoOptions { WaitUntil = WaitUntilState.NetworkIdle });
+        await page.GetByLabel("Excursion").CheckAsync();
+        await page.GetByLabel("Date").FillAsync(today.AddDays(-3).ToString("yyyy-MM-dd"));
+        await page.GetByLabel("Name").FillAsync("Trip to Lichfield");
+        await page.GetByRole(AriaRole.Button, new() { Name = "Add the event" }).ClickAsync();
+        await page.WaitForURLAsync(new System.Text.RegularExpressions.Regex(@"/calendar/events/\d+$"));
+        await Assertions.Expect(page.Locator(".class-row")).ToHaveCountAsync(1);
+        await page.GetByRole(AriaRole.Link, new() { Name = "Take the excursion register" }).ClickAsync();
+        await Assertions.Expect(page.Locator("h1")).ToHaveTextAsync("Excursion register");
+        await page.GetByRole(AriaRole.Button, new() { Name = "Mark everyone present" }).ClickAsync();
+        await page.GetByRole(AriaRole.Button, new() { Name = "Save the register" }).ClickAsync();
+        await Assertions.Expect(page.Locator(".register__saved")).ToContainTextAsync("Register saved");
+        await Assertions.Expect(page.Locator(".register__saved")).Not.ToContainTextAsync("Record the lessons");
+    }
 }

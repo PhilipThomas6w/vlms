@@ -9,8 +9,9 @@
 @inject AttendanceService Attendance
 @inject ICurrentUserContext CurrentUser
 
-@* One event (a day the chapter meets). Staff see each class's register, their own classes first, and
-   the day's total; any Teacher opens any class's register from here. *@
+@* One event. At a class, staff see each class's register, their own classes first, and the day's
+   total; at an excursion, its one register for everyone; any Teacher opens a register from here. A
+   parish event (service, parish meeting) has no register. *@
 
 <PageTitle>@(_event?.Title ?? "Event") – Varangians</PageTitle>
 
@@ -27,7 +28,7 @@
     else
     {
         <PageHeader Title="@_event.Title">
-            <Lead>@When(_event)@(_event.Location is null ? "" : $", {_event.Location}")</Lead>
+            <Lead><span class="pill">@_event.Kind.Label()</span> @When(_event)@(_event.Location is null ? "" : $", {_event.Location}")</Lead>
             <Actions>
                 <a class="btn btn--secondary" href="/calendar?month=@_event.Date.ToString("yyyy-MM")">Calendar</a>
                 <AuthorizeView Policy="RequireAdmin">
@@ -39,15 +40,22 @@
         @if (_registers is not null)
         {
             <section class="section" aria-labelledby="registers-heading">
-                <h2 id="registers-heading">Registers</h2>
+                <h2 id="registers-heading">@(IsExcursion ? "Register" : "Registers")</h2>
                 @if (!_registers.CanBeTaken)
                 {
-                    <p class="muted">The registers can be taken on the day.</p>
+                    <p class="muted">@(IsExcursion ? "The register can be taken on the day." : "The registers can be taken on the day.")</p>
                 }
-                <p class="event__total">
-                    <strong>Day total: @_registers.Present present, @_registers.Absent absent</strong>
-                    <span class="muted">(@_registers.ClassesTaken of @_registers.Classes.Count classes' registers taken)</span>
-                </p>
+                @if (IsExcursion)
+                {
+                    <p class="muted">Absences from an excursion don't count towards a student being at risk.</p>
+                }
+                else
+                {
+                    <p class="event__total">
+                        <strong>Day total: @_registers.Present present, @_registers.Absent absent</strong>
+                        <span class="muted">(@_registers.ClassesTaken of @_registers.Classes.Count classes' registers taken)</span>
+                    </p>
+                }
 
                 @if (_registers.Classes.Count == 0)
                 {
@@ -60,14 +68,21 @@
                         {
                             <li class="class-row rank-@item.RankOrder">
                                 <div class="class-row__name">
-                                    <RankPill Order="item.RankOrder" Name="@item.RankName" />
+                                    @if (item.RankId is null)
+                                    {
+                                        <span class="pill">@item.RankName</span>
+                                    }
+                                    else
+                                    {
+                                        <RankPill Order="item.RankOrder" Name="@item.RankName" />
+                                    }
                                     @if (item.IsMine)
                                     {
                                         <span class="pill pill--info">Your class</span>
                                     }
                                 </div>
                                 <p class="class-row__teachers">
-                                    @(item.Teachers.Count == 0 ? "No teacher assigned" : string.Join(", ", item.Teachers))
+                                    @(item.RankId is null ? "Every active student" : item.Teachers.Count == 0 ? "No teacher assigned" : string.Join(", ", item.Teachers))
                                 </p>
                                 <p class="class-row__count">
                                     @if (item.Taken)
@@ -81,8 +96,8 @@
                                 </p>
                                 @if (_isTeacher && _registers.CanBeTaken)
                                 {
-                                    <a class="btn @(item.Taken ? "btn--secondary" : null)" href="/attendance/@_event.Id/@item.RankId"
-                                       aria-label="@($"{(item.Taken ? "Update" : "Take")} the {item.RankName} register")">
+                                    <a class="btn @(item.Taken ? "btn--secondary" : null)" href="/attendance/@_event.Id/@(item.RankId?.ToString() ?? "everyone")"
+                                       aria-label="@(item.RankId is null ? $"{(item.Taken ? "Update" : "Take")} the excursion register" : $"{(item.Taken ? "Update" : "Take")} the {item.RankName} register")">
                                         @(item.Taken ? "Update the register" : "Take the register")
                                     </a>
                                 }
@@ -91,7 +106,7 @@
                     </ul>
                 }
 
-                @if (_isTeacher && _registers.ClassesTaken > 0)
+                @if (_isTeacher && !IsExcursion && _registers.ClassesTaken > 0)
                 {
                     <p><a href="/progress/record?date=@_event.Date.ToString("yyyy-MM-dd")">Record the lessons completed at this meeting</a></p>
                 }
@@ -109,6 +124,8 @@
     private EventRegisters? _registers;
     private bool _notFound;
     private bool _isTeacher;
+
+    private bool IsExcursion => _registers?.Kind == ChapterEventKind.Excursion;
 
     protected override async Task OnParametersSetAsync()
     {

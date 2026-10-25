@@ -1,21 +1,24 @@
 @page "/attendance/{EventId:int}/{RankId:int}"
+@page "/attendance/{EventId:int}/everyone"
 @attribute [Authorize(Policy = "RequireTeacher")]
 @rendermode InteractiveServer
+@using Vlms.Domain
 @using Vlms.Infrastructure.Attendance
 @inject AttendanceService Attendance
 @inject AttendanceNotificationService AttendanceNotifications
 
-@* One class's register at one meeting day (docs/design/chapters-and-attendance.md; the calendar
-   requirement): present or absent only, taken or updated by any Teacher in the chapter, opened from
-   the event. AttendanceService decides who is on it; the chapter query filter keeps it to this chapter. *@
+@* One register at one Varangians event (docs/design/chapters-and-attendance.md; the calendar
+   requirement): a class's at a class day, or the one for everyone at an excursion (/everyone).
+   Present or absent only, taken or updated by any Teacher in the chapter, opened from the event.
+   AttendanceService decides who is on it; the chapter query filter keeps it to this chapter. *@
 
 <PageTitle>Register – Varangians</PageTitle>
 
 <div class="register">
-    <PageHeader Title="@(_view is null ? "Register" : $"{_view.RankName} register")">
+    <PageHeader Title="@(_view is null ? "Register" : IsExcursion ? "Excursion register" : $"{_view.RankName} register")">
         <Lead>@(_view is null ? "" : $"{_view.EventTitle}, {_view.MeetingDate:dddd d MMMM yyyy}. ")Tick everyone who is here. Anyone not ticked is marked absent.</Lead>
         <Actions>
-            <a class="btn btn--secondary" href="/calendar/events/@EventId">All registers for this day</a>
+            <a class="btn btn--secondary" href="/calendar/events/@EventId">@(IsExcursion ? "Back to the event" : "All registers for this day")</a>
         </Actions>
     </PageHeader>
 
@@ -33,7 +36,10 @@
                 {
                     <p>The Safeguarding Officer has been told that @(_saved.PresentWithoutConsent.Count == 1 ? "a child" : "children") without consent in force attended.</p>
                 }
-                <p><a href="/progress/record?date=@_view!.MeetingDate.ToString("yyyy-MM-dd")">Record the lessons completed at this meeting</a></p>
+                @if (!IsExcursion)
+                {
+                    <p><a href="/progress/record?date=@_view!.MeetingDate.ToString("yyyy-MM-dd")">Record the lessons completed at this meeting</a></p>
+                }
             </Notice>
         </div>
     }
@@ -61,12 +67,12 @@
 
         @if (_view.Students.Count == 0)
         {
-            <div class="empty"><p>No active students in this class.</p></div>
+            <div class="empty"><p>@(IsExcursion ? "No active students in this chapter." : "No active students in this class.")</p></div>
         }
         else
         {
             <fieldset class="register__students">
-                <legend>Here at the meeting (@_present.Count of @_view.Students.Count)</legend>
+                <legend>Here @(IsExcursion ? "on the excursion" : "at the meeting") (@_present.Count of @_view.Students.Count)</legend>
                 <div class="register__tools">
                     <button type="button" class="btn--secondary" @onclick="MarkEveryonePresent">Mark everyone present</button>
                     <button type="button" class="btn--secondary" @onclick="() => _present.Clear()" disabled="@(_present.Count == 0)">Clear the ticks</button>
@@ -109,7 +115,10 @@
 
 @code {
     [Parameter] public int EventId { get; set; }
-    [Parameter] public int RankId { get; set; }
+    /// <summary>The class (rank); absent from the address (/everyone) for an excursion's register.</summary>
+    [Parameter] public int? RankId { get; set; }
+
+    private bool IsExcursion => _view?.Kind == ChapterEventKind.Excursion;
 
     private RegisterView? _view;
     private bool _notFound;

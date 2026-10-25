@@ -36,6 +36,8 @@
 .cell__number { font-weight: 700; min-width: 1.75rem; line-height: 1.75rem; }
 .cell__event { display: flex; align-items: center; gap: var(--s-1); max-width: 100%; }
 .cell__dot { width: 0.5rem; height: 0.5rem; border-radius: 999px; background: var(--lapis-700); flex: none; }
+/* A parish event's dot is a ring, a Varangians event's is filled: shape, not colour, tells them apart. */
+.cell__dot--parish { background: transparent; box-shadow: inset 0 0 0 2px var(--lapis-700); }
 .cell__button ::deep .pill { font-size: 0.75rem; padding-inline: var(--s-1); }
 
 /* Phones: names are for screen readers only. */

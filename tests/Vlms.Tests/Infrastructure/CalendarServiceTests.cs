@@ -272,4 +272,102 @@ public sealed class CalendarServiceTests : IDisposable
             await Assert.ThrowsAsync<UnauthorizedAccessException>(() => Classes(As(Teacher, role), async s => { await s.AssignAsync(1, Teacher); return 0; }));
         }
     }
+
+    [Fact]
+    public void RepeatDates_FollowEachPattern_UpToTheLastDate()
+    {
+        var thirdSunday = new DateOnly(2026, 9, 20);
+        Assert.Equal(
+            [new(2026, 9, 20), new(2026, 10, 18), new(2026, 11, 15), new(2026, 12, 20), new(2027, 1, 17), new(2027, 2, 21),
+             new(2027, 3, 21), new(2027, 4, 18), new(2027, 5, 16), new DateOnly(2027, 6, 20)],
+            CalendarService.RepeatDates(thirdSunday, new EventRepeat(RepeatPattern.MonthlyByWeekday, new DateOnly(2027, 6, 30))));
+        Assert.Equal(
+            [new(2026, 10, 1), new(2026, 10, 8), new(2026, 10, 15), new DateOnly(2026, 10, 22)],
+            CalendarService.RepeatDates(new DateOnly(2026, 10, 1), new EventRepeat(RepeatPattern.Weekly, new DateOnly(2026, 10, 28))));
+        Assert.Equal(
+            [new(2028, 2, 29), new DateOnly(2032, 2, 29)],
+            CalendarService.RepeatDates(new DateOnly(2028, 2, 29), new EventRepeat(RepeatPattern.Yearly, new DateOnly(2033, 1, 1))));
+        // A fifth Sunday falls only in months that have one.
+        Assert.Equal(
+            [new(2026, 8, 30), new DateOnly(2026, 11, 29)],
+            CalendarService.RepeatDates(new DateOnly(2026, 8, 30), new EventRepeat(RepeatPattern.MonthlyByWeekday, new DateOnly(2026, 12, 31))));
+
+        Assert.Throws<InvalidOperationException>(() => CalendarService.RepeatDates(thirdSunday, new EventRepeat(RepeatPattern.Weekly, thirdSunday.AddDays(-1))));
+        Assert.Throws<InvalidOperationException>(() => CalendarService.RepeatDates(thirdSunday, new EventRepeat(RepeatPattern.Weekly, thirdSunday.AddYears(CalendarService.MaxRepeatYears).AddDays(1))));
+    }
+
+    [Fact]
+    public async Task ARepeatingEvent_CreatesOneEventPerDate_InOneSeries()
+    {
+        var first = Today.AddDays(1);
+        var id = await Calendar(As(Admin, Role.Admin), s => s.CreateEventAsync(
+            new EventInput(first, "Divine Liturgy", new TimeOnly(10, 0), null, null, ChapterEventKind.Service),
+            new EventRepeat(RepeatPattern.Weekly, first.AddDays(21))));
+
+        var detail = await Calendar(As(Parent, Role.Parent), s => s.GetEventAsync(id));
+        Assert.Equal((ChapterEventKind.Service, id, 3), (detail!.Kind, detail.SeriesId, detail.LaterInSeries));
+        using var db = CreateDb(TestSeedUserContext.Instance);
+        Assert.Equal([first, first.AddDays(7), first.AddDays(14), first.AddDays(21)],
+            db.ChapterEvents.Where(e => e.SeriesId == id).OrderBy(e => e.Date).Select(e => e.Date).ToList());
+    }
+
+    [Fact]
+    public async Task OneClassOrExcursionADay_ButParishEventsAreNotLimited()
+    {
+        await Create(Today);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => Calendar(As(Admin, Role.Admin),
+            s => s.CreateEventAsync(new EventInput(Today, "Trip", null, null, null, ChapterEventKind.Excursion))));
+        await Calendar(As(Admin, Role.Admin), s => s.CreateEventAsync(new EventInput(Today, "Vespers", null, null, null, ChapterEventKind.Service)));
+        await Calendar(As(Admin, Role.Admin), s => s.CreateEventAsync(new EventInput(Today, "Patronal feast", null, null, null, ChapterEventKind.ParishMeeting)));
+        // A series is refused whole when any of its dates already has a class or excursion.
+        await Assert.ThrowsAsync<InvalidOperationException>(() => Calendar(As(Admin, Role.Admin), s => s.CreateEventAsync(
+            new EventInput(Today.AddDays(-7), "Class", null, null, null), new EventRepeat(RepeatPattern.Weekly, Today.AddDays(7)))));
+
+        var day = (await Calendar(As(Parent, Role.Parent), s => s.GetMonthAsync(Today.Year, Today.Month))).Days.Single(d => d.Date == Today);
+        Assert.Equal(3, day.Events.Count);
+        using var db = CreateDb(TestSeedUserContext.Instance);
+        Assert.DoesNotContain(db.ChapterEvents, e => e.Title == "Class");
+    }
+
+    [Fact]
+    public async Task RemovingADateAndItsLaterDates_KeepsAnyWithARegister_AndEarlierDates()
+    {
+        var first = Today.AddDays(-14);
+        var id = await Calendar(As(Admin, Role.Admin), s => s.CreateEventAsync(
+            new EventInput(first, "Class", null, null, null), new EventRepeat(RepeatPattern.Weekly, first.AddDays(28))));
+        using (var db = CreateDb(TestSeedUserContext.Instance))
+        {
+            var withRegister = db.ChapterEvents.Single(e => e.SeriesId == id && e.Date == first.AddDays(14));
+            db.AttendanceRegisters.Add(new AttendanceRegister { Id = 1, ChapterId = Chapter.ShrewsburyId, ChapterEventId = withRegister.Id, RankId = 1, MeetingDate = withRegister.Date, TakenByUserId = Teacher, TakenAt = DateTime.UtcNow });
+            db.SaveChanges();
+        }
+
+        int second;
+        using (var db = CreateDb(TestSeedUserContext.Instance))
+        {
+            second = db.ChapterEvents.Single(e => e.SeriesId == id && e.Date == first.AddDays(7)).Id;
+        }
+
+        var removal = await Calendar(As(Admin, Role.Admin), s => s.DeleteEventAsync(second, andLaterInSeries: true));
+
+        Assert.Equal(new EventRemoval(3, 1), removal);
+        using var after = CreateDb(TestSeedUserContext.Instance);
+        Assert.Equal([first, first.AddDays(14)], after.ChapterEvents.Where(e => e.SeriesId == id).OrderBy(e => e.Date).Select(e => e.Date).ToList());
+    }
+
+    [Fact]
+    public async Task AnEventsKind_CannotChange_OnceARegisterIsTaken()
+    {
+        var id = await Create(Today);
+        using (var db = CreateDb(TestSeedUserContext.Instance))
+        {
+            db.AttendanceRegisters.Add(new AttendanceRegister { Id = 1, ChapterId = Chapter.ShrewsburyId, ChapterEventId = id, RankId = 1, MeetingDate = Today, TakenByUserId = Teacher, TakenAt = DateTime.UtcNow });
+            db.SaveChanges();
+        }
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => Calendar(As(Admin, Role.Admin),
+            s => s.UpdateEventAsync(id, new EventInput(Today, "Now a trip", null, null, null, ChapterEventKind.Excursion))));
+        await Calendar(As(Admin, Role.Admin), s => s.UpdateEventAsync(id, new EventInput(Today, "Renamed", null, null, null)));
+    }
 }

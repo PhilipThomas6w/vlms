@@ -36,9 +36,9 @@ public class NavigationCoverageTests
     private static readonly string[] ExcludedRoutes =
     [
         "/students/{StudentId:int}", "/students/{StudentId:int}/consent",
-        // Reached from the calendar: an event, its form, and each class's register for it.
+        // Reached from the calendar: an event, its form, each class's register for it, and an excursion's one register.
         "/calendar/events/new", "/calendar/events/{EventId:int}", "/calendar/events/{EventId:int}/edit",
-        "/attendance/{EventId:int}/{RankId:int}",
+        "/attendance/{EventId:int}/{RankId:int}", "/attendance/{EventId:int}/everyone",
     ];
 
     // Routes linked ahead of their page being merged; empty since /student merged (FR-011).

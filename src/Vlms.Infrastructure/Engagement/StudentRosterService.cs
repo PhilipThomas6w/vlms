@@ -108,7 +108,7 @@ public sealed class StudentRosterService
             .ToDictionary(g => g.Key, g => g.Select(c => c.LessonId).ToHashSet());
 
         var recentMarks = (await _db.AttendanceMarks
-                .Where(m => studentIds.Contains(m.StudentId))
+                .Where(m => studentIds.Contains(m.StudentId) && m.ClassSession)
                 .Select(m => new { m.StudentId, m.MeetingDate, m.Present })
                 .ToListAsync(ct))
             .GroupBy(m => m.StudentId)

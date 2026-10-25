@@ -17,6 +17,13 @@ public sealed class AttendanceMark : IChapterOwned
     public required DateOnly MeetingDate { get; init; }
     public required bool Present { get; set; }
 
+    /// <summary>
+    /// Whether the mark is from a class (true) rather than an excursion, copied from the register's
+    /// event when the mark is made. Only class marks count towards attendance figures and the at-risk
+    /// rule (functional.md FR-020 as corrected 25/10/2026).
+    /// </summary>
+    public bool ClassSession { get; init; } = true;
+
     public AttendanceRegister? AttendanceRegister { get; init; }
     public Student? Student { get; init; }
 }

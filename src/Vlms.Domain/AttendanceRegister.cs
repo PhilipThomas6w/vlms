@@ -1,8 +1,9 @@
 namespace Vlms.Domain;
 
 /// <summary>
-/// One class's register at one <see cref="ChapterEvent"/> (functional.md FR-020, FR-022): one per
-/// event per class (rank), with a present or absent mark for each student in the class. Opened from
+/// One register at one <see cref="ChapterEvent"/> (functional.md FR-020, FR-022): at a class, one per
+/// class (rank), with a present or absent mark for each student in the class; at an excursion, one
+/// for everyone (<see cref="RankId"/> null; Philip, 25/10/2026). Opened from
 /// its event; a class's registers for a day are collated into the day's total. Self-contained in its
 /// chapter (docs/design/chapters-and-attendance.md section 5): only that chapter's staff take and read it.
 /// </summary>
@@ -13,7 +14,8 @@ public sealed class AttendanceRegister : IChapterOwned
 
     public required int Id { get; init; }
     public required int ChapterEventId { get; init; }
-    public required int RankId { get; init; }
+    /// <summary>The class (rank) whose register this is; null for an excursion's one register for everyone.</summary>
+    public int? RankId { get; init; }
 
     /// <summary>The event's date, copied so history and totals need not join the event.</summary>
     public required DateOnly MeetingDate { get; init; }

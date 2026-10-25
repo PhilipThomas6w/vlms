@@ -234,7 +234,9 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
             e.Property(x => x.Id).ValueGeneratedNever();
             e.Property(x => x.Title).HasMaxLength(200);
             e.Property(x => x.Location).HasMaxLength(200);
-            e.HasIndex(x => new { x.ChapterId, x.Date }).IsUnique();
+            // At most one Varangians event (class or excursion) a day; parish events are not limited.
+            e.HasIndex(x => new { x.ChapterId, x.Date }).IsUnique().HasFilter("kind IN (1, 2)");
+            e.HasIndex(x => x.SeriesId);
             e.HasOne<AppUser>().WithMany().HasForeignKey(x => x.CreatedByUserId).OnDelete(DeleteBehavior.Restrict);
             e.HasMany(x => x.Registers).WithOne(x => x.ChapterEvent).HasForeignKey(x => x.ChapterEventId).OnDelete(DeleteBehavior.Restrict);
         });
@@ -289,6 +291,8 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
             e.HasIndex(x => new { x.ChapterEventId, x.RankId }).IsUnique();
+            // An excursion's one register for everyone (no rank): one per event.
+            e.HasIndex(x => x.ChapterEventId).IsUnique().HasFilter("rank_id IS NULL").HasDatabaseName("IX_attendance_registers_chapter_event_id_everyone");
             e.HasOne(x => x.Rank).WithMany().HasForeignKey(x => x.RankId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(x => x.TakenByUser).WithMany().HasForeignKey(x => x.TakenByUserId).OnDelete(DeleteBehavior.Restrict);
             e.HasMany(x => x.Marks).WithOne(x => x.AttendanceRegister).HasForeignKey(x => x.AttendanceRegisterId).OnDelete(DeleteBehavior.Cascade);

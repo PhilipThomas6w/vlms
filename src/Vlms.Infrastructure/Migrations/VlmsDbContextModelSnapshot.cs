@@ -158,6 +158,10 @@ namespace Vlms.Infrastructure.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("chapter_id");
 
+                    b.Property<bool>("ClassSession")
+                        .HasColumnType("boolean")
+                        .HasColumnName("class_session");
+
                     b.Property<DateOnly>("MeetingDate")
                         .HasColumnType("date")
                         .HasColumnName("meeting_date");
@@ -201,7 +205,7 @@ namespace Vlms.Infrastructure.Migrations
                         .HasColumnType("date")
                         .HasColumnName("meeting_date");
 
-                    b.Property<int>("RankId")
+                    b.Property<int?>("RankId")
                         .HasColumnType("integer")
                         .HasColumnName("rank_id");
 
@@ -214,6 +218,11 @@ namespace Vlms.Infrastructure.Migrations
                         .HasColumnName("taken_by_user_id");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ChapterEventId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_attendance_registers_chapter_event_id_everyone")
+                        .HasFilter("rank_id IS NULL");
 
                     b.HasIndex("ChapterId");
 
@@ -382,10 +391,18 @@ namespace Vlms.Infrastructure.Migrations
                         .HasColumnType("time without time zone")
                         .HasColumnName("end_time");
 
+                    b.Property<int>("Kind")
+                        .HasColumnType("integer")
+                        .HasColumnName("kind");
+
                     b.Property<string>("Location")
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)")
                         .HasColumnName("location");
+
+                    b.Property<int?>("SeriesId")
+                        .HasColumnType("integer")
+                        .HasColumnName("series_id");
 
                     b.Property<TimeOnly?>("StartTime")
                         .HasColumnType("time without time zone")
@@ -403,8 +420,11 @@ namespace Vlms.Infrastructure.Migrations
 
                     b.HasIndex("CreatedByUserId");
 
+                    b.HasIndex("SeriesId");
+
                     b.HasIndex("ChapterId", "Date")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasFilter("kind IN (1, 2)");
 
                     b.ToTable("chapter_events");
                 });
@@ -1583,8 +1603,7 @@ namespace Vlms.Infrastructure.Migrations
                     b.HasOne("Vlms.Domain.Rank", "Rank")
                         .WithMany()
                         .HasForeignKey("RankId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("Vlms.Domain.AppUser", "TakenByUser")
                         .WithMany()

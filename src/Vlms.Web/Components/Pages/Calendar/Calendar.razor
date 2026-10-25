@@ -69,6 +69,7 @@
                             <p class="day__event">
                                 <Icon Name="calendar" />
                                 <a href="/calendar/events/@item.Id">@item.Title</a>
+                                <span class="pill">@item.Kind.Label()</span>
                                 @if (item.StartTime is { } start)
                                 {
                                     <span class="day__time">@Times(start, item.EndTime)</span>
@@ -151,7 +152,7 @@
                                     <span class="cell__number">@day.Date.Day<span class="visually-hidden"> @day.Date.ToString("MMMM", Uk)</span></span>
                                     @foreach (var item in day.Events)
                                     {
-                                        <span class="cell__event"><span class="cell__dot" aria-hidden="true"></span><span class="cell__text">@item.Title</span></span>
+                                        <span class="cell__event"><span class="cell__dot @(item.Kind.IsVarangians() ? null : "cell__dot--parish")" aria-hidden="true"></span><span class="cell__text">@item.Title<span class="visually-hidden"> (@item.Kind.Label())</span></span></span>
                                     }
                                     @if (day.Feast is not null)
                                     {
@@ -175,6 +176,7 @@
                     <p class="day__event">
                         <Icon Name="calendar" />
                         <a href="/calendar/events/@item.Id">@item.Title</a>
+                        <span class="pill">@item.Kind.Label()</span>
                         @if (item.StartTime is { } start)
                         {
                             <span class="day__time">@Times(start, item.EndTime)</span>

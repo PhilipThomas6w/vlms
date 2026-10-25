@@ -109,6 +109,19 @@ public sealed class AttendanceServiceTests : IDisposable
         return next;
     }
 
+    /// <summary>An event of <paramref name="kind"/> on <paramref name="date"/> (not a class), added now.</summary>
+    private int OtherEventOn(DateOnly date, ChapterEventKind kind)
+    {
+        using var db = CreateDb(TestSeedUserContext.Instance);
+        var next = db.ChapterEvents.Select(e => e.Id).AsEnumerable().DefaultIfEmpty(0).Max() + 1;
+        db.ChapterEvents.Add(new ChapterEvent { Id = next, ChapterId = Chapter.ShrewsburyId, Date = date, Title = kind.Label(), Kind = kind, CreatedByUserId = Admin, CreatedAt = DateTime.UtcNow });
+        db.SaveChanges();
+        return next;
+    }
+
+    private Task<RegisterSaveResult> SaveExcursion(int eventId, params (int Student, bool Present)[] marks) =>
+        Run(As(Teacher, Role.Teacher), s => s.SaveRegisterAsync(eventId, null, marks.ToDictionary(m => m.Student, m => m.Present)));
+
     /// <summary>Takes the Recruit class's register at the meeting on <paramref name="date"/>.</summary>
     private Task<RegisterSaveResult> Save(DateOnly date, params (int Student, bool Present)[] marks) =>
         SaveClass(date, 1, marks);
@@ -358,5 +371,77 @@ public sealed class AttendanceServiceTests : IDisposable
         Assert.Equal(100, alex.StudentId);
         Assert.True(alex.AbsentFromLastMeetings);
         Assert.False(alex.NoRecentCompletion);
+    }
+
+    [Fact]
+    public async Task AnExcursion_HasOneRegisterForEveryone_NotOnePerClass()
+    {
+        var trip = OtherEventOn(Today.AddDays(-3), ChapterEventKind.Excursion);
+
+        var registers = await Run(As(Teacher, Role.Teacher), s => s.GetEventRegistersAsync(trip));
+        var everyone = Assert.Single(registers!.Classes);
+        Assert.Null(everyone.RankId);
+        Assert.Equal(3, everyone.Students);
+        var view = await Run(As(Teacher, Role.Teacher), s => s.GetRegisterAsync(trip, null));
+        Assert.Equal(["Alex", "Bea", "Eve"], view!.Students.Select(r => r.StudentName));
+        Assert.Null(await Run(As(Teacher, Role.Teacher), s => s.GetRegisterAsync(trip, 1)));
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            Run(As(Teacher, Role.Teacher), s => s.SaveRegisterAsync(trip, 1, new Dictionary<int, bool> { [100] = true })));
+
+        var result = await SaveExcursion(trip, (100, true), (200, false), (500, true));
+        Assert.Equal((2, 1), (result.Present, result.Absent));
+        Assert.True(Assert.Single((await Run(As(Teacher, Role.Teacher), s => s.GetEventRegistersAsync(trip)))!.Classes).Taken);
+    }
+
+    [Fact]
+    public async Task AtAClass_TheRegisterNeedsAClass()
+    {
+        var eventId = EventOn(Today);
+        Assert.Null(await Run(As(Teacher, Role.Teacher), s => s.GetRegisterAsync(eventId, null)));
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            Run(As(Teacher, Role.Teacher), s => s.SaveRegisterAsync(eventId, null, new Dictionary<int, bool> { [100] = true })));
+    }
+
+    [Theory]
+    [InlineData(ChapterEventKind.Service)]
+    [InlineData(ChapterEventKind.ParishMeeting)]
+    public async Task AParishEvent_HasNoRegister_AndIsNotAMeetingDay(ChapterEventKind kind)
+    {
+        var eventId = OtherEventOn(Today, kind);
+
+        Assert.Null(await Run(As(Teacher, Role.Teacher), s => s.GetEventRegistersAsync(eventId)));
+        Assert.Null(await Run(As(Teacher, Role.Teacher), s => s.GetRegisterAsync(eventId, null)));
+        Assert.Null(await Run(As(Teacher, Role.Teacher), s => s.GetRegisterAsync(eventId, 1)));
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            Run(As(Teacher, Role.Teacher), s => s.SaveRegisterAsync(eventId, 1, new Dictionary<int, bool> { [100] = true })));
+        Assert.DoesNotContain(await Run(As(Teacher, Role.Teacher), s => s.ListMeetingDaysAsync()), d => d.EventId == eventId);
+    }
+
+    [Fact]
+    public async Task ExcursionAbsences_DoNotCountTowardsAtRisk_OrTheAttendanceHistory()
+    {
+        // Alex: absent from a class, absent from an excursion, then present at a class: not at risk.
+        // Bea: absent from a class, absent from an excursion, absent from a class: at risk, the excursion ignored.
+        await Save(Today.AddDays(-30), (100, false), (200, false));
+        await SaveExcursion(OtherEventOn(Today.AddDays(-20), ChapterEventKind.Excursion), (100, false), (200, false));
+        await Save(Today.AddDays(-10), (100, true), (200, false));
+        await SaveExcursion(OtherEventOn(Today.AddDays(-2), ChapterEventKind.Excursion), (100, false), (200, true));
+        using (var db = CreateDb(TestSeedUserContext.Instance))
+        {
+            db.Lessons.Add(new Lesson { Id = 1, RankId = 1, Code = "L1", Title = "Knots", Order = 1, IsActive = true });
+            foreach (var (id, student) in new[] { (1, 100), (2, 200), (3, 500) })
+            {
+                db.StudentLessonCompletions.Add(new StudentLessonCompletion { Id = id, StudentId = student, LessonId = 1, CompletedByUserId = Teacher, CompletedAt = DateTime.UtcNow, IsReversed = false });
+            }
+
+            db.SaveChanges();
+        }
+
+        using var read = CreateDb(As(Admin, Role.Admin));
+        var flags = await AtRiskStudentFlagging.GetAtRiskStudentsAsync(read, DateTime.UtcNow);
+        Assert.Equal([200], flags.Select(f => f.StudentId));
+
+        var history = await Run(As(Teacher, Role.Teacher), s => s.GetStudentHistoryAsync(100));
+        Assert.Equal([Today.AddDays(-10), Today.AddDays(-30)], history!.Entries.Select(e => e.MeetingDate));
     }
 }

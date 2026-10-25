@@ -70,10 +70,11 @@ public static class AtRiskStudentFlagging
             .Select(g => new { StudentId = g.Key, LastCompletedAt = g.Max(c => c.CompletedAt) })
             .ToDictionaryAsync(x => x.StudentId, x => x.LastCompletedAt, ct);
 
-        // Each active student's latest marks, newest first: flagged when the latest ones are all absences.
+        // Each active student's latest class marks, newest first: flagged when the latest ones are all
+        // absences. Excursions do not count (functional.md FR-020 as corrected 25/10/2026).
         var activeIds = activeStudents.Select(s => s.Id).ToList();
         var recentMarks = (await db.AttendanceMarks
-                .Where(m => activeIds.Contains(m.StudentId))
+                .Where(m => activeIds.Contains(m.StudentId) && m.ClassSession)
                 .Select(m => new { m.StudentId, m.MeetingDate, m.Present })
                 .ToListAsync(ct))
             .GroupBy(m => m.StudentId)

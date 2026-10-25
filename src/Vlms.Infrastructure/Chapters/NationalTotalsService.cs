@@ -81,7 +81,7 @@ public sealed class NationalTotalsService
                        CAST(COALESCE(SUM(CASE WHEN m.present THEN 1 ELSE 0 END), 0) AS INTEGER) AS "Present"
                 FROM attendance_registers r
                 LEFT JOIN attendance_marks m ON m.attendance_register_id = r.id
-                WHERE r.meeting_date >= {since}
+                WHERE r.meeting_date >= {since} AND r.rank_id IS NOT NULL
                 GROUP BY r.chapter_id, r.meeting_date
                 """)
             .ToListAsync(ct);
