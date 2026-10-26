@@ -603,8 +603,6 @@
     .file-list { list-style: none; margin: 0 0 var(--s-4); padding: 0; }
     .file-list li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s-2) var(--s-4); padding-block: var(--s-2); border-bottom: 1px solid var(--line); }
     .data-table ul { margin: 0; padding-left: var(--s-4); }
-    .proposal { margin-bottom: var(--s-5); }
-    .proposal h2 { margin-top: 0; font-size: var(--step-2); }
     .data-table:not(:has(th:nth-child(4))) { max-width: 44rem; }
     .section-title { margin-top: 0; font-size: var(--step-2); }
     .application { margin-bottom: var(--s-5); }
@@ -627,7 +625,7 @@
     .cert-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s-1) var(--s-4); padding-block: var(--s-1); }
 
     /* Helpers kept from the template-era stylesheet. */
-    /* Approver proposal review (FR-007): a change is marked by text as well as this background. */
+    /* Consent review: a change is marked by text as well as this background. */
     .review-changed { background: var(--gold-100); color: var(--ink); }
     .review-removed { text-decoration: line-through; }
     .preserve-lines { white-space: pre-line; }
@@ -669,6 +667,28 @@
     .lesson-text th, .lesson-text td { border: 1px solid var(--line-strong); }
     .lesson-text th { color: var(--ink); font-size: inherit; background: var(--lapis-50); }
     .lesson-text blockquote { margin: var(--s-4) 0; padding-left: var(--s-4); border-left: 4px solid var(--line-strong); }
+
+    /* Lesson suggestions (docs/adr/0013): tracked changes are underlined or struck through, not shown by colour alone. */
+    .lesson-diff ins { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; background: var(--success-tint); color: var(--ink); }
+    .lesson-diff del { text-decoration: line-through; text-decoration-thickness: 2px; background: var(--danger-tint); color: var(--ink); }
+    .lesson-diff ins img { outline: 4px solid var(--success); outline-offset: 2px; }
+    .lesson-diff del img { outline: 4px dashed var(--danger); outline-offset: 2px; opacity: 0.6; }
+    .diff-legend { font-weight: 600; }
+    .lesson-compare { display: grid; gap: var(--s-5); grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); }
+    .toggle-group { display: flex; flex-wrap: wrap; gap: var(--s-2); margin: var(--s-4) 0; }
+    .toggle-group [aria-pressed="true"] { background: var(--lapis-700); color: var(--surface); }
+    .version-list { list-style: none; padding: 0; }
+    .version-list > li { margin-bottom: var(--s-4); }
+    .version-list h2 { margin-top: 0; }
+    .lesson-editor { margin: var(--s-4) 0; }
+    .lesson-editor__toolbar { display: flex; flex-wrap: wrap; gap: var(--s-1); margin-bottom: var(--s-2); }
+    .lesson-editor__text { max-width: none; border: 1px solid var(--line-strong); border-radius: var(--r-panel); background: var(--surface); }
+    .lesson-editor__text .toastui-editor-defaultUI { border: 0; }
+    .lesson-editor__text .ProseMirror:focus-visible { outline: 3px solid var(--lapis-700); outline-offset: 2px; }
+    .lesson-settings { margin: var(--s-4) 0; }
+    .lesson-tags { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr)); gap: 0 var(--s-4); }
+    .editor-dialog { max-width: min(32rem, 92vw); border: 1px solid var(--line-strong); border-radius: var(--r-panel); padding: var(--s-5); }
+    .editor-dialog h2 { margin-top: 0; font-size: var(--step-1); }
     .teachers-information { max-width: var(--measure); margin-bottom: var(--s-6); background: var(--gold-100); border: 1px solid var(--line); border-radius: var(--r-panel); padding: 0 var(--s-4); }
     .teachers-information > summary { min-height: var(--target); display: flex; align-items: center; font-weight: 700; cursor: pointer; }
     .teachers-information[open] { padding-bottom: var(--s-4); }

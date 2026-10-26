@@ -1,0 +1,428 @@
+@page "/lessons/{Code}/suggest"
+@page "/lessons/new/{RankCode}"
+@attribute [Authorize(Policy = "RequireLessonSuggester")]
+@rendermode InteractiveServer
+@implements IAsyncDisposable
+@using Vlms.Domain
+@using Vlms.Infrastructure.Curriculum
+@inject LessonSuggestionService Suggestions
+@inject IJSRuntime JS
+@inject AntiforgeryStateProvider Antiforgery
+
+@* Suggest changes to a lesson, or a new lesson (FR-007, docs/adr/0013 decisions 1, 2, 5, 6 and 10). The lesson page itself
+   stays static; this is its own interactive page. The text is edited in wwwroot/lesson-editor.js (Toast UI Editor,
+   vendored), which saves Markdown; the editor's element is never re-rendered by Blazor, only shown or hidden. *@
+
+<HeadContent>
+    <link rel="stylesheet" href="lib/toastui-editor/toastui-editor.css" />
+</HeadContent>
+
+@if (_loaded && _editor is null)
+{
+    <PageTitle>Lesson not found</PageTitle>
+    <PageHeader Title="Lesson not found" />
+    <p><a href="/lessons">Lesson library</a></p>
+}
+else if (_editor is not null)
+{
+    <PageTitle>@PageHeading</PageTitle>
+    <p class="lesson-back">
+        @if (_editor.LessonCode is not null)
+        {
+            <a href="@LessonLibraryService.PageUrl(_editor.LessonCode)">@_editor.LessonTitle</a><span aria-hidden="true">&nbsp;›&nbsp;</span><span>Suggest changes</span>
+        }
+        else
+        {
+            <a href="/lessons">Lesson library</a><span aria-hidden="true">&nbsp;›&nbsp;</span><span>New lesson</span>
+        }
+    </p>
+    <PageHeader Title="@PageHeading" />
+
+    @if (_editor.BlockedBy is { } open)
+    {
+        <Notice Kind="warning" Role="status">
+            <p>
+                @if (open.Status == LessonSuggestionStatus.Submitted)
+                {
+                    <strong>A change to this lesson is awaiting review.</strong> @($"Suggested by {open.AuthorName} on {open.Date:dd/MM/yyyy}.")
+                }
+                else
+                {
+                    <strong>A change to this lesson is in progress.</strong> @($"Started by {open.AuthorName} on {open.Date:dd/MM/yyyy}.")
+                }
+                You can suggest changes once it has been approved or sent back.
+            </p>
+        </Notice>
+        <p><a href="@LessonLibraryService.PageUrl(_editor.LessonCode!)">Back to the lesson</a></p>
+    }
+    else
+    {
+        @if (_error is not null)
+        {
+            <Notice Kind="danger" Role="alert"><p>@_error</p></Notice>
+        }
+        <div role="status">
+            @if (_message == Outcome.Saved)
+            {
+                <Notice Kind="success"><p>Draft saved. Only you can see it until you submit it.</p></Notice>
+            }
+            else if (_message == Outcome.Submitted)
+            {
+                <Notice Kind="success"><p><strong>Submitted for review.</strong> An Approver will approve it or send it back to you. <a href="@BackUrl">Back to the lesson</a></p></Notice>
+            }
+            else if (_message == Outcome.Published && _published is not null)
+            {
+                <Notice Kind="success"><p><strong>Published.</strong> @($"The lesson is now version {_published.Number}.") <a href="@LessonLibraryService.PageUrl(_published.LessonCode)">Back to the lesson</a></p></Notice>
+            }
+            else if (_message == Outcome.Discarded)
+            {
+                <Notice Kind="success"><p>Draft discarded. <a href="@BackUrl">Back to the lesson</a></p></Notice>
+            }
+        </div>
+
+        @if (_editor.SentBack is { } sentBack && Editable)
+        {
+            <Notice Kind="info"><p>@($"Sent back by {sentBack.SentBackBy}, {sentBack.SentBackAt:dd/MM/yyyy}: “{sentBack.Comment}”")</p></Notice>
+        }
+
+        <div hidden="@(!Editable)">
+            @if (_editor.LessonId is not null && _kind is LessonChangeKind.Edit)
+            {
+                <p><button type="button" class="btn--secondary" @onclick="ReplaceAsync">Replace the whole lesson</button></p>
+            }
+            @if (_kind == LessonChangeKind.ReplaceInFull)
+            {
+                <Notice Kind="info"><p>The whole lesson will be replaced. <button type="button" class="btn--quiet" @onclick="KeepTextAsync">Keep the current text</button></p></Notice>
+            }
+            @if (_kind == LessonChangeKind.Retire)
+            {
+                <Notice Kind="warning"><p>This lesson will be retired. <button type="button" class="btn--quiet" @onclick="KeepLesson">Keep the lesson</button></p></Notice>
+            }
+
+            <section class="lesson-editor" aria-label="Lesson text" hidden="@(_kind == LessonChangeKind.Retire)">
+                <div class="lesson-editor__toolbar" role="toolbar" aria-label="Formatting" @ref="_toolbar">
+                    <button type="button" class="btn--secondary" data-command="bold" aria-label="Bold"><strong aria-hidden="true">B</strong></button>
+                    <button type="button" class="btn--secondary" data-command="italic" aria-label="Italic"><em aria-hidden="true">I</em></button>
+                    <button type="button" class="btn--secondary" data-command="heading">Heading</button>
+                    <button type="button" class="btn--secondary" data-command="subheading">Subheading</button>
+                    <button type="button" class="btn--secondary" data-command="bulletList">Bulleted list</button>
+                    <button type="button" class="btn--secondary" data-command="orderedList">Numbered list</button>
+                    <button type="button" class="btn--secondary" data-command="quote">Quotation</button>
+                    <button type="button" class="btn--secondary" data-command="link">Link</button>
+                    <button type="button" class="btn--secondary" data-command="picture">Insert picture</button>
+                </div>
+                <div class="lesson-editor__text lesson-text" data-label="Lesson text" @ref="_host"></div>
+            </section>
+
+            <details class="panel lesson-settings" open="@(_editor.LessonId is null)">
+                <summary>Lesson settings: title, order and tags</summary>
+                <div class="field-row">
+                    <div class="field">
+                        <label for="lesson-title">Title</label>
+                        <input id="lesson-title" type="text" maxlength="@LessonSuggestionService.MaxTitleLength" @bind="_title" disabled="@(_kind == LessonChangeKind.Retire)" />
+                    </div>
+                    <div class="field">
+                        <label for="lesson-order">Order in @_editor.RankName</label>
+                        <input id="lesson-order" type="number" min="1" inputmode="numeric" @bind="_order" disabled="@(_kind == LessonChangeKind.Retire)" />
+                    </div>
+                </div>
+                <fieldset disabled="@(_kind == LessonChangeKind.Retire)">
+                    <legend>Tags</legend>
+                    <ul class="check-list lesson-tags">
+                        @foreach (var tag in Enum.GetValues<LessonTag>())
+                        {
+                            var id = $"tag-{tag}";
+                            <li class="field--check">
+                                <input type="checkbox" id="@id" checked="@_tags.Contains(tag)" @onchange="e => ToggleTag(tag, e.Value is true)" />
+                                <label for="@id">@LessonTagNames.Display(tag)</label>
+                            </li>
+                        }
+                    </ul>
+                </fieldset>
+                @if (_editor.LessonId is not null && _kind != LessonChangeKind.Retire)
+                {
+                    <p><button type="button" class="btn--secondary" @onclick="RetireAsync">Retire this lesson</button></p>
+                }
+            </details>
+
+            <div class="field">
+                <label for="reason">@(_editor.CanPublishNow ? "Reason for the change (required to submit for review)" : "Reason for the change (required)")</label>
+                <textarea id="reason" rows="3" maxlength="@LessonSuggestionService.MaxReasonLength" @bind="_reason"></textarea>
+            </div>
+
+            @if (_confirmDiscard)
+            {
+                <div class="panel">
+                    <p><strong>Discard your draft?</strong></p>
+                    <div class="form-actions">
+                        <button type="button" class="btn--danger" @onclick="DiscardAsync">Discard draft</button>
+                        <button type="button" class="btn--secondary" @onclick="() => _confirmDiscard = false">Keep editing</button>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="form-actions">
+                    <button type="button" @onclick="SubmitAsync" disabled="@_busy">Submit for review</button>
+                    @if (_editor.CanPublishNow)
+                    {
+                        <button type="button" @onclick="PublishNowAsync" disabled="@_busy">Publish now</button>
+                    }
+                    <button type="button" class="btn--secondary" @onclick="SaveAsync" disabled="@_busy">Save draft</button>
+                    @if (_suggestionId is not null)
+                    {
+                        <button type="button" class="btn--quiet" @onclick="() => _confirmDiscard = true">Discard draft</button>
+                    }
+                </div>
+            }
+        </div>
+
+        <dialog id="link-dialog" class="editor-dialog" aria-labelledby="link-dialog-title">
+            <form method="dialog">
+                <h2 id="link-dialog-title">Link</h2>
+                <div class="field">
+                    <label for="link-address">Address</label>
+                    <input id="link-address" name="address" type="url" inputmode="url" autocomplete="url" />
+                </div>
+                <p class="field-error" data-error role="alert"></p>
+                <div class="form-actions">
+                    <button type="submit">Add link</button>
+                    <button type="button" class="btn--secondary" data-cancel>Cancel</button>
+                </div>
+            </form>
+        </dialog>
+
+        <dialog id="picture-dialog" class="editor-dialog" aria-labelledby="picture-dialog-title">
+            <form method="dialog">
+                <h2 id="picture-dialog-title">Insert picture</h2>
+                <div class="field">
+                    <label for="picture-file">Picture (JPEG or PNG)</label>
+                    <input id="picture-file" name="file" type="file" accept=".jpg,.jpeg,.png,image/jpeg,image/png" />
+                </div>
+                <div class="field">
+                    <label for="picture-description">Description (required)</label>
+                    <input id="picture-description" name="description" type="text" maxlength="300" />
+                </div>
+                <p class="field-error" data-error role="alert"></p>
+                <div class="form-actions">
+                    <button type="submit">Insert picture</button>
+                    <button type="button" class="btn--secondary" data-cancel>Cancel</button>
+                </div>
+            </form>
+        </dialog>
+    }
+}
+
+@code {
+    [Parameter] public string? Code { get; set; }
+    [Parameter] public string? RankCode { get; set; }
+
+    private enum Outcome { None, Saved, Submitted, Published, Discarded }
+
+    private SuggestionEditor? _editor;
+    private bool _loaded;
+    private int? _suggestionId;
+    private int? _revises;
+    private LessonSuggestionStatus? _status;
+    private LessonChangeKind _kind;
+    private LessonChangeKind _kindBeforeRetire;
+    private string _title = "";
+    private int _order = 1;
+    private HashSet<LessonTag> _tags = [];
+    private string? _reason;
+    private string _body = "";
+    private string? _error;
+    private Outcome _message;
+    private PublishedVersion? _published;
+    private bool _busy;
+    private bool _confirmDiscard;
+
+    private ElementReference _host;
+    private ElementReference _toolbar;
+    private IJSObjectReference? _module;
+    private DotNetObjectReference<LessonEditor>? _self;
+    private bool _created;
+
+    private bool Editable => _status is null or LessonSuggestionStatus.Draft && _message is not (Outcome.Published or Outcome.Discarded);
+
+    private string PageHeading => _editor?.LessonCode is not null
+        ? $"Suggest changes to {_editor.LessonTitle}"
+        : $"New lesson in {_editor?.RankName}";
+
+    private string BackUrl => _editor?.LessonCode is { } code ? LessonLibraryService.PageUrl(code) : "/lessons";
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _editor = Code is not null
+            ? await Suggestions.GetEditorAsync(Code)
+            : await Suggestions.GetNewLessonEditorAsync(RankCode ?? "");
+        _loaded = true;
+        if (_editor?.Draft is { } draft)
+        {
+            _suggestionId = draft.Id;
+            _status = draft.Status;
+            _kind = draft.Kind;
+            _title = draft.Title;
+            _order = draft.Order;
+            _tags = draft.Tags.ToHashSet();
+            _reason = draft.Reason;
+            _body = draft.Body;
+            _revises = draft.RevisesSuggestionId;
+            if (_status == LessonSuggestionStatus.Submitted)
+            {
+                _message = Outcome.Submitted;
+            }
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_created || _editor?.Draft is null || _editor.BlockedBy is not null || !Editable)
+        {
+            return;
+        }
+
+        _created = true;
+        _module = await JS.InvokeAsync<IJSObjectReference>("import", "./lesson-editor.js");
+        _self = DotNetObjectReference.Create(this);
+        await _module.InvokeVoidAsync("create", _host, _toolbar, _body, _editor.Draft.PictureUrls,
+            Antiforgery.GetAntiforgeryToken()?.Value ?? "", _self, "lib/toastui-editor/toastui-editor.min.js");
+    }
+
+    /// <summary>Called by the editor's script before it uploads a picture: the picture belongs to a saved draft.</summary>
+    [JSInvokable]
+    public async Task<int> EnsureDraftAsync(string markdown)
+    {
+        if (_suggestionId is int id)
+        {
+            return id;
+        }
+
+        _body = markdown;
+        _suggestionId = await Suggestions.SaveDraftAsync(Input());
+        _status = LessonSuggestionStatus.Draft;
+        await InvokeAsync(StateHasChanged);
+        return _suggestionId.Value;
+    }
+
+    private SuggestionInput Input() =>
+        new(_suggestionId, _editor!.LessonId, _editor.RankId, _kind, _title, _order, _tags, _body, _reason, _suggestionId is null ? _revises : null);
+
+    private async Task ReadBodyAsync()
+    {
+        if (_module is not null)
+        {
+            _body = await _module.InvokeAsync<string>("getMarkdown");
+        }
+    }
+
+    private async Task RunAsync(Func<Task> action)
+    {
+        _error = null;
+        _message = Outcome.None;
+        _busy = true;
+        try
+        {
+            await ReadBodyAsync();
+            await action();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private Task SaveAsync() => RunAsync(async () =>
+    {
+        _suggestionId = await Suggestions.SaveDraftAsync(Input());
+        _status = LessonSuggestionStatus.Draft;
+        _message = Outcome.Saved;
+    });
+
+    private Task SubmitAsync() => RunAsync(async () =>
+    {
+        _suggestionId = await Suggestions.SubmitAsync(Input());
+        _status = LessonSuggestionStatus.Submitted;
+        _message = Outcome.Submitted;
+    });
+
+    private Task PublishNowAsync() => RunAsync(async () =>
+    {
+        _published = await Suggestions.PublishNowAsync(Input());
+        _status = LessonSuggestionStatus.Approved;
+        _message = Outcome.Published;
+    });
+
+    private async Task DiscardAsync()
+    {
+        _confirmDiscard = false;
+        if (_suggestionId is not int id)
+        {
+            return;
+        }
+
+        _error = null;
+        try
+        {
+            await Suggestions.DiscardAsync(id);
+            _message = Outcome.Discarded;
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException)
+        {
+            _error = ex.Message;
+        }
+    }
+
+    private async Task ReplaceAsync()
+    {
+        _kind = LessonChangeKind.ReplaceInFull;
+        if (_module is not null)
+        {
+            await _module.InvokeVoidAsync("setMarkdown", "");
+            await _module.InvokeVoidAsync("focus");
+        }
+    }
+
+    private async Task KeepTextAsync()
+    {
+        _kind = LessonChangeKind.Edit;
+        if (_module is not null)
+        {
+            await _module.InvokeVoidAsync("setMarkdown", _editor?.Draft?.Body ?? "");
+        }
+    }
+
+    private async Task RetireAsync()
+    {
+        await ReadBodyAsync();
+        _kindBeforeRetire = _kind;
+        _kind = LessonChangeKind.Retire;
+    }
+
+    private void KeepLesson() => _kind = _kindBeforeRetire;
+
+    private void ToggleTag(LessonTag tag, bool on)
+    {
+        if (on) _tags.Add(tag); else _tags.Remove(tag);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_module is not null)
+        {
+            try
+            {
+                await _module.InvokeVoidAsync("dispose");
+                await _module.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+        }
+        _self?.Dispose();
+    }
+}

@@ -2,6 +2,7 @@
 @attribute [Authorize(Policy = "RequireLessonLibrary")]
 @using Vlms.Infrastructure.Curriculum
 @inject LessonLibraryService Library
+@inject LessonSuggestionService Suggestions
 
 @* A converted lesson (docs/adr/0012-app-hosted-lessons.md decision 6). Static server rendering, no interactive
    component: the page needs no live connection, so it is itself what "Save to this device" saves (decision 7).
@@ -20,13 +21,44 @@ else
     <PageTitle>@_page.Title</PageTitle>
     <p class="lesson-back"><a href="/lessons#lesson-@_page.Code">Lesson library</a></p>
     <PageHeader Title="@_page.Title">
-        <Lead>@_page.Rank</Lead>
+        <Lead>@_page.Rank@(_suggestions?.VersionNumber is int number ? $" · Version {number}" : "")</Lead>
         <Actions>
+            @if (_suggestions is { CanSuggest: true })
+            {
+                @if (_suggestions.Open is { IsMine: false })
+                {
+                    <button type="button" class="btn--secondary" disabled>Suggest changes</button>
+                }
+                else
+                {
+                    <a class="btn btn--secondary" href="@LessonSuggestionService.EditorUrl(_page.Code)">Suggest changes</a>
+                }
+            }
+            @if (_suggestions is { CanReadHistory: true })
+            {
+                <a class="btn btn--secondary" href="@LessonSuggestionService.HistoryUrl(_page.Code)">History</a>
+            }
             <SaveLessonButton Id="_page.Id" Code="@_page.Code" Title="@_page.Title" Rank="@_page.Rank"
                               RankPosition="_page.RankPosition" Position="_page.Position"
                               PictureIds="_page.PictureIds" Version="@_page.ContentVersion" />
         </Actions>
     </PageHeader>
+    @if (_suggestions?.Open is { IsMine: false } open)
+    {
+        <Notice Kind="warning" Role="status">
+            <p>
+                @if (open.Status == Vlms.Domain.LessonSuggestionStatus.Submitted)
+                {
+                    <strong>A change to this lesson is awaiting review.</strong> @($"Suggested by {open.AuthorName} on {open.Date:dd/MM/yyyy}.")
+                }
+                else
+                {
+                    <strong>A change to this lesson is in progress.</strong> @($"Started by {open.AuthorName} on {open.Date:dd/MM/yyyy}.")
+                }
+                You can suggest changes once it has been approved or sent back.
+            </p>
+        </Notice>
+    }
     @* Shown by wwwroot/offline-lessons.js on an iPhone or iPad outside the home-screen app, as on the lesson library. *@
     <p data-offline-home-screen hidden><a href="/add-to-home-screen.html" data-enhance-nav="false">To keep saved lessons, add this app to your home screen</a></p>
 
@@ -45,9 +77,11 @@ else
     [Parameter] public string Code { get; set; } = "";
 
     private LessonPage? _page;
+    private LessonPageSuggestions? _suggestions;
 
     protected override async Task OnParametersSetAsync()
     {
         _page = await Library.GetLessonPageAsync(Code);
+        _suggestions = _page is null ? null : await Suggestions.GetLessonPageAsync(_page.Id);
     }
 }

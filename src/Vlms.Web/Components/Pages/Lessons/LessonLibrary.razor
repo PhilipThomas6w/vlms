@@ -2,6 +2,7 @@
 @attribute [Authorize(Policy = "RequireLessonLibrary")]
 @using Vlms.Infrastructure.Curriculum
 @inject LessonLibraryService Library
+@inject LessonSuggestionService Suggestions
 
 <PageTitle>Lesson library</PageTitle>
 
@@ -83,6 +84,10 @@
                     }
                 </tbody>
             </table>
+        }
+        @if (Suggestions.CanSuggest)
+        {
+            <p><a href="@LessonSuggestionService.NewLessonUrl(rank.Code)">New lesson<span class="visually-hidden"> in @rank.Name</span></a></p>
         }
     </section>
 }

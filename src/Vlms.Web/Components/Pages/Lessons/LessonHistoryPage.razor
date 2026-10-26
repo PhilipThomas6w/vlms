@@ -1,0 +1,138 @@
+@page "/lessons/{Code}/history"
+@attribute [Authorize(Policy = "RequireLessonHistory")]
+@rendermode InteractiveServer
+@using Vlms.Domain
+@using Vlms.Infrastructure.Curriculum
+@inject LessonSuggestionService Suggestions
+
+@* Approvers and Admins: every version of a lesson, newest first, with its changes from the version before, and the
+   suggestions that were sent back (FR-007, docs/adr/0013 decision 7). The HTML comes from LessonDiff. *@
+
+@if (_loaded && _history is null)
+{
+    <PageTitle>Lesson not found</PageTitle>
+    <PageHeader Title="Lesson not found" />
+    <p><a href="/lessons">Lesson library</a></p>
+}
+else if (_history is not null)
+{
+    <PageTitle>History of @_history.Title</PageTitle>
+    <p class="lesson-back"><a href="@LessonLibraryService.PageUrl(_history.Code)">@_history.Title</a><span aria-hidden="true">&nbsp;›&nbsp;</span><span>History</span></p>
+    <PageHeader Title="@($"History of {_history.Title}")" />
+
+    <ol class="version-list" reversed>
+        @foreach (var version in _history.Versions)
+        {
+            var id = $"version-{version.Number}";
+            var open = _open.Contains(version.Number);
+            <li class="panel">
+                <h2 class="section-title">@($"Version {version.Number}")@(version.IsCurrent ? " (current)" : "")</h2>
+                @if (version.Kind == LessonVersionKind.Converted)
+                {
+                    <p>@version.PublishedAt.ToString("dd/MM/yyyy") · Converted from the original lesson.</p>
+                }
+                else
+                {
+                    <dl class="facts">
+                        <dt>@(version.Kind == LessonVersionKind.ApprovedSuggestion ? "Approved" : "Published")</dt>
+                        <dd>@version.PublishedAt.ToString("dd/MM/yyyy")</dd>
+                        @if (version.SuggestedBy is not null)
+                        {
+                            <dt>Suggested by</dt>
+                            <dd>@version.SuggestedBy@(version.SuggestedAt is DateTime at ? $", {at:dd/MM/yyyy}" : "")</dd>
+                        }
+                        @if (version.ApprovedBy is not null)
+                        {
+                            <dt>Approved by</dt>
+                            <dd>@version.ApprovedBy</dd>
+                        }
+                        @if (version.PublishedBy is not null)
+                        {
+                            <dt>Published directly by</dt>
+                            <dd>@version.PublishedBy</dd>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(version.Reason))
+                        {
+                            <dt>Reason</dt>
+                            <dd>@version.Reason</dd>
+                        }
+                        @foreach (var setting in version.SettingChanges)
+                        {
+                            <dt>@setting.Label</dt>
+                            <dd class="lesson-diff">@((MarkupString)setting.Html)</dd>
+                        }
+                    </dl>
+                    @if (version.ChangesHtml is not null || version.AfterHtml is not null)
+                    {
+                        <button type="button" class="btn--secondary" aria-expanded="@(open ? "true" : "false")" aria-controls="@id"
+                                @onclick="() => Toggle(version.Number)">@(open ? "Hide changes" : "Show changes")</button>
+                        <div id="@id" hidden="@(!open)">
+                            @if (version.AfterHtml is not null)
+                            {
+                                <div class="lesson-compare">
+                                    <section aria-label="@($"Version {version.Number - 1}")">
+                                        <h3 class="section-title">@($"Version {version.Number - 1}")</h3>
+                                        <div class="lesson-text">@((MarkupString)(version.BeforeHtml ?? ""))</div>
+                                    </section>
+                                    <section aria-label="@($"Version {version.Number}")">
+                                        <h3 class="section-title">@($"Version {version.Number}")</h3>
+                                        <div class="lesson-text">@((MarkupString)version.AfterHtml)</div>
+                                    </section>
+                                </div>
+                            }
+                            else
+                            {
+                                <p class="diff-legend">@($"Changes from version {version.Number - 1}:") underlined: added · struck through: removed</p>
+                                <div class="lesson-text lesson-diff">@((MarkupString)version.ChangesHtml!)</div>
+                            }
+                        </div>
+                    }
+                }
+            </li>
+        }
+    </ol>
+
+    @if (_history.SentBack.Count > 0)
+    {
+        <h2>Suggestions sent back</h2>
+        <ul class="version-list">
+            @foreach (var item in _history.SentBack)
+            {
+                <li class="panel">
+                    <dl class="facts">
+                        <dt>Suggested by</dt>
+                        <dd>@item.SuggestedBy, @item.SuggestedAt.ToString("dd/MM/yyyy")</dd>
+                        @if (!string.IsNullOrWhiteSpace(item.Reason))
+                        {
+                            <dt>Reason</dt>
+                            <dd>@item.Reason</dd>
+                        }
+                    </dl>
+                    <p>@($"Sent back by {item.SentBackBy}, {item.SentBackAt:dd/MM/yyyy}: “{item.Comment}”")</p>
+                </li>
+            }
+        </ul>
+    }
+}
+
+@code {
+    [Parameter] public string Code { get; set; } = "";
+
+    private LessonHistory? _history;
+    private bool _loaded;
+    private readonly HashSet<int> _open = [];
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _history = await Suggestions.GetHistoryAsync(Code);
+        _loaded = true;
+    }
+
+    private void Toggle(int number)
+    {
+        if (!_open.Remove(number))
+        {
+            _open.Add(number);
+        }
+    }
+}

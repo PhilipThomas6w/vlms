@@ -1,0 +1,50 @@
+@page "/curriculum/review"
+@attribute [Authorize(Policy = "RequireApprover")]
+@using Vlms.Infrastructure.Curriculum
+@inject LessonSuggestionService Suggestions
+
+@* Approvers: suggestions submitted for review, oldest first (FR-007, docs/adr/0013 decision 3). *@
+
+<PageTitle>Changes to review</PageTitle>
+<PageHeader Title="Changes to review" />
+
+@if (_items.Count == 0)
+{
+    <p>No changes are waiting for review.</p>
+}
+else
+{
+    <table class="data-table">
+        <caption class="visually-hidden">Changes to review</caption>
+        <thead>
+            <tr>
+                <th scope="col">Lesson</th>
+                <th scope="col">Rank</th>
+                <th scope="col">Suggested by</th>
+                <th scope="col">Submitted</th>
+                <th scope="col">Reason</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in _items)
+            {
+                <tr>
+                    <td data-label="Lesson"><a href="@LessonSuggestionService.ReviewUrl(item.Id)">@item.LessonTitle</a></td>
+                    <td data-label="Rank">@item.RankName</td>
+                    <td data-label="Suggested by">@item.SuggestedBy</td>
+                    <td data-label="Submitted">@item.SubmittedAt.ToString("dd/MM/yyyy")</td>
+                    <td data-label="Reason">@item.Reason</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private IReadOnlyList<SuggestionQueueItem> _items = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _items = await Suggestions.GetQueueAsync();
+    }
+}

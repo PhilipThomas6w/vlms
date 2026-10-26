@@ -1,0 +1,71 @@
+@using Vlms.Infrastructure.Curriculum
+@inject LessonSuggestionService Suggestions
+
+@* National Administrators: whether Approvers may "Publish now" without review (docs/adr/0013 decision 10), and who
+   changed it and when. Shown on the Chapters page, which is National Administrator only. *@
+
+<section class="panel section" aria-labelledby="lesson-publishing-heading">
+    <h2 id="lesson-publishing-heading">Lesson publishing</h2>
+    <form class="form" @onsubmit="SaveAsync" @onsubmit:preventDefault>
+        <fieldset>
+            <legend>Changes to lessons</legend>
+            <div class="check">
+                <input type="radio" id="publishing-direct" name="lesson-publishing" checked="@_allowed" @onchange="() => _allowed = true" />
+                <label for="publishing-direct">Direct publishing allowed</label>
+            </div>
+            <div class="check">
+                <input type="radio" id="publishing-review" name="lesson-publishing" checked="@(!_allowed)" @onchange="() => _allowed = false" />
+                <label for="publishing-review">Review required</label>
+            </div>
+        </fieldset>
+        <div class="form-actions"><button type="submit">Save lesson publishing</button></div>
+    </form>
+    <p role="status">@_status</p>
+    @if (_setting is { Changes.Count: > 0 })
+    {
+        <table class="data-table">
+            <caption>Changes to lesson publishing</caption>
+            <thead>
+                <tr>
+                    <th scope="col">Setting</th>
+                    <th scope="col">Changed by</th>
+                    <th scope="col">Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var change in _setting.Changes)
+                {
+                    <tr>
+                        <td data-label="Setting">@(change.DirectPublishingAllowed ? "Direct publishing allowed" : "Review required")</td>
+                        <td data-label="Changed by">@change.ChangedBy</td>
+                        <td data-label="Date">@change.ChangedAt.ToString("dd/MM/yyyy HH:mm")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</section>
+
+@code {
+    private PublishingSetting? _setting;
+    private bool _allowed = true;
+    private string? _status;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _setting = await Suggestions.GetPublishingSettingAsync();
+        _allowed = _setting.DirectPublishingAllowed;
+    }
+
+    private async Task SaveAsync()
+    {
+        await Suggestions.SetDirectPublishingAllowedAsync(_allowed);
+        await LoadAsync();
+        _status = "Lesson publishing saved.";
+    }
+}

@@ -104,11 +104,9 @@ builder.Services.AddScoped<RoleAssignmentService>();
 builder.Services.AddScoped<ChapterService>();
 builder.Services.AddScoped<NationalTotalsService>();
 
-// --- Curriculum management workflow (docs/design/low-level-design.md "LessonProposalService")
-builder.Services.AddScoped<LessonProposalService>();
-// Lesson file uploads for proposals (FR-007); limits from the "LessonUploads" section (default 25 MB per file).
-builder.Services.Configure<LessonUploadOptions>(builder.Configuration.GetSection(LessonUploadOptions.SectionName));
-builder.Services.AddScoped<LessonUploadService>();
+// --- Lesson suggestions, review and history (FR-007, docs/adr/0013): drafts, review, "Publish now", versions and the
+// national publishing setting, each call role-checked in the service; pictures through LessonSuggestionEndpoints.
+builder.Services.AddScoped<LessonSuggestionService>();
 
 // --- Lesson library (functional.md FR-006) — read-only browse + file download for Teacher/Approver/
 // Admin/Student/Parent, via LessonFileEndpoint and Pages/Lessons/LessonLibrary.razor.
@@ -278,8 +276,8 @@ builder.Services.AddAuthorization(options =>
     options.AddLessonLibraryPolicy();
     // Teacher's Information pictures (adr/0012 decision 5): Teacher, Admin or National Administrator only.
     options.AddTeachersInformationPolicy();
-    // Pending proposal files (FR-007): Teacher/Approver at the door; the service limits Teachers to their own.
-    options.AddProposalFilePolicy();
+    // Lesson suggestions (FR-007, adr/0013): Teacher or Approver to suggest; Approver or Admin to read the history.
+    options.AddLessonSuggestionPolicies();
 
     // Certificate view/download (FR-010): Student/Parent/Teacher/Admin; the service checks ownership or link.
     options.AddCertificateAccessPolicy();
@@ -418,7 +416,7 @@ app.MapLessonPageEndpoints();
 app.MapRankBadgeEndpoint();
 app.MapCertificateEndpoint();
 app.MapCalendarFeedEndpoint();
-app.MapProposalFileEndpoint();
+app.MapLessonSuggestionEndpoints();
 app.MapChapterSwitchEndpoint();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();

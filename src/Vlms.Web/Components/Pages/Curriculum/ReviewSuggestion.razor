@@ -1,0 +1,181 @@
+@page "/curriculum/review/{Id:int}"
+@attribute [Authorize(Policy = "RequireApprover")]
+@rendermode InteractiveServer
+@using Vlms.Domain
+@using Vlms.Infrastructure.Curriculum
+@inject LessonSuggestionService Suggestions
+
+@* Approvers: one suggestion as tracked changes against the lesson's current version, or as it would read; approve it or
+   send it back with a comment (FR-007, docs/adr/0013 decisions 3 and 4). The HTML comes from LessonDiff, built from
+   LessonMarkdown's output (raw HTML disabled), so it is written as markup. *@
+
+@if (_loaded && _review is null)
+{
+    <PageTitle>Suggestion not found</PageTitle>
+    <PageHeader Title="Suggestion not found" />
+    <p><a href="/curriculum/review">Changes to review</a></p>
+}
+else if (_review is not null)
+{
+    <PageTitle>@_review.LessonTitle</PageTitle>
+    <p class="lesson-back"><a href="/curriculum/review">Changes to review</a><span aria-hidden="true">&nbsp;›&nbsp;</span><span>@_review.LessonTitle</span></p>
+    <PageHeader Title="@_review.LessonTitle" />
+
+    <dl class="facts">
+        <dt>Suggested by</dt>
+        <dd>@_review.SuggestedBy, @_review.SubmittedAt.ToString("dd/MM/yyyy")</dd>
+        @if (!string.IsNullOrWhiteSpace(_review.Reason))
+        {
+            <dt>Reason</dt>
+            <dd>@_review.Reason</dd>
+        }
+        <dt>Changes</dt>
+        <dd>@ChangesText</dd>
+        @foreach (var setting in _review.SettingChanges)
+        {
+            <dt>@setting.Label</dt>
+            <dd class="lesson-diff">@((MarkupString)setting.Html)</dd>
+        }
+    </dl>
+
+    @if (_error is not null)
+    {
+        <Notice Kind="danger" Role="alert"><p>@_error</p></Notice>
+    }
+    <div role="status">
+        @if (_approved is not null)
+        {
+            <Notice Kind="success"><p><strong>Approved.</strong> @($"The lesson is now version {_approved.Number}.") <a href="@LessonSuggestionService.HistoryUrl(_approved.LessonCode)">See the lesson’s history</a></p></Notice>
+        }
+        else if (_sentBack)
+        {
+            <Notice Kind="success"><p>@($"Sent back to {_review.SuggestedBy} with your comment.") <a href="/curriculum/review">Back to changes to review</a></p></Notice>
+        }
+    </div>
+
+    @if (_review.IsStale && Pending)
+    {
+        <Notice Kind="warning"><p>The lesson has changed since this suggestion was started, so it cannot be approved.</p></Notice>
+    }
+
+    @if (_review.Kind == LessonChangeKind.Retire)
+    {
+        <Notice Kind="warning"><p>This lesson will be retired.</p></Notice>
+    }
+    else if (_review.Kind == LessonChangeKind.ReplaceInFull)
+    {
+        <div class="lesson-compare">
+            <section aria-labelledby="before-heading">
+                <h2 id="before-heading" class="section-title">@($"Version {_review.CurrentVersionNumber}")</h2>
+                <div class="lesson-text">@((MarkupString)_review.BeforeHtml)</div>
+            </section>
+            <section aria-labelledby="after-heading">
+                <h2 id="after-heading" class="section-title">@($"Proposed version {(_review.CurrentVersionNumber ?? 0) + 1}")</h2>
+                <div class="lesson-text">@((MarkupString)_review.FinalHtml)</div>
+            </section>
+        </div>
+    }
+    else
+    {
+        <div class="toggle-group" role="group" aria-label="View">
+            <button type="button" class="btn--secondary" aria-pressed="@(_tracked ? "true" : "false")" @onclick="() => _tracked = true">Tracked changes</button>
+            <button type="button" class="btn--secondary" aria-pressed="@(_tracked ? "false" : "true")" @onclick="() => _tracked = false">As it would read</button>
+        </div>
+        @if (_tracked)
+        {
+            <p class="diff-legend">Underlined: added · Struck through: removed</p>
+            <article class="lesson-text lesson-diff" aria-label="Tracked changes">@((MarkupString)_review.TrackedHtml)</article>
+        }
+        else
+        {
+            <article class="lesson-text" aria-label="As it would read">@((MarkupString)_review.FinalHtml)</article>
+        }
+    }
+
+    @if (Pending)
+    {
+        <div class="field">
+            <label for="comment">Comment (required to send back)</label>
+            <textarea id="comment" rows="3" @bind="_comment"></textarea>
+        </div>
+        <div class="form-actions">
+            @if (!_review.IsStale)
+            {
+                <button type="button" @onclick="ApproveAsync" disabled="@_busy">Approve</button>
+            }
+            <button type="button" class="btn--secondary" @onclick="SendBackAsync" disabled="@_busy">Send back</button>
+        </div>
+    }
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private SuggestionReview? _review;
+    private bool _loaded;
+    private bool _tracked = true;
+    private string? _comment;
+    private string? _error;
+    private PublishedVersion? _approved;
+    private bool _sentBack;
+    private bool _busy;
+
+    private bool Pending => _review?.Status == LessonSuggestionStatus.Submitted && _approved is null && !_sentBack;
+
+    private string ChangesText => _review switch
+    {
+        null => "",
+        { Kind: LessonChangeKind.NewLesson } => "New lesson",
+        { CurrentVersionNumber: int n } => $"Version {n} → proposed version {n + 1}",
+        _ => ""
+    };
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _review = await Suggestions.GetReviewAsync(Id);
+        _loaded = true;
+    }
+
+    private async Task ApproveAsync()
+    {
+        _error = null;
+        _busy = true;
+        try
+        {
+            _approved = await Suggestions.ApproveAsync(Id);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task SendBackAsync()
+    {
+        _error = null;
+        if (string.IsNullOrWhiteSpace(_comment))
+        {
+            _error = "Write a comment to send the suggestion back.";
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            await Suggestions.SendBackAsync(Id, _comment);
+            _sentBack = true;
+        }
+        catch (InvalidOperationException ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}
