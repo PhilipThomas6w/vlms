@@ -24,6 +24,7 @@ The app has not been released: no teachers or students use it, so nothing has to
 8. **Editing afterwards** goes through the curriculum workflow (FR-007 to FR-009): a Teacher proposes a change to the lesson text in the app, with a preview, and the Approver approves.
 9. **No change-over period** (Philip, 25/10/2026): the app is not yet released, so a rank's Word and scanned files are removed from the lesson library when that rank is converted and Philip has reviewed it. There is no parallel download period.
 10. **Pilot first:** Herald's eight lessons, end to end, judged by Philip in the app before the other ranks are converted, one rank at a time.
+11. **Rank introductions and certificate templates are not converted** (Philip, 26/10/2026). A rank's introduction document (such as Herald's, listing the rank's topics by strand) repeats the rank's lesson list, and its printable certificates are not needed: the app issues the rank certificate on promotion, and there are no per-lesson certificates.
 
 ## Consequences
 
