@@ -72,7 +72,8 @@
 
 @if (_form is not null)
 {
-    <h2>@_formTitle</h2>
+    @* The form opens below the full list of lessons, so the heading takes focus and scrolls into view. *@
+    <h2 tabindex="-1" @ref="_formHeading">@_formTitle</h2>
     <EditForm class="form form--wide" Model="_form" OnValidSubmit="SubmitProposalAsync">
         <DataAnnotationsValidator />
         <ValidationSummary role="alert" />
@@ -217,8 +218,19 @@
     private string? _errorMessage;
     private string? _statusMessage;
     private int? _resubmitOriginalId;
+    private ElementReference _formHeading;
+    private bool _focusForm;
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_focusForm && _form is not null)
+        {
+            _focusForm = false;
+            await _formHeading.FocusAsync();
+        }
+    }
 
     private async Task LoadAsync()
     {
@@ -245,6 +257,7 @@
         _errorMessage = null;
         _statusMessage = null;
         _resubmitOriginalId = null;
+        _focusForm = true;
         _formTitle = "Propose a new lesson";
         _form = new ProposalFormModel
         {
@@ -260,6 +273,7 @@
         _errorMessage = null;
         _statusMessage = null;
         _resubmitOriginalId = null;
+        _focusForm = true;
         _formTitle = $"Propose an edit to {lesson.Title}";
         _form = new ProposalFormModel
         {
@@ -280,6 +294,7 @@
         _errorMessage = null;
         _statusMessage = null;
         _resubmitOriginalId = null;
+        _focusForm = true;
         _formTitle = $"Propose retiring {lesson.Title}";
         _form = new ProposalFormModel
         {
@@ -300,6 +315,7 @@
         _errorMessage = null;
         _statusMessage = null;
         _resubmitOriginalId = proposal.Id;
+        _focusForm = true;
         _formTitle = "Resubmit proposal";
         var content = JsonSerializer.Deserialize<ProposedLessonContent>(proposal.ProposedContent)
             ?? throw new InvalidOperationException("ProposedContent could not be parsed.");
