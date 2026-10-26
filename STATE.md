@@ -125,7 +125,7 @@ Full narrative for Done/Log items to 12/08/2026: `docs/harness/STATE-archive.md`
 ## In progress
 
 ## Next
-- **Lessons: convert the remaining ranks** (FR-024) [one rank at a time, each reviewed by Philip in the app]. Unblocked: Herald pilot approved 26/10/2026.
+- **Lessons: convert the remaining ranks** (FR-024) [Sonnet, one subagent per rank, run in parallel (Philip, 26/10/2026: subagents on the most token-efficient model, not Opus in session); R1, R2, R3, R4, R6 and R7 in progress]. The main session merges each branch, runs the gate, imports with the seeder and Philip checks each rank in the app.
 - **Committee referral and Approver alerts** (FR-007, `adr/0013` decision 8; specified by Philip 26/10/2026) [Opus]: a non-Approver's change always goes to review; every Approver is alerted when a suggestion is submitted; any Approver may approve, send back, or refer it to committee; a referred suggestion needs 3 approvals from different Approvers, the author's own counting (Philip, 26/10/2026).
 Fit-for-purpose build plan (Philip, 22/10/2026; `docs/delivery-plan.md` phase 2, `docs/governance/raid.md` I-001). Acceptance for every item below: tests, gate exits 0, **and** the matching steps in `docs/requirements/user-journeys.md` work in the running app for each named role (checked by running it, not inferred from service tests), with their status updated there.
 
