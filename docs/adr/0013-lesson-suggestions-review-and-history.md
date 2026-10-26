@@ -41,4 +41,4 @@ The workflow follows two patterns panel members are likely to know: track change
 - Building it is a new entity set: lesson versions, and suggestions with draft, submitted, approved and sent-back states. It replaces `LessonChangeProposal` and its service and pages. That means one EF migration, and the access-control and WCAG checklists re-reviewed.
 - Adds a JavaScript editor dependency, which must pass the browser accessibility checks in the gate (`0009`).
 - One open suggestion per lesson means a second panel member waits for the first. This is acceptable at the panel's size and can be revisited if it gets in the way.
-- A clickable mock-up of the suggest, review and history screens is reviewed by Philip before the build.
+- A clickable mock-up of the suggest, review and history screens was approved by Philip on 26/10/2026 (claude.ai/artifact/38SsxBXVsUXWFD7uV7FJoi). He also asked, the same day, for a way to publish a wholesale replacement without the approval process; how is still to be settled.
