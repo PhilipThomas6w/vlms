@@ -32,7 +32,7 @@ Proven, not just asserted: two dedicated tests (`StudentRegistrationServiceTests
 **Changed 22/10/2026 (`adr/0008` answer 4):** `StudentRegistrationService`, `GuardianLinkService` and `GuardianInviteService` now require Admin; `/registration/students` and `/guardianship/links` use `RequireAdmin`. The text below describes the earlier Admin-or-Teacher rule.
 
 
-Role-checked inside `StudentRegistrationService` itself (defense in depth, same pattern as `GuardianLinkService`/`LessonProposalService`/`CompletionService`) — Admin or Teacher only. This is the same hard constraint that governs `StudentGuardianLink` (CLAUDE.md Project Law): the `Student` record that anchors a guardian link is never created by parent self-service either. Because `GuardianLinkService`'s own entry points also independently role-check, a caller reaching either service directly by any path is denied at both layers, not just one.
+Role-checked inside `StudentRegistrationService` itself (defense in depth, same pattern as `GuardianLinkService`/`LessonSuggestionService`/`CompletionService`) — Admin or Teacher only. This is the same hard constraint that governs `StudentGuardianLink` (CLAUDE.md Project Law): the `Student` record that anchors a guardian link is never created by parent self-service either. Because `GuardianLinkService`'s own entry points also independently role-check, a caller reaching either service directly by any path is denied at both layers, not just one.
 
 ## Page
 
