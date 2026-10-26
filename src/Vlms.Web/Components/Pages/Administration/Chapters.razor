@@ -134,9 +134,9 @@
     private static readonly Role[] NationalRoles = [Role.Approver, Role.NationalAdministrator];
 
     private IReadOnlyList<ChapterSummary> _chapters = [];
-    private readonly Dictionary<int, ChapterEdit> _edits = new();
-    private readonly Dictionary<int, IReadOnlyList<RoleHolder>> _admins = new();
-    private readonly Dictionary<Role, IReadOnlyList<RoleHolder>> _holders = new();
+    private Dictionary<int, ChapterEdit> _edits = new();
+    private Dictionary<int, IReadOnlyList<RoleHolder>> _admins = new();
+    private Dictionary<Role, IReadOnlyList<RoleHolder>> _holders = NationalRoles.ToDictionary(r => r, _ => (IReadOnlyList<RoleHolder>)[]);
     private readonly Dictionary<Role, string?> _nationalEmails = new() { [Role.Approver] = null, [Role.NationalAdministrator] = null };
     private string? _newName;
     private string? _newPlace;
@@ -153,21 +153,25 @@
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
 
+    // The page can render at any await while this runs, so everything is loaded first and swapped in together.
     private async Task LoadAsync()
     {
-        _chapters = await ChapterService.ListAllAsync();
-        _edits.Clear();
-        _admins.Clear();
-        foreach (var chapter in _chapters)
+        var chapters = await ChapterService.ListAllAsync();
+        var edits = new Dictionary<int, ChapterEdit>();
+        var admins = new Dictionary<int, IReadOnlyList<RoleHolder>>();
+        foreach (var chapter in chapters)
         {
-            _edits[chapter.Id] = new ChapterEdit { Name = chapter.Name, Place = chapter.Place, IsActive = chapter.IsActive };
-            _admins[chapter.Id] = await ChapterService.ListAdminsAsync(chapter.Id);
+            edits[chapter.Id] = new ChapterEdit { Name = chapter.Name, Place = chapter.Place, IsActive = chapter.IsActive };
+            admins[chapter.Id] = await ChapterService.ListAdminsAsync(chapter.Id);
         }
 
+        var holders = new Dictionary<Role, IReadOnlyList<RoleHolder>>();
         foreach (var role in NationalRoles)
         {
-            _holders[role] = await ChapterService.ListNationalRoleHoldersAsync(role);
+            holders[role] = await ChapterService.ListNationalRoleHoldersAsync(role);
         }
+
+        (_chapters, _edits, _admins, _holders) = (chapters, edits, admins, holders);
     }
 
     private Task CreateAsync() => RunAsync(async () =>
