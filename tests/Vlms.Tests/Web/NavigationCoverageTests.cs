@@ -17,6 +17,8 @@ public class NavigationCoverageTests
         ["RequireAdmin"] = ["Admin"],
         ["RequireTeacher"] = ["Teacher"],
         ["RequireApprover"] = ["Approver"],
+        ["RequireLessonSuggester"] = ["Teacher", "Approver"],
+        ["RequireLessonHistory"] = ["Approver", "Admin"],
         ["RequireParent"] = ["Parent"],
         ["RequireStudent"] = ["Student"],
         ["RequireSafeguardingOfficer"] = ["SafeguardingOfficer"],
@@ -41,6 +43,9 @@ public class NavigationCoverageTests
         "/attendance/{EventId:int}/{RankId:int}", "/attendance/{EventId:int}/everyone",
         // A converted lesson (adr/0012), reached from the lesson library.
         "/lessons/{Code}",
+        // Lesson suggestions (adr/0013): the editor and history from the lesson page, a new lesson from the library,
+        // and one suggestion from Changes to review.
+        "/lessons/{Code}/suggest", "/lessons/new/{RankCode}", "/lessons/{Code}/history", "/curriculum/review/{Id:int}",
     ];
 
     // Routes linked ahead of their page being merged; empty since /student merged (FR-011).

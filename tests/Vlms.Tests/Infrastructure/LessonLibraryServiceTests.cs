@@ -10,7 +10,7 @@ namespace Vlms.Tests.Infrastructure;
 /// <summary>
 /// Verifies the lesson library's read side (functional.md FR-006): ranks and lessons in delivery
 /// order with readable tags, inactive lessons hidden, files served by id only, and the role check
-/// enforced by the service itself. Same SQLite-in-memory pattern as <see cref="LessonProposalServiceTests"/>.
+/// enforced by the service itself. Same SQLite-in-memory pattern as <see cref="LessonSuggestionServiceTests"/>.
 /// </summary>
 public sealed class LessonLibraryServiceTests : IDisposable
 {

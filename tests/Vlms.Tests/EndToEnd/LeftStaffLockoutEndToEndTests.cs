@@ -80,7 +80,7 @@ public sealed class LeftStaffLockoutEndToEndTests : IDisposable
         var client = await Browser.SignInAsync(_factory, leaver);
 
         Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/parent/dashboard")).StatusCode);
-        foreach (var path in new[] { "/students", "/progress/record", "/curriculum/teacher", "/administration/students",
+        foreach (var path in new[] { "/students", "/progress/record", "/lessons/new/RECRUIT", "/administration/students",
                      "/administration/user-roles", "/retention/mark-as-left", "/safeguarding/consent", "/safeguarding/dbs" })
         {
             var response = await client.GetAsync(path);

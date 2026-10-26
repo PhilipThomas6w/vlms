@@ -188,7 +188,7 @@ public sealed class RoleMatrixEndToEndTests(RoleMatrixEndToEndTests.Sessions ses
     {
         var client = sessions.ByProfile["Teacher+Admin"].Client;
 
-        foreach (var path in new[] { "/progress/record", "/curriculum/teacher", "/students", "/administration/students", "/reporting" })
+        foreach (var path in new[] { "/progress/record", "/lessons/new/RECRUIT", "/students", "/administration/students", "/reporting" })
         {
             Assert.Equal(HttpStatusCode.OK, (await client.GetAsync(path)).StatusCode);
         }
@@ -199,7 +199,7 @@ public sealed class RoleMatrixEndToEndTests(RoleMatrixEndToEndTests.Sessions ses
     {
         var client = sessions.ByProfile["Teacher+Parent"].Client;
 
-        foreach (var path in new[] { "/progress/record", "/curriculum/teacher", "/parent/dashboard", "/parent/consent", "/lessons" })
+        foreach (var path in new[] { "/progress/record", "/lessons/new/RECRUIT", "/parent/dashboard", "/parent/consent", "/lessons" })
         {
             Assert.Equal(HttpStatusCode.OK, (await client.GetAsync(path)).StatusCode);
         }

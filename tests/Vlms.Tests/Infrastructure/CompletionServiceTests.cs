@@ -13,7 +13,7 @@ namespace Vlms.Tests.Infrastructure;
 /// a Teacher records a lesson completion, blocked by expired/missing consent (functional.md
 /// FR-003), and on success triggers auto-promotion + certificate generation.
 ///
-/// Same SQLite-in-memory-via-DI pattern as <see cref="LessonProposalServiceTests"/>.
+/// Same SQLite-in-memory-via-DI pattern as <see cref="LessonSuggestionServiceTests"/>.
 /// </summary>
 public sealed class CompletionServiceTests : IDisposable
 {

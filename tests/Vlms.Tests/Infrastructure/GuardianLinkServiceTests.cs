@@ -15,7 +15,7 @@ namespace Vlms.Tests.Infrastructure;
 /// must never be able to self-declare a relationship to a child — and both entry points
 /// (linking an existing guardian, and registering a new one in the same call) behave correctly.
 ///
-/// Same SQLite-in-memory-via-DI pattern as <see cref="LessonProposalServiceTests"/>.
+/// Same SQLite-in-memory-via-DI pattern as <see cref="LessonSuggestionServiceTests"/>.
 /// </summary>
 public sealed class GuardianLinkServiceTests : IDisposable
 {

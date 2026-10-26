@@ -14,7 +14,7 @@ namespace Vlms.Tests.Infrastructure;
 /// completions don't count), the RankBadge for the completed rank is awarded if one is configured
 /// (and promotion still proceeds if not), and the final rank graduates instead of advancing.
 ///
-/// Same SQLite-in-memory-via-DI pattern as <see cref="LessonProposalServiceTests"/>. A fresh
+/// Same SQLite-in-memory-via-DI pattern as <see cref="LessonSuggestionServiceTests"/>. A fresh
 /// database is created per test method (xUnit constructs a new test-class instance per [Fact]), so
 /// each test seeds only what it needs without cross-test contamination.
 /// </summary>

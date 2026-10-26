@@ -19,7 +19,7 @@ namespace Vlms.Tests.Web;
 /// &lt;ValidationSummary&gt; tag in Razor markup) to supply one.
 ///
 /// That assumption check found a real, confirmed defect: six pages under
-/// src/Vlms.Web/Components/Pages/ (TeacherProposals.razor, GuardianLinks.razor,
+/// src/Vlms.Web/Components/Pages/ (TeacherProposals.razor, since removed, GuardianLinks.razor,
 /// CompletionReversals.razor, RegisterStudent.razor, DbsChecks.razor, ConsentRecords.razor) used a
 /// bare &lt;ValidationSummary /&gt; with no role="alert" — client-side validation errors listed
 /// there were never announced to assistive tech, unlike every one of the six Account pages
@@ -56,7 +56,6 @@ namespace Vlms.Tests.Web;
 public class ErrorIdentificationAccessibilityTests
 {
     [Theory]
-    [InlineData("Curriculum", "TeacherProposals.razor")]
     [InlineData("Guardianship", "GuardianLinks.razor")]
     [InlineData("Progress", "CompletionReversals.razor")]
     [InlineData("Registration", "RegisterStudent.razor")]
@@ -72,8 +71,6 @@ public class ErrorIdentificationAccessibilityTests
     }
 
     [Theory]
-    [InlineData("Curriculum", "TeacherProposals.razor")]
-    [InlineData("Curriculum", "ApproverProposals.razor")]
     [InlineData("Guardianship", "GuardianLinks.razor")]
     [InlineData("Guardianship", "AcceptInvite.razor")]
     [InlineData("Registration", "RegisterStudent.razor")]

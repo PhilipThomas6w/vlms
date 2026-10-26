@@ -306,7 +306,8 @@ else if (_editor is not null)
     }
 
     private SuggestionInput Input() =>
-        new(_suggestionId, _editor!.LessonId, _editor.RankId, _kind, _title, _order, _tags, _body, _reason, _suggestionId is null ? _revises : null);
+        new(_suggestionId, _editor!.LessonId, _editor.RankId, _kind, _title, _order, _tags, _body, _reason, _suggestionId is null ? _revises : null,
+            _suggestionId is null ? _editor.CurrentVersionNumber : null);
 
     private async Task ReadBodyAsync()
     {

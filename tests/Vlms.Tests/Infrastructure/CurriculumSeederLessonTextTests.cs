@@ -112,9 +112,10 @@ public sealed class CurriculumSeederLessonTextTests : IDisposable
         Assert.Matches("^[0-9a-f]{64}$", lesson.ContentVersion);
         var pictures = await db.LessonPictures.Where(p => p.LessonId == lesson.Id).OrderBy(p => p.Order).ToListAsync();
         Assert.Equal(["big.jpg", "small.jpg"], pictures.Select(p => p.FileName));
-        Assert.Equal(["lesson-pictures/R1-01/big.jpg", "lesson-pictures/R1-01/small.jpg"], pictures.Select(p => p.BlobKey));
+        // Keys are content-addressed (docs/adr/0013): a picture a lesson version refers to is never overwritten.
+        Assert.All(pictures, p => Assert.Matches($"^lesson-pictures/R1-01/[0-9a-f]{{16}}/{p.FileName}$", p.BlobKey));
 
-        Assert.True(_blobStorage.TryGetBlob("lesson-pictures/R1-01/big.jpg", out var big));
+        Assert.True(_blobStorage.TryGetBlob(pictures[0].BlobKey, out var big));
         using var codec = SKCodec.Create(new MemoryStream(big!));
         Assert.Equal((1600, 1000), (codec.Info.Width, codec.Info.Height));
 
@@ -255,6 +256,68 @@ public sealed class CurriculumSeederLessonTextTests : IDisposable
         Assert.True(result.Succeeded);
         Assert.Contains(result.Warnings, w => w.Contains("R9-99.md"));
         Assert.Contains(result.Warnings, w => w.Contains("unused.jpg"));
+    }
+
+    [Fact]
+    public async Task ConvertedLesson_IsRecordedAsConvertedVersions_OnlyWhenItsTextChanges()
+    {
+        WriteConvertedLesson();
+        await RunAsync();
+        await RunAsync();
+
+        using (var db = CreateContext())
+        {
+            var lesson = await db.Lessons.SingleAsync(l => l.Code == "R1-01");
+            var version = await db.LessonVersions.Include(v => v.Pictures).Include(v => v.Tags).SingleAsync(v => v.LessonId == lesson.Id);
+            Assert.Equal((1, LessonVersionKind.Converted), (version.Number, version.Kind));
+            Assert.Equal(lesson.Body, version.Body);
+            Assert.Equal(lesson.ContentVersion, version.ContentVersion);
+            Assert.Equal(["big.jpg", "small.jpg"], version.Pictures.OrderBy(p => p.Order).Select(p => p.FileName));
+            Assert.Equal([LessonTag.ChurchLife], version.Tags.Select(t => t.Tag));
+        }
+
+        WriteText("lessons/R1-01.md", "## Questions\n\n- Why not?\n\n![The big picture](big.jpg)\n\n![The small picture](small.jpg)\n");
+        await RunAsync();
+
+        using var after = CreateContext();
+        var versions = await after.LessonVersions.Where(v => v.Lesson!.Code == "R1-01").OrderBy(v => v.Number).ToListAsync();
+        Assert.Equal([1, 2], versions.Select(v => v.Number));
+        Assert.All(versions, v => Assert.Equal(LessonVersionKind.Converted, v.Kind));
+        Assert.Contains("Why not?", versions[1].Body);
+        Assert.Contains("- Why?", versions[0].Body);
+    }
+
+    [Fact]
+    public async Task LessonChangedThroughASuggestion_IsLeftUntouched_WithAWarning()
+    {
+        WriteConvertedLesson();
+        await RunAsync();
+        int lessonId;
+        string? body;
+        using (var db = CreateContext())
+        {
+            var lesson = await db.Lessons.SingleAsync(l => l.Code == "R1-01");
+            lessonId = lesson.Id;
+            body = "Approved text.\n";
+            db.Entry(lesson).Property(l => l.Body).CurrentValue = body;
+            db.Entry(lesson).Property(l => l.Title).CurrentValue = "Approved title";
+            db.LessonVersions.Add(new LessonVersion
+            {
+                Id = await db.NextIdAsync<LessonVersion>(), LessonId = lesson.Id, Number = 2, Kind = LessonVersionKind.ApprovedSuggestion,
+                Title = "Approved title", Order = 1, IsActive = true, Body = body, PublishedAt = DateTime.UtcNow
+            });
+            await db.SaveChangesAsync();
+        }
+
+        WriteText("lessons/R1-01.md", "## Questions\n\n- Seeder text.\n");
+        var result = await RunAsync();
+
+        Assert.True(result.Succeeded, string.Join("; ", result.Errors));
+        Assert.Contains(result.Warnings, w => w.Contains("R1-01") && w.Contains("left untouched"));
+        using var after = CreateContext();
+        var unchanged = await after.Lessons.SingleAsync(l => l.Id == lessonId);
+        Assert.Equal(("Approved title", body), (unchanged.Title, unchanged.Body));
+        Assert.Equal(2, await after.LessonVersions.CountAsync(v => v.LessonId == lessonId));
     }
 
     [Fact]

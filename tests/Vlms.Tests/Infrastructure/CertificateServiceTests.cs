@@ -16,7 +16,7 @@ namespace Vlms.Tests.Infrastructure;
 /// openwiki/testing.md) and a <see cref="Certificate"/> row is written, 1:1 with the completion
 /// (data-design.md).
 ///
-/// Same SQLite-in-memory-via-DI pattern as <see cref="LessonProposalServiceTests"/>.
+/// Same SQLite-in-memory-via-DI pattern as <see cref="LessonSuggestionServiceTests"/>.
 /// </summary>
 public sealed class CertificateServiceTests : IDisposable
 {

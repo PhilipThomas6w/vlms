@@ -643,6 +643,10 @@ public sealed class LessonSuggestionService
 
             rankId = lesson.RankId;
             baseVersion = await EnsureBaselineVersionAsync(lesson, ct);
+            if (input.BaseVersionNumber is int opened && opened != baseVersion)
+            {
+                throw new InvalidOperationException("The lesson has changed since you opened it. Open Suggest changes again to start from the latest version.");
+            }
             pictures.AddRange(lesson.Pictures.Select(p => (p.FileName, p.BlobKey)));
 
             if (input.RevisesSuggestionId is int revises)
@@ -687,7 +691,10 @@ public sealed class LessonSuggestionService
         {
             var picture = new LessonSuggestionPicture { Id = nextPictureId++, LessonSuggestionId = suggestion.Id, FileName = fileName, BlobKey = blobKey };
             _db.LessonSuggestionPictures.Add(picture);
-            suggestion.Pictures.Add(picture);
+            if (!suggestion.Pictures.Contains(picture))
+            {
+                suggestion.Pictures.Add(picture);
+            }
         }
         return suggestion;
     }
@@ -727,6 +734,8 @@ public sealed class LessonSuggestionService
                 Id = pictureId++, LessonVersionId = versionId, Order = picture.Order, FileName = picture.FileName, BlobKey = picture.BlobKey
             });
         }
+        // Saved at once, so the suggestion's base and the stale check read the same version.
+        await _db.SaveChangesAsync(ct);
         return 1;
     }
 
@@ -829,7 +838,7 @@ public sealed class LessonSuggestionService
         }
         else
         {
-            var byName = suggestion.Pictures.ToDictionary(p => p.FileName, p => p.BlobKey, StringComparer.Ordinal);
+            var byName = suggestion.Pictures.DistinctBy(p => p.FileName, StringComparer.Ordinal).ToDictionary(p => p.FileName, p => p.BlobKey, StringComparer.Ordinal);
             pictures = LessonMarkdown.PictureReferences(body!).Distinct(StringComparer.Ordinal)
                 .Where(byName.ContainsKey).Select(name => (name, byName[name])).ToList();
         }
@@ -890,7 +899,7 @@ public sealed class LessonSuggestionService
             Body = body,
             ContentVersion = contentVersion,
             SuggestedByUserId = suggestion.AuthorUserId,
-            SuggestedAt = suggestion.SubmittedAt ?? now,
+            SuggestedAt = suggestion.SubmittedAt is DateTime submitted ? DateTime.SpecifyKind(submitted, DateTimeKind.Utc) : now,
             ApprovedByUserId = direct ? null : deciderId,
             PublishedByUserId = direct ? deciderId : null,
             Reason = suggestion.Reason,
@@ -1061,7 +1070,10 @@ public sealed class LessonSuggestionService
         _currentUser.UserId ?? throw new UnauthorizedAccessException("Caller has no resolved UserId.");
 }
 
-/// <summary>What a caller enters in the editor. <see cref="SuggestionId"/> is null until the draft is first saved.</summary>
+/// <summary>
+/// What a caller enters in the editor. <see cref="SuggestionId"/> is null until the draft is first saved;
+/// <see cref="BaseVersionNumber"/> is the version the editor was opened on, so a draft is never based on a later one.
+/// </summary>
 public sealed record SuggestionInput(
     int? SuggestionId,
     int? LessonId,
@@ -1072,7 +1084,8 @@ public sealed record SuggestionInput(
     IReadOnlyCollection<LessonTag> Tags,
     string Body,
     string? Reason,
-    int? RevisesSuggestionId = null);
+    int? RevisesSuggestionId = null,
+    int? BaseVersionNumber = null);
 
 public sealed record OpenSuggestion(int Id, LessonSuggestionStatus Status, string AuthorName, DateTime Date, bool IsMine);
 

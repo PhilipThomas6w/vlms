@@ -34,8 +34,6 @@ namespace Vlms.Tests.Web;
 public class StatusMessageAccessibilityTests
 {
     [Theory]
-    [InlineData("Curriculum", "TeacherProposals.razor")]
-    [InlineData("Curriculum", "ApproverProposals.razor")]
     [InlineData("Guardianship", "GuardianLinks.razor")]
     [InlineData("Registration", "RegisterStudent.razor")]
     [InlineData("Safeguarding", "ConsentRecords.razor")]
@@ -56,9 +54,6 @@ public class StatusMessageAccessibilityTests
     }
 
     [Theory]
-    [InlineData("Curriculum", "TeacherProposals.razor", "_statusMessage = ")]
-    [InlineData("Curriculum", "ApproverProposals.razor", "_statusMessage = \"Proposal approved.\"")]
-    [InlineData("Curriculum", "ApproverProposals.razor", "_statusMessage = \"Proposal rejected.\"")]
     [InlineData("Guardianship", "GuardianLinks.razor", "_statusMessage = \"Guardian link created.\"")]
     [InlineData("Registration", "RegisterStudent.razor", "_statusMessage = \"Student registered.\"")]
     [InlineData("Safeguarding", "ConsentRecords.razor", "_statusMessage = \"Consent record created.\"")]

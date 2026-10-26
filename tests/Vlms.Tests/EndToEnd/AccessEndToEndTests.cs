@@ -110,7 +110,7 @@ public sealed class AccessEndToEndTests : IDisposable
         var teacher = await _factory.SeedUserAsync("teacher-nomfa@test.example", withTotp: false, Role.Teacher);
         var client = await Browser.SignInAsync(_factory, teacher);
 
-        foreach (var path in new[] { "/students", "/progress/record", "/curriculum/teacher", "/lessons" })
+        foreach (var path in new[] { "/students", "/progress/record", "/lessons/new/RECRUIT", "/lessons" })
         {
             var response = await client.GetAsync(path);
             Assert.True(response.StatusCode == HttpStatusCode.Redirect, $"{path} gave {(int)response.StatusCode}");
