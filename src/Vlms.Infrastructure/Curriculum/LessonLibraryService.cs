@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Vlms.Domain;
+using Vlms.Infrastructure.Badges;
 
 namespace Vlms.Infrastructure.Curriculum;
 
@@ -46,7 +47,8 @@ public sealed class LessonLibraryService
     {
         RequireLibraryRole();
 
-        var ranks = await _db.Ranks.AsNoTracking().OrderBy(r => r.Order).Select(r => new { r.Id, r.Code, r.Name }).ToListAsync(ct);
+        var ranks = await _db.Ranks.AsNoTracking().OrderBy(r => r.Order).Select(r => new { r.Id, r.Order, r.Code, r.Name }).ToListAsync(ct);
+        var badgeImageRankIds = await RankBadgeService.RankIdsWithImageAsync(_db, _blobStorage, ct);
         // Projected, so the lesson text itself is not read for the list.
         var lessons = await _db.Lessons.AsNoTracking()
             .Where(l => l.IsActive)
@@ -66,8 +68,11 @@ public sealed class LessonLibraryService
             .ToListAsync(ct);
 
         return ranks.Select(rank => new LibraryRank(
+            rank.Id,
+            rank.Order,
             rank.Code,
             rank.Name,
+            badgeImageRankIds.Contains(rank.Id),
             lessons.Where(l => l.RankId == rank.Id)
                 .OrderBy(l => l.Order).ThenBy(l => l.Id)
                 .Select(l => new LibraryLesson(
@@ -251,7 +256,7 @@ public sealed class LessonLibraryService
     }
 }
 
-public sealed record LibraryRank(string Code, string Name, IReadOnlyList<LibraryLesson> Lessons);
+public sealed record LibraryRank(int RankId, int Order, string Code, string Name, bool HasBadgeImage, IReadOnlyList<LibraryLesson> Lessons);
 
 public sealed record LibraryLesson(int Id, string Code, string Title, IReadOnlyList<string> Tags, IReadOnlyList<LibraryFile> Files)
 {

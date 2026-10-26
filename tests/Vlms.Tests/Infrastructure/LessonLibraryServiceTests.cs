@@ -92,6 +92,28 @@ public sealed class LessonLibraryServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task GetLibraryAsync_CarriesRankIdOrderAndWhetherABadgeImageIsInStorage()
+    {
+        // Rank 1's badge image is in storage; rank 2 has a badge row whose image is missing, which does not count.
+        using (var seeding = CreateContext(new FakeCurrentUserContext(1, Role.Admin)))
+        {
+            seeding.RankBadges.Add(new RankBadge { Id = 1, RankId = 1, ImageBlobKey = "badges/r1.svg" });
+            seeding.RankBadges.Add(new RankBadge { Id = 2, RankId = 2, ImageBlobKey = "badges/r2.svg" });
+            seeding.SaveChanges();
+        }
+        await _blobs.UploadAsync("badges/r1.svg", [1]);
+
+        var user = new FakeCurrentUserContext(5, Role.Student);
+        using var context = CreateContext(user);
+
+        var library = await CreateService(context, user).GetLibraryAsync();
+
+        Assert.Equal((1, 1, true), (library[0].RankId, library[0].Order, library[0].HasBadgeImage));
+        Assert.Equal((2, 2, false), (library[1].RankId, library[1].Order, library[1].HasBadgeImage));
+        Assert.Equal((3, 3, false), (library[2].RankId, library[2].Order, library[2].HasBadgeImage));
+    }
+
+    [Fact]
     public async Task GetLibraryAsync_ExcludesInactiveLessons()
     {
         var user = new FakeCurrentUserContext(5, Role.Teacher);

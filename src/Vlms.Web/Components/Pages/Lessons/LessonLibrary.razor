@@ -15,14 +15,23 @@
 @foreach (var (rank, rankPosition) in _ranks.Select((r, i) => (r, i)))
 {
     <section>
-        <h2>@rank.Code: @rank.Name</h2>
+        <h2 class="rank-heading">
+            <RankMedallion RankId="rank.RankId" Order="rank.Order" RankName="@rank.Name" HasBadgeImage="rank.HasBadgeImage" Size="sm" Alt="" />
+            <span>@rank.Name</span>
+        </h2>
         @if (rank.Lessons.Count == 0)
         {
             <p>No lessons yet</p>
         }
         else
         {
-            <table class="data-table">
+            <table class="data-table lesson-table">
+                <colgroup>
+                    <col class="lesson-table__code" />
+                    <col class="lesson-table__title" />
+                    <col class="lesson-table__tags" />
+                    <col class="lesson-table__files" />
+                </colgroup>
                 <caption>Lessons in @rank.Name</caption>
                 <thead>
                     <tr>
@@ -65,7 +74,7 @@
                                             }
                                         </ul>
                                     }
-                                    <SaveLessonButton Id="lesson.Id" Code="@lesson.Code" Title="@lesson.Title" Rank="@(rank.Code + ": " + rank.Name)"
+                                    <SaveLessonButton Id="lesson.Id" Code="@lesson.Code" Title="@lesson.Title" Rank="@rank.Name"
                                                       RankPosition="rankPosition" Position="position" Files="lesson.Files"
                                                       PictureIds="@(lesson.HasPage ? lesson.PictureIds : null)" Version="@lesson.ContentVersion" />
                                 }
