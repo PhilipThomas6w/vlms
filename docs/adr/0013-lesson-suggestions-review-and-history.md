@@ -35,10 +35,16 @@ The workflow follows two patterns panel members are likely to know: track change
 8. **Later, not built yet: committee referral.** An Approver may refer a submitted suggestion to a committee of several Approvers, which then decides it instead. This will be specified when needed, and it fits step 3 as a third choice.
 9. **Cut-over from conversion.** While ranks are being converted, the curriculum seeder writes lessons directly and records each as version 1. Once conversion is complete, the seeder never changes an existing lesson's content again, and every change goes through suggestions.
 
+10. **Publishing directly, and replacing a lesson in full** (Philip, 26/10/2026). Philip will replace some lessons wholesale and must be able to publish them without the approval process.
+    - **"Publish now".** An Approver's editor has "Publish now" next to "Submit for review". It publishes the change at once, with no review queue, and the history records it as "Published directly by" that Approver, with an optional reason. Teachers who are not Approvers can only suggest.
+    - **One national setting governs it**, held by the National Administrator: *Direct publishing allowed* (the setting for the first pass) or *Review required*. Under *Review required*, "Publish now" is not offered and every change, an Approver's own included, goes through review. The setting's changes are recorded with who changed it and when.
+    - **"Replace the whole lesson"** starts the editor from a blank page or pasted text instead of the old text. The history records the change as "Replaced in full", and "Show changes" shows the old and new versions side by side rather than as tracked changes.
+    - **The version history cannot be switched off.** Every published version is kept, however it was published.
+
 ## Consequences
 
 - Panel members work from the lesson itself and see exactly what changed; the history answers who asked, what changed and who approved, for every version, permanently.
 - Building it is a new entity set: lesson versions, and suggestions with draft, submitted, approved and sent-back states. It replaces `LessonChangeProposal` and its service and pages. That means one EF migration, and the access-control and WCAG checklists re-reviewed.
 - Adds a JavaScript editor dependency, which must pass the browser accessibility checks in the gate (`0009`).
 - One open suggestion per lesson means a second panel member waits for the first. This is acceptable at the panel's size and can be revisited if it gets in the way.
-- A clickable mock-up of the suggest, review and history screens was approved by Philip on 26/10/2026 (claude.ai/artifact/38SsxBXVsUXWFD7uV7FJoi). He also asked, the same day, for a way to publish a wholesale replacement without the approval process; how is still to be settled.
+- A clickable mock-up of the suggest, review and history screens was approved by Philip on 26/10/2026 (claude.ai/artifact/38SsxBXVsUXWFD7uV7FJoi). He also asked, the same day, for a way to publish a wholesale replacement without the approval process: decision 10.
