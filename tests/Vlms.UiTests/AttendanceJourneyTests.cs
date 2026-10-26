@@ -50,9 +50,16 @@ public sealed class AttendanceJourneyTests
         // Record completions for this meeting: Shield-bearer, lesson 6 (St Paul).
         await page.GetByRole(AriaRole.Link, new() { Name = "Record the lessons completed at this meeting" }).ClickAsync();
         await page.WaitForLoadStateAsync(LoadState.NetworkIdle);
-        await page.GetByLabel("Shield-bearer", new() { Exact = true }).CheckAsync();
-        await page.GetByLabel("St Paul").CheckAsync();
-        await page.GetByRole(AriaRole.Button, new() { Name = "Select everyone here and ready at Shield-bearer" }).ClickAsync();
+        // A tick made before the page's live connection is ready can be lost when it starts, so tick again until the button appears.
+        var selectEveryone = page.GetByRole(AriaRole.Button, new() { Name = "Select everyone here and ready at Shield-bearer" });
+        for (var attempt = 0; attempt < 10 && !await selectEveryone.IsVisibleAsync(); attempt++)
+        {
+            await page.GetByLabel("Shield-bearer", new() { Exact = true }).CheckAsync();
+            await page.GetByLabel("St Paul").CheckAsync();
+            await page.WaitForTimeoutAsync(500);
+        }
+
+        await selectEveryone.ClickAsync();
 
         var alex = page.GetByLabel("Alexander Hughes");
         await Assertions.Expect(alex).Not.ToBeCheckedAsync();
