@@ -10,7 +10,7 @@ Per ISO/IEC/IEEE 42010:2022, this describes the system from the perspective of t
                     ┌─────────────────────────────────────────┐
                     │              VLMS (Blazor Web App)       │
   Teacher   ───────►│  - Lesson browsing & completion marking  │
-  Approver  ───────►│  - Content proposal / approval queue     │◄─── Self-rolled ASP.NET Core
+  Approver  ───────►│  - Lesson suggestions / review queue     │◄─── Self-rolled ASP.NET Core
   Parent    ───────►│  - Progress dashboards, consent forms     │      Identity (sign-in, TOTP
   Student   ───────►│  - Reporting                              │      MFA, signed invite links)
   Safeg. Officer───►│  - Safeguarding/consent/DBS management     │

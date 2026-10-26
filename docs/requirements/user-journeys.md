@@ -27,20 +27,25 @@ Each step is marked:
 
 ## J2. Teacher: improve a lesson
 
-| # | Step | Status | Evidence / gap |
-|---|---|---|---|
-| 1 | Find the lesson and open its current content | Built | `/lessons` and `GET /lessons/files/{id}`. |
-| 2 | Propose an edit: change title, order and tags, and upload new or replacement files | Works (browser walk 22/10/2026): edit with an uploaded file; the file reached the library only after approval | `/curriculum/teacher`: title, order and tags (c8c13f4); files are uploaded with `InputFile` (`LessonUploadService`: 25 MB default limit, extension allow-list, content-type and signature checks), start from the lesson's current files, and can be removed or reordered. Uploads are pending and go live only on approval. |
-| 3 | Propose a new lesson or the retirement of one | Built | `/curriculum/teacher` |
-| 4 | See the Approver's decision and comments, then revise and resubmit | Built | `/curriculum/teacher`, "My proposals" |
-
-## J3. Approver: review a proposed change
+Lesson suggestions, review and history (FR-007, `adr/0013`, built 26/10/2026; replaces the proposal pages). Steps are covered by `LessonSuggestionJourneyTests` (Chromium, axe) but not yet walked by Philip in the running app.
 
 | # | Step | Status | Evidence / gap |
 |---|---|---|---|
-| 1 | See pending proposals | Works (browser walk 22/10/2026) | `/curriculum/approver` |
-| 2 | Compare the proposed content with the current lesson, opening the files of both | Works (browser walk 22/10/2026) | `/curriculum/approver` shows each proposal as a table of the current lesson against the proposal, differences marked in words (Changed / Added / Removed). Current files open from the library endpoint; proposed (pending) files open from `GET /curriculum/proposals/{id}/files/{index}`, for the proposer and Approvers only. |
-| 3 | Approve, or reject with comments | Works (browser walk 22/10/2026) | `/curriculum/approver`. Approval puts the change live (`LessonProposalService.ApproveAsync`). |
+| 1 | Open the lesson and choose "Suggest changes" | Built | `/lessons/{Code}`; the button is shown to Teachers and Approvers. |
+| 2 | Edit the text and pictures in the word-processor editor, and the title, order and tags under lesson settings; save a draft | Built | `/lessons/{Code}/suggest` (Toast UI Editor, saving Markdown); pictures need alt text and stay with the draft until it is published. |
+| 3 | Submit it for review with a reason | Built | Only one open suggestion per lesson; others see that a change is in progress. |
+| 4 | Suggest a new lesson, or retire one | Built | `/lessons/new/{RankCode}`; retiring is a switch in the editor's lesson settings. |
+| 5 | See a suggestion that was sent back, with the Approver's comment, and revise it | Built | The sent-back suggestion returns to its author as a draft. |
+
+## J3. Approver: review a lesson change
+
+| # | Step | Status | Evidence / gap |
+|---|---|---|---|
+| 1 | See the changes waiting for review | Built | `/curriculum/review` ("Changes to review" in the menu). |
+| 2 | Open one as tracked changes, or as it would read, with the reason | Built | `/curriculum/review/{Id}`; a lesson replaced in full is shown side by side. |
+| 3 | Approve it (including their own), or send it back with a comment | Built | Approval adds the next version and puts it live. |
+| 4 | Publish a change at once, or replace a whole lesson, while direct publishing is allowed | Built | "Publish now" in the editor; the National Administrator's setting on `/administration/chapters`. |
+| 5 | Read a lesson's history: who suggested each version, why, who approved it, and what changed | Built | `/lessons/{Code}/history` (Approvers and Admins). |
 
 ## J4. Student: learn and track progress
 
@@ -94,7 +99,7 @@ Each step is marked:
 ## Gap summary (for Philip)
 
 Core gaps (the app can't be used for its purpose without them):
-1. **Lesson content access**: browse, open and download for all roles; upload through proposals; Approver opens files. Already queued.
+1. **Lesson content access**: browse, open and download for all roles; suggest changes through the lesson suggestion workflow (FR-007, `adr/0013`). Already queued.
 2. **Record lesson completion**: a teacher page to mark students complete (J1 step 7). The service exists; no page calls it.
 3. **Certificate download** for students and parents (J4 step 4, J5 step 3). The PDFs are generated but can't be read back.
 4. **Student experience**: student accounts, plus a student page for progress, badges, certificates and lessons (J4).

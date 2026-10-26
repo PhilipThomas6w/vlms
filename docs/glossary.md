@@ -7,7 +7,8 @@ Status: initial (design gate)
 | VLMS | Varangians LMS — this project's name and document code. |
 | Rank | A level in the programme's progression ladder (e.g. Recruit through to Akolouthos). |
 | Lesson | A unit of curriculum content, belonging to a Rank. |
-| LessonChangeProposal | A Teacher-submitted proposed create/edit/retire change to a Lesson, requiring Approver sign-off. |
+| LessonSuggestion | A Teacher's or Approver's change to a lesson (edit, replace in full, new lesson or retire), saved as a draft and submitted for an Approver to approve or send back (`adr/0013`). Replaced `LessonChangeProposal`. |
+| LessonVersion | One published version of a lesson, numbered from 1 and kept permanently; together they are the lesson's history. |
 | Approver | The role that approves/rejects curriculum (lesson) changes only — no safeguarding, consent, or DBS privileges. |
 | Safeguarding Officer | The role (alongside Admin) with access to DBS checks and sensitive consent data. |
 | StudentLessonCompletion | A record of a Student completing a Lesson, marked by a Teacher. |

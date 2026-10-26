@@ -33,7 +33,7 @@ Each parish is a separate charity with its own safeguarding policy and its own S
 
 ### 2.4 What stays national
 
-The curriculum (ranks, lessons, files, tags), lesson change proposals and their approval, rank badges, certificate design, and the app's look. Any chapter's teachers can propose a lesson change; the national Approver decides.
+The curriculum (ranks, lessons, files, tags), lesson suggestions, their review and each lesson's version history, rank badges, certificate design, and the app's look. Any chapter's teachers can propose a lesson change; the national Approver decides.
 
 ### 2.5 Joining and starting a chapter
 
