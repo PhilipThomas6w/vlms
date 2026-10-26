@@ -125,9 +125,8 @@ Full narrative for Done/Log items to 12/08/2026: `docs/harness/STATE-archive.md`
 ## In progress
 
 ## Next
-- **Remove Herald's original Word and scanned files from the lesson library** (`adr/0012` decision 9; pilot approved 26/10/2026). Blobs stay on the server.
 - **Lessons: convert the remaining ranks** (FR-024) [one rank at a time, each reviewed by Philip in the app]. Unblocked: Herald pilot approved 26/10/2026.
-- **Committee referral and Approver alerts** (FR-007, `adr/0013` decision 8; specified by Philip 26/10/2026) [Opus]: a non-Approver's change always goes to review; every Approver is alerted when a suggestion is submitted; any Approver may approve, send back, or refer it to committee; a referred suggestion needs 3 approvals from different Approvers. Assumptions recorded in the ADR.
+- **Committee referral and Approver alerts** (FR-007, `adr/0013` decision 8; specified by Philip 26/10/2026) [Opus]: a non-Approver's change always goes to review; every Approver is alerted when a suggestion is submitted; any Approver may approve, send back, or refer it to committee; a referred suggestion needs 3 approvals from different Approvers, the author's own counting (Philip, 26/10/2026).
 Fit-for-purpose build plan (Philip, 22/10/2026; `docs/delivery-plan.md` phase 2, `docs/governance/raid.md` I-001). Acceptance for every item below: tests, gate exits 0, **and** the matching steps in `docs/requirements/user-journeys.md` work in the running app for each named role (checked by running it, not inferred from service tests), with their status updated there.
 
 
@@ -164,6 +163,8 @@ Ordered by go-live critical path.
 12. **Certificate designs** — inspiration given 23/10/2026: `seed/admin/Illustration of Badges.jpg`, plus Byzantine imagery such as the Orthodox Arts Journal references in the redesign questionnaire. Design proposal to come from Claude for approval. Viewing and downloading is built (FR-010) with the existing PDF meanwhile.
 
 ## Waiting on a decision or go-live
+- **Remove the original Word and scanned files from the lesson library** (`adr/0012` decision 9 as amended 26/10/2026): only after every rank is converted (Philip). Blobs stay on the server.
+- **Handouts attached to lessons** (Philip, 26/10/2026; future): lessons will need attached handouts. Not yet specified.
 - **Lesson content as in-app HTML** (post-MVP; Philip, 21/10/2026) — replace the `.docx` lesson documents with one printable HTML page per lesson, with handouts attached, viewed in the app without downloading. Needs a content-authoring/conversion approach and a sanitisation decision (ASVS) before build.
 - **Retention purge** (needs decision 2) — hard delete at 3y students / 6y DBS + audit log, by the chosen mechanism. Include registration applications (1 year after the decision, Philip 23/10/2026; already flagged on the report). Acceptance: purge implemented and tested, DPIA risk 7 updated, gate exits 0.
 - **Branding + WCAG colour contrast** (needs decision 6) — VLMS palette and icon replacing the template `src/Vlms.Web/wwwroot/app.css` and placeholder `wwwroot/icons/icon.svg`, then close "Colour contrast (1.4.3/1.4.11)" in `docs/quality/wcag-2.2-aa-checklist.md`. Acceptance: branding landed, contrast verified at 4.5:1 text / 3:1 UI, checklist item closed, gate exits 0.

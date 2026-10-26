@@ -38,7 +38,7 @@ The workflow follows two patterns panel members are likely to know: track change
     - A change by someone who is not an Approver always goes to review; "Publish now" is never theirs.
     - Every Approver is alerted when a suggestion is submitted: by email, and by a count beside "Changes to review" in the menu.
     - Any Approver may approve, send back, or **refer to committee**.
-    - A referred suggestion is published once **3 different Approvers** have approved it. Assumptions (Claude, 26/10/2026, for Philip to correct): the author's own approval does not count towards the three; any Approver may send a referred suggestion back with a comment, which ends it; the referral, each approval and the outcome are recorded in the lesson's history; the committee is any three Approvers, not a named group.
+    - A referred suggestion is published once **3 different Approvers** have approved it. Confirmed by Philip, 26/10/2026: the author's own approval counts towards the three, because there are few Approvers; any Approver may send a referred suggestion back with a comment, which ends it; the referral, each approval and the outcome are recorded in the lesson's history; the committee is any three Approvers, not a named group.
 9. **Cut-over from conversion.** While ranks are being converted, the curriculum seeder writes lessons directly and records each as version 1. Once conversion is complete, the seeder never changes an existing lesson's content again, and every change goes through suggestions.
 
 10. **Publishing directly, and replacing a lesson in full** (Philip, 26/10/2026). Philip will replace some lessons wholesale and must be able to publish them without the approval process.
