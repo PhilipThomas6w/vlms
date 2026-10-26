@@ -156,6 +156,9 @@ $expectedMinimums = @{
     # adr/0012 app-hosted lessons: the Teacher's Information for staff only, per role; lesson and
     # Teacher's Information pictures by id; the converted lesson's offline details.
     "LessonPageServiceTests.cs"         = 10
+    # adr/0013 lesson suggestions: who may suggest, review, publish now, read history and change the
+    # setting; one open suggestion; self-approval; the stale-base guard; pictures to the author only.
+    "LessonSuggestionServiceTests.cs"   = 25
 }
 
 foreach ($testFileName in $expectedMinimums.Keys) {
@@ -235,6 +238,9 @@ $hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Web/CalendarFeedEndpoint
 $hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Infrastructure/Curriculum/LessonLibraryService.cs")
 $hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Web/LessonFileEndpoint.cs")
 $hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Web/LessonPageEndpoint.cs")
+# adr/0013 lesson suggestions: the service's role checks and the picture upload and picture endpoints.
+$hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Infrastructure/Curriculum/LessonSuggestionService.cs")
+$hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Web/LessonSuggestionEndpoints.cs")
 $hashedFiles += $pageFiles
 
 if ($PrintHash) {
