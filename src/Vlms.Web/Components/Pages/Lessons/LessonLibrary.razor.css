@@ -1,0 +1,19 @@
+/* The medallion and the rank name share one line. */
+.rank-heading {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+}
+
+/* Each rank has its own table. From the stacked (narrow) breakpoint up, fixed widths give every table the same
+   columns, so they line up from one rank to the next. Below it, app.css stacks the rows with data-label. */
+@media (min-width: 40.01rem) {
+    .lesson-table {
+        width: 100%;
+        table-layout: fixed;
+    }
+
+    .lesson-table__code { width: 8rem; }
+    .lesson-table__tags { width: 14rem; }
+    .lesson-table__files { width: 18rem; }
+}
