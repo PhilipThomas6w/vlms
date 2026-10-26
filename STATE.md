@@ -125,7 +125,7 @@ Full narrative for Done/Log items to 12/08/2026: `docs/harness/STATE-archive.md`
 ## Next
 - **Lessons: convert the remaining ranks** (FR-024) [Sonnet per rank, after the pilot is approved]. One rank at a time, each reviewed by Philip.
 - **Later: committee referral** (FR-007; Philip, 26/10/2026): an Approver refers a major change to a committee of several Approvers. Not yet specified.
-- **Lessons: edit lesson text through proposals** (FR-024, FR-007 to FR-009) [Sonnet, after the pilot]. `ProposedLessonContent` carries the body; Teacher edits with a preview; Approver compares and approves.
+- **Lesson suggestions, review and history** (FR-007, `adr/0013`, replaces the proposal workflow) [Opus: new entities, a migration, access control; after Philip reviews the mock-up]. Suggest from the lesson page in a word-processor editor (library chosen at build), one open suggestion per lesson, tracked-changes review, Approve or Send back, self-approval allowed, permanent version history (converted lesson = v1); remove the old proposal pages and file uploads.
 Fit-for-purpose build plan (Philip, 22/10/2026; `docs/delivery-plan.md` phase 2, `docs/governance/raid.md` I-001). Acceptance for every item below: tests, gate exits 0, **and** the matching steps in `docs/requirements/user-journeys.md` work in the running app for each named role (checked by running it, not inferred from service tests), with their status updated there.
 
 
