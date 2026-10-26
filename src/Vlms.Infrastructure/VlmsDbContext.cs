@@ -44,7 +44,13 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
     public DbSet<LessonFile> LessonFiles => Set<LessonFile>();
     public DbSet<LessonPicture> LessonPictures => Set<LessonPicture>();
     public DbSet<TeachersInformationPicture> TeachersInformationPictures => Set<TeachersInformationPicture>();
-    public DbSet<LessonChangeProposal> LessonChangeProposals => Set<LessonChangeProposal>();
+    public DbSet<LessonVersion> LessonVersions => Set<LessonVersion>();
+    public DbSet<LessonVersionTag> LessonVersionTags => Set<LessonVersionTag>();
+    public DbSet<LessonVersionPicture> LessonVersionPictures => Set<LessonVersionPicture>();
+    public DbSet<LessonSuggestion> LessonSuggestions => Set<LessonSuggestion>();
+    public DbSet<LessonSuggestionTag> LessonSuggestionTags => Set<LessonSuggestionTag>();
+    public DbSet<LessonSuggestionPicture> LessonSuggestionPictures => Set<LessonSuggestionPicture>();
+    public DbSet<LessonPublishingSettingChange> LessonPublishingSettingChanges => Set<LessonPublishingSettingChange>();
     public DbSet<Student> Students => Set<Student>();
     public DbSet<ParentGuardian> ParentGuardians => Set<ParentGuardian>();
     public DbSet<StudentGuardianLink> StudentGuardianLinks => Set<StudentGuardianLink>();
@@ -142,7 +148,8 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
         {
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
-            e.HasMany(x => x.ChangeProposals).WithOne(x => x.Lesson).HasForeignKey(x => x.LessonId).OnDelete(DeleteBehavior.Restrict);
+            e.HasMany(x => x.Versions).WithOne(x => x.Lesson).HasForeignKey(x => x.LessonId).OnDelete(DeleteBehavior.Restrict);
+            e.HasMany(x => x.Suggestions).WithOne(x => x.Lesson).HasForeignKey(x => x.LessonId).OnDelete(DeleteBehavior.Restrict);
             e.HasMany(x => x.Completions).WithOne(x => x.Lesson).HasForeignKey(x => x.LessonId).OnDelete(DeleteBehavior.Restrict);
             e.HasMany(x => x.Tags).WithOne(x => x.Lesson).HasForeignKey(x => x.LessonId).OnDelete(DeleteBehavior.Cascade);
             e.HasMany(x => x.Files).WithOne(x => x.Lesson).HasForeignKey(x => x.LessonId).OnDelete(DeleteBehavior.Cascade);
@@ -177,13 +184,60 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
             e.Property(x => x.Id).ValueGeneratedNever();
         });
 
-        modelBuilder.Entity<LessonChangeProposal>(e =>
+        // Lesson versions and suggestions (FR-007, docs/adr/0013). Versions are kept permanently; one open (draft or
+        // submitted) suggestion per lesson, also enforced by LessonSuggestionService. The filter is plain SQL that
+        // PostgreSQL and SQLite both accept, like the other filtered indexes here.
+        modelBuilder.Entity<LessonVersion>(e =>
         {
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
-            e.HasOne(x => x.ProposedByUser).WithMany().HasForeignKey(x => x.ProposedByUserId).OnDelete(DeleteBehavior.Restrict);
-            e.HasOne(x => x.ApproverUser).WithMany().HasForeignKey(x => x.ApproverUserId).OnDelete(DeleteBehavior.Restrict);
-            e.HasOne(x => x.ResubmissionOfProposal).WithMany().HasForeignKey(x => x.ResubmissionOfProposalId).OnDelete(DeleteBehavior.Restrict);
+            e.Property(x => x.ContentVersion).HasMaxLength(64);
+            e.HasIndex(x => new { x.LessonId, x.Number }).IsUnique();
+            e.HasOne(x => x.Suggestion).WithMany().HasForeignKey(x => x.SuggestionId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne<AppUser>().WithMany().HasForeignKey(x => x.SuggestedByUserId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne<AppUser>().WithMany().HasForeignKey(x => x.ApprovedByUserId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne<AppUser>().WithMany().HasForeignKey(x => x.PublishedByUserId).OnDelete(DeleteBehavior.Restrict);
+            e.HasMany(x => x.Tags).WithOne().HasForeignKey(x => x.LessonVersionId).OnDelete(DeleteBehavior.Cascade);
+            e.HasMany(x => x.Pictures).WithOne(x => x.LessonVersion).HasForeignKey(x => x.LessonVersionId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<LessonVersionTag>(e => e.HasKey(x => new { x.LessonVersionId, x.Tag }));
+
+        modelBuilder.Entity<LessonVersionPicture>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.HasIndex(x => new { x.LessonVersionId, x.FileName }).IsUnique();
+        });
+
+        modelBuilder.Entity<LessonSuggestion>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.HasOne(x => x.AuthorUser).WithMany().HasForeignKey(x => x.AuthorUserId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.DecidedByUser).WithMany().HasForeignKey(x => x.DecidedByUserId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne<Rank>().WithMany().HasForeignKey(x => x.RankId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne<LessonSuggestion>().WithMany().HasForeignKey(x => x.RevisesSuggestionId).OnDelete(DeleteBehavior.Restrict);
+            e.HasMany(x => x.Tags).WithOne().HasForeignKey(x => x.LessonSuggestionId).OnDelete(DeleteBehavior.Cascade);
+            e.HasMany(x => x.Pictures).WithOne(x => x.LessonSuggestion).HasForeignKey(x => x.LessonSuggestionId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => x.LessonId).IsUnique().HasFilter("status IN (0, 1)").HasDatabaseName("IX_lesson_suggestions_lesson_id_open");
+            e.HasIndex(x => x.Status);
+        });
+
+        modelBuilder.Entity<LessonSuggestionTag>(e => e.HasKey(x => new { x.LessonSuggestionId, x.Tag }));
+
+        modelBuilder.Entity<LessonSuggestionPicture>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.HasIndex(x => new { x.LessonSuggestionId, x.FileName }).IsUnique();
+        });
+
+        modelBuilder.Entity<LessonPublishingSettingChange>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.HasOne(x => x.ChangedByUser).WithMany().HasForeignKey(x => x.ChangedByUserId).OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<Student>(e =>

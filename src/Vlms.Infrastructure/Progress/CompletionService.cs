@@ -9,7 +9,7 @@ namespace Vlms.Infrastructure.Progress;
 /// marks a <see cref="Lesson"/> complete for a <see cref="Student"/>.
 ///
 /// Authorization: role-checked inside the service itself (defense in depth), same reasoning and
-/// pattern as <see cref="Vlms.Infrastructure.Curriculum.LessonProposalService"/> — not solely
+/// pattern as <see cref="Vlms.Infrastructure.Curriculum.LessonSuggestionService"/> — not solely
 /// reliant on page-level policy gating.
 ///
 /// Hard business rule (VISION.md "Safeguarding data..." / functional.md FR-003): expired or
@@ -320,7 +320,7 @@ public sealed class CompletionService
     private int RequireResolvedUserId() =>
         _currentUser.UserId ?? throw new UnauthorizedAccessException("Caller has no resolved UserId.");
 
-    // Same application-assigned-id pattern as LessonProposalService.NextId — see its comment.
+    // Same application-assigned-id pattern as LessonSuggestionService.NextIdAsync — see its comment.
     // Allocated over the whole table, not through the chapter query filter (VlmsDbContext.NextIdAsync, docs/adr/0010-chapters.md).
     private Task<int> NextId(DbSet<StudentLessonCompletion> _, CancellationToken ct) => _db.NextIdAsync<StudentLessonCompletion>(ct);
 }

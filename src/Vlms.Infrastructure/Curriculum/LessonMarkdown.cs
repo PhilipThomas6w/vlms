@@ -38,6 +38,13 @@ public static class LessonMarkdown
             .Select(l => l.Url ?? string.Empty)
             .ToList();
 
+    /// <summary>Every picture in the text as its address and text alternative, in order of appearance.</summary>
+    public static IReadOnlyList<(string Url, string Alt)> Pictures(string markdown) =>
+        Markdown.Parse(markdown, Pipeline).Descendants<LinkInline>()
+            .Where(l => l.IsImage)
+            .Select(l => (l.Url ?? string.Empty, AltText(l).Trim()))
+            .ToList();
+
     /// <summary>
     /// Whether <paramref name="reference"/> is a bare file name (no folder, scheme, query or fragment), the only kind of
     /// picture address lesson text may use.

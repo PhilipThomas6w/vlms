@@ -29,6 +29,7 @@ public sealed class Lesson
     public ICollection<LessonTagAssignment> Tags { get; init; } = new List<LessonTagAssignment>();
     public ICollection<LessonFile> Files { get; init; } = new List<LessonFile>();
     public ICollection<LessonPicture> Pictures { get; init; } = new List<LessonPicture>();
-    public ICollection<LessonChangeProposal> ChangeProposals { get; init; } = new List<LessonChangeProposal>();
+    public ICollection<LessonVersion> Versions { get; init; } = new List<LessonVersion>();
+    public ICollection<LessonSuggestion> Suggestions { get; init; } = new List<LessonSuggestion>();
     public ICollection<StudentLessonCompletion> Completions { get; init; } = new List<StudentLessonCompletion>();
 }

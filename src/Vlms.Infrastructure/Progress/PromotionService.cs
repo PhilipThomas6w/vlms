@@ -155,7 +155,7 @@ public sealed class PromotionService
         });
     }
 
-    // Same application-assigned-id pattern as LessonProposalService.NextId — see its comment.
+    // Same application-assigned-id pattern as LessonSuggestionService.NextIdAsync — see its comment.
     // Allocated over the whole table, not through the chapter query filter (VlmsDbContext.NextIdAsync, docs/adr/0010-chapters.md).
     private Task<int> NextId(DbSet<StudentRankProgress> _, CancellationToken ct) => _db.NextIdAsync<StudentRankProgress>(ct);
 

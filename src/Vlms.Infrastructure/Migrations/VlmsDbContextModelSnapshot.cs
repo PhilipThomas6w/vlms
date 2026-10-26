@@ -770,66 +770,6 @@ namespace Vlms.Infrastructure.Migrations
                     b.ToTable("lessons");
                 });
 
-            modelBuilder.Entity("Vlms.Domain.LessonChangeProposal", b =>
-                {
-                    b.Property<int>("Id")
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    b.Property<string>("ApprovalComments")
-                        .HasColumnType("text")
-                        .HasColumnName("approval_comments");
-
-                    b.Property<int?>("ApproverUserId")
-                        .HasColumnType("integer")
-                        .HasColumnName("approver_user_id");
-
-                    b.Property<int>("ChangeType")
-                        .HasColumnType("integer")
-                        .HasColumnName("change_type");
-
-                    b.Property<DateTime?>("DecidedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("decided_at");
-
-                    b.Property<int?>("LessonId")
-                        .HasColumnType("integer")
-                        .HasColumnName("lesson_id");
-
-                    b.Property<int>("ProposedByUserId")
-                        .HasColumnType("integer")
-                        .HasColumnName("proposed_by_user_id");
-
-                    b.Property<string>("ProposedContent")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("proposed_content");
-
-                    b.Property<int?>("ResubmissionOfProposalId")
-                        .HasColumnType("integer")
-                        .HasColumnName("resubmission_of_proposal_id");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("integer")
-                        .HasColumnName("status");
-
-                    b.Property<DateTime>("SubmittedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("submitted_at");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ApproverUserId");
-
-                    b.HasIndex("LessonId");
-
-                    b.HasIndex("ProposedByUserId");
-
-                    b.HasIndex("ResubmissionOfProposalId");
-
-                    b.ToTable("lesson_change_proposals");
-                });
-
             modelBuilder.Entity("Vlms.Domain.LessonFile", b =>
                 {
                     b.Property<int>("Id")
@@ -893,6 +833,170 @@ namespace Vlms.Infrastructure.Migrations
                     b.ToTable("lesson_pictures");
                 });
 
+            modelBuilder.Entity("Vlms.Domain.LessonPublishingSettingChange", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("ChangedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("changed_at");
+
+                    b.Property<int>("ChangedByUserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("changed_by_user_id");
+
+                    b.Property<bool>("DirectPublishingAllowed")
+                        .HasColumnType("boolean")
+                        .HasColumnName("direct_publishing_allowed");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChangedByUserId");
+
+                    b.ToTable("lesson_publishing_setting_changes");
+                });
+
+            modelBuilder.Entity("Vlms.Domain.LessonSuggestion", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    b.Property<int>("AuthorUserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("author_user_id");
+
+                    b.Property<int?>("BaseVersionNumber")
+                        .HasColumnType("integer")
+                        .HasColumnName("base_version_number");
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("body");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime?>("DecidedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("decided_at");
+
+                    b.Property<int?>("DecidedByUserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("decided_by_user_id");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("integer")
+                        .HasColumnName("kind");
+
+                    b.Property<int?>("LessonId")
+                        .HasColumnType("integer")
+                        .HasColumnName("lesson_id");
+
+                    b.Property<int>("Order")
+                        .HasColumnType("integer")
+                        .HasColumnName("order");
+
+                    b.Property<int>("RankId")
+                        .HasColumnType("integer")
+                        .HasColumnName("rank_id");
+
+                    b.Property<string>("Reason")
+                        .HasColumnType("text")
+                        .HasColumnName("reason");
+
+                    b.Property<int?>("RevisesSuggestionId")
+                        .HasColumnType("integer")
+                        .HasColumnName("revises_suggestion_id");
+
+                    b.Property<string>("SentBackComment")
+                        .HasColumnType("text")
+                        .HasColumnName("sent_back_comment");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime?>("SubmittedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("submitted_at");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("title");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AuthorUserId");
+
+                    b.HasIndex("DecidedByUserId");
+
+                    b.HasIndex("LessonId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_lesson_suggestions_lesson_id_open")
+                        .HasFilter("status IN (0, 1)");
+
+                    b.HasIndex("RankId");
+
+                    b.HasIndex("RevisesSuggestionId");
+
+                    b.HasIndex("Status");
+
+                    b.ToTable("lesson_suggestions");
+                });
+
+            modelBuilder.Entity("Vlms.Domain.LessonSuggestionPicture", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    b.Property<string>("BlobKey")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("blob_key");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("file_name");
+
+                    b.Property<int>("LessonSuggestionId")
+                        .HasColumnType("integer")
+                        .HasColumnName("lesson_suggestion_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LessonSuggestionId", "FileName")
+                        .IsUnique();
+
+                    b.ToTable("lesson_suggestion_pictures");
+                });
+
+            modelBuilder.Entity("Vlms.Domain.LessonSuggestionTag", b =>
+                {
+                    b.Property<int>("LessonSuggestionId")
+                        .HasColumnType("integer")
+                        .HasColumnName("lesson_suggestion_id");
+
+                    b.Property<int>("Tag")
+                        .HasColumnType("integer")
+                        .HasColumnName("tag");
+
+                    b.HasKey("LessonSuggestionId", "Tag");
+
+                    b.ToTable("lesson_suggestion_tags");
+                });
+
             modelBuilder.Entity("Vlms.Domain.LessonTagAssignment", b =>
                 {
                     b.Property<int>("LessonId")
@@ -906,6 +1010,137 @@ namespace Vlms.Infrastructure.Migrations
                     b.HasKey("LessonId", "Tag");
 
                     b.ToTable("lesson_tag_assignments");
+                });
+
+            modelBuilder.Entity("Vlms.Domain.LessonVersion", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    b.Property<int?>("ApprovedByUserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("approved_by_user_id");
+
+                    b.Property<string>("Body")
+                        .HasColumnType("text")
+                        .HasColumnName("body");
+
+                    b.Property<string>("ContentVersion")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("content_version");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("integer")
+                        .HasColumnName("kind");
+
+                    b.Property<int>("LessonId")
+                        .HasColumnType("integer")
+                        .HasColumnName("lesson_id");
+
+                    b.Property<int>("Number")
+                        .HasColumnType("integer")
+                        .HasColumnName("number");
+
+                    b.Property<int>("Order")
+                        .HasColumnType("integer")
+                        .HasColumnName("order");
+
+                    b.Property<DateTime>("PublishedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("published_at");
+
+                    b.Property<int?>("PublishedByUserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("published_by_user_id");
+
+                    b.Property<string>("Reason")
+                        .HasColumnType("text")
+                        .HasColumnName("reason");
+
+                    b.Property<DateTime?>("SuggestedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("suggested_at");
+
+                    b.Property<int?>("SuggestedByUserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("suggested_by_user_id");
+
+                    b.Property<int?>("SuggestionId")
+                        .HasColumnType("integer")
+                        .HasColumnName("suggestion_id");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("title");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ApprovedByUserId");
+
+                    b.HasIndex("PublishedByUserId");
+
+                    b.HasIndex("SuggestedByUserId");
+
+                    b.HasIndex("SuggestionId");
+
+                    b.HasIndex("LessonId", "Number")
+                        .IsUnique();
+
+                    b.ToTable("lesson_versions");
+                });
+
+            modelBuilder.Entity("Vlms.Domain.LessonVersionPicture", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    b.Property<string>("BlobKey")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("blob_key");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("file_name");
+
+                    b.Property<int>("LessonVersionId")
+                        .HasColumnType("integer")
+                        .HasColumnName("lesson_version_id");
+
+                    b.Property<int>("Order")
+                        .HasColumnType("integer")
+                        .HasColumnName("order");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LessonVersionId", "FileName")
+                        .IsUnique();
+
+                    b.ToTable("lesson_version_pictures");
+                });
+
+            modelBuilder.Entity("Vlms.Domain.LessonVersionTag", b =>
+                {
+                    b.Property<int>("LessonVersionId")
+                        .HasColumnType("integer")
+                        .HasColumnName("lesson_version_id");
+
+                    b.Property<int>("Tag")
+                        .HasColumnType("integer")
+                        .HasColumnName("tag");
+
+                    b.HasKey("LessonVersionId", "Tag");
+
+                    b.ToTable("lesson_version_tags");
                 });
 
             modelBuilder.Entity("Vlms.Domain.LiturgicalDay", b =>
@@ -1946,38 +2181,6 @@ namespace Vlms.Infrastructure.Migrations
                     b.Navigation("Rank");
                 });
 
-            modelBuilder.Entity("Vlms.Domain.LessonChangeProposal", b =>
-                {
-                    b.HasOne("Vlms.Domain.AppUser", "ApproverUser")
-                        .WithMany()
-                        .HasForeignKey("ApproverUserId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("Vlms.Domain.Lesson", "Lesson")
-                        .WithMany("ChangeProposals")
-                        .HasForeignKey("LessonId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("Vlms.Domain.AppUser", "ProposedByUser")
-                        .WithMany()
-                        .HasForeignKey("ProposedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Vlms.Domain.LessonChangeProposal", "ResubmissionOfProposal")
-                        .WithMany()
-                        .HasForeignKey("ResubmissionOfProposalId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.Navigation("ApproverUser");
-
-                    b.Navigation("Lesson");
-
-                    b.Navigation("ProposedByUser");
-
-                    b.Navigation("ResubmissionOfProposal");
-                });
-
             modelBuilder.Entity("Vlms.Domain.LessonFile", b =>
                 {
                     b.HasOne("Vlms.Domain.Lesson", "Lesson")
@@ -2000,6 +2203,73 @@ namespace Vlms.Infrastructure.Migrations
                     b.Navigation("Lesson");
                 });
 
+            modelBuilder.Entity("Vlms.Domain.LessonPublishingSettingChange", b =>
+                {
+                    b.HasOne("Vlms.Domain.AppUser", "ChangedByUser")
+                        .WithMany()
+                        .HasForeignKey("ChangedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("ChangedByUser");
+                });
+
+            modelBuilder.Entity("Vlms.Domain.LessonSuggestion", b =>
+                {
+                    b.HasOne("Vlms.Domain.AppUser", "AuthorUser")
+                        .WithMany()
+                        .HasForeignKey("AuthorUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Vlms.Domain.AppUser", "DecidedByUser")
+                        .WithMany()
+                        .HasForeignKey("DecidedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Vlms.Domain.Lesson", "Lesson")
+                        .WithMany("Suggestions")
+                        .HasForeignKey("LessonId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Vlms.Domain.Rank", null)
+                        .WithMany()
+                        .HasForeignKey("RankId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Vlms.Domain.LessonSuggestion", null)
+                        .WithMany()
+                        .HasForeignKey("RevisesSuggestionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("AuthorUser");
+
+                    b.Navigation("DecidedByUser");
+
+                    b.Navigation("Lesson");
+                });
+
+            modelBuilder.Entity("Vlms.Domain.LessonSuggestionPicture", b =>
+                {
+                    b.HasOne("Vlms.Domain.LessonSuggestion", "LessonSuggestion")
+                        .WithMany("Pictures")
+                        .HasForeignKey("LessonSuggestionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("LessonSuggestion");
+                });
+
+            modelBuilder.Entity("Vlms.Domain.LessonSuggestionTag", b =>
+                {
+                    b.HasOne("Vlms.Domain.LessonSuggestion", null)
+                        .WithMany("Tags")
+                        .HasForeignKey("LessonSuggestionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Vlms.Domain.LessonTagAssignment", b =>
                 {
                     b.HasOne("Vlms.Domain.Lesson", "Lesson")
@@ -2009,6 +2279,59 @@ namespace Vlms.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Lesson");
+                });
+
+            modelBuilder.Entity("Vlms.Domain.LessonVersion", b =>
+                {
+                    b.HasOne("Vlms.Domain.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("ApprovedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Vlms.Domain.Lesson", "Lesson")
+                        .WithMany("Versions")
+                        .HasForeignKey("LessonId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Vlms.Domain.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("PublishedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Vlms.Domain.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("SuggestedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Vlms.Domain.LessonSuggestion", "Suggestion")
+                        .WithMany()
+                        .HasForeignKey("SuggestionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Lesson");
+
+                    b.Navigation("Suggestion");
+                });
+
+            modelBuilder.Entity("Vlms.Domain.LessonVersionPicture", b =>
+                {
+                    b.HasOne("Vlms.Domain.LessonVersion", "LessonVersion")
+                        .WithMany("Pictures")
+                        .HasForeignKey("LessonVersionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("LessonVersion");
+                });
+
+            modelBuilder.Entity("Vlms.Domain.LessonVersionTag", b =>
+                {
+                    b.HasOne("Vlms.Domain.LessonVersion", null)
+                        .WithMany("Tags")
+                        .HasForeignKey("LessonVersionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Vlms.Domain.LiturgicalReading", b =>
@@ -2305,12 +2628,28 @@ namespace Vlms.Infrastructure.Migrations
 
             modelBuilder.Entity("Vlms.Domain.Lesson", b =>
                 {
-                    b.Navigation("ChangeProposals");
-
                     b.Navigation("Completions");
 
                     b.Navigation("Files");
 
+                    b.Navigation("Pictures");
+
+                    b.Navigation("Suggestions");
+
+                    b.Navigation("Tags");
+
+                    b.Navigation("Versions");
+                });
+
+            modelBuilder.Entity("Vlms.Domain.LessonSuggestion", b =>
+                {
+                    b.Navigation("Pictures");
+
+                    b.Navigation("Tags");
+                });
+
+            modelBuilder.Entity("Vlms.Domain.LessonVersion", b =>
+                {
                     b.Navigation("Pictures");
 
                     b.Navigation("Tags");

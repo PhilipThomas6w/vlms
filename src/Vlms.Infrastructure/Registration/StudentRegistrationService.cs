@@ -38,7 +38,7 @@ namespace Vlms.Infrastructure.Registration;
 /// <c>CompletedAt</c> set, satisfying that lookup exactly.
 ///
 /// Authorization: role-checked inside this service itself (defense in depth, same pattern as
-/// <see cref="GuardianLinkService"/>/<see cref="Vlms.Infrastructure.Curriculum.LessonProposalService"/>)
+/// <see cref="GuardianLinkService"/>/<see cref="Vlms.Infrastructure.Curriculum.LessonSuggestionService"/>)
 /// — Admin only since 22/10/2026 (adr/0008 answer 4; previously Admin or Teacher). This is a hard constraint (CLAUDE.md Project Law: "the Student record
 /// that anchors [a StudentGuardianLink]" is subject to the same "never parent self-service" rule as
 /// the link itself) — a Student record is never created by anyone other than an Admin (directly here,
@@ -175,7 +175,7 @@ public sealed class StudentRegistrationService
         }
     }
 
-    // Same application-assigned-id pattern as LessonProposalService.NextId — see its comment.
+    // Same application-assigned-id pattern as LessonSuggestionService.NextIdAsync — see its comment.
     // Allocated over the whole table, not through the chapter query filter (VlmsDbContext.NextIdAsync, docs/adr/0010-chapters.md).
     private Task<int> NextId(DbSet<Student> _, CancellationToken ct) => _db.NextIdAsync<Student>(ct);
 

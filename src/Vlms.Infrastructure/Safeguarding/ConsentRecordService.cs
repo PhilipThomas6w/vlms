@@ -8,7 +8,7 @@ namespace Vlms.Infrastructure.Safeguarding;
 /// <see cref="ConsentSensitiveDetails"/> split, adr/0004-sensitive-data-access-control.md).
 ///
 /// Authorization: role-checked inside the service itself (defense in depth, same pattern as
-/// <see cref="Vlms.Infrastructure.Curriculum.LessonProposalService"/>/
+/// <see cref="Vlms.Infrastructure.Curriculum.LessonSuggestionService"/>/
 /// <see cref="Vlms.Infrastructure.Guardianship.GuardianLinkService"/>) — restricted to Admin or
 /// SafeguardingOfficer. This mirrors data-design.md's own wording for who may act on a
 /// <see cref="ConsentRecord"/> ("Approved by Safeguarding Officer or Admin only") and is a hard
@@ -32,7 +32,7 @@ namespace Vlms.Infrastructure.Safeguarding;
 /// non-atomicity class of bug a prior increment's checker review found and fixed
 /// (StudentRegistrationService, commit d2f9c63). A new <see cref="ConsentRecord"/> starts Pending;
 /// <see cref="DecideAsync"/> is the only path that sets Approved/Rejected (mirrors
-/// <see cref="Vlms.Infrastructure.Curriculum.LessonProposalService"/>'s propose/decide shape),
+/// <see cref="Vlms.Infrastructure.Curriculum.LessonSuggestionService"/>'s submit/decide shape),
 /// recording <see cref="ConsentRecord.ApprovedByUserId"/> as the deciding caller.
 ///
 /// Never touches <see cref="ConsentSensitiveDetails"/> via <c>IgnoreQueryFilters()</c> or raw SQL —
@@ -195,7 +195,7 @@ public sealed class ConsentRecordService
     private int RequireResolvedUserId() =>
         _currentUser.UserId ?? throw new UnauthorizedAccessException("Caller has no resolved UserId.");
 
-    // Same application-assigned-id pattern as LessonProposalService.NextId — see its comment.
+    // Same application-assigned-id pattern as LessonSuggestionService.NextIdAsync — see its comment.
     // Allocated over the whole table, not through the chapter query filter (VlmsDbContext.NextIdAsync, docs/adr/0010-chapters.md).
     private Task<int> NextId(DbSet<ConsentRecord> _, CancellationToken ct) => _db.NextIdAsync<ConsentRecord>(ct);
 

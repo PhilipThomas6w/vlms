@@ -69,6 +69,13 @@ public sealed record CurriculumSeedResult(
 /// changes or a picture is missing from storage. A lesson or rank with text in the database but no file keeps it
 /// (a warning): nothing is cleared by a missing file.
 ///
+/// <b>Lesson versions</b> (docs/adr/0013-lesson-suggestions-review-and-history.md decisions 4 and 9): each lesson the
+/// seeder creates or changes is recorded as its next <see cref="LessonVersion"/> of kind
+/// <see cref="LessonVersionKind.Converted"/>. A lesson whose latest version did not come from the seeder (it was changed
+/// through lesson suggestions) is never written again: it is skipped, with a warning, files and pictures included. Lesson
+/// pictures are stored under a key naming their content (<c>lesson-pictures/{code}/{hash}/{name}</c>), so a changed
+/// picture never overwrites one an earlier version shows. The rank's Teacher's Information stays seeder-managed.
+///
 /// Running it: <c>Vlms.Jobs seed-curriculum --manifest seed/curriculum.json --content-root seed
 /// --file-names seed/file-names.json</c>. Add <c>--names-only</c> to write the list and stop (no
 /// uploads, no database), to review or hand-correct it first; run again without it to apply. With no
@@ -137,9 +144,22 @@ public sealed class CurriculumSeeder
             return new CurriculumSeedResult(errors, warnings, 0, 0, 0, 0, 0, namesAdded);
         }
 
+        // Lessons changed through lesson suggestions since they were converted belong to the suggestions now (adr/0013
+        // decision 9): the seeder never writes them again, and says so.
+        var latestKinds = (await _db.LessonVersions.AsNoTracking().Select(v => new { v.LessonId, v.Number, v.Kind }).ToListAsync(ct))
+            .GroupBy(v => v.LessonId).ToDictionary(g => g.Key, g => g.MaxBy(v => v.Number)!);
+        var lessonIds = await _db.Lessons.AsNoTracking().ToDictionaryAsync(l => l.Code, l => l.Id, ct);
+        var suggestionOwned = plan.SelectMany(r => r.Lessons)
+            .Where(l => lessonIds.TryGetValue(l.Code, out var id) && latestKinds.TryGetValue(id, out var latest) && latest.Kind != LessonVersionKind.Converted)
+            .Select(l => l.Code).ToHashSet(StringComparer.Ordinal);
+        foreach (var code in suggestionOwned.Order(StringComparer.Ordinal))
+        {
+            warnings.Add($"Lesson '{code}' has been changed through lesson suggestions since it was converted; left untouched.");
+        }
+
         // Uploads (deterministic keys, overwrite) come before any database write.
         var filesUploaded = 0;
-        foreach (var file in plan.SelectMany(r => r.Lessons).SelectMany(l => l.Files))
+        foreach (var file in plan.SelectMany(r => r.Lessons).Where(l => !suggestionOwned.Contains(l.Code)).SelectMany(l => l.Files))
         {
             ct.ThrowIfCancellationRequested();
             await _blobStorage.UploadAsync(file.BlobKey, await File.ReadAllBytesAsync(file.FullPath, ct), ct);
@@ -150,7 +170,7 @@ public sealed class CurriculumSeeder
         // Information pictures every run (few, and they carry no version). Still before any database write.
         var picturesUploaded = 0;
         var storedVersions = await _db.Lessons.AsNoTracking().ToDictionaryAsync(l => l.Code, l => l.ContentVersion, ct);
-        var texts = plan.SelectMany(r => r.Lessons).Where(l => l.Text is not null)
+        var texts = plan.SelectMany(r => r.Lessons).Where(l => l.Text is not null && !suggestionOwned.Contains(l.Code))
             .Select(l => (Text: l.Text!, Unchanged: storedVersions.GetValueOrDefault(l.Code) == l.Text!.Version))
             .Concat(plan.Where(r => r.TeachersInformation is not null).Select(r => (Text: r.TeachersInformation!, Unchanged: false)));
         foreach (var (text, unchanged) in texts)
@@ -186,6 +206,8 @@ public sealed class CurriculumSeeder
         var nextFileId = await NextIdAsync(_db.LessonFiles.Select(f => f.Id), ct);
         var nextLessonPictureId = await NextIdAsync(_db.LessonPictures.Select(p => p.Id), ct);
         var nextRankPictureId = await NextIdAsync(_db.TeachersInformationPictures.Select(p => p.Id), ct);
+        var nextVersionId = await NextIdAsync(_db.LessonVersions.Select(v => v.Id), ct);
+        var nextVersionPictureId = await NextIdAsync(_db.LessonVersionPictures.Select(p => p.Id), ct);
 
         foreach (var planRank in plan)
         {
@@ -228,8 +250,14 @@ public sealed class CurriculumSeeder
 
             foreach (var planLesson in planRank.Lessons)
             {
+                if (suggestionOwned.Contains(planLesson.Code))
+                {
+                    continue;
+                }
+
                 var isNew = !lessons.TryGetValue(planLesson.Code, out var lesson);
                 var changed = false;
+                var textChanged = false;
                 if (isNew)
                 {
                     lesson = new Lesson
@@ -309,7 +337,9 @@ public sealed class CurriculumSeeder
                         {
                             Id = nextLessonPictureId++, LessonId = lessonId, Order = planned.Order, FileName = planned.FileName, BlobKey = planned.BlobKey
                         });
-                    if (lesson.Body != text.Body || lesson.ContentVersion != text.Version || pictureChanged)
+                    // A picture only moved to a new storage key (same content, same version) is not a new lesson version.
+                    textChanged = lesson.Body != text.Body || lesson.ContentVersion != text.Version;
+                    if (textChanged || pictureChanged)
                     {
                         SetValue(lesson, l => l.Body, text.Body);
                         SetValue(lesson, l => l.ContentVersion, text.Version);
@@ -324,6 +354,40 @@ public sealed class CurriculumSeeder
                 if (changed && !isNew)
                 {
                     lessonsUpdated++;
+                }
+
+                // Each lesson the seeder writes is recorded as a converted version (adr/0013 decisions 4 and 9).
+                if (isNew || changed || textChanged)
+                {
+                    var versionId = nextVersionId++;
+                    var number = (latestKinds.TryGetValue(lesson.Id, out var latest) ? latest.Number : 0) + 1;
+                    _db.LessonVersions.Add(new LessonVersion
+                    {
+                        Id = versionId,
+                        LessonId = lesson.Id,
+                        Number = number,
+                        Kind = LessonVersionKind.Converted,
+                        Title = planLesson.Title,
+                        Order = planLesson.Order,
+                        IsActive = true,
+                        Body = planLesson.Text?.Body ?? lesson.Body,
+                        ContentVersion = planLesson.Text?.Version ?? lesson.ContentVersion,
+                        PublishedAt = DateTime.UtcNow
+                    });
+                    foreach (var tag in planLesson.Tags)
+                    {
+                        _db.LessonVersionTags.Add(new LessonVersionTag { LessonVersionId = versionId, Tag = tag });
+                    }
+                    var versionPictures = planLesson.Text is { } planned
+                        ? planned.Pictures.Select(p => (p.Order, p.FileName, p.BlobKey))
+                        : lessonPictures[lesson.Id].Select(p => (p.Order, p.FileName, p.BlobKey));
+                    foreach (var (order, fileName, blobKey) in versionPictures)
+                    {
+                        _db.LessonVersionPictures.Add(new LessonVersionPicture
+                        {
+                            Id = nextVersionPictureId++, LessonVersionId = versionId, Order = order, FileName = fileName, BlobKey = blobKey
+                        });
+                    }
                 }
             }
         }
@@ -414,7 +478,8 @@ public sealed class CurriculumSeeder
                 if (File.Exists(Path.Combine(lessonsRoot, lesson.Code + ".md")))
                 {
                     used.Add(lesson.Code);
-                    lesson.Text = ReadText(lessonsRoot, lesson.Code, $"lesson-pictures/{lesson.Code}", $"Lesson '{lesson.Code}'", errors, warnings);
+                    lesson.Text = ReadText(lessonsRoot, lesson.Code, $"lesson-pictures/{lesson.Code}", $"Lesson '{lesson.Code}'", errors, warnings,
+                        contentAddressed: true);
                 }
             }
         }
@@ -426,7 +491,8 @@ public sealed class CurriculumSeeder
         }
     }
 
-    private static PlannedText? ReadText(string lessonsRoot, string stem, string blobPrefix, string label, List<string> errors, List<string> warnings)
+    private static PlannedText? ReadText(string lessonsRoot, string stem, string blobPrefix, string label, List<string> errors, List<string> warnings,
+        bool contentAddressed = false)
     {
         var body = File.ReadAllText(Path.Combine(lessonsRoot, stem + ".md")).ReplaceLineEndings("\n");
         var folder = Path.Combine(lessonsRoot, stem);
@@ -465,9 +531,15 @@ public sealed class CurriculumSeeder
                 continue;
             }
 
+            var originalHash = SHA256.HashData(original);
             hash.AppendData(Encoding.UTF8.GetBytes("\0" + reference + "\0"));
-            hash.AppendData(SHA256.HashData(original));
-            pictures.Add(new PlannedPicture(pictures.Count + 1, reference, $"{blobPrefix}/{reference}", resized));
+            hash.AppendData(originalHash);
+            // A lesson picture's key names its content, so a changed picture never overwrites one an earlier lesson version
+            // still shows (adr/0013 decision 4).
+            var key = contentAddressed
+                ? $"{blobPrefix}/{Convert.ToHexStringLower(originalHash)[..16]}/{reference}"
+                : $"{blobPrefix}/{reference}";
+            pictures.Add(new PlannedPicture(pictures.Count + 1, reference, key, resized));
         }
 
         foreach (var unused in available.Where(a => pictures.All(p => p.FileName != a)).Order(StringComparer.Ordinal))

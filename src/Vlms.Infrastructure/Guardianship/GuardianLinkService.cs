@@ -11,7 +11,7 @@ namespace Vlms.Infrastructure.Guardianship;
 /// (<see cref="Vlms.Infrastructure.Authorization.ParentStudentAccessHandler"/>) depends on.
 ///
 /// Authorization: role-checked inside the service itself (defense in depth, same pattern as
-/// <see cref="Vlms.Infrastructure.Curriculum.LessonProposalService"/>/
+/// <see cref="Vlms.Infrastructure.Curriculum.LessonSuggestionService"/>/
 /// <see cref="Vlms.Infrastructure.Progress.CompletionService"/>) — restricted to Admin (Teachers too until 22/10/2026, adr/0008 answer 4).
 /// This is a hard constraint (CLAUDE.md Project Law; functional.md FR-004; data-design.md
 /// "Guardian link verification"): a <see cref="StudentGuardianLink"/> must never be created by
@@ -252,7 +252,7 @@ public sealed class GuardianLinkService
     private int RequireResolvedUserId() =>
         _currentUser.UserId ?? throw new UnauthorizedAccessException("Caller has no resolved UserId.");
 
-    // Same application-assigned-id pattern as LessonProposalService.NextId — see its comment.
+    // Same application-assigned-id pattern as LessonSuggestionService.NextIdAsync — see its comment.
     // Allocated over the whole table, not through the chapter query filter (VlmsDbContext.NextIdAsync, docs/adr/0010-chapters.md).
     private Task<int> NextId(DbSet<ParentGuardian> _, CancellationToken ct) => _db.NextIdAsync<ParentGuardian>(ct);
 }

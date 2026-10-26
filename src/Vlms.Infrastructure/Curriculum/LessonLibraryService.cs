@@ -12,7 +12,7 @@ namespace Vlms.Infrastructure.Curriculum;
 ///
 /// Authorization: does its own role check (<see cref="RequireLibraryRole"/>) rather than relying
 /// on the caller having passed the "RequireLessonLibrary" policy — the same defence-in-depth as
-/// <see cref="LessonProposalService"/>. Files are looked up by id and served only for active
+/// <see cref="LessonSuggestionService"/>. Files are looked up by id and served only for active
 /// lessons; the blob key never comes from the caller. Lessons carry no sensitive-data query filter.
 /// </summary>
 public sealed class LessonLibraryService

@@ -91,7 +91,7 @@ public sealed class CertificateService
         return stream.ToArray();
     }
 
-    // Same application-assigned-id pattern as LessonProposalService.NextId — see its comment.
+    // Same application-assigned-id pattern as LessonSuggestionService.NextIdAsync — see its comment.
     private async Task<int> NextId(CancellationToken ct) =>
         await _db.NextIdAsync<Certificate>(ct);
 }

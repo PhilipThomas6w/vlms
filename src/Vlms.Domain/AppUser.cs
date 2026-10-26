@@ -4,7 +4,7 @@ namespace Vlms.Domain;
 /// The application's own user/profile record — <see cref="Role"/>-bearing (via <see cref="Roles"/>)
 /// and the target of every existing FK that models "which user did/owns this"
 /// (<c>Student.AssignedTeacherUserId</c>, <c>ParentGuardian.AppUserId</c>,
-/// <c>LessonChangeProposal.ProposedByUserId</c>, etc. — adr/0002-roles-as-application-claims.md).
+/// <c>LessonSuggestion.AuthorUserId</c>, etc. — adr/0002-roles-as-application-claims.md).
 ///
 /// **Identity coexistence (STATE.md "Identity" item, replacing Microsoft Entra External ID with
 /// self-rolled ASP.NET Core Identity) — the judgement call, recorded here because this type is
