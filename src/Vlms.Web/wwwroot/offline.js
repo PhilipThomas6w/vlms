@@ -1,6 +1,6 @@
 // The page the service worker serves for any navigation with no connection (offline.html): the lessons
 // saved on this device (offline-lessons.js, functional.md FR-023), by rank, each with links to its files.
-// Links go to /lessons/files/{id}, or for a converted lesson (adr/0012) its page /lessons/{code}/offline,
+// Links go to /lessons/files/{id}, or for a converted lesson (adr/0012) its lesson page /lessons/{code},
 // which service-worker.js answers from the saved copy.
 (function () {
     var target = document.getElementById('saved-lessons');

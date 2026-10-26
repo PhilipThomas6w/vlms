@@ -65,16 +65,9 @@
                                             }
                                         </ul>
                                     }
-                                    @* A converted lesson saves its page and pictures (adr/0012 decision 7); otherwise its files. *@
-                                    <div class="offline-save" hidden data-offline-lesson
-                                         data-id="@lesson.Id" data-code="@lesson.Code" data-title="@lesson.Title"
-                                         data-rank="@(rank.Code + ": " + rank.Name)" data-rank-position="@rankPosition" data-position="@position"
-                                         data-files="@FilesJson(lesson)"
-                                         data-page="@(lesson.HasPage ? LessonLibraryService.OfflinePageUrl(lesson.Code) : null)"
-                                         data-version="@lesson.ContentVersion">
-                                        <span data-offline-status role="status"></span>
-                                        <button type="button" data-offline-action="save">Save to this device</button>
-                                    </div>
+                                    <SaveLessonButton Id="lesson.Id" Code="@lesson.Code" Title="@lesson.Title" Rank="@(rank.Code + ": " + rank.Name)"
+                                                      RankPosition="rankPosition" Position="position" Files="lesson.Files"
+                                                      PictureIds="@(lesson.HasPage ? lesson.PictureIds : null)" Version="@lesson.ContentVersion" />
                                 }
                             </td>
                         </tr>
@@ -87,13 +80,6 @@
 
 @code {
     private IReadOnlyList<LibraryRank> _ranks = [];
-
-    // What the script that saves a lesson for offline use fetches (wwwroot/offline-lessons.js): a converted lesson's
-    // pictures, or the lesson's files.
-    private static string FilesJson(LibraryLesson lesson) =>
-        lesson.HasPage
-            ? System.Text.Json.JsonSerializer.Serialize(lesson.PictureIds.Select(id => new { id, name = "", url = LessonLibraryService.PictureUrl(id) }))
-            : System.Text.Json.JsonSerializer.Serialize(lesson.Files.Select(f => new { id = f.Id, name = f.DisplayName, url = $"/lessons/files/{f.Id}" }));
 
     protected override async Task OnInitializedAsync()
     {

@@ -10,7 +10,7 @@ public sealed record FileNameEntry(string Original, string Name);
 
 /// <summary>
 /// Clean lesson file names (FR-006, Philip 25/10/2026). Lesson files came from a scanner with names such
-/// as <c>Emperor and Empress_ Drawing 07102022_095242_000115.jpg</c>; the library, the offline page and
+/// as <c>Emperor and Empress_ Drawing 07102022_095242_000115.jpg</c>; the library, the saved-lessons page and
 /// downloads show "Emperor and Empress – Drawing" instead, with no file type shown. The stored
 /// <c>LessonFile.FileName</c> is the clean name plus the original extension, so downloads still open in
 /// the right app; <see cref="DisplayName"/> drops the extension again for display.
@@ -58,7 +58,7 @@ public static partial class LessonFileNames
     public static string StoredName(string cleanName, string originalFileName)
         => cleanName + Path.GetExtension(originalFileName);
 
-    /// <summary>A stored file name without its extension, as shown in the library and on the offline page.</summary>
+    /// <summary>A stored file name without its extension, as shown in the library and on the saved-lessons page.</summary>
     public static string DisplayName(string storedFileName)
     {
         var stem = Path.GetFileNameWithoutExtension(storedFileName);

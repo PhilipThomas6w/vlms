@@ -3,7 +3,8 @@
 @using Vlms.Infrastructure.Curriculum
 @inject LessonLibraryService Library
 
-@* A converted lesson (docs/adr/0012-app-hosted-lessons.md decision 6). Static server rendering: the text is plain HTML.
+@* A converted lesson (docs/adr/0012-app-hosted-lessons.md decision 6). Static server rendering, no interactive
+   component: the page needs no live connection, so it is itself what "Save to this device" saves (decision 7).
    The lesson text is HTML from LessonMarkdown (raw HTML disabled, links and pictures restricted), so it is
    written as markup here. The Teacher's Information is only ever present for staff: LessonLibraryService leaves it out
    for everyone else. *@
@@ -20,7 +21,14 @@ else
     <p class="lesson-back"><a href="/lessons#lesson-@_page.Code">Lesson library</a></p>
     <PageHeader Title="@_page.Title">
         <Lead>@_page.Rank</Lead>
+        <Actions>
+            <SaveLessonButton Id="_page.Id" Code="@_page.Code" Title="@_page.Title" Rank="@_page.Rank"
+                              RankPosition="_page.RankPosition" Position="_page.Position"
+                              PictureIds="_page.PictureIds" Version="@_page.ContentVersion" />
+        </Actions>
     </PageHeader>
+    @* Shown by wwwroot/offline-lessons.js on an iPhone or iPad outside the home-screen app, as on the lesson library. *@
+    <p data-offline-home-screen hidden><a href="/add-to-home-screen.html" data-enhance-nav="false">To keep saved lessons, add this app to your home screen</a></p>
 
     @if (_page.TeachersInformationHtml is not null)
     {

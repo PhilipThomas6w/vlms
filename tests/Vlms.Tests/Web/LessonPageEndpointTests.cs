@@ -24,8 +24,8 @@ namespace Vlms.Tests.Web;
 
 /// <summary>
 /// Exercises <see cref="LessonPageEndpoint"/> on an in-memory test server, as <see cref="LessonFileEndpointTests"/> does:
-/// lesson pictures and the offline page behind the lesson-library policy (role plus MFA), Teacher's Information pictures
-/// behind their own staff-only policy, and the offline page's content and no-script Content-Security-Policy.
+/// lesson pictures behind the lesson-library policy (role plus MFA), Teacher's Information pictures behind their own
+/// staff-only policy, and no separate offline rendering (adr/0012 decision 7 as amended, 26/10/2026).
 /// </summary>
 public sealed class LessonPageEndpointTests : IAsyncLifetime
 {
@@ -184,38 +184,9 @@ public sealed class LessonPageEndpointTests : IAsyncLifetime
     public async Task TeachersInformationPicture_StaffWithoutMfa_IsForbidden() =>
         Assert.Equal(HttpStatusCode.Forbidden, (await GetAsync("/lessons/teachers-information/pictures/8", "Teacher", mfa: false)).StatusCode);
 
-    [Theory]
-    [InlineData("Student")]
-    [InlineData("Teacher")]
-    public async Task OfflinePage_IsOneSelfContainedPage_WithNoScriptAllowed_AndNoTeachersInformation(string role)
-    {
-        var response = await GetAsync("/lessons/R5-01/offline", role);
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal("text/html", response.Content.Headers.ContentType?.MediaType);
-        var csp = Assert.Single(response.Headers.GetValues("Content-Security-Policy"));
-        Assert.Contains("default-src 'none'", csp);
-        Assert.DoesNotContain("script-src", csp);
-        var html = await response.Content.ReadAsStringAsync();
-        Assert.StartsWith("<!DOCTYPE html>", html);
-        Assert.Contains("<title>Prosphora &amp; bread</title>", html);
-        Assert.Contains("<h1>Prosphora &amp; bread</h1>", html);
-        Assert.Contains("src=\"/lessons/pictures/7\"", html);
-        Assert.Contains("<style>", html);
-        Assert.DoesNotContain("<script", html);
-        Assert.DoesNotContain("<link", html);
-        Assert.DoesNotContain("For teachers only", html);
-    }
-
     [Fact]
-    public async Task OfflinePage_UnconvertedOrUnknownLesson_IsNotFound_AndOutsiderIsRefused()
-    {
-        Assert.Equal(HttpStatusCode.NotFound, (await GetAsync("/lessons/R5-02/offline", "Student")).StatusCode);
-        Assert.Equal(HttpStatusCode.NotFound, (await GetAsync("/lessons/NOPE/offline", "Student")).StatusCode);
-        Assert.Equal(HttpStatusCode.Unauthorized, (await GetAsync("/lessons/R5-01/offline", null)).StatusCode);
-        Assert.Equal(HttpStatusCode.Forbidden, (await GetAsync("/lessons/R5-01/offline", "SafeguardingOfficer")).StatusCode);
-        Assert.Equal(HttpStatusCode.Forbidden, (await GetAsync("/lessons/R5-01/offline", "Teacher", mfa: false)).StatusCode);
-    }
+    public async Task ThereIsNoSeparateOfflineRendering() =>
+        Assert.Equal(HttpStatusCode.NotFound, (await GetAsync("/lessons/R5-01/offline", "Student")).StatusCode);
 
     [Fact]
     public async Task LessonFileEndpoint_StillServesFilesOnly_NotPicturesById()

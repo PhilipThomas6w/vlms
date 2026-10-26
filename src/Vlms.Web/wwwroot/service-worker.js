@@ -13,12 +13,15 @@
 //      cache instead of the network. The cache name carries the build id (the `v` in this script's
 //      URL, set by App.razor), so every build starts with an empty cache and the old one is deleted
 //      on activate: an unversioned asset can never be served stale for ever.
-//   3. Lesson files (/lessons/files/{id}), and a converted lesson's pictures (/lessons/pictures/{id})
-//      and self-contained page (/lessons/{code}/offline, adr/0012): network first, falling back to the
-//      copy saved on the device in the "vlms-lessons" cache. The page script (offline-lessons.js) writes and removes
+//   3. Lesson files (/lessons/files/{id}) and a converted lesson's pictures (/lessons/pictures/{id},
+//      /lessons/teachers-information/pictures/{id}; adr/0012): network first, falling back to the copy
+//      saved on the device in the "vlms-lessons" cache. The page script (offline-lessons.js) writes and removes
 //      that cache; this worker only reads it and must never delete it.
 //   4. Navigation: network first, so a page is never served stale while online; with no connection
-//      the precached /offline.html, which lists the saved lessons.
+//      the saved copy of that page if there is one (a converted lesson's page, adr/0012 decision 7),
+//      otherwise the precached /offline.html, which lists the saved lessons. Static assets a saved
+//      lesson page needs (its stylesheets and scripts) are also kept in "vlms-lessons", so they are
+//      found there when the static cache no longer has them (a new build) and there is no connection.
 // It never touches the SignalR circuit (WebSocket upgrades aren't dispatched through the Fetch
 // API's 'fetch' event at all).
 
@@ -27,7 +30,7 @@ const STATIC_PREFIX = "vlms-static-";
 const CACHE_NAME = STATIC_PREFIX + BUILD;
 const LESSONS_CACHE = "vlms-lessons";
 const CACHEABLE_DESTINATIONS = ["style", "script", "image", "font", "manifest"];
-const LESSON_FILE = /^\/lessons\/(files\/\d+|pictures\/\d+|[^/]+\/offline)$/;
+const LESSON_FILE = /^\/lessons\/(files\/\d+|pictures\/\d+|teachers-information\/pictures\/\d+)$/;
 const OFFLINE_PAGE = "/offline.html";
 const PRECACHE = [OFFLINE_PAGE, "/offline.js", "/app.css"];
 
@@ -111,6 +114,18 @@ async function lessonFile(request) {
   }
 }
 
+async function savedCopy(request) {
+  return caches.open(LESSONS_CACHE).then((cache) => cache.match(request.url, { ignoreVary: true }));
+}
+
+async function savedPageOrOfflinePage(request, error) {
+  const saved = await savedCopy(request);
+  if (saved) {
+    return saved;
+  }
+  return offlinePage(error);
+}
+
 async function offlinePage(error) {
   const page = await caches.open(CACHE_NAME).then((cache) => cache.match(OFFLINE_PAGE));
   if (page) {
@@ -145,7 +160,7 @@ self.addEventListener("fetch", (event) => {
   // The server-rendered document is dynamic per request (auth state, antiforgery tokens): always
   // the network, and the offline page only when there is no connection at all.
   if (request.mode === "navigate") {
-    event.respondWith(fetch(request).catch(offlinePage));
+    event.respondWith(fetch(request).catch((error) => savedPageOrOfflinePage(request, error)));
     return;
   }
 
@@ -160,7 +175,16 @@ self.addEventListener("fetch", (event) => {
         return cached;
       }
 
-      const response = await fetch(request);
+      let response;
+      try {
+        response = await fetch(request);
+      } catch (error) {
+        const saved = await savedCopy(request);
+        if (saved) {
+          return saved;
+        }
+        throw error;
+      }
       if (await worthCaching(response, EXPECTED_TYPES[request.destination])) {
         cache.put(request, response.clone());
       }

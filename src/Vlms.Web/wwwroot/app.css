@@ -676,7 +676,7 @@
 
 /* Print: the lesson page prints as the lesson alone (adr/0012 decision 6). */
 @media print {
-    .skip-link, .shell-bar, .chapter-bar, .site-nav, nav[aria-label="Main"], .lesson-back, #components-reconnect-modal, #blazor-error-ui { display: none !important; }
+    .skip-link, .shell-bar, .chapter-bar, .site-nav, nav[aria-label="Main"], .lesson-back, .offline-save, [data-offline-home-screen], #components-reconnect-modal, #blazor-error-ui { display: none !important; }
     .teachers-information:not([open]) { display: none; }
     body { background: #FFFFFF; }
     main { padding: 0; }

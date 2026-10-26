@@ -98,12 +98,17 @@ public sealed class LessonLibraryService
 
         var lesson = await _db.Lessons.AsNoTracking()
             .Where(l => l.Code == code && l.IsActive && l.Body != null)
-            .Select(l => new { l.Id, l.Code, l.Title, l.Body, l.ContentVersion, l.RankId, RankCode = l.Rank!.Code, RankName = l.Rank.Name })
+            .Select(l => new { l.Id, l.Code, l.Title, l.Body, l.ContentVersion, l.RankId, l.Order, RankCode = l.Rank!.Code, RankName = l.Rank.Name, RankOrder = l.Rank.Order })
             .SingleOrDefaultAsync(ct);
         if (lesson is null)
         {
             return null;
         }
+
+        // Its place in the library's delivery order, as the saved-lessons index sorts by (FR-023).
+        var rankPosition = await _db.Ranks.CountAsync(r => r.Order < lesson.RankOrder, ct);
+        var position = await _db.Lessons.CountAsync(l => l.RankId == lesson.RankId && l.IsActive
+            && (l.Order < lesson.Order || (l.Order == lesson.Order && l.Id < lesson.Id)), ct);
 
         var pictures = await _db.LessonPictures.AsNoTracking().Where(p => p.LessonId == lesson.Id)
             .OrderBy(p => p.Order).ThenBy(p => p.Id).Select(p => new { p.Id, p.FileName }).ToListAsync(ct);
@@ -125,7 +130,11 @@ public sealed class LessonLibraryService
         }
 
         return new LessonPage(lesson.Id, lesson.Code, lesson.Title, $"{lesson.RankCode}: {lesson.RankName}", html,
-            lesson.ContentVersion, pictures.Select(p => p.Id).ToList(), information);
+            lesson.ContentVersion, pictures.Select(p => p.Id).ToList(), information)
+        {
+            RankPosition = rankPosition,
+            Position = position
+        };
     }
 
     /// <summary>Where a lesson picture is served (by id only).</summary>
@@ -134,8 +143,11 @@ public sealed class LessonLibraryService
     /// <summary>Where a Teacher's Information picture is served (by id only, staff only).</summary>
     public static string TeachersInformationPictureUrl(int id) => $"/lessons/teachers-information/pictures/{id}";
 
-    /// <summary>Where a converted lesson's self-contained page for saving to a device is served (adr/0012 decision 7).</summary>
-    public static string OfflinePageUrl(string code) => $"/lessons/{Uri.EscapeDataString(code)}/offline";
+    /// <summary>
+    /// A converted lesson's page (adr/0012 decision 6). It is plain server-rendered HTML needing no live connection, so
+    /// it is also what "Save to this device" saves (decision 7, as amended by Philip, 26/10/2026).
+    /// </summary>
+    public static string PageUrl(string code) => $"/lessons/{Uri.EscapeDataString(code)}";
 
     /// <summary>
     /// A lesson picture's content, or null if the id is unknown, its lesson is retired or the blob is missing. Same role
@@ -187,7 +199,7 @@ public sealed class LessonLibraryService
     /// (FR-023): each one that is still an active lesson, with its rank, position and files. Ids that
     /// are unknown or retired are simply absent, which tells the device to drop them. Nothing beyond
     /// what <see cref="GetLibraryAsync"/> already shows. Same role check as the rest of the library. A converted lesson
-    /// (adr/0012 decision 7) is saved as its offline page and pictures, not its files: <see cref="SavedLesson.Page"/>,
+    /// (adr/0012 decision 7) is saved as its lesson page and pictures, not its files: <see cref="SavedLesson.Page"/>,
     /// <see cref="SavedLesson.Version"/> (compared by the device, so a changed lesson is fetched again) and
     /// <see cref="SavedLesson.PictureIds"/>, with no files.
     /// </summary>
@@ -201,7 +213,7 @@ public sealed class LessonLibraryService
                 new SavedLesson(lesson.Id, lesson.Code, lesson.Title, $"{rank.Code}: {rank.Name}", rankPosition, position,
                     lesson.HasPage ? [] : lesson.Files)
                 {
-                    Page = lesson.HasPage ? OfflinePageUrl(lesson.Code) : null,
+                    Page = lesson.HasPage ? PageUrl(lesson.Code) : null,
                     Version = lesson.ContentVersion,
                     PictureIds = lesson.PictureIds
                 }))
@@ -258,12 +270,19 @@ public sealed record LibraryLesson(int Id, string Code, string Title, IReadOnlyL
 /// rank's Teacher's Information, present only for staff (<see cref="LessonLibraryService.TeachersInformationRoles"/>).
 /// </summary>
 public sealed record LessonPage(int Id, string Code, string Title, string Rank, string Html, string? ContentVersion,
-    IReadOnlyList<int> PictureIds, string? TeachersInformationHtml);
+    IReadOnlyList<int> PictureIds, string? TeachersInformationHtml)
+{
+    /// <summary>The rank's position in the library (0-based), for the saved-lessons index.</summary>
+    public int RankPosition { get; init; }
+
+    /// <summary>The lesson's position within its rank (0-based), for the saved-lessons index.</summary>
+    public int Position { get; init; }
+}
 
 /// <summary>A lesson as a device that saved it needs to know it: <c>Rank</c> reads like "R1: First", the two positions give the delivery order.</summary>
 public sealed record SavedLesson(int Id, string Code, string Title, string Rank, int RankPosition, int Position, IReadOnlyList<LibraryFile> Files)
 {
-    /// <summary>The offline page to save for a converted lesson; null for one that is still files.</summary>
+    /// <summary>The lesson page to save for a converted lesson (<c>/lessons/{code}</c>); null for one that is still files.</summary>
     public string? Page { get; init; }
 
     /// <summary>The converted lesson's content version; a device whose copy differs fetches the page and pictures again.</summary>

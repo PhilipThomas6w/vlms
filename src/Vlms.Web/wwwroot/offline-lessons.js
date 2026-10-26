@@ -1,11 +1,14 @@
 // Lessons saved for offline use (functional.md FR-023, adr/0011). Plain progressive enhancement of
-// the lesson library: LessonLibrary.razor renders a hidden [data-offline-lesson] block per lesson with
-// its id, title, rank and files in data attributes; this script shows it, keeps the saved copies in the
-// "vlms-lessons" cache (read by service-worker.js and offline.js) and a small index of what is saved.
-// A converted lesson (adr/0012 decision 7) is saved as its self-contained page (data-page,
-// /lessons/{code}/offline) and its pictures, with its content version (data-version): when the
-// server's version differs, the page and pictures are fetched again. Each saved file carries its own
-// url; records saved before that have none and are files at /lessons/files/{id}.
+// the lesson library and the lesson page: SaveLessonButton.razor renders a hidden [data-offline-lesson]
+// block with the lesson's id, title, rank and files in data attributes; this script shows it, keeps the
+// saved copies in the "vlms-lessons" cache (read by service-worker.js and offline.js) and a small index
+// of what is saved. A converted lesson (adr/0012 decision 7, as amended 26/10/2026) is saved as its
+// lesson page itself (data-page, /lessons/{code}: static server rendering, so it needs no live
+// connection), its pictures, and what the page needs to display: its stylesheets, scripts and any other
+// same-origin picture in it (a staff member's Teacher's Information pictures), kept as the lesson's
+// `assets` and shared between saved lessons. Its content version (data-version) is compared on each
+// update check: when the server's differs, the page and everything it needs are fetched again. Each
+// saved file carries its own url; records saved before that have none and are files at /lessons/files/{id}.
 // Event delegation on the document plus a re-scan on Blazor's `enhancedload`, so it keeps working when
 // enhanced navigation replaces the page's DOM.
 (function () {
@@ -24,11 +27,19 @@
 
     function fileUrl(file) { return file.url || '/lessons/files/' + file.id; }
 
-    // Everything a saved lesson keeps in the cache: its files (or pictures) and, if converted, its page.
+    // Everything a saved lesson keeps in the cache: its files (or pictures) and, if converted, its page
+    // and the page's assets.
     function urlsOf(lesson) {
         var urls = lesson.files.map(fileUrl);
         if (lesson.page) urls.push(lesson.page);
-        return urls;
+        return urls.concat(lesson.assets || []);
+    }
+
+    // Deletes the given urls except those another saved lesson still uses (stylesheets are shared).
+    function deleteUnused(cache, index, urls) {
+        var kept = {};
+        index.lessons.forEach(function (l) { urlsOf(l).forEach(function (url) { kept[url] = true; }); });
+        return deleteUrls(cache, urls.filter(function (url) { return !kept[url]; }));
     }
 
     function readIndex(cache) {
@@ -59,20 +70,51 @@
         return Promise.all(urls.map(function (url) { return cache.delete(url); }));
     }
 
+    // A converted lesson's page into the cache, then the same-origin stylesheets, scripts and pictures it
+    // uses that are not already the lesson's files; sets lesson.assets to those.
+    function fetchPage(cache, lesson) {
+        return fetch(lesson.page, { credentials: 'same-origin' }).then(function (r) {
+            if (!r.ok || r.redirected) throw new Error(lesson.page);
+            return cache.put(lesson.page, r.clone()).then(function () { return r.text(); });
+        }).then(function (html) {
+            var doc = new DOMParser().parseFromString(html, 'text/html');
+            var own = lesson.files.map(fileUrl);
+            var assets = [];
+            // Relative addresses resolve against the page's <base href> (App.razor sets "/").
+            var baseElement = doc.querySelector('base[href]');
+            var base = new URL(baseElement ? baseElement.getAttribute('href') : lesson.page, location.origin + lesson.page);
+            doc.querySelectorAll('link[rel~="stylesheet"][href], script[src], img[src]').forEach(function (e) {
+                var url = new URL(e.getAttribute('href') || e.getAttribute('src'), base);
+                var path = url.pathname + url.search;
+                if (url.origin === location.origin && own.indexOf(path) < 0 && assets.indexOf(path) < 0) assets.push(path);
+            });
+            lesson.assets = assets;
+            return fetchUrls(cache, assets);
+        });
+    }
+
+    // Everything a lesson needs on the device: its files (or pictures) and, if converted, its page.
+    function fetchLesson(cache, lesson) {
+        return fetchUrls(cache, lesson.files.map(fileUrl)).then(function () {
+            return lesson.page ? fetchPage(cache, lesson) : undefined;
+        });
+    }
+
     function save(lesson) {
         return serial(function () {
             var persist = navigator.storage && navigator.storage.persist ? navigator.storage.persist().catch(function () { }) : Promise.resolve();
             return persist.then(function () { return caches.open(CACHE); }).then(function (cache) {
-                return fetchUrls(cache, urlsOf(lesson))
-                    .catch(function (error) {
-                        return deleteUrls(cache, urlsOf(lesson)).then(function () { throw error; });
-                    })
-                    .then(function () { return readIndex(cache); })
-                    .then(function (index) {
-                        index.lessons = index.lessons.filter(function (l) { return l.id !== lesson.id; });
-                        index.lessons.push(lesson);
-                        return writeIndex(cache, index);
-                    });
+                return readIndex(cache).then(function (index) {
+                    return fetchLesson(cache, lesson)
+                        .catch(function (error) {
+                            return deleteUnused(cache, index, urlsOf(lesson)).then(function () { throw error; });
+                        })
+                        .then(function () {
+                            index.lessons = index.lessons.filter(function (l) { return l.id !== lesson.id; });
+                            index.lessons.push(lesson);
+                            return writeIndex(cache, index);
+                        });
+                });
             });
         });
     }
@@ -84,7 +126,7 @@
                     var gone = index.lessons.filter(function (l) { return l.id === id; });
                     index.lessons = index.lessons.filter(function (l) { return l.id !== id; });
                     return writeIndex(cache, index).then(function () {
-                        return Promise.all(gone.map(function (l) { return deleteUrls(cache, urlsOf(l)); }));
+                        return Promise.all(gone.map(function (l) { return deleteUnused(cache, index, urlsOf(l)); }));
                     });
                 });
             });
@@ -124,19 +166,22 @@
         var savedUrls = urlsOf(saved);
         if (!now) {
             index.lessons = index.lessons.filter(function (l) { return l.id !== saved.id; });
-            return deleteUrls(cache, savedUrls);
+            return deleteUnused(cache, index, savedUrls);
         }
         var record = lessonRecord(now);
-        var nowUrls = urlsOf(record);
-        var changed = (record.version || null) !== (saved.version || null);
-        var removed = savedUrls.filter(function (url) { return nowUrls.indexOf(url) < 0; });
-        return deleteUrls(cache, removed)
+        record.assets = saved.assets || [];
+        var changed = (record.version || null) !== (saved.version || null) || (record.page || null) !== (saved.page || null);
+        var others = { lessons: index.lessons.filter(function (l) { return l.id !== saved.id; }) };
+        // A changed lesson in full (page, pictures and assets again); otherwise what is new, and anything the device has lost.
+        var fetched = changed
+            ? fetchLesson(cache, record)
+            : Promise.all(urlsOf(record).map(function (url) { return cache.match(url); })).then(function (found) {
+                return fetchUrls(cache, urlsOf(record).filter(function (url, i) { return !found[i]; }));
+            });
+        return fetched
             .then(function () {
-                // A changed lesson in full; otherwise what is new, and anything the device has lost.
-                if (changed) return fetchUrls(cache, nowUrls);
-                return Promise.all(nowUrls.map(function (url) { return cache.match(url); })).then(function (found) {
-                    return fetchUrls(cache, nowUrls.filter(function (url, i) { return !found[i]; }));
-                });
+                var nowUrls = urlsOf(record);
+                return deleteUnused(cache, others, savedUrls.filter(function (url) { return nowUrls.indexOf(url) < 0; }));
             })
             .then(function () { Object.assign(saved, record); })
             .catch(function () { /* keep what is saved; the next visit tries again */ });

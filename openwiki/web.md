@@ -77,7 +77,7 @@ live connection to the server there is no app. This increment therefore builds o
 
 The only thing that works with no connection. The pieces:
 
-- **Buttons** — `Pages/Lessons/LessonLibrary.razor` (static SSR) renders, per lesson with files or a page, a
+- **Buttons** — `Pages/Lessons/SaveLessonButton.razor`, used by `LessonLibrary.razor` (per lesson with files or a page) and by the converted lesson's page `LessonText.razor` (both static SSR), renders a
   hidden `div[data-offline-lesson]` holding the lesson id, code, title, rank, positions and file
   ids/names in data attributes, a `role="status"` span and one `button`. `wwwroot/offline-lessons.js`
   (loaded from `App.razor`, delegated click handler, re-scan on Blazor's `enhancedload`) shows it,
@@ -87,15 +87,20 @@ The only thing that works with no connection. The pieces:
 - **Storage** — Cache Storage `vlms-lessons`: each file fetched from `/lessons/files/{id}` with the
   user's cookies, plus an index entry `/vlms-saved-index.json` (lessons, rank, positions, files, each
   file with its `url`). A converted lesson (adr/0012 decision 7, `data-page`/`data-version`) is saved as
-  its self-contained page `/lessons/{code}/offline` and its pictures `/lessons/pictures/{id}` instead
-  of its files, with its content version.
+  its lesson page `/lessons/{code}` itself (static SSR, so it needs no SignalR circuit) and its pictures
+  `/lessons/pictures/{id}` instead of its files, with its content version; the script parses the saved
+  page and also caches the same-origin stylesheets, scripts and pictures it uses (`assets`: app CSS,
+  `blazor.web.js`, a staff member's Teacher's Information pictures), shared between saved lessons and
+  deleted only when no saved lesson still uses them.
   `navigator.storage.persist()` is asked for on the first save. The static cache and the lessons cache
   are separate; the worker's activate step deletes only `vlms-static-*`. Nothing is removed at sign-out.
-- **Worker** — `/lessons/files/{id}`, `/lessons/pictures/{id}` and `/lessons/{code}/offline`: network
-  first, falling back to the saved copy. Navigation:
+- **Worker** — `/lessons/files/{id}`, `/lessons/pictures/{id}` and `/lessons/teachers-information/pictures/{id}`:
+  network first, falling back to the saved copy. Navigation with no connection: the saved copy of that
+  page if there is one (a saved lesson page), else `/offline.html`. Static assets: the static cache, then
+  the network, then the saved copy in `vlms-lessons` (so a saved page keeps its CSS after a new build). Navigation:
   network first, falling back to the precached `/offline.html` (plus `/offline.js`, `/app.css`, from the
   static cache), whose script lists the saved lessons by rank with links to their files, or to the
-  offline page for a converted lesson.
+  saved lesson page for a converted lesson.
 - **Updating** — once per page load, online, `offline-lessons.js` calls
   `GET /lessons/saved?id=..` (`LessonFileEndpoint.MapSavedLessonsEndpoint`, `RequireLessonLibrary`,
   `LessonLibraryService.GetSavedLessonsAsync`), drops lessons and files no longer in the library,
@@ -104,7 +109,7 @@ The only thing that works with no connection. The pieces:
 - **Tests** — `LessonFileEndpointTests` and `LessonLibraryServiceTests` (endpoint and service),
   `PwaAssetsTests` (cache naming, the lessons cache never deleted), `Vlms.UiTests/OfflineLessonsJourneyTests`
   (Chromium: save, go offline, saved list, file from the device, remove), `LessonPageJourneyTests`
-  (a converted lesson saved and read offline).
+  (a converted lesson saved from its own page and read offline: styled, no script errors, no reconnect dialog).
 
 Registration is the standard web-platform pattern (`navigator.serviceWorker.register('service-worker.js')`
 in a `<script>` after `App.razor`'s `blazor.web.js` tag) — this part is not Blazor-specific, so no

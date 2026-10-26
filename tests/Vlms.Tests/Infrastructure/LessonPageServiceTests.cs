@@ -10,7 +10,7 @@ namespace Vlms.Tests.Infrastructure;
 /// <summary>
 /// The app-hosted lesson reads of <see cref="LessonLibraryService"/> (docs/adr/0012-app-hosted-lessons.md decisions 5–7):
 /// the lesson page, lesson pictures, the Teacher's Information shown to Teachers, Admins and the National Administrator
-/// only (enforced in the service, for each role), and the converted lesson's offline details.
+/// only (enforced in the service, for each role), and what a device needs to save a converted lesson's page.
 /// </summary>
 public sealed class LessonPageServiceTests : IDisposable
 {
@@ -92,6 +92,7 @@ public sealed class LessonPageServiceTests : IDisposable
 
         Assert.NotNull(page);
         Assert.Equal(("Prosphora", "HERALD: Herald", "v1"), (page.Title, page.Rank, page.ContentVersion));
+        Assert.Equal((0, 0), (page.RankPosition, page.Position));
         Assert.Contains("src=\"/lessons/pictures/20\"", page.Html);
         Assert.DoesNotContain("<script", page.Html);
         Assert.Equal([20], page.PictureIds);
@@ -157,7 +158,7 @@ public sealed class LessonPageServiceTests : IDisposable
         var saved = await AsAsync(Role.Student, s => s.GetSavedLessonsAsync([10, 11]));
 
         var converted = saved.Single(l => l.Id == 10);
-        Assert.Equal(("/lessons/R5-01/offline", "v1"), (converted.Page, converted.Version));
+        Assert.Equal(("/lessons/R5-01", "v1"), (converted.Page, converted.Version));
         Assert.Equal([20], converted.PictureIds);
         Assert.Empty(converted.Files);
 

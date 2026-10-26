@@ -15,8 +15,8 @@ namespace Vlms.UiTests;
 /// <summary>
 /// App-hosted lessons (docs/adr/0012-app-hosted-lessons.md) in Chromium against the real app: the lesson page with its
 /// picture, the Teacher's Information shown to a teacher and not to a parent, axe-core (WCAG 2.2 A/AA) with no
-/// violations, no horizontal scrolling at 375 px, the print layout, and saving the lesson to the device and reading it
-/// with no connection.
+/// violations, no horizontal scrolling at 375 px, the print layout, and saving the lesson page itself from its own
+/// button and reading it with no connection (adr/0012 decision 7 as amended, 26/10/2026).
 /// </summary>
 public sealed class LessonPageJourneyTests
 {
@@ -127,7 +127,7 @@ public sealed class LessonPageJourneyTests
     }
 
     [Fact]
-    public async Task Saves_a_converted_lesson_and_reads_it_with_no_connection()
+    public async Task Saves_the_lesson_page_from_itself_and_reads_it_with_no_connection()
     {
         var (factory, baseUrl, personas, pictureId) = await StartAsync();
         using var _ = factory;
@@ -135,26 +135,52 @@ public sealed class LessonPageJourneyTests
         await using var browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions { Headless = true });
         await using var context = await browser.NewContextAsync(new BrowserNewContextOptions { Locale = "en-GB" });
         var page = await context.NewPageAsync();
+        var pageErrors = new List<string>();
+        page.PageError += (_, error) => pageErrors.Add(error);
         await DesignCapture.SignInAsync(page, baseUrl, personas["teacher"]);
 
-        await page.GotoAsync(baseUrl + "/lessons", new PageGotoOptions { WaitUntil = WaitUntilState.NetworkIdle });
+        await page.GotoAsync(baseUrl + $"/lessons/{Code}", new PageGotoOptions { WaitUntil = WaitUntilState.NetworkIdle });
         await page.EvaluateAsync("() => navigator.serviceWorker.ready");
         await page.WaitForFunctionAsync("() => navigator.serviceWorker.controller !== null");
 
-        var block = page.Locator($"#lesson-{Code} [data-offline-lesson]");
+        // The same button as on the library, on the lesson page itself.
+        var block = page.Locator("[data-offline-lesson]");
+        await Assertions.Expect(block).ToHaveCountAsync(1);
         await block.GetByRole(AriaRole.Button, new() { Name = "Save to this device" }).ClickAsync();
         await Assertions.Expect(block.GetByRole(AriaRole.Status)).ToHaveTextAsync("Saved on this device");
+        await Assertions.Expect(block.GetByRole(AriaRole.Button, new() { Name = "Remove" })).ToBeVisibleAsync();
+
+        // The library shows it saved too.
+        await page.GotoAsync(baseUrl + "/lessons", new PageGotoOptions { WaitUntil = WaitUntilState.NetworkIdle });
+        await Assertions.Expect(page.Locator($"#lesson-{Code} [data-offline-lesson]").GetByRole(AriaRole.Status)).ToHaveTextAsync("Saved on this device");
 
         await context.SetOfflineAsync(true);
         await page.GotoAsync(baseUrl + "/calendar");
         await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Name = "No internet connection" })).ToBeVisibleAsync();
         await page.GetByRole(AriaRole.Link, new() { Name = "Prosphora" }).ClickAsync();
-        await page.WaitForURLAsync($"**/lessons/{Code}/offline");
+        await page.WaitForURLAsync($"**/lessons/{Code}");
+        await page.WaitForLoadStateAsync(LoadState.Load);
 
+        // The saved lesson page itself, styled, with its picture and the teacher's own Teacher's Information.
         await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Level = 1, Name = "Prosphora" })).ToBeVisibleAsync();
-        await Assertions.Expect(page.GetByRole(AriaRole.Img, new() { Name = "Three loaves of prosphora" })).ToBeVisibleAsync();
-        await page.WaitForFunctionAsync("() => { const i = document.querySelector('img'); return i && i.complete && i.naturalWidth > 0; }");
-        Assert.Contains($"/lessons/pictures/{pictureId}", await page.GetByRole(AriaRole.Img).GetAttributeAsync("src"));
+        var picture = page.GetByRole(AriaRole.Img, new() { Name = "Three loaves of prosphora" });
+        await picture.ScrollIntoViewIfNeededAsync();
+        await page.WaitForFunctionAsync("() => { const i = document.querySelector('.lesson-text img'); return i && i.complete && i.naturalWidth > 0; }");
+        Assert.Contains($"/lessons/pictures/{pictureId}", await picture.GetAttributeAsync("src"));
+        Assert.NotEqual("none", await page.EvaluateAsync<string>("() => getComputedStyle(document.querySelector('.lesson-text')).maxWidth"));
+        await Assertions.Expect(page.Locator("[data-teachers-information]")).ToHaveCountAsync(1);
+        await Assertions.Expect(block.GetByRole(AriaRole.Status)).ToHaveTextAsync("Saved on this device");
+
+        // No live connection is attempted or missed: no script errors, no reconnect or error banner.
+        await page.WaitForTimeoutAsync(1500);
+        Assert.Empty(pageErrors);
+        Assert.False(await page.EvaluateAsync<bool>("() => { const d = document.getElementById('components-reconnect-modal'); return !!d && d.open; }"),
+            "The reconnect dialog opened on the saved page.");
+        await Assertions.Expect(page.Locator("#blazor-error-ui")).Not.ToBeVisibleAsync();
+
+        // Opening it again by its address, still offline, also works.
+        await page.ReloadAsync();
+        await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Level = 1, Name = "Prosphora" })).ToBeVisibleAsync();
         await AssertNoWcagViolationsAsync(page);
     }
 }
