@@ -58,7 +58,8 @@ $componentsRoot = Join-Path $repoRoot "src/Vlms.Web/Components"
 $allowListedPages = @(
     "Home.razor", "Error.razor", "NotFound.razor",
     "Login.razor", "Register.razor", "LoginWith2fa.razor", "LoginWithRecoveryCode.razor", "AcceptInvite.razor",
-    "ForgotPassword.razor", "ResetPassword.razor", "ConfirmEmail.razor", "ResendEmailConfirmation.razor"
+    "ForgotPassword.razor", "ResetPassword.razor", "ConfirmEmail.razor", "ResendEmailConfirmation.razor",
+    "Privacy.razor"  # public privacy notice (UK GDPR Art 13), static text, no data
 )
 $pageFiles = Get-ChildItem -Path $componentsRoot -Recurse -Filter "*.razor"
 

@@ -32,8 +32,8 @@ public class NavigationCoverageTests
         ["RequireSignedIn"] = ["Admin", "Teacher", "Approver", "Parent", "Student", "SafeguardingOfficer", "NationalAdministrator"],
     };
 
-    // Account, error and not-found pages are not navigation targets; AcceptInvite is reached from an emailed link.
-    private static readonly string[] ExcludedPrefixes = ["/Account/", "/Error", "/not-found", "/guardianship/accept-invite"];
+    // Account, error and not-found pages are not navigation targets; AcceptInvite is reached from an emailed link; the privacy notice from the footer and sign-in page.
+    private static readonly string[] ExcludedPrefixes = ["/Account/", "/Error", "/not-found", "/guardianship/accept-invite", "/privacy"];
 
     // Reached from list pages, not the nav.
     private static readonly string[] ExcludedRoutes =
