@@ -1,6 +1,6 @@
 # Data Protection Impact Assessment (draft)
 
-Status: **draft for Philip's review**, written 13/10/2026 to discharge `governance/raid.md` D-003 (owner: Philip, due before go-live). Structure follows the ICO's DPIA steps ([ICO: Data protection impact assessments](https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/accountability-and-governance/data-protection-impact-assessments-dpias/)). This draft states what the system does and what the design already controls. **It does not decide legal questions:** lawful bases and conditions are proposed for Philip to confirm, with advice if needed, and are marked `[TBC – Philip]`. Nothing here is legal advice.
+Status: **approved by Philip, 27/10/2026** (lawful bases, conditions, providers, rights, residual risks and sign-off confirmed; section 6). First written 13/10/2026 to discharge `governance/raid.md` D-003 (owner: Philip, due before go-live). Structure follows the ICO's DPIA steps ([ICO: Data protection impact assessments](https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/accountability-and-governance/data-protection-impact-assessments-dpias/)). This draft states what the system does and what the design already controls. **It does not decide legal questions:** lawful bases and conditions are proposed for Philip to confirm, with advice if needed, and were confirmed by Philip on 27/10/2026. Nothing here is legal advice.
 
 
 > **REVIEW NEEDED — access change of 22/10/2026, not yet assessed here (Philip).** `adr/0006-parent-consent-and-teacher-read-access.md` (functional.md FR-013, FR-015) changes who handles the special category data in this assessment, and this DPIA has **not** been updated or re-signed for it:
@@ -31,7 +31,7 @@ The ICO says a DPIA is required for processing likely to result in high risk, an
 - criminal offence data (DBS check records for adult volunteers);
 - a decision affecting access to an activity (expired consent blocks lesson completion), although this is a rule applied to a record the club holds, not profiling.
 
-The processing is small in scale (tens of people per role) and is not profiling, marketing or a service offered to children online. Several criteria still apply together, and a breach could cause physical or safeguarding harm (e.g. a child's medical needs or a volunteer's DBS status exposed). **Screening outcome (proposed): carry out a full DPIA.** This document is that DPIA. `[TBC – Philip: confirm]`
+The processing is small in scale (tens of people per role) and is not profiling, marketing or a service offered to children online. Several criteria still apply together, and a breach could cause physical or safeguarding harm (e.g. a child's medical needs or a volunteer's DBS status exposed). **Screening outcome: carry out a full DPIA** (confirmed, Philip 27/10/2026). This document is that DPIA.
 
 ## 2. The processing
 
@@ -51,27 +51,27 @@ The processing is small in scale (tens of people per role) and is not profiling,
 
 Volume: tens of students, parents and volunteers (`governance/raid.md` A-002).
 
-**Not collected:** religion is not recorded as a field, although membership of a church youth club may itself reveal religious belief. `[TBC – Philip: whether to treat membership as special category data]`. No photos are stored. No DBS certificate images are stored, only the certificate number and dates.
+**Not collected:** religion is not recorded as a field, although membership of a church youth club may itself reveal religious belief. Membership is treated as special category data (Philip, 27/10/2026), under the Art 9(2)(d) condition below.. No photos are stored. No DBS certificate images are stored, only the certificate number and dates.
 
 **Processors and locations:**
 
 | Processor | What | Location |
 |---|---|---|
 | DigitalOcean | VPS hosting: the database and files | London (LON1) |
-| Cloudflare (R2) | encrypted-in-transit off-box backups: database dumps and certificate PDFs | `[TBC – Philip: R2 location hint / jurisdiction]` |
-| Microsoft (the church's Microsoft 365 tenant) | outbound email via Graph | `[TBC – Philip: tenant data location]` |
+| Cloudflare (R2) | encrypted-in-transit off-box backups: database dumps and certificate PDFs | EU jurisdiction bucket (Philip, 27/10/2026); the UK's adequacy regulations cover the EU, so this is not a restricted transfer |
+| Microsoft (the church's Microsoft 365 tenant) | outbound email via Graph | tenant data held in the UK (Philip, 27/10/2026) |
 | Hostinger | DNS only; no personal data | — |
 
-Data processing terms with each: `[TBC – Philip: confirm each provider's standard DPA applies and record it]`. International transfers: `[TBC – Philip]` (depends on the R2 and Microsoft locations above).
+Data processing terms with each: each provider's standard data processing terms apply (DigitalOcean, Cloudflare, Microsoft; Philip, 27/10/2026). International transfers: none restricted (DigitalOcean London, R2 EU jurisdiction, Microsoft 365 UK).
 
 ## 3. Lawful basis (proposed, for Philip to confirm)
 
 | Processing | Article 6 basis (proposed) | Article 9 / 10 condition (proposed) |
 |---|---|---|
-| Student and parent records, progress, certificates | legitimate interests in running the club `[TBC]` | n/a |
+| Student and parent records, progress, certificates | legitimate interests in running the club (confirmed, Philip 27/10/2026) | n/a |
 | Consent-dependent activities (photos, trips, data sharing) | consent, given by the parent annually | n/a |
-| Medical, dietary/SEN, emergency contact | legitimate interests `[TBC]` | Art 9(2)(d), not-for-profit body with a religious aim, processing about members or people in regular contact, not disclosed outside without consent ([ICO: conditions for processing](https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/lawful-basis/special-category-data/what-are-the-conditions-for-processing/)); or explicit parental consent, Art 9(2)(a) `[TBC – Philip]` |
-| DBS check records | legitimate interests / legal obligation `[TBC]` | criminal offence data needs a DPA 2018 Schedule 1 condition; the safeguarding-of-children condition is the likely candidate and needs an appropriate policy document `[TBC – Philip: verify condition and write the policy document]` |
+| Medical, dietary/SEN, emergency contact | legitimate interests (confirmed) | Art 9(2)(d) (confirmed, Philip 27/10/2026; the annual parental consent form is the additional safeguard), not-for-profit body with a religious aim, processing about members or people in regular contact, not disclosed outside without consent ([ICO: conditions for processing](https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/lawful-basis/special-category-data/what-are-the-conditions-for-processing/)) |
+| DBS check records | legitimate interests (confirmed) | DPA 2018 Schedule 1 paragraph 31, not-for-profit body with a religious aim, members and people in regular contact, not disclosed outside without consent (text checked on [legislation.gov.uk](https://www.legislation.gov.uk/ukpga/2018/12/schedule/1/part/3); no appropriate policy document required for it); fallback paragraph 18, safeguarding of children, which does need one, so one is kept anyway (`governance/appropriate-policy-document.md`) (Philip, 27/10/2026). Only the fact of a check, its certificate number and dates are recorded, never its content; the Safeguarding Officer checks the certificate and updates the record |
 | Emails to parents and volunteers | legitimate interests | n/a |
 
 ## 4. Necessity and proportionality
@@ -80,7 +80,7 @@ Data processing terms with each: `[TBC – Philip: confirm each provider's stand
 - **Accuracy:** Admin/SO record consent and DBS; Teachers can reverse their own completion entries; parents see their child's record and can ask for corrections.
 - **Retention:** students 3 years after leaving; DBS records and the access log 6 years; hard delete (`governance/security-compliance.md`). A "records due for deletion" report lets an Admin delete each record, confirmed by typing the person's name; a monthly email reminds each chapter's Admins while records are due; the access log purges itself after 6 years; each deletion is recorded in a permanent deletion log without personal data (`adr/0014`, built 27/10/2026). Backups hold deleted data until they expire (`operations/dr-bcp.md` §2, R2 retention `[TBC – Philip]`).
 - **Transparency:** privacy notice (`governance/privacy-notice.md`, draft) given to parents at enrolment and linked from the app.
-- **Rights:** access, rectification and erasure requests handled by Philip `[TBC – Philip: process and contact]`. Not automated decision-making with legal or similarly significant effect: promotion and consent blocking apply fixed club rules to records.
+- **Rights:** access, rectification and erasure requests handled by Philip through a church email address (Philip, 27/10/2026). Not automated decision-making with legal or similarly significant effect: promotion and consent blocking apply fixed club rules to records.
 
 ## 5. Risks and measures
 
@@ -97,16 +97,17 @@ Likelihood and severity: Remote / Possible / Probable; Minimal / Significant / S
 | 7 | Data kept longer than the retention period | Possible | Significant | Due-for-deletion report with Delete per record, confirmed by typing the name (Admin, own chapter); monthly email to each chapter's Admins while records are due; read-audit log purged automatically after 6 years; permanent deletion log (`adr/0014`, built 27/10/2026) | Low: deletion stays manual, so a record can outlive its date if Admins ignore the reminder (accepted, `adr/0014`); backups keep deleted data until they expire |
 | 8 | A safeguarding alert (expired consent/DBS) goes unnoticed | Possible | Significant | Retries; escalation logged; digest email to Admin/SO | **Low once deployed and tested on the server:** alert route built 27/10/2026 (`Vlms.Jobs alert-digest`, run daily by `vlms-alert.timer` and at once by `OnFailure=` on every `vlms-*` unit, emailing `alerts@varangians.co.uk`; `/health` for the uptime check; disk alert from the host monitoring agent; `operations/monitoring.md` §3, §5). Not yet exercised on a live host (`deploy/README.md` §5a) |
 | 9 | Personal data in server logs | Probable | Minimal | Journal retention capped (`operations/monitoring.md` §2) | Low |
-| 10 | Breach not reported in time | Possible | Significant | Incident steps in `operations/runbook.md` §5 | `[TBC – Philip: breach procedure, ICO 72-hour reporting]` |
+| 10 | Breach not reported in time | Possible | Significant | Incident steps in `operations/runbook.md` §5 | Low: Philip reports a reportable breach to the ICO within 72 hours, following `operations/runbook.md` §5 (Philip, 27/10/2026) |
 | 11 | Applications, including rejected ones about children who never joined, are kept longer than needed | Possible | Significant | Kept 1 year after the decision (Philip, 23/10/2026), then flagged on the "records due for deletion" report; restricted store, read-audited; not emailed | Low: deleted by an Admin from the report, with a monthly reminder (risk 7) |
-| 12 | Someone who is not the child's parent applies and enters a child's special category data | Possible | Significant | Two-stage staff review before anything is linked; applicant sees only their own applications; same child name under one applicant refused | `[TBC – Philip: assess, see the review note above]` |
+| 12 | Someone who is not the child's parent applies and enters a child's special category data | Possible | Significant | Two-stage staff review before anything is linked; applicant sees only their own applications; same child name under one applicant refused | Accepted (Philip, 27/10/2026): two-stage staff review before anything is linked |
 
 ## 6. Sign-off
 
 | Item | Name / date | Notes |
 |---|---|---|
-| Measures approved by | `[TBC – Philip]` | |
-| Residual risks approved by | `[TBC – Philip]` | Medium residuals 7 and 8 need a decision or a fix before go-live |
-| DPO / data-protection advice | `[TBC – Philip]` | whether the church has a DPO or adviser |
+| Measures approved by | Philip Thomas, Secretary and Safeguarding Trustee, 27/10/2026 | |
+| Residual risks approved by | Philip Thomas, 27/10/2026 | Risks 7 and 8 accepted as Low once deployed (8 needs its live test on the server); risk 12 accepted |
+| DPO / data-protection advice | None required (Philip, 27/10/2026) | Not a public authority; no large-scale special category or criminal offence data |
 | ICO registration (data protection fee) | Not required (Philip, 23/10/2026) | Not-for-profit exemption; lost if, for example, the church becomes responsible for CCTV or shares personal data commercially ([ICO: fee exemptions](https://ico.org.uk/for-organisations/data-protection-fee/data-protection-fee/exemptions/)) |
-| Review date | `[TBC – Philip]` | suggest annually, or on any change to the data collected |
+| Review date | 27/10/2027 | Annually, or on any change to the data collected |
+| Safeguarding Policy wording | To change (Philip, 27/10/2026) | The policy's line that safeguarding records are seen only by the Safeguarding Lead and Deputy becomes "the Safeguarding Lead, the Deputy and the club's administrators", matching the app's Admin access. Philip amends the church's policy document |

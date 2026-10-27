@@ -17,17 +17,17 @@ Status: **draft for Philip's review**, 13/10/2026. Content follows the UK GDPR A
 - **Volunteers:** your name, email, role, and your DBS check (date, expiry, certificate number and outcome). Only the Admin and Safeguarding Officer can see DBS records.
 - **When anyone uses the app:** sign-in details (your password is stored only in scrambled form), two-factor authentication settings, and a security log of who opened health or DBS records.
 
-**Our legal basis.** `[TBC – Philip: from dpia.md §3]`. For example: running the club is in our legitimate interests; photos and trips rely on your consent, which you can withdraw at any time; health information is processed as part of the church's not-for-profit activities with its members `[or: with your explicit consent]`.
+**Our legal basis.** Running the club is in our legitimate interests; photos and trips rely on your consent, which you can withdraw at any time; health information, and the fact that your child belongs to a church youth club, are processed as part of the church's not-for-profit activities with its members and the people in regular contact with it, and are not shared outside the church without your consent. For volunteers, we record only that a DBS check has been done, its certificate number and its dates, never what it contains.
 
 **Who else handles it.** We do not sell or share your information for marketing. It is stored and processed for us by:
 
 - DigitalOcean (our server, in London);
-- Cloudflare (encrypted backup copies) `[TBC – Philip: location]`;
-- Microsoft (sending emails from the club's address) `[TBC – Philip: location]`.
+- Cloudflare (encrypted backup copies, stored in the EU);
+- Microsoft (sending emails from the club's address, data held in the UK).
 
 Each acts only on our instructions. We share information with others only where the law requires it, or to protect a child (for example, telling emergency services about a medical condition). `[TBC – Philip: any other recipients, e.g. the diocese]`
 
-**Transfers outside the UK.** `[TBC – Philip: none, or which and the safeguard]`
+**Transfers outside the UK.** Our backup copies are stored in the European Union, which UK law recognises as protecting personal data adequately. We make no other transfers outside the UK.
 
 **How long we keep it.**
 
