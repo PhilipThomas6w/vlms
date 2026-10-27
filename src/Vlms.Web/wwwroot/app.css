@@ -309,6 +309,12 @@
     .nav-list a:hover { background: var(--lapis-50); }
     .nav-list a[aria-current="page"] { background: var(--lapis-100); color: var(--lapis-900); box-shadow: inset 4px 0 0 var(--lapis-700); }
     .nav-list a[aria-current="page"] svg { color: var(--lapis-700); }
+    /* A count beside a link ("Changes to review"): a number in a pill, with its meaning in visually hidden text. */
+    .nav-count {
+        margin-inline-start: auto; min-width: 1.5rem; padding: 0 var(--s-2);
+        border-radius: 999px; background: var(--lapis-700); color: #fff;
+        font-size: var(--step--1); font-weight: 700; line-height: 1.5rem; text-align: center;
+    }
 
     @media (min-width: 64rem) {
         .nav-toggle { display: none !important; }

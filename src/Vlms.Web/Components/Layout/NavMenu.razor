@@ -1,5 +1,6 @@
 @implements IDisposable
 @inject NavigationManager Navigation
+@inject Vlms.Infrastructure.Curriculum.LessonSuggestionService Suggestions
 
 @* Grouped by area; a group appears only for someone holding one of its roles. Every link sits in an
    AuthorizeView with exactly its page's policy (NavigationCoverageTests). Groups marked
@@ -54,7 +55,12 @@
             <div class="nav-group">
                 <span class="nav-group-label" id="nav-curriculum">Curriculum</span>
                 <ul class="nav-list" aria-labelledby="nav-curriculum">
-                    <li><a href="/curriculum/review" aria-current="@Current("/curriculum/review")"><Icon Name="inbox" /> Changes to review</a></li>
+                    <li><a href="/curriculum/review" aria-current="@Current("/curriculum/review")"><Icon Name="inbox" /> Changes to review
+                        @if (_toReview > 0)
+                        {
+                            <span class="nav-count" aria-hidden="true">@_toReview</span><span class="visually-hidden">@($"({_toReview} awaiting review)")</span>
+                        }
+                    </a></li>
                 </ul>
             </div>
         </AuthorizeView>
@@ -121,7 +127,14 @@
 </div>
 
 @code {
-    protected override void OnInitialized() => Navigation.LocationChanged += OnLocationChanged;
+    // Suggestions awaiting this Approver's decision (adr/0013 decision 8); zero for anyone else.
+    private int _toReview;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Navigation.LocationChanged += OnLocationChanged;
+        _toReview = await Suggestions.CountAwaitingMyReviewAsync();
+    }
 
     private void OnLocationChanged(object? sender, LocationChangedEventArgs e) =>
         _ = InvokeAsync(StateHasChanged);

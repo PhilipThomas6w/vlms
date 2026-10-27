@@ -3,7 +3,9 @@
 @using Vlms.Infrastructure.Curriculum
 @inject LessonSuggestionService Suggestions
 
-@* Approvers: suggestions submitted for review, oldest first (FR-007, docs/adr/0013 decision 3). *@
+@* Approvers: suggestions submitted for review, oldest first, and those referred to committee with their approvals so far
+   (FR-007, docs/adr/0013 decisions 3 and 8). *@
+@using Vlms.Domain
 
 <PageTitle>Changes to review</PageTitle>
 <PageHeader Title="Changes to review" />
@@ -23,6 +25,7 @@ else
                 <th scope="col">Suggested by</th>
                 <th scope="col">Submitted</th>
                 <th scope="col">Reason</th>
+                <th scope="col">Status</th>
             </tr>
         </thead>
         <tbody>
@@ -34,6 +37,7 @@ else
                     <td data-label="Suggested by">@item.SuggestedBy</td>
                     <td data-label="Submitted">@item.SubmittedAt.ToString("dd/MM/yyyy")</td>
                     <td data-label="Reason">@item.Reason</td>
+                    <td data-label="Status">@Status(item)</td>
                 </tr>
             }
         </tbody>
@@ -42,6 +46,11 @@ else
 
 @code {
     private IReadOnlyList<SuggestionQueueItem> _items = [];
+
+    private static string Status(SuggestionQueueItem item) => !item.IsReferred
+        ? "Awaiting review"
+        : $"Referred to committee: {item.CommitteeApprovals} of {LessonSuggestionApproval.Required} approved"
+            + (item.ApprovedByMe ? " (you approved)" : "");
 
     protected override async Task OnInitializedAsync()
     {

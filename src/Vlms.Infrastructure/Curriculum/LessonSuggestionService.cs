@@ -19,7 +19,13 @@ namespace Vlms.Infrastructure.Curriculum;
 /// <item>Approving or publishing adds the lesson's next <see cref="LessonVersion"/>, kept permanently, updates the live
 /// lesson and changes its <see cref="Lesson.ContentVersion"/>, so copies saved on devices refresh (decision 4; FR-023).
 /// A suggestion based on an older version than the lesson's current one can never be approved or published.</item>
-/// <item>Approvers and Admins read the history.</item>
+/// <item>Any Approver may instead refer a submitted suggestion to committee (decision 8): it is then published once
+/// <see cref="LessonSuggestionApproval.Required"/> different Approvers have approved it, the author's own approval
+/// counting, each Approver at most once; any Approver may send it back with a comment, which ends it. Every Approver is
+/// emailed when a suggestion is submitted (<see cref="LessonSuggestionNotificationService"/>), and the menu shows how
+/// many await the caller (<see cref="CountAwaitingMyReviewAsync"/>). Someone who is not an Approver can only suggest:
+/// "Publish now", approving and referring all require the Approver role.</item>
+/// <item>Approvers and Admins read the history, which records each referral, committee approval and outcome.</item>
 /// </list>
 ///
 /// <b>Authorization</b> is checked here on every call, not only by the pages' policies: the same defence in depth as the
@@ -47,12 +53,15 @@ public sealed class LessonSuggestionService
     private readonly VlmsDbContext _db;
     private readonly ICurrentUserContext _currentUser;
     private readonly IBlobStorage _blobs;
+    private readonly LessonSuggestionNotificationService? _notifications;
 
-    public LessonSuggestionService(VlmsDbContext db, ICurrentUserContext currentUser, IBlobStorage blobs)
+    public LessonSuggestionService(VlmsDbContext db, ICurrentUserContext currentUser, IBlobStorage blobs,
+        LessonSuggestionNotificationService? notifications = null)
     {
         _db = db;
         _currentUser = currentUser;
         _blobs = blobs;
+        _notifications = notifications;
     }
 
     /// <summary>Where a suggestion's picture is served (author and Approvers only).</summary>
@@ -201,6 +210,10 @@ public sealed class LessonSuggestionService
         Set(suggestion, s => s.Status, LessonSuggestionStatus.Submitted);
         Set(suggestion, s => s.SubmittedAt, (DateTime?)DateTime.UtcNow);
         await _db.SaveChangesAsync(ct);
+        if (_notifications is not null)
+        {
+            await _notifications.NotifySubmittedAsync(suggestion.Id, ct);
+        }
         return suggestion.Id;
     }
 
@@ -338,29 +351,51 @@ public sealed class LessonSuggestionService
 
     // --- Review ----------------------------------------------------------------------------------------------------
 
-    /// <summary>Approvers: every submitted suggestion, oldest first ("Changes to review").</summary>
+    /// <summary>Approvers: every submitted suggestion, oldest first ("Changes to review"), referred ones included.</summary>
     public async Task<IReadOnlyList<SuggestionQueueItem>> GetQueueAsync(CancellationToken ct = default)
     {
         RequireRole(Role.Approver);
+        var userId = RequireUserId();
         var rows = await _db.LessonSuggestions.AsNoTracking()
             .Where(s => s.Status == LessonSuggestionStatus.Submitted)
             .Select(s => new
             {
                 s.Id, s.Title, s.Kind, s.Reason, s.SubmittedAt, Author = s.AuthorUser!.DisplayName,
-                LessonTitle = s.Lesson != null ? s.Lesson.Title : null, s.RankId
+                LessonTitle = s.Lesson != null ? s.Lesson.Title : null, s.RankId,
+                Referred = s.ReferredAt != null,
+                Approvals = s.CommitteeApprovals.Count(),
+                ApprovedByMe = s.CommitteeApprovals.Any(a => a.ApproverUserId == userId)
             })
             .ToListAsync(ct);
         var ranks = await _db.Ranks.AsNoTracking().ToDictionaryAsync(r => r.Id, r => r.Name, ct);
         return rows.OrderBy(r => r.SubmittedAt).ThenBy(r => r.Id)
             .Select(r => new SuggestionQueueItem(r.Id, r.LessonTitle ?? r.Title, ranks.GetValueOrDefault(r.RankId, ""), r.Author,
-                r.SubmittedAt ?? default, r.Reason, r.Kind))
+                r.SubmittedAt ?? default, r.Reason, r.Kind, r.Referred, r.Approvals, r.ApprovedByMe))
             .ToList();
+    }
+
+    /// <summary>
+    /// The number beside "Changes to review" in the menu: submitted suggestions awaiting the caller's decision, that is
+    /// every one not referred to committee, and every referred one the caller has not yet approved. Zero for anyone who
+    /// is not an Approver (the menu asks on every page, so this does not throw).
+    /// </summary>
+    public async Task<int> CountAwaitingMyReviewAsync(CancellationToken ct = default)
+    {
+        if (!_currentUser.HasRole(Role.Approver) || _currentUser.UserId is not int userId)
+        {
+            return 0;
+        }
+
+        return await _db.LessonSuggestions.AsNoTracking()
+            .CountAsync(s => s.Status == LessonSuggestionStatus.Submitted
+                && (s.ReferredAt == null || !s.CommitteeApprovals.Any(a => a.ApproverUserId == userId)), ct);
     }
 
     /// <summary>Approvers: a suggestion laid out as tracked changes against the lesson's current version.</summary>
     public async Task<SuggestionReview?> GetReviewAsync(int suggestionId, CancellationToken ct = default)
     {
         RequireRole(Role.Approver);
+        var userId = RequireUserId();
         var suggestion = await _db.LessonSuggestions.AsNoTracking()
             .Include(s => s.Tags).Include(s => s.Pictures).Include(s => s.AuthorUser).Include(s => s.DecidedByUser)
             .SingleOrDefaultAsync(s => s.Id == suggestionId, ct);
@@ -368,6 +403,7 @@ public sealed class LessonSuggestionService
         {
             return null;
         }
+        var committee = await CommitteeAsync(suggestion.Id, ct);
 
         var rankName = await _db.Ranks.Where(r => r.Id == suggestion.RankId).Select(r => r.Name).SingleAsync(ct);
         var current = suggestion.LessonId is int lessonId ? await LatestVersionAsync(lessonId, ct) : null;
@@ -387,7 +423,8 @@ public sealed class LessonSuggestionService
             FinalHtml: isRetire ? "" : LessonDiff.Render(after),
             BeforeHtml: LessonDiff.Render(before),
             SettingChanges: SettingChanges(current, suggestion.Title, suggestion.Order, suggestion.Tags.Select(t => t.Tag), rankName),
-            suggestion.DecidedByUser?.DisplayName, suggestion.DecidedAt, suggestion.SentBackComment);
+            suggestion.DecidedByUser?.DisplayName, suggestion.DecidedAt, suggestion.SentBackComment,
+            committee.Referral, committee.Approvals, committee.ApproverIds.Contains(userId));
     }
 
     /// <summary>
@@ -405,11 +442,112 @@ public sealed class LessonSuggestionService
         {
             throw new InvalidOperationException("This suggestion is not awaiting review.");
         }
+        if (suggestion.ReferredAt is not null)
+        {
+            throw new InvalidOperationException("This suggestion has been referred to committee, so it needs the committee's approval.");
+        }
 
         await ValidateForPublishingAsync(suggestion, ct);
         var version = await PublishAsync(suggestion, approverId, direct: false, ct);
         await _db.SaveChangesAsync(ct);
         return version;
+    }
+
+    /// <summary>
+    /// Approvers: refers a submitted suggestion to committee (decision 8), with an optional reason. It then needs
+    /// <see cref="LessonSuggestionApproval.Required"/> different Approvers' approval (<see cref="ApproveReferredAsync"/>).
+    /// Refused for a suggestion not awaiting review, one already referred, and one based on an older version of the
+    /// lesson (it could never be approved).
+    /// </summary>
+    public async Task ReferAsync(int suggestionId, string? reason, CancellationToken ct = default)
+    {
+        RequireRole(Role.Approver);
+        var approverId = RequireUserId();
+        var trimmed = string.IsNullOrWhiteSpace(reason) ? null : reason.Trim();
+        if (trimmed is { Length: > MaxReasonLength })
+        {
+            throw new InvalidOperationException($"The reason must be at most {MaxReasonLength} characters.");
+        }
+
+        var suggestion = await _db.LessonSuggestions.SingleOrDefaultAsync(s => s.Id == suggestionId, ct)
+            ?? throw new InvalidOperationException("The suggestion no longer exists.");
+        if (suggestion.Status != LessonSuggestionStatus.Submitted)
+        {
+            throw new InvalidOperationException("This suggestion is not awaiting review.");
+        }
+        if (suggestion.ReferredAt is not null)
+        {
+            throw new InvalidOperationException("This suggestion has already been referred to committee.");
+        }
+        if (suggestion.LessonId is int lessonId && suggestion.BaseVersionNumber != await CurrentVersionNumberAsync(lessonId, ct))
+        {
+            throw new InvalidOperationException(
+                "The lesson has changed since this suggestion was started, so it cannot be approved. Send it back instead.");
+        }
+
+        Set(suggestion, s => s.ReferredAt, (DateTime?)DateTime.UtcNow);
+        Set(suggestion, s => s.ReferredByUserId, (int?)approverId);
+        Set(suggestion, s => s.ReferralReason, trimmed);
+        await _db.SaveChangesAsync(ct);
+    }
+
+    /// <summary>
+    /// Approvers: approves a suggestion referred to committee (decision 8). Each Approver may approve it once, the author
+    /// included; on the <see cref="LessonSuggestionApproval.Required"/>th different approval it is published as an
+    /// approved suggestion. Two Approvers approving at the same moment cannot both take the same place (a unique index):
+    /// the second is refused and asked to try again.
+    /// </summary>
+    public async Task<CommitteeApprovalResult> ApproveReferredAsync(int suggestionId, CancellationToken ct = default)
+    {
+        RequireRole(Role.Approver);
+        var approverId = RequireUserId();
+        var suggestion = await _db.LessonSuggestions.Include(s => s.Tags).Include(s => s.Pictures)
+            .SingleOrDefaultAsync(s => s.Id == suggestionId, ct)
+            ?? throw new InvalidOperationException("The suggestion no longer exists.");
+        if (suggestion.Status != LessonSuggestionStatus.Submitted)
+        {
+            throw new InvalidOperationException("This suggestion is not awaiting review.");
+        }
+        if (suggestion.ReferredAt is null)
+        {
+            throw new InvalidOperationException("This suggestion has not been referred to committee.");
+        }
+
+        var approvers = await _db.LessonSuggestionApprovals.AsNoTracking().Where(a => a.LessonSuggestionId == suggestion.Id)
+            .Select(a => a.ApproverUserId).ToListAsync(ct);
+        if (approvers.Contains(approverId))
+        {
+            throw new InvalidOperationException("You have already approved this suggestion.");
+        }
+
+        await ValidateForPublishingAsync(suggestion, ct);
+        var position = approvers.Count + 1;
+        var now = DateTime.UtcNow;
+        _db.LessonSuggestionApprovals.Add(new LessonSuggestionApproval
+        {
+            Id = await _db.NextIdAsync<LessonSuggestionApproval>(ct),
+            LessonSuggestionId = suggestion.Id,
+            ApproverUserId = approverId,
+            Position = position,
+            ApprovedAt = now
+        });
+        var published = position >= LessonSuggestionApproval.Required
+            ? await PublishAsync(suggestion, approverId, direct: false, ct)
+            : null;
+        Set(suggestion, s => s.UpdatedAt, now);
+
+        try
+        {
+            await _db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException)
+        {
+            // Another Approver approved at the same moment. Nothing was saved; forget the failed changes so this
+            // (circuit-scoped) context stays usable.
+            _db.ChangeTracker.Clear();
+            throw new InvalidOperationException("Another Approver acted on this suggestion at the same moment. Reload the page and try again.");
+        }
+        return new CommitteeApprovalResult(position, published);
     }
 
     /// <summary>Approvers: sends a submitted suggestion back to its author with a required comment.</summary>
@@ -475,18 +613,29 @@ public sealed class LessonSuggestionService
                 }
             }
 
+            var committee = version.SuggestionId is int sid ? await CommitteeAsync(sid, ct) : Committee.None;
             entries.Add(new HistoryVersion(version.Number, i == versions.Count - 1, version.Kind, version.IsActive,
                 Name(version.SuggestedByUserId), version.SuggestedAt, Name(version.ApprovedByUserId), Name(version.PublishedByUserId),
-                version.Reason, version.PublishedAt, changes, beforeHtml, afterHtml, settings));
+                version.Reason, version.PublishedAt, changes, beforeHtml, afterHtml, settings, committee.Referral, committee.Approvals));
         }
         entries.Reverse();
 
-        var sentBack = await _db.LessonSuggestions.AsNoTracking()
+        var sentBackRows = await _db.LessonSuggestions.AsNoTracking()
             .Where(s => s.LessonId == lesson.Id && s.Status == LessonSuggestionStatus.SentBack)
             .OrderByDescending(s => s.DecidedAt)
-            .Select(s => new SentBackSuggestion(s.AuthorUser!.DisplayName, s.SubmittedAt ?? s.UpdatedAt, s.Reason,
-                s.DecidedByUser!.DisplayName, s.DecidedAt ?? s.UpdatedAt, s.SentBackComment ?? ""))
+            .Select(s => new
+            {
+                s.Id, Author = s.AuthorUser!.DisplayName, At = s.SubmittedAt ?? s.UpdatedAt, s.Reason,
+                DecidedBy = s.DecidedByUser!.DisplayName, DecidedAt = s.DecidedAt ?? s.UpdatedAt, Comment = s.SentBackComment ?? ""
+            })
             .ToListAsync(ct);
+        var sentBack = new List<SentBackSuggestion>();
+        foreach (var row in sentBackRows)
+        {
+            var committee = await CommitteeAsync(row.Id, ct);
+            sentBack.Add(new SentBackSuggestion(row.Author, row.At, row.Reason, row.DecidedBy, row.DecidedAt, row.Comment,
+                committee.Referral, committee.Approvals));
+        }
 
         return new LessonHistory(lesson.Id, lesson.Code, lesson.Title, entries, sentBack);
     }
@@ -530,6 +679,36 @@ public sealed class LessonSuggestionService
     }
 
     // --- Internals -------------------------------------------------------------------------------------------------
+
+    private sealed record Committee(Referral? Referral, IReadOnlyList<CommitteeApproval> Approvals, IReadOnlyCollection<int> ApproverIds)
+    {
+        public static readonly Committee None = new(null, [], []);
+    }
+
+    // A suggestion's referral and its committee approvals, in the order given.
+    private async Task<Committee> CommitteeAsync(int suggestionId, CancellationToken ct)
+    {
+        var referral = await _db.LessonSuggestions.AsNoTracking()
+            .Where(s => s.Id == suggestionId && s.ReferredAt != null)
+            .Select(s => new { s.ReferredAt, s.ReferredByUserId, s.ReferralReason })
+            .SingleOrDefaultAsync(ct);
+        if (referral is null)
+        {
+            return Committee.None;
+        }
+
+        var referredBy = await _db.AppUsers.AsNoTracking().Where(u => u.Id == referral.ReferredByUserId)
+            .Select(u => u.DisplayName).SingleOrDefaultAsync(ct) ?? "";
+        var approvals = await _db.LessonSuggestionApprovals.AsNoTracking()
+            .Where(a => a.LessonSuggestionId == suggestionId)
+            .OrderBy(a => a.Position)
+            .Select(a => new { a.ApproverUserId, Name = a.ApproverUser!.DisplayName, a.ApprovedAt })
+            .ToListAsync(ct);
+        return new Committee(
+            new Referral(referredBy, referral.ReferredAt!.Value, referral.ReferralReason),
+            approvals.Select(a => new CommitteeApproval(a.Name, a.ApprovedAt)).ToList(),
+            approvals.Select(a => a.ApproverUserId).ToHashSet());
+    }
 
     private async Task<bool> CanPublishNowAsync(CancellationToken ct) =>
         _currentUser.HasRole(Role.Approver) && await IsDirectPublishingAllowedAsync(ct);
@@ -1122,7 +1301,24 @@ public sealed record UploadedPicture(string FileName, string Url);
 
 public sealed record PublishedVersion(int LessonId, string LessonCode, int Number, LessonVersionKind Kind);
 
-public sealed record SuggestionQueueItem(int Id, string LessonTitle, string RankName, string SuggestedBy, DateTime SubmittedAt, string? Reason, LessonChangeKind Kind);
+/// <summary>
+/// A row of "Changes to review". <see cref="CommitteeApprovals"/> counts the approvals of a referred suggestion, and
+/// <see cref="ApprovedByMe"/> says whether the caller has given one.
+/// </summary>
+public sealed record SuggestionQueueItem(int Id, string LessonTitle, string RankName, string SuggestedBy, DateTime SubmittedAt, string? Reason,
+    LessonChangeKind Kind, bool IsReferred = false, int CommitteeApprovals = 0, bool ApprovedByMe = false);
+
+/// <summary>A referral to committee: who referred the suggestion, when, and the optional reason (docs/adr/0013 decision 8).</summary>
+public sealed record Referral(string ReferredBy, DateTime ReferredAt, string? Reason);
+
+/// <summary>One committee approval of a referred suggestion.</summary>
+public sealed record CommitteeApproval(string ApprovedBy, DateTime ApprovedAt);
+
+/// <summary>
+/// The outcome of a committee approval: how many Approvers have now approved, and the new version once the
+/// <see cref="LessonSuggestionApproval.Required"/>th has (null before then).
+/// </summary>
+public sealed record CommitteeApprovalResult(int Approvals, PublishedVersion? Published);
 
 /// <summary>A change to the lesson's settings, as tracked-changes HTML.</summary>
 public sealed record SettingChange(string Label, string Html);
@@ -1146,7 +1342,10 @@ public sealed record SuggestionReview(
     IReadOnlyList<SettingChange> SettingChanges,
     string? DecidedBy,
     DateTime? DecidedAt,
-    string? SentBackComment);
+    string? SentBackComment,
+    Referral? Referral = null,
+    IReadOnlyList<CommitteeApproval>? CommitteeApprovals = null,
+    bool ApprovedByMe = false);
 
 public sealed record HistoryVersion(
     int Number,
@@ -1162,9 +1361,12 @@ public sealed record HistoryVersion(
     string? ChangesHtml,
     string? BeforeHtml,
     string? AfterHtml,
-    IReadOnlyList<SettingChange> SettingChanges);
+    IReadOnlyList<SettingChange> SettingChanges,
+    Referral? Referral = null,
+    IReadOnlyList<CommitteeApproval>? CommitteeApprovals = null);
 
-public sealed record SentBackSuggestion(string SuggestedBy, DateTime SuggestedAt, string? Reason, string SentBackBy, DateTime SentBackAt, string Comment);
+public sealed record SentBackSuggestion(string SuggestedBy, DateTime SuggestedAt, string? Reason, string SentBackBy, DateTime SentBackAt, string Comment,
+    Referral? Referral = null, IReadOnlyList<CommitteeApproval>? CommitteeApprovals = null);
 
 public sealed record LessonHistory(int LessonId, string Code, string Title, IReadOnlyList<HistoryVersion> Versions, IReadOnlyList<SentBackSuggestion> SentBack);
 
