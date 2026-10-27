@@ -132,7 +132,7 @@
         _event = await CalendarService.GetEventAsync(EventId);
         _notFound = _event is null;
         _isTeacher = CurrentUser.HasRole(Role.Teacher);
-        _registers = _event is not null && (_isTeacher || CurrentUser.HasRole(Role.Admin))
+        _registers = _event is not null && (_isTeacher || CurrentUser.HasRole(Role.Admin) || CurrentUser.HasRole(Role.SafeguardingOfficer))
             ? await Attendance.GetEventRegistersAsync(EventId)
             : null;
     }

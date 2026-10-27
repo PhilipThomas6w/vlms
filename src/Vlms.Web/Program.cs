@@ -312,6 +312,14 @@ builder.Services.AddAuthorization(options =>
         policy.Requirements.Add(new MfaRequirement());
     });
 
+    // Reading attendance (chapters-and-attendance.md section 7, 27/10/2026): the registers list, the
+    // student list and the student record. Admin, Teacher or Safeguarding Officer; never Approver.
+    options.AddPolicy("RequireAttendanceReader", policy =>
+    {
+        policy.Requirements.Add(new AnyRoleRequirement(Role.Admin, Role.Teacher, Role.SafeguardingOfficer));
+        policy.Requirements.Add(new MfaRequirement());
+    });
+
     // The calendar (FR-022): anyone holding a role in the chapter they are working in.
     options.AddPolicy("RequireChapterMember", policy =>
     {

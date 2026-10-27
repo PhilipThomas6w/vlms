@@ -265,13 +265,80 @@ public sealed class AttendanceServiceTests : IDisposable
         Assert.True((await View(As(Admin, Role.Admin), Today))!.Taken);
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
             Run(As(Admin, Role.Admin), s => s.SaveRegisterAsync(eventId, 1, new Dictionary<int, bool> { [100] = true })));
-        foreach (var role in new[] { Role.Parent, Role.Student, Role.Approver, Role.SafeguardingOfficer, Role.NationalAdministrator })
+        foreach (var role in new[] { Role.Parent, Role.Student, Role.Approver, Role.NationalAdministrator })
         {
             await Assert.ThrowsAsync<UnauthorizedAccessException>(() => Run(As(Officer, role), s => s.GetRegisterAsync(eventId, 1)));
             await Assert.ThrowsAsync<UnauthorizedAccessException>(() => Run(As(Officer, role), s => s.GetEventRegistersAsync(eventId)));
             await Assert.ThrowsAsync<UnauthorizedAccessException>(() => Run(As(Officer, role), s => s.ListMeetingDaysAsync()));
             await Assert.ThrowsAsync<UnauthorizedAccessException>(() => Run(As(Officer, role), s => s.GetStudentHistoryAsync(100)));
         }
+    }
+
+    [Fact]
+    public async Task SafeguardingOfficers_ReadAttendanceInTheirChapter_ButCannotTakeOrCorrectRegisters()
+    {
+        await Save(Today, (100, true), (200, false));
+        var eventId = EventOn(Today);
+        var officer = As(Officer, Role.SafeguardingOfficer);
+
+        var day = await Run(officer, s => s.GetEventRegistersAsync(eventId));
+        Assert.Equal((1, 1), (day!.Present, day.Absent));
+        var listed = Assert.Single(await Run(officer, s => s.ListMeetingDaysAsync()));
+        Assert.Equal((1, 1), (listed.Present, listed.Absent));
+        var history = await Run(officer, s => s.GetStudentHistoryAsync(100));
+        Assert.Equal(1, history!.Attended);
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            Run(officer, s => s.SaveRegisterAsync(eventId, 1, new Dictionary<int, bool> { [200] = true })));
+        using var db = CreateDb(officer);
+        Assert.False(db.AttendanceMarks.Single(m => m.StudentId == 200).Present);
+    }
+
+    [Fact]
+    public async Task SafeguardingOfficers_DoNotSeeAnotherChaptersAttendance()
+    {
+        await Save(Today, (100, true));
+        var shrewsburyEvent = EventOn(Today);
+        var coventryOfficer = As(CoventryOfficer, Role.SafeguardingOfficer, Coventry);
+
+        Assert.Null(await Run(coventryOfficer, s => s.GetEventRegistersAsync(shrewsburyEvent)));
+        Assert.DoesNotContain(await Run(coventryOfficer, s => s.ListMeetingDaysAsync()), d => d.EventId == shrewsburyEvent);
+        Assert.Null(await Run(coventryOfficer, s => s.GetStudentHistoryAsync(100)));
+    }
+
+    [Fact]
+    public async Task Approvers_CannotReadAttendance()
+    {
+        await Save(Today, (100, true));
+        var eventId = EventOn(Today);
+        var approver = As(Officer, Role.Approver);
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => Run(approver, s => s.GetEventRegistersAsync(eventId)));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => Run(approver, s => s.ListMeetingDaysAsync()));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => Run(approver, s => s.GetStudentHistoryAsync(100)));
+    }
+
+    [Fact]
+    public async Task ACorrection_AlertsForAChildNewlyMarkedPresentWithoutConsent_ButNeverRepeatsForTheSameChild()
+    {
+        var first = await Save(Today, (100, true), (200, false));
+        Assert.Empty(first.PresentWithoutConsent);
+
+        var correction = await Save(Today, (200, true));
+        Assert.Equal([200], correction.PresentWithoutConsent);
+
+        var again = await Save(Today, (100, true), (200, true));
+        Assert.Empty(again.PresentWithoutConsent);
+    }
+
+    [Fact]
+    public async Task ACorrection_DoesNotAlertForAChildWithValidConsent()
+    {
+        await Save(Today, (100, false), (200, false));
+
+        var correction = await Save(Today, (100, true));
+
+        Assert.Empty(correction.PresentWithoutConsent);
     }
 
     [Fact]

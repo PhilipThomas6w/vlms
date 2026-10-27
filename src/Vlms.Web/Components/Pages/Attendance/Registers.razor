@@ -1,5 +1,5 @@
 @page "/attendance"
-@attribute [Authorize(Policy = "RequireAdminOrTeacher")]
+@attribute [Authorize(Policy = "RequireAttendanceReader")]
 @rendermode InteractiveServer
 @using System.Globalization
 @using Vlms.Domain

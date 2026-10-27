@@ -60,7 +60,7 @@ public sealed record AttendanceHistory(IReadOnlyList<AttendanceEntry> Entries)
 ///
 /// <b>Roles.</b> Any Teacher in the chapter takes or updates any class's register (a class's own
 /// teachers normally take it; when classes are joined one teacher takes each); Teachers and Admins
-/// read registers and a student's history. Checked here as well as by the page policies.
+/// read registers and a student's history; Safeguarding Officers (27/10/2026) read each day's registers and totals and a student's history, but not a class's register page, and never take or correct. Checked here as well as by the page policies.
 ///
 /// <b>Consent.</b> A child without consent in force can still be marked present (they were there);
 /// the register shows the warning, and the save reports who attended without consent so the caller
@@ -91,7 +91,7 @@ public sealed class AttendanceService
     /// </summary>
     public async Task<EventRegisters?> GetEventRegistersAsync(int eventId, CancellationToken ct = default)
     {
-        RequireTeacherOrAdmin();
+        RequireReader();
 
         var chapterEvent = await _db.ChapterEvents.AsNoTracking()
             .Where(e => e.Id == eventId)
@@ -234,7 +234,7 @@ public sealed class AttendanceService
     /// </summary>
     public async Task<IReadOnlyList<MeetingDaySummary>> ListMeetingDaysAsync(CancellationToken ct = default)
     {
-        RequireTeacherOrAdmin();
+        RequireReader();
 
         var since = Today.AddMonths(-HistoryMonths);
         var days = await _db.ChapterEvents.AsNoTracking()
@@ -407,7 +407,7 @@ public sealed class AttendanceService
     /// <summary>One active student's attendance over the last <see cref="HistoryMonths"/> months (the student record).</summary>
     public async Task<AttendanceHistory?> GetStudentHistoryAsync(int studentId, CancellationToken ct = default)
     {
-        RequireTeacherOrAdmin();
+        RequireReader();
 
         var active = await _db.Students.AnyAsync(s => s.Id == studentId && s.Status == StudentStatus.Active, ct);
         return active ? await LoadHistoryAsync(_db, studentId, DateTime.UtcNow, ct) : null;
@@ -457,6 +457,15 @@ public sealed class AttendanceService
                 .Distinct()
                 .ToListAsync(ct))
             .ToHashSet();
+    }
+
+    /// <summary>Reading attendance (registers, totals, a student's history): Teachers, Admins and, since 27/10/2026, Safeguarding Officers. Never Approvers.</summary>
+    private void RequireReader()
+    {
+        if (!_currentUser.HasRole(Role.Teacher) && !_currentUser.HasRole(Role.Admin) && !_currentUser.HasRole(Role.SafeguardingOfficer))
+        {
+            throw new UnauthorizedAccessException("Caller must hold the Teacher, Admin or Safeguarding Officer role to see attendance.");
+        }
     }
 
     private void RequireTeacherOrAdmin()

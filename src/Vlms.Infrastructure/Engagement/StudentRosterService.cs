@@ -234,9 +234,10 @@ public sealed class StudentRosterService
 
     private void RequireStaff()
     {
-        if (!_currentUser.HasRole(Role.Teacher) && !_currentUser.HasRole(Role.Admin))
+        // Safeguarding Officers read the student list and record for the student's attendance (27/10/2026).
+        if (!_currentUser.HasRole(Role.Teacher) && !_currentUser.HasRole(Role.Admin) && !_currentUser.HasRole(Role.SafeguardingOfficer))
         {
-            throw new UnauthorizedAccessException("Caller must hold the Teacher or Admin role to view students.");
+            throw new UnauthorizedAccessException("Caller must hold the Teacher, Admin or Safeguarding Officer role to view students.");
         }
     }
 }
