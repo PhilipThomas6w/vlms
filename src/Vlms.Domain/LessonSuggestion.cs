@@ -68,11 +68,50 @@ public sealed class LessonSuggestion
     /// <summary>The sent-back suggestion this draft carries on, if any.</summary>
     public int? RevisesSuggestionId { get; init; }
 
+    /// <summary>
+    /// When an Approver referred it to committee (docs/adr/0013 decision 8); null if not referred. A referred suggestion
+    /// stays <see cref="LessonSuggestionStatus.Submitted"/> until <see cref="LessonSuggestionApproval.Required"/> different
+    /// Approvers have approved it, or one sends it back.
+    /// </summary>
+    public DateTime? ReferredAt { get; init; }
+
+    /// <summary>The Approver who referred it to committee.</summary>
+    public int? ReferredByUserId { get; init; }
+
+    /// <summary>The optional reason given for referring it.</summary>
+    public string? ReferralReason { get; init; }
+
     public Lesson? Lesson { get; init; }
     public AppUser? AuthorUser { get; init; }
     public AppUser? DecidedByUser { get; init; }
     public ICollection<LessonSuggestionTag> Tags { get; init; } = new List<LessonSuggestionTag>();
     public ICollection<LessonSuggestionPicture> Pictures { get; init; } = new List<LessonSuggestionPicture>();
+    public ICollection<LessonSuggestionApproval> CommitteeApprovals { get; init; } = new List<LessonSuggestionApproval>();
+}
+
+/// <summary>
+/// One committee approval of a referred <see cref="LessonSuggestion"/> (docs/adr/0013 decision 8): who and when. Each
+/// Approver approves a suggestion at most once (unique on suggestion and approver), and approvals are numbered 1, 2, 3 per
+/// suggestion (unique on suggestion and position), so two Approvers acting at once cannot both take the same place. The
+/// suggestion is published on the approval at position <see cref="Required"/>. The author's own approval counts. Rows are
+/// never changed or removed: with the suggestion, they are the committee's record.
+/// </summary>
+public sealed class LessonSuggestionApproval
+{
+    /// <summary>How many different Approvers must approve a referred suggestion.</summary>
+    public const int Required = 3;
+
+    public required int Id { get; init; }
+    public required int LessonSuggestionId { get; init; }
+    public required int ApproverUserId { get; init; }
+
+    /// <summary>1, 2 or 3: the order the approvals were given in.</summary>
+    public required int Position { get; init; }
+
+    public required DateTime ApprovedAt { get; init; }
+
+    public LessonSuggestion? LessonSuggestion { get; init; }
+    public AppUser? ApproverUser { get; init; }
 }
 
 /// <summary>A tag of a <see cref="LessonSuggestion"/>, one row per tag.</summary>

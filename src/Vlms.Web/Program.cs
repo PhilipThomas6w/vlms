@@ -106,6 +106,10 @@ builder.Services.AddScoped<NationalTotalsService>();
 
 // --- Lesson suggestions, review and history (FR-007, docs/adr/0013): drafts, review, "Publish now", versions and the
 // national publishing setting, each call role-checked in the service; pictures through LessonSuggestionEndpoints.
+// Every Approver is emailed when a suggestion is submitted (adr/0013 decision 8), after the save, never throwing.
+builder.Services.AddScoped(sp => new LessonSuggestionNotificationService(
+    sp.GetRequiredService<VlmsDbContext>(), sp.GetRequiredService<INotificationService>(),
+    sp.GetRequiredService<ILogger<LessonSuggestionNotificationService>>(), builder.Configuration["App:PublicBaseUrl"]));
 builder.Services.AddScoped<LessonSuggestionService>();
 
 // --- Lesson library (functional.md FR-006) — read-only browse + file download for Teacher/Approver/

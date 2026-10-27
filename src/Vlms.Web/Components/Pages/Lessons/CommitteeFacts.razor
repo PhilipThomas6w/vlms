@@ -1,0 +1,28 @@
+@using Vlms.Infrastructure.Curriculum
+
+@* Inside a <dl class="facts">: a suggestion's referral to committee and each committee approval (docs/adr/0013
+   decision 8), for the lesson's history. *@
+
+<dt>Referred to committee</dt>
+<dd>@Referral.ReferredBy, @Referral.ReferredAt.ToString("dd/MM/yyyy")</dd>
+@if (!string.IsNullOrWhiteSpace(Referral.Reason))
+{
+    <dt>Reason for referring</dt>
+    <dd>@Referral.Reason</dd>
+}
+<dt>Approved by the committee</dt>
+<dd>
+    @if ((Approvals ?? []).Count == 0)
+    {
+        @("No approvals")
+    }
+    else
+    {
+        @string.Join(", ", Approvals!.Select(a => $"{a.ApprovedBy} ({a.ApprovedAt:dd/MM/yyyy})"))
+    }
+</dd>
+
+@code {
+    [Parameter, EditorRequired] public Referral Referral { get; set; } = default!;
+    [Parameter] public IReadOnlyList<CommitteeApproval>? Approvals { get; set; }
+}

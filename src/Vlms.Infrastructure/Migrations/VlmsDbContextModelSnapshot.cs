@@ -909,6 +909,18 @@ namespace Vlms.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("reason");
 
+                    b.Property<string>("ReferralReason")
+                        .HasColumnType("text")
+                        .HasColumnName("referral_reason");
+
+                    b.Property<DateTime?>("ReferredAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("referred_at");
+
+                    b.Property<int?>("ReferredByUserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("referred_by_user_id");
+
                     b.Property<int?>("RevisesSuggestionId")
                         .HasColumnType("integer")
                         .HasColumnName("revises_suggestion_id");
@@ -947,11 +959,48 @@ namespace Vlms.Infrastructure.Migrations
 
                     b.HasIndex("RankId");
 
+                    b.HasIndex("ReferredByUserId");
+
                     b.HasIndex("RevisesSuggestionId");
 
                     b.HasIndex("Status");
 
                     b.ToTable("lesson_suggestions");
+                });
+
+            modelBuilder.Entity("Vlms.Domain.LessonSuggestionApproval", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("ApprovedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("approved_at");
+
+                    b.Property<int>("ApproverUserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("approver_user_id");
+
+                    b.Property<int>("LessonSuggestionId")
+                        .HasColumnType("integer")
+                        .HasColumnName("lesson_suggestion_id");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("integer")
+                        .HasColumnName("position");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ApproverUserId");
+
+                    b.HasIndex("LessonSuggestionId", "ApproverUserId")
+                        .IsUnique();
+
+                    b.HasIndex("LessonSuggestionId", "Position")
+                        .IsUnique();
+
+                    b.ToTable("lesson_suggestion_approvals");
                 });
 
             modelBuilder.Entity("Vlms.Domain.LessonSuggestionPicture", b =>
@@ -2238,6 +2287,11 @@ namespace Vlms.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("Vlms.Domain.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("ReferredByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("Vlms.Domain.LessonSuggestion", null)
                         .WithMany()
                         .HasForeignKey("RevisesSuggestionId")
@@ -2248,6 +2302,25 @@ namespace Vlms.Infrastructure.Migrations
                     b.Navigation("DecidedByUser");
 
                     b.Navigation("Lesson");
+                });
+
+            modelBuilder.Entity("Vlms.Domain.LessonSuggestionApproval", b =>
+                {
+                    b.HasOne("Vlms.Domain.AppUser", "ApproverUser")
+                        .WithMany()
+                        .HasForeignKey("ApproverUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Vlms.Domain.LessonSuggestion", "LessonSuggestion")
+                        .WithMany("CommitteeApprovals")
+                        .HasForeignKey("LessonSuggestionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("ApproverUser");
+
+                    b.Navigation("LessonSuggestion");
                 });
 
             modelBuilder.Entity("Vlms.Domain.LessonSuggestionPicture", b =>
@@ -2643,6 +2716,8 @@ namespace Vlms.Infrastructure.Migrations
 
             modelBuilder.Entity("Vlms.Domain.LessonSuggestion", b =>
                 {
+                    b.Navigation("CommitteeApprovals");
+
                     b.Navigation("Pictures");
 
                     b.Navigation("Tags");

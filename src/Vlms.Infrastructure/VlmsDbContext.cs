@@ -50,6 +50,7 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
     public DbSet<LessonSuggestion> LessonSuggestions => Set<LessonSuggestion>();
     public DbSet<LessonSuggestionTag> LessonSuggestionTags => Set<LessonSuggestionTag>();
     public DbSet<LessonSuggestionPicture> LessonSuggestionPictures => Set<LessonSuggestionPicture>();
+    public DbSet<LessonSuggestionApproval> LessonSuggestionApprovals => Set<LessonSuggestionApproval>();
     public DbSet<LessonPublishingSettingChange> LessonPublishingSettingChanges => Set<LessonPublishingSettingChange>();
     public DbSet<Student> Students => Set<Student>();
     public DbSet<ParentGuardian> ParentGuardians => Set<ParentGuardian>();
@@ -218,6 +219,8 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
             e.HasOne(x => x.DecidedByUser).WithMany().HasForeignKey(x => x.DecidedByUserId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne<Rank>().WithMany().HasForeignKey(x => x.RankId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne<LessonSuggestion>().WithMany().HasForeignKey(x => x.RevisesSuggestionId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne<AppUser>().WithMany().HasForeignKey(x => x.ReferredByUserId).OnDelete(DeleteBehavior.Restrict);
+            e.HasMany(x => x.CommitteeApprovals).WithOne(x => x.LessonSuggestion).HasForeignKey(x => x.LessonSuggestionId).OnDelete(DeleteBehavior.Restrict);
             e.HasMany(x => x.Tags).WithOne().HasForeignKey(x => x.LessonSuggestionId).OnDelete(DeleteBehavior.Cascade);
             e.HasMany(x => x.Pictures).WithOne(x => x.LessonSuggestion).HasForeignKey(x => x.LessonSuggestionId).OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(x => x.LessonId).IsUnique().HasFilter("status IN (0, 1)").HasDatabaseName("IX_lesson_suggestions_lesson_id_open");
@@ -231,6 +234,17 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
             e.HasIndex(x => new { x.LessonSuggestionId, x.FileName }).IsUnique();
+        });
+
+        // Committee approvals of a referred suggestion (docs/adr/0013 decision 8): once per Approver, and one row per place
+        // (1, 2, 3), so concurrent approvals cannot both count as the same one.
+        modelBuilder.Entity<LessonSuggestionApproval>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.HasOne(x => x.ApproverUser).WithMany().HasForeignKey(x => x.ApproverUserId).OnDelete(DeleteBehavior.Restrict);
+            e.HasIndex(x => new { x.LessonSuggestionId, x.ApproverUserId }).IsUnique();
+            e.HasIndex(x => new { x.LessonSuggestionId, x.Position }).IsUnique();
         });
 
         modelBuilder.Entity<LessonPublishingSettingChange>(e =>

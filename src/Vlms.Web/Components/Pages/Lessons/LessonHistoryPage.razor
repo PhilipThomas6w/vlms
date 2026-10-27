@@ -41,7 +41,11 @@ else if (_history is not null)
                             <dt>Suggested by</dt>
                             <dd>@version.SuggestedBy@(version.SuggestedAt is DateTime at ? $", {at:dd/MM/yyyy}" : "")</dd>
                         }
-                        @if (version.ApprovedBy is not null)
+                        @if (version.Referral is { } referral)
+                        {
+                            <CommitteeFacts Referral="referral" Approvals="version.CommitteeApprovals" />
+                        }
+                        else if (version.ApprovedBy is not null)
                         {
                             <dt>Approved by</dt>
                             <dd>@version.ApprovedBy</dd>
@@ -106,6 +110,10 @@ else if (_history is not null)
                         {
                             <dt>Reason</dt>
                             <dd>@item.Reason</dd>
+                        }
+                        @if (item.Referral is { } referral)
+                        {
+                            <CommitteeFacts Referral="referral" Approvals="item.CommitteeApprovals" />
                         }
                     </dl>
                     <p>@($"Sent back by {item.SentBackBy}, {item.SentBackAt:dd/MM/yyyy}: “{item.Comment}”")</p>

@@ -5,8 +5,9 @@
 @using Vlms.Infrastructure.Curriculum
 @inject LessonSuggestionService Suggestions
 
-@* Approvers: one suggestion as tracked changes against the lesson's current version, or as it would read; approve it or
-   send it back with a comment (FR-007, docs/adr/0013 decisions 3 and 4). The HTML comes from LessonDiff, built from
+@* Approvers: one suggestion as tracked changes against the lesson's current version, or as it would read; approve it,
+   send it back with a comment, or refer it to committee, after which it needs three different Approvers' approval
+   (FR-007, docs/adr/0013 decisions 3, 4 and 8). The HTML comes from LessonDiff, built from
    LessonMarkdown's output (raw HTML disabled), so it is written as markup. *@
 
 @if (_loaded && _review is null)
@@ -36,6 +37,18 @@ else if (_review is not null)
             <dt>@setting.Label</dt>
             <dd class="lesson-diff">@((MarkupString)setting.Html)</dd>
         }
+        @if (_review.Referral is { } referral)
+        {
+            <dt>Referred to committee</dt>
+            <dd>@referral.ReferredBy, @referral.ReferredAt.ToString("dd/MM/yyyy")</dd>
+            @if (!string.IsNullOrWhiteSpace(referral.Reason))
+            {
+                <dt>Reason for referring</dt>
+                <dd>@referral.Reason</dd>
+            }
+            <dt>Committee approvals</dt>
+            <dd>@ApprovalsText</dd>
+        }
     </dl>
 
     @if (_error is not null)
@@ -46,6 +59,14 @@ else if (_review is not null)
         @if (_approved is not null)
         {
             <Notice Kind="success"><p><strong>Approved.</strong> @($"The lesson is now version {_approved.Number}.") <a href="@LessonSuggestionService.HistoryUrl(_approved.LessonCode)">See the lesson’s history</a></p></Notice>
+        }
+        else if (_committeeApprovals is int count)
+        {
+            <Notice Kind="success"><p><strong>Approved.</strong> @($"{count} of {LessonSuggestionApproval.Required} approvals.")</p></Notice>
+        }
+        else if (_referred)
+        {
+            <Notice Kind="success"><p>Referred to committee.</p></Notice>
         }
         else if (_sentBack)
         {
@@ -94,16 +115,25 @@ else if (_review is not null)
 
     @if (Pending)
     {
+        var referred = _review.Referral is not null;
+        @if (_review.ApprovedByMe)
+        {
+            <p>You have approved this.</p>
+        }
         <div class="field">
-            <label for="comment">Comment (required to send back)</label>
+            <label for="comment">@(referred ? "Comment (required to send back)" : "Comment (required to send back, optional to refer)")</label>
             <textarea id="comment" rows="3" @bind="_comment"></textarea>
         </div>
         <div class="form-actions">
-            @if (!_review.IsStale)
+            @if (!_review.IsStale && !_review.ApprovedByMe)
             {
                 <button type="button" @onclick="ApproveAsync" disabled="@_busy">Approve</button>
             }
             <button type="button" class="btn--secondary" @onclick="SendBackAsync" disabled="@_busy">Send back</button>
+            @if (!_review.IsStale && !referred)
+            {
+                <button type="button" class="btn--secondary" @onclick="ReferAsync" disabled="@_busy">Refer to committee</button>
+            }
         </div>
     }
 }
@@ -118,7 +148,19 @@ else if (_review is not null)
     private string? _error;
     private PublishedVersion? _approved;
     private bool _sentBack;
+    private bool _referred;
+    private int? _committeeApprovals;
     private bool _busy;
+
+    private string ApprovalsText
+    {
+        get
+        {
+            var approvals = _review?.CommitteeApprovals ?? [];
+            var names = string.Join(", ", approvals.Select(a => $"{a.ApprovedBy} ({a.ApprovedAt:dd/MM/yyyy})"));
+            return $"{approvals.Count} of {LessonSuggestionApproval.Required}" + (names.Length > 0 ? $": {names}" : "");
+        }
+    }
 
     private bool Pending => _review?.Status == LessonSuggestionStatus.Submitted && _approved is null && !_sentBack;
 
@@ -142,7 +184,41 @@ else if (_review is not null)
         _busy = true;
         try
         {
-            _approved = await Suggestions.ApproveAsync(Id);
+            if (_review?.Referral is null)
+            {
+                _approved = await Suggestions.ApproveAsync(Id);
+            }
+            else
+            {
+                // Loaded into locals and assigned together, so the page never renders half-updated.
+                var result = await Suggestions.ApproveReferredAsync(Id);
+                var review = result.Published is null ? await Suggestions.GetReviewAsync(Id) : _review;
+                _review = review;
+                _approved = result.Published;
+                _committeeApprovals = result.Published is null ? result.Approvals : null;
+            }
+        }
+        catch (InvalidOperationException ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task ReferAsync()
+    {
+        _error = null;
+        _busy = true;
+        try
+        {
+            await Suggestions.ReferAsync(Id, _comment);
+            var review = await Suggestions.GetReviewAsync(Id);
+            _review = review;
+            _comment = null;
+            _referred = true;
         }
         catch (InvalidOperationException ex)
         {

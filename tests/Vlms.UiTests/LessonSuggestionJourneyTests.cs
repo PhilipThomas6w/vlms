@@ -2,11 +2,14 @@ using Deque.AxeCore.Commons;
 using Deque.AxeCore.Playwright;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Playwright;
 using SkiaSharp;
+using Vlms.Domain;
 using Vlms.Infrastructure;
+using Vlms.Infrastructure.Identity;
 using Vlms.UiTests.Capture;
 
 namespace Vlms.UiTests;
@@ -14,7 +17,8 @@ namespace Vlms.UiTests;
 /// <summary>
 /// Lesson suggestions, review and history (FR-007, docs/adr/0013) in Chromium against the real app: a Teacher suggests a
 /// change in the editor and submits it, an Approver approves it and reads the history; an Approver publishes at once
-/// ("Publish now"); an Approver replaces the whole lesson; an Approver sends a suggestion back and its author sees why.
+/// ("Publish now"); an Approver replaces the whole lesson; an Approver sends a suggestion back and its author sees why; an
+/// Approver refers a suggestion to committee and three Approvers approve it, with the menu count along the way.
 /// Every page passes axe-core (WCAG 2.2 A/AA).
 /// </summary>
 public sealed class LessonSuggestionJourneyTests
@@ -146,6 +150,91 @@ public sealed class LessonSuggestionJourneyTests
         await Assertions.Expect(teacher.GetByText("Version 2")).ToBeVisibleAsync();
     }
 
+    // Another Approver, for the committee (adr/0013 decision 8): the capture seed has one.
+    private static async Task<CapturePersona> AddApproverAsync(UiWebFactory factory, int id, string display, string userName)
+    {
+        using var scope = factory.Services.CreateScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<VlmsIdentityUser>>();
+        var created = await users.CreateAsync(new VlmsIdentityUser { Id = id, UserName = userName, Email = userName, EmailConfirmed = true }, CaptureSeed.Password);
+        Assert.True(created.Succeeded, string.Join("; ", created.Errors.Select(e => e.Description)));
+        var db = scope.ServiceProvider.GetRequiredService<VlmsDbContext>();
+        db.AppUsers.Add(new AppUser { Id = id, DisplayName = display, Email = userName });
+        db.UserRoles.Add(new UserRole { UserId = id, Role = Role.Approver });
+        await db.SaveChangesAsync();
+        return new CapturePersona(userName, userName, null, id);
+    }
+
+    private static ILocator MenuCount(IPage page) =>
+        page.GetByRole(AriaRole.Navigation, new() { Name = "Main" }).Locator("a[href='/curriculum/review'] .nav-count");
+
+    [Fact]
+    public async Task Approver_refers_a_suggestion_to_committee_and_the_third_approval_publishes_it()
+    {
+        var (factory, baseUrl, personas) = await StartAsync();
+        using var _ = factory;
+        var second = await AddApproverAsync(factory, 901, "Fr Gregory Approver", "approver2@capture.test");
+        var third = await AddApproverAsync(factory, 902, "Anna Approver", "approver3@capture.test");
+        using var playwright = await Playwright.CreateAsync();
+        await using var browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions { Headless = true });
+
+        var teacher = await SignInAsync(browser, baseUrl, personas["teacher"]);
+        await OpenEditorAsync(teacher, baseUrl);
+        await AddQuestionAsync(teacher, "Why is it stamped with a seal?");
+        await teacher.GetByLabel("Reason for the change (required)").FillAsync("Add a question about the seal.");
+        await ClickUntilAsync(teacher, teacher.GetByRole(AriaRole.Button, new() { Name = "Submit for review" }),
+            teacher.GetByText("Submitted for review."));
+
+        // The menu shows the Approver one change awaiting them, in words as well as the number.
+        var approver = await SignInAsync(browser, baseUrl, personas["approver"]);
+        await approver.GotoAsync(baseUrl + "/", new PageGotoOptions { WaitUntil = WaitUntilState.NetworkIdle });
+        await Assertions.Expect(MenuCount(approver)).ToHaveTextAsync("1");
+        await Assertions.Expect(approver.GetByRole(AriaRole.Link, new() { Name = "Changes to review (1 awaiting review)" })).ToBeVisibleAsync();
+        await AssertNoWcagViolationsAsync(approver, "the home page with a change awaiting review");
+
+        await approver.GotoAsync(baseUrl + "/curriculum/review", new PageGotoOptions { WaitUntil = WaitUntilState.NetworkIdle });
+        await approver.GetByRole(AriaRole.Link, new() { Name = "Prosphora" }).ClickAsync();
+        await approver.WaitForURLAsync("**/curriculum/review/*");
+        await approver.WaitForLoadStateAsync(LoadState.NetworkIdle);
+        var reviewUrl = approver.Url;
+        await ClickUntilAsync(approver, approver.GetByRole(AriaRole.Button, new() { Name = "Refer to committee" }),
+            approver.GetByText("Referred to committee."));
+        await AssertNoWcagViolationsAsync(approver, "the review page after referring");
+        await ClickUntilAsync(approver, approver.GetByRole(AriaRole.Button, new() { Name = "Approve", Exact = true }),
+            approver.GetByText("1 of 3 approvals."));
+        await Assertions.Expect(approver.GetByText("You have approved this.")).ToBeVisibleAsync();
+
+        // Having approved, nothing awaits this Approver; the list shows where the committee has got to.
+        await approver.GotoAsync(baseUrl + "/curriculum/review", new PageGotoOptions { WaitUntil = WaitUntilState.NetworkIdle });
+        await Assertions.Expect(MenuCount(approver)).ToHaveCountAsync(0);
+        await Assertions.Expect(approver.GetByText("Referred to committee: 1 of 3 approved (you approved)")).ToBeVisibleAsync();
+        await AssertNoWcagViolationsAsync(approver, "Changes to review with a referred change");
+
+        var secondPage = await SignInAsync(browser, baseUrl, second);
+        await secondPage.GotoAsync(reviewUrl, new PageGotoOptions { WaitUntil = WaitUntilState.NetworkIdle });
+        await Assertions.Expect(MenuCount(secondPage)).ToHaveTextAsync("1");
+        await ClickUntilAsync(secondPage, secondPage.GetByRole(AriaRole.Button, new() { Name = "Approve", Exact = true }),
+            secondPage.GetByText("2 of 3 approvals."));
+
+        var thirdPage = await SignInAsync(browser, baseUrl, third);
+        await thirdPage.GotoAsync(reviewUrl, new PageGotoOptions { WaitUntil = WaitUntilState.NetworkIdle });
+        await AssertNoWcagViolationsAsync(thirdPage, "the review page of a referred change");
+        await ClickUntilAsync(thirdPage, thirdPage.GetByRole(AriaRole.Button, new() { Name = "Approve", Exact = true }),
+            thirdPage.GetByText("The lesson is now version 2."));
+
+        await thirdPage.GetByRole(AriaRole.Link, new() { Name = "See the lesson’s history" }).ClickAsync();
+        await thirdPage.WaitForURLAsync($"**/lessons/{Code}/history");
+        await thirdPage.WaitForLoadStateAsync(LoadState.NetworkIdle);
+        var latest = thirdPage.Locator(".version-list > li").First;
+        await Assertions.Expect(latest).ToContainTextAsync("Referred to committee");
+        await Assertions.Expect(latest).ToContainTextAsync("Elizabeth Approver");
+        await Assertions.Expect(latest).ToContainTextAsync("Fr Gregory Approver");
+        await Assertions.Expect(latest).ToContainTextAsync("Anna Approver");
+        await AssertNoWcagViolationsAsync(thirdPage, "the history of a change approved by committee");
+
+        await teacher.GotoAsync(baseUrl + $"/lessons/{Code}", new PageGotoOptions { WaitUntil = WaitUntilState.NetworkIdle });
+        await Assertions.Expect(teacher.Locator("article.lesson-text")).ToContainTextAsync("Why is it stamped with a seal?");
+    }
+
     [Fact]
     public async Task Approver_publishes_a_change_at_once()
     {
@@ -228,7 +317,7 @@ public sealed class LessonSuggestionJourneyTests
         await approver.WaitForURLAsync("**/curriculum/review/*");
         await approver.WaitForLoadStateAsync(LoadState.NetworkIdle);
         // Text typed before the page's live connection is ready can be lost too, so fill the comment on each attempt.
-        var comment = approver.GetByLabel("Comment (required to send back)");
+        var comment = approver.GetByLabel("Comment (required to send back");
         var sentBack = approver.GetByText("Sent back to Fr Daniel Teacher with your comment.");
         for (var attempt = 0; attempt < 10 && !await sentBack.IsVisibleAsync(); attempt++)
         {
