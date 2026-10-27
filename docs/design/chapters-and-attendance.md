@@ -101,3 +101,4 @@ Built to sections 3 and 5. Where neither said, the build assumed the following. 
 6. **The student's own page** does not show attendance (only staff and parents were named).
 7. **National figures:** the last 12 months, per chapter per month: meetings held, present, absent and the attendance rate, exact counts however small (as for the rank totals).
 
+Confirmed by Philip (27/10/2026): Safeguarding Officers reach a student's attendance through the student record, so they see the whole record and the student list; the per-class take-register page stays Teachers and Admins only; a child marked present, corrected to absent and marked present again is alerted twice (accepted).

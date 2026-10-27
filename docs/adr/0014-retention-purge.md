@@ -32,3 +32,8 @@ Retention is confirmed (`governance/security-compliance.md`): students 3 years a
 - Deleting an application does not delete the applicant's account (this ADR names no rule for it).
 - "Delete all shown" asks for each person's name, one field per record.
 - The audit-log purge writes no deletion-log row (it removes log rows, not a person's record); its count is in the job's journal.
+
+## Settled after build (Philip, 27/10/2026)
+
+- **References to a deleted account:** when an account is deleted, records that name it (a register taken by, a lesson version suggested or approved by, and similar) keep their content and show "a former member of staff" instead of the person; only the link to the person goes. This replaces the as-built rule that an account named by a kept record is never deleted. Build item in `STATE.md`.
+- Confirmed as built: deleting a registration application does not delete the applicant's account; Approver and national roles keep an account; the audit-log purge writes only a count to the job's journal, not deletion-log rows.
