@@ -12,8 +12,9 @@ namespace Vlms.Infrastructure.Safeguarding;
 ///
 /// <b>Content.</b> Student name, the fact a form is waiting, the expiry date and a link built from
 /// <c>App:PublicBaseUrl</c> only. Nothing from <see cref="ConsentSensitiveDetails"/> is read or
-/// sent (adr/0004, adr/0006). The one free-text item is the reviewer's rejection comment, which is
-/// shown to the parent anyway on their consent page.
+/// sent (adr/0004, adr/0006). The reviewer's rejection comment is not emailed (adr/0008 decision 8):
+/// the rejection email says the parent must sign in to read it, and the comment is shown on their
+/// consent page.
 ///
 /// <b>Recipients.</b> Staff: users holding Admin or SafeguardingOfficer in the student's chapter
 /// (FR-021, docs/adr/0010-chapters.md) who have not left (the same rule as
@@ -94,7 +95,7 @@ public sealed class ConsentNotificationService
             {
                 await SendAsync(parent, $"VLMS: consent form for {info.StudentName} needs changes",
                     $"The consent form for {info.StudentName} needs changes before it can be approved.\n\n" +
-                    $"Comments from the reviewer:\n{info.DecisionComments}" +
+                    "Please sign in to read the comments from the reviewer." +
                     Link("Please update and resubmit the form here", "/parent/consent"), ct);
             }
         }
@@ -107,7 +108,7 @@ public sealed class ConsentNotificationService
     private sealed record Recipient(string Email, string DisplayName);
 
     private sealed record RecordInfo(
-        string StudentName, int ChapterId, ConsentStatus Status, DateOnly ExpiryDate, string? DecisionComments, Recipient? Parent);
+        string StudentName, int ChapterId, ConsentStatus Status, DateOnly ExpiryDate, Recipient? Parent);
 
     private async Task<RecordInfo> LoadAsync(int consentRecordId, CancellationToken ct)
     {
@@ -118,7 +119,6 @@ public sealed class ConsentNotificationService
                 StudentName = c.Student!.Name,
                 c.Status,
                 c.ExpiryDate,
-                c.DecisionComments,
                 c.SubmittedByParentId,
                 c.ChapterId
             })
@@ -132,7 +132,7 @@ public sealed class ConsentNotificationService
             .Select(u => new Recipient(u.Email, u.DisplayName))
             .FirstOrDefaultAsync(ct);
 
-        return new RecordInfo(row.StudentName, row.ChapterId, row.Status, row.ExpiryDate, row.DecisionComments, parent);
+        return new RecordInfo(row.StudentName, row.ChapterId, row.Status, row.ExpiryDate, parent);
     }
 
     private string Link(string text, string path) =>
