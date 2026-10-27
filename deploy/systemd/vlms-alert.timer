@@ -1,0 +1,17 @@
+# vlms-alert.timer — runs vlms-alert.service every morning at 07:30 UTC (08:30 or 07:30 in the UK),
+# after the 02:00 database backup, 02:30 files backup and 03:00 jobs run, so their overnight output is in
+# the digest. OnCalendar syntax as for vlms-jobs.timer; check with
+# `systemd-analyze calendar '*-*-* 07:30:00 UTC'`.
+#
+# Persistent=true: if the VPS was down at 07:30, the missed run happens when it is back up.
+
+[Unit]
+Description=Daily timer for vlms-alert.service (VLMS alert digest, 07:30 UTC)
+
+[Timer]
+OnCalendar=*-*-* 07:30:00 UTC
+Persistent=true
+Unit=vlms-alert.service
+
+[Install]
+WantedBy=timers.target
