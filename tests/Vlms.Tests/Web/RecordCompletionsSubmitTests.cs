@@ -1,78 +1,209 @@
-using System.IO;
+using Bunit;
+using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.Extensions.DependencyInjection;
+using Vlms.Domain;
+using Vlms.Infrastructure;
+using Vlms.Infrastructure.Attendance;
+using Vlms.Infrastructure.Progress;
+using Vlms.Tests.Infrastructure;
+using Vlms.Web.Components.Pages.Progress;
 using Xunit;
 
 namespace Vlms.Tests.Web;
 
 /// <summary>
-/// Regression coverage for the double-submit fix on Progress/RecordCompletions.razor: a second click on
-/// "Record completions" while the first batch is still running must return before it reaches
-/// <c>CompletionService.MarkCompleteBatchAsync</c>, so only one batch runs on the DbContext.
+/// Behavioural coverage (bUnit) for the double-submit guard on Progress/RecordCompletions.razor: a second
+/// click on "Record completions" while the first batch is still running must not start a second batch,
+/// and the button must show its busy state meanwhile.
 ///
-/// Same markup-content-assertion convention as PerChildAccessibleNamesTests.cs: reads the Razor file
-/// directly off disk. The page's handler needs a live circuit and a seeded database to run, so the
-/// ordering of the guard, the busy render and the service call is asserted in the source.
+/// The real page, CompletionService, AttendanceService and VlmsDbContext (SQLite in memory) are used. Timing
+/// is controlled by an EF Core SaveChanges interceptor that holds the first completion save until the test
+/// releases it, so "the first submit is still in progress" is a deterministic state, not a race.
 /// </summary>
-public class RecordCompletionsSubmitTests
+public sealed class RecordCompletionsSubmitTests : BunitContext, IDisposable
 {
-    [Fact]
-    public void SubmitAsync_ReturnsEarlyWhenABatchIsAlreadyRunning()
+    private readonly SqliteConnection _anchor;
+    private readonly string _connectionString;
+    private readonly HoldFirstCompletionSave _hold = new();
+
+    public RecordCompletionsSubmitTests()
     {
-        var handler = SubmitHandler();
+        _connectionString = $"Data Source=file:vlms-record-completions-{Guid.NewGuid():N};Mode=Memory;Cache=Shared";
+        _anchor = new SqliteConnection(_connectionString);
+        _anchor.Open();
 
-        var guard = handler.IndexOf("if (_busy || _lessonId == 0 || _selected.Count == 0)", StringComparison.Ordinal);
-        Assert.True(guard >= 0, "SubmitAsync must refuse to start while _busy is set");
-        Assert.True(guard < handler.IndexOf("_busy = true;", StringComparison.Ordinal), "The busy guard must run before _busy is set");
-    }
-
-    [Fact]
-    public void SubmitAsync_RendersBusyStateBeforeTheBatchStarts()
-    {
-        var handler = SubmitHandler();
-
-        var busySet = handler.IndexOf("_busy = true;", StringComparison.Ordinal);
-        var render = handler.IndexOf("StateHasChanged();", StringComparison.Ordinal);
-        var yield = handler.IndexOf("await Task.Yield();", StringComparison.Ordinal);
-        var batch = handler.IndexOf("CompletionService.MarkCompleteBatchAsync", StringComparison.Ordinal);
-
-        Assert.True(busySet >= 0 && render > busySet, "_busy must be set, then the component re-rendered");
-        Assert.True(yield > render, "The handler must yield after rendering so the disabled state reaches the browser");
-        Assert.True(batch > yield, "The batch must start only after the busy state has been rendered");
-    }
-
-    [Fact]
-    public void SubmitAsync_ResetsBusyInFinally()
-    {
-        var handler = SubmitHandler();
-
-        var finallyBlock = handler.IndexOf("finally", StringComparison.Ordinal);
-        Assert.True(finallyBlock >= 0, "SubmitAsync must reset _busy in a finally block");
-        Assert.Contains("_busy = false;", handler.Substring(finallyBlock), StringComparison.Ordinal);
-    }
-
-    /// <summary>
-    /// The text of SubmitAsync, from its signature to the end of the @code block.
-    /// </summary>
-    private static string SubmitHandler()
-    {
-        var content = File.ReadAllText(Path.Combine(RepoRoot(), "src", "Vlms.Web", "Components", "Pages", "Progress", "RecordCompletions.razor"));
-        var start = content.IndexOf("private async Task SubmitAsync()", StringComparison.Ordinal);
-        Assert.True(start >= 0, "Expected SubmitAsync in RecordCompletions.razor");
-        return content.Substring(start);
-    }
-
-    /// <summary>
-    /// Walks up from the test assembly's output directory to find the repository root
-    /// (identified by Vlms.slnx), as the other Web/ markup-assertion suites do.
-    /// </summary>
-    private static string RepoRoot()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Vlms.slnx")))
+        using (var seed = new VlmsDbContext(
+            new DbContextOptionsBuilder<VlmsDbContext>().UseSqlite(_connectionString).Options,
+            new FakeCurrentUserContext(1, Role.Admin)))
         {
-            directory = directory.Parent;
+            seed.Database.EnsureCreated();
+            Seed(seed);
         }
 
-        Assert.True(directory is not null, "Could not locate repository root (Vlms.slnx) from test output directory");
-        return directory!.FullName;
+        // The page focuses its results panel after a submit (ElementReference.FocusAsync).
+        JSInterop.Mode = JSRuntimeMode.Loose;
+
+        // The page requires the Teacher role (policy RequireTeacher); the service also checks it itself.
+        var auth = AddAuthorization();
+        auth.SetAuthorized("Teacher One");
+        auth.SetRoles("Teacher");
+
+        Services.AddSingleton<ICurrentUserContext>(new FakeCurrentUserContext(10, Role.Teacher));
+        Services.AddSingleton<IBlobStorage>(new InMemoryBlobStorage());
+        Services.AddSingleton(_hold);
+        Services.AddDbContext<VlmsDbContext>((sp, options) => options
+            .UseSqlite(_connectionString)
+            .AddInterceptors(sp.GetRequiredService<HoldFirstCompletionSave>()));
+        Services.AddScoped<PromotionService>();
+        Services.AddScoped<CertificateService>();
+        Services.AddScoped<CompletionService>();
+        Services.AddScoped<AttendanceService>();
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            _hold.Release();
+            _anchor.Dispose();
+        }
+
+        base.Dispose(disposing);
+    }
+
+    [Fact]
+    public async Task SecondClickWhileFirstBatchIsRunning_DoesNotStartASecondBatch_AndButtonShowsBusy()
+    {
+        var cut = Render<RecordCompletions>();
+        SelectLessonAndBothStudents(cut);
+
+        var first = cut.Find(".record__bar button").ClickAsync(new());
+
+        // The first batch is now parked inside its first save.
+        await _hold.FirstSaveReached.WaitAsync(TimeSpan.FromSeconds(10));
+        cut.WaitForAssertion(() =>
+        {
+            var button = cut.Find(".record__bar button");
+            Assert.True(button.HasAttribute("disabled"));
+            Assert.Contains("Recording", button.TextContent);
+        });
+
+        // A second submit while the first is in progress: the markup disables the button, and the
+        // handler's own _busy guard is the backstop (the DOM is never the only defence).
+        await cut.Find(".record__bar button").ClickAsync(new());
+        Assert.Equal(1, _hold.CompletionSaves);
+
+        _hold.Release();
+        await first;
+        cut.WaitForAssertion(() => Assert.Contains("2 completions recorded", cut.Markup));
+
+        Assert.Equal(2, CountCompletions());
+    }
+
+    [Fact]
+    public async Task SingleSubmit_SavesEverySelectedStudent_AndShowsResults()
+    {
+        _hold.Release();
+        var cut = Render<RecordCompletions>();
+        SelectLessonAndBothStudents(cut);
+
+        await cut.Find(".record__bar button").ClickAsync(new());
+
+        cut.WaitForAssertion(() => Assert.Contains("2 completions recorded", cut.Markup));
+        Assert.Equal(2, CountCompletions());
+        Assert.DoesNotContain("Recording…", cut.Markup);
+    }
+
+    private static void SelectLessonAndBothStudents(IRenderedComponent<RecordCompletions> cut)
+    {
+        cut.WaitForState(() => cut.FindAll("input[name=lesson]").Count > 0);
+        cut.Find("input#lesson1").Change(true);
+        cut.WaitForState(() => cut.FindAll("input#student100").Count > 0);
+        cut.Find("input#student100").Change(true);
+        cut.Find("input#student101").Change(true);
+    }
+
+    private int CountCompletions()
+    {
+        using var db = new VlmsDbContext(
+            new DbContextOptionsBuilder<VlmsDbContext>().UseSqlite(_connectionString).Options,
+            new FakeCurrentUserContext(1, Role.Admin));
+        return db.StudentLessonCompletions.Count();
+    }
+
+    private static void Seed(VlmsDbContext context)
+    {
+        context.Ranks.Add(new Rank { Id = 1, Order = 1, Code = "R1", Name = "Recruit" });
+        context.AppUsers.Add(new AppUser { Id = 1, DisplayName = "Admin One", Email = "admin@example.com" });
+        context.AppUsers.Add(new AppUser { Id = 10, DisplayName = "Teacher One", Email = "teacher1@example.com" });
+        context.Lessons.Add(new Lesson { Id = 1, RankId = 1, Code = "L1", Title = "Knots 101", Order = 1, IsActive = true });
+        context.ParentGuardians.Add(new ParentGuardian { Id = 1, Name = "Jane Parent", ContactInfo = "jane@example.com", IsPrimary = true });
+        foreach (var (id, name) in new[] { (100, "Alex Student"), (101, "Blake Student") })
+        {
+            context.Students.Add(new Student
+            {
+                Id = id,
+                Name = name,
+                DateOfBirth = new DateOnly(2012, 1, 1),
+                CurrentRankId = 1,
+                Status = StudentStatus.Active,
+                EnrolmentDate = new DateOnly(2024, 1, 1)
+            });
+            context.StudentRankProgresses.Add(new StudentRankProgress
+            {
+                Id = id,
+                StudentId = id,
+                RankId = 1,
+                StartedAt = DateTime.UtcNow.AddDays(-30)
+            });
+            context.ConsentRecords.Add(new ConsentRecord
+            {
+                Id = id,
+                StudentId = id,
+                PeriodStart = new DateOnly(2026, 1, 1),
+                PeriodEnd = new DateOnly(2036, 12, 31),
+                PhotoMediaConsent = true,
+                TransportConsent = true,
+                OffsiteTripConsent = true,
+                DataSharingConsent = true,
+                Status = ConsentStatus.Approved,
+                SubmittedByParentId = 1,
+                ExpiryDate = DateOnly.FromDateTime(DateTime.UtcNow.AddYears(1))
+            });
+        }
+
+        context.SaveChanges();
+    }
+
+    /// <summary>
+    /// Holds the first save that inserts a StudentLessonCompletion until <see cref="Release"/> is called,
+    /// and counts the saves that insert completions.
+    /// </summary>
+    private sealed class HoldFirstCompletionSave : SaveChangesInterceptor
+    {
+        private readonly TaskCompletionSource _gate = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource _reached = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private int _saves;
+
+        public Task FirstSaveReached => _reached.Task;
+        public int CompletionSaves => Volatile.Read(ref _saves);
+
+        public void Release() => _gate.TrySetResult();
+
+        public override async ValueTask<InterceptionResult<int>> SavingChangesAsync(
+            DbContextEventData eventData, InterceptionResult<int> result, CancellationToken cancellationToken = default)
+        {
+            var inserts = eventData.Context!.ChangeTracker.Entries<StudentLessonCompletion>()
+                .Any(e => e.State == EntityState.Added);
+            if (inserts && Interlocked.Increment(ref _saves) == 1)
+            {
+                _reached.TrySetResult();
+                await _gate.Task;
+            }
+
+            return result;
+        }
     }
 }
