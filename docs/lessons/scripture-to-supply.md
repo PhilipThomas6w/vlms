@@ -4,7 +4,7 @@ Each NKJV quotation in a lesson ends with "NKJV." and each Septuagint quotation 
 
 Total: 388 verses across 46 passages (232 NT, 156 OT). The NKJV free-use limit is 500 verses, with no whole book.
 
-Each passage is a placeholder line in `seed/lessons/` (`> [Scripture: ..., Text to be added.]`). Old Testament text is from the Orthodox Study Bible (St Athanasius Academy Septuagint); New Testament text is the NKJV.
+All passages below were put into the lessons on 27/10/2026, extracted by script from Philip's copy of the Orthodox Study Bible (PDF). Old Testament text is the St Athanasius Academy Septuagint, with its numbering where it differs: Exodus 8:1-15, 8:16-19 and 8:20-24 are OSB Exodus 7:26-8:11, 8:12-15 and 8:16-20; Isaiah 9:1-2 is OSB Isaiah 9:1 and Isaiah 9:6-7 is OSB Isaiah 9:5-6. The fill-in table `Scripture to supply.docx` is no longer needed.
 
 | Lesson | Section heading | Reference | Testament | Verses |
 |---|---|---|---|---|
