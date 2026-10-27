@@ -136,6 +136,5 @@
 
 @code {
     private bool NeedsTwoFactor => !CurrentUser.HasMfaEnabled
-        && (CurrentUser.HasRole(Vlms.Domain.Role.Admin) || CurrentUser.HasRole(Vlms.Domain.Role.Teacher)
-            || CurrentUser.HasRole(Vlms.Domain.Role.SafeguardingOfficer) || CurrentUser.HasRole(Vlms.Domain.Role.NationalAdministrator));
+        && (CurrentUser.HoldsStaffRoleInAnyChapter || CurrentUser.HasRole(Vlms.Domain.Role.NationalAdministrator));
 }

@@ -47,4 +47,17 @@ public interface ICurrentUserContext
     /// offered to everyone).
     /// </summary>
     bool HasMfaEnabled { get; }
+
+    /// <summary>
+    /// Whether the caller holds a Teacher, Admin or Safeguarding Officer role that still counts in
+    /// <b>any</b> chapter, not just <see cref="ActiveChapterId"/> (docs/adr/0010-chapters.md
+    /// assumption 9, amended by Philip 27/10/2026): one account has one password, so an account
+    /// that is staff anywhere must use MFA whichever chapter it is working in, including one where
+    /// it is only a Parent. A staff leaver's staff rows are history and do not count (FR-017).
+    /// Consulted by <see cref="Vlms.Infrastructure.Authorization.MfaRequirementHandler"/>. The
+    /// default covers only the active chapter, which is all a context that is not a signed-in
+    /// person can know; <c>IdentityCurrentUserContext</c> checks every chapter.
+    /// </summary>
+    bool HoldsStaffRoleInAnyChapter =>
+        HasRole(Role.Admin) || HasRole(Role.SafeguardingOfficer) || HasRole(Role.Teacher);
 }
