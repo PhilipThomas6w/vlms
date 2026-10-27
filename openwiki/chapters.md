@@ -19,7 +19,7 @@ Top-level rows default to / must be in the active chapter (system principal may 
 ## Who you are working as
 
 - `ICurrentUserContext.ActiveChapterId` / `SeesAllChapters` (new members; every implementation updated: Identity, System (sees all, no active chapter), Null, `Security/AccountLookupUserContext` (one account, for `VlmsUserConfirmation` at sign-in), tests' `FakeCurrentUserContext` (defaults to Shrewsbury) and `TestSeedUserContext`).
-- `IdentityCurrentUserContext`: active chapter = `Chapters/ChapterMembership.ResolveActiveChapter` (valid `ActiveChapterChoice`, else lowest chapter with a counting role); chapter roles count only there; re-read every call. `Chapters/ChapterScopeOverride` (scoped) overrides the active chapter only inside `GuardianInviteService`'s token-verified accept calls.
+- `IdentityCurrentUserContext`: active chapter = `Chapters/ChapterMembership.ResolveActiveChapter` (valid `ActiveChapterChoice`, else lowest chapter with a counting role); chapter roles count only there; re-read every call. Exception: the MFA rule uses `HoldsStaffRoleInAnyChapter` (staff role in any chapter, leavers excluded; 27/10/2026, assumption 9 amended). `Chapters/ChapterScopeOverride` (scoped) overrides the active chapter only inside `GuardianInviteService`'s token-verified accept calls.
 - Switcher: `Components/Layout/ChapterBar.razor` in `MainLayout` (name always, switch form only with >1 chapter) posting to `ChapterSwitchEndpoint` (`POST /chapters/switch`, `RequireSignedIn`, antiforgery, local return paths).
 
 ## Services and pages

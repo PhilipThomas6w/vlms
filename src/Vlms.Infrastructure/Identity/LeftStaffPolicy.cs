@@ -50,6 +50,18 @@ public static class LeftStaffPolicy
     }
 
     /// <summary>
+    /// Whether <paramref name="userId"/> holds a Teacher, Admin or Safeguarding Officer role that
+    /// still counts, in any chapter: they hold one and have not left. Used for the account-wide MFA
+    /// rule (docs/adr/0010-chapters.md assumption 9, amended 27/10/2026).
+    /// </summary>
+    public static bool HoldsCountingStaffRoleInAnyChapter(VlmsDbContext db, int userId)
+    {
+        ArgumentNullException.ThrowIfNull(db);
+        return db.AppUsers.Any(u => u.Id == userId && !u.HasLeft
+            && u.Roles.Any(r => r.Role == Role.Teacher || r.Role == Role.Admin || r.Role == Role.SafeguardingOfficer));
+    }
+
+    /// <summary>
     /// Whether <paramref name="userId"/> may not sign in at all: they have left and hold no role
     /// that still counts (no Parent, Approver or Student role). A parent, Approver or student who
     /// left keeps theirs, so only staff leavers with nothing else are caught.
