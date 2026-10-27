@@ -24,10 +24,21 @@ public sealed class StaffStepDown
 
     public required DateTime SteppedDownAt { get; init; }
 
-    /// <summary>The Admin who recorded it; null only for a step-down recorded before this table existed.</summary>
+    /// <summary>
+    /// The Admin who recorded it; null for a step-down recorded before this table existed
+    /// (<see cref="RecordedBeforeHistory"/>), or once the Admin's account has been deleted under
+    /// the retention rules (docs/adr/0014).
+    /// </summary>
     public int? SteppedDownByUserId { get; init; }
+
+    /// <summary>
+    /// True for a step-down copied in when this table was created, which names no Admin. Tells it
+    /// apart from one whose Admin's account was later deleted, which shows as "a former member of staff".
+    /// </summary>
+    public bool RecordedBeforeHistory { get; init; }
 
     public DateTime? ReinstatedAt { get; init; }
 
+    /// <summary>The Admin who reinstated them; null once that Admin's account has been deleted (docs/adr/0014).</summary>
     public int? ReinstatedByUserId { get; init; }
 }

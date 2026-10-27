@@ -197,9 +197,9 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
             e.Property(x => x.ContentVersion).HasMaxLength(64);
             e.HasIndex(x => new { x.LessonId, x.Number }).IsUnique();
             e.HasOne(x => x.Suggestion).WithMany().HasForeignKey(x => x.SuggestionId).OnDelete(DeleteBehavior.Restrict);
-            e.HasOne<AppUser>().WithMany().HasForeignKey(x => x.SuggestedByUserId).OnDelete(DeleteBehavior.Restrict);
-            e.HasOne<AppUser>().WithMany().HasForeignKey(x => x.ApprovedByUserId).OnDelete(DeleteBehavior.Restrict);
-            e.HasOne<AppUser>().WithMany().HasForeignKey(x => x.PublishedByUserId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne<AppUser>().WithMany().HasForeignKey(x => x.SuggestedByUserId).OnDelete(DeleteBehavior.SetNull);
+            e.HasOne<AppUser>().WithMany().HasForeignKey(x => x.ApprovedByUserId).OnDelete(DeleteBehavior.SetNull);
+            e.HasOne<AppUser>().WithMany().HasForeignKey(x => x.PublishedByUserId).OnDelete(DeleteBehavior.SetNull);
             e.HasMany(x => x.Tags).WithOne().HasForeignKey(x => x.LessonVersionId).OnDelete(DeleteBehavior.Cascade);
             e.HasMany(x => x.Pictures).WithOne(x => x.LessonVersion).HasForeignKey(x => x.LessonVersionId).OnDelete(DeleteBehavior.Cascade);
         });
@@ -217,11 +217,11 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
         {
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
-            e.HasOne(x => x.AuthorUser).WithMany().HasForeignKey(x => x.AuthorUserId).OnDelete(DeleteBehavior.Restrict);
-            e.HasOne(x => x.DecidedByUser).WithMany().HasForeignKey(x => x.DecidedByUserId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.AuthorUser).WithMany().HasForeignKey(x => x.AuthorUserId).OnDelete(DeleteBehavior.SetNull);
+            e.HasOne(x => x.DecidedByUser).WithMany().HasForeignKey(x => x.DecidedByUserId).OnDelete(DeleteBehavior.SetNull);
             e.HasOne<Rank>().WithMany().HasForeignKey(x => x.RankId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne<LessonSuggestion>().WithMany().HasForeignKey(x => x.RevisesSuggestionId).OnDelete(DeleteBehavior.Restrict);
-            e.HasOne<AppUser>().WithMany().HasForeignKey(x => x.ReferredByUserId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne<AppUser>().WithMany().HasForeignKey(x => x.ReferredByUserId).OnDelete(DeleteBehavior.SetNull);
             e.HasMany(x => x.CommitteeApprovals).WithOne(x => x.LessonSuggestion).HasForeignKey(x => x.LessonSuggestionId).OnDelete(DeleteBehavior.Restrict);
             e.HasMany(x => x.Tags).WithOne().HasForeignKey(x => x.LessonSuggestionId).OnDelete(DeleteBehavior.Cascade);
             e.HasMany(x => x.Pictures).WithOne(x => x.LessonSuggestion).HasForeignKey(x => x.LessonSuggestionId).OnDelete(DeleteBehavior.Cascade);
@@ -244,7 +244,7 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
         {
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
-            e.HasOne(x => x.ApproverUser).WithMany().HasForeignKey(x => x.ApproverUserId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.ApproverUser).WithMany().HasForeignKey(x => x.ApproverUserId).OnDelete(DeleteBehavior.SetNull);
             e.HasIndex(x => new { x.LessonSuggestionId, x.ApproverUserId }).IsUnique();
             e.HasIndex(x => new { x.LessonSuggestionId, x.Position }).IsUnique();
         });
@@ -253,7 +253,7 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
         {
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
-            e.HasOne(x => x.ChangedByUser).WithMany().HasForeignKey(x => x.ChangedByUserId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.ChangedByUser).WithMany().HasForeignKey(x => x.ChangedByUserId).OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<Student>(e =>
@@ -261,7 +261,7 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
             e.HasOne(x => x.CurrentRank).WithMany().HasForeignKey(x => x.CurrentRankId).OnDelete(DeleteBehavior.Restrict);
-            e.HasOne(x => x.AssignedTeacherUser).WithMany().HasForeignKey(x => x.AssignedTeacherUserId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.AssignedTeacherUser).WithMany().HasForeignKey(x => x.AssignedTeacherUserId).OnDelete(DeleteBehavior.SetNull);
             // Self-login link (added during implementation to support self/parent login — see
             // data-design.md and STATE.md).
             e.HasOne(x => x.AppUser).WithMany().HasForeignKey(x => x.AppUserId).OnDelete(DeleteBehavior.Restrict);
@@ -285,14 +285,14 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
             e.HasKey(x => new { x.StudentId, x.ParentGuardianId });
             e.HasOne(x => x.Student).WithMany(x => x.GuardianLinks).HasForeignKey(x => x.StudentId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x => x.ParentGuardian).WithMany(x => x.StudentLinks).HasForeignKey(x => x.ParentGuardianId).OnDelete(DeleteBehavior.Cascade);
-            e.HasOne(x => x.CreatedByUser).WithMany().HasForeignKey(x => x.CreatedByUserId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.CreatedByUser).WithMany().HasForeignKey(x => x.CreatedByUserId).OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<StudentLessonCompletion>(e =>
         {
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
-            e.HasOne(x => x.CompletedByUser).WithMany().HasForeignKey(x => x.CompletedByUserId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.CompletedByUser).WithMany().HasForeignKey(x => x.CompletedByUserId).OnDelete(DeleteBehavior.SetNull);
             e.HasOne(x => x.Certificate).WithOne(x => x.StudentLessonCompletion)
                 .HasForeignKey<Certificate>(x => x.StudentLessonCompletionId).OnDelete(DeleteBehavior.Cascade);
         });
@@ -328,7 +328,7 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
             // At most one Varangians event (class or excursion) a day; parish events are not limited.
             e.HasIndex(x => new { x.ChapterId, x.Date }).IsUnique().HasFilter("kind IN (1, 2)");
             e.HasIndex(x => x.SeriesId);
-            e.HasOne<AppUser>().WithMany().HasForeignKey(x => x.CreatedByUserId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne<AppUser>().WithMany().HasForeignKey(x => x.CreatedByUserId).OnDelete(DeleteBehavior.SetNull);
             e.HasMany(x => x.Registers).WithOne(x => x.ChapterEvent).HasForeignKey(x => x.ChapterEventId).OnDelete(DeleteBehavior.Restrict);
         });
 
@@ -396,7 +396,7 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
             // An excursion's one register for everyone (no rank): one per event.
             e.HasIndex(x => x.ChapterEventId).IsUnique().HasFilter("rank_id IS NULL").HasDatabaseName("IX_attendance_registers_chapter_event_id_everyone");
             e.HasOne(x => x.Rank).WithMany().HasForeignKey(x => x.RankId).OnDelete(DeleteBehavior.Restrict);
-            e.HasOne(x => x.TakenByUser).WithMany().HasForeignKey(x => x.TakenByUserId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.TakenByUser).WithMany().HasForeignKey(x => x.TakenByUserId).OnDelete(DeleteBehavior.SetNull);
             e.HasMany(x => x.Marks).WithOne(x => x.AttendanceRegister).HasForeignKey(x => x.AttendanceRegisterId).OnDelete(DeleteBehavior.Cascade);
         });
 
@@ -423,8 +423,8 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
             e.Property(x => x.Id).ValueGeneratedNever();
             e.HasOne(x => x.SubmittedByParent).WithMany(x => x.SubmittedConsentRecords)
                 .HasForeignKey(x => x.SubmittedByParentId).OnDelete(DeleteBehavior.Restrict);
-            e.HasOne(x => x.ApprovedByUser).WithMany().HasForeignKey(x => x.ApprovedByUserId).OnDelete(DeleteBehavior.Restrict);
-            e.HasOne(x => x.SubmittedByUser).WithMany().HasForeignKey(x => x.SubmittedByUserId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.ApprovedByUser).WithMany().HasForeignKey(x => x.ApprovedByUserId).OnDelete(DeleteBehavior.SetNull);
+            e.HasOne(x => x.SubmittedByUser).WithMany().HasForeignKey(x => x.SubmittedByUserId).OnDelete(DeleteBehavior.SetNull);
             e.HasOne(x => x.SensitiveDetails).WithOne(x => x.ConsentRecord)
                 .HasForeignKey<ConsentSensitiveDetails>(x => x.ConsentRecordId).OnDelete(DeleteBehavior.Cascade);
         });
@@ -580,15 +580,15 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
 
         // Staff stepping down and reinstatement (functional.md FR-017 as amended 27/10/2026):
         // national like UserRole, no query filter; LeavingService reads the active chapter's rows.
-        // A person's rows go with their account; the Admins named are kept (Restrict), as for
-        // every other "who did this" reference.
+        // A person's rows go with their account; the Admins named are cleared (SetNull) when their
+        // account is deleted, as for every other "who did this" reference (docs/adr/0014).
         modelBuilder.Entity<StaffStepDown>(e =>
         {
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedOnAdd();
             e.HasOne<AppUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
-            e.HasOne<AppUser>().WithMany().HasForeignKey(x => x.SteppedDownByUserId).OnDelete(DeleteBehavior.Restrict);
-            e.HasOne<AppUser>().WithMany().HasForeignKey(x => x.ReinstatedByUserId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne<AppUser>().WithMany().HasForeignKey(x => x.SteppedDownByUserId).OnDelete(DeleteBehavior.SetNull);
+            e.HasOne<AppUser>().WithMany().HasForeignKey(x => x.ReinstatedByUserId).OnDelete(DeleteBehavior.SetNull);
             e.HasOne<Chapter>().WithMany().HasForeignKey(x => x.ChapterId).OnDelete(DeleteBehavior.Restrict);
             e.HasIndex(x => new { x.UserId, x.SteppedDownAt });
         });
@@ -601,8 +601,8 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
             e.Property(x => x.Id).ValueGeneratedNever();
             e.HasOne(x => x.Student).WithMany().HasForeignKey(x => x.StudentId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x => x.ParentGuardian).WithMany().HasForeignKey(x => x.ParentGuardianId).OnDelete(DeleteBehavior.Cascade);
-            e.HasOne(x => x.CreatedByUser).WithMany().HasForeignKey(x => x.CreatedByUserId).OnDelete(DeleteBehavior.Restrict);
-            e.HasOne(x => x.ConsumedByAppUser).WithMany().HasForeignKey(x => x.ConsumedByAppUserId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.CreatedByUser).WithMany().HasForeignKey(x => x.CreatedByUserId).OnDelete(DeleteBehavior.SetNull);
+            e.HasOne(x => x.ConsumedByAppUser).WithMany().HasForeignKey(x => x.ConsumedByAppUserId).OnDelete(DeleteBehavior.SetNull);
         });
 
         // Parent registration applications (functional.md FR-004 as amended 22/10/2026, adr/0008
@@ -613,8 +613,8 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
             e.HasOne(x => x.ApplicantUser).WithMany().HasForeignKey(x => x.ApplicantUserId).OnDelete(DeleteBehavior.Restrict);
-            e.HasOne(x => x.SafeguardingReviewedByUser).WithMany().HasForeignKey(x => x.SafeguardingReviewedByUserId).OnDelete(DeleteBehavior.Restrict);
-            e.HasOne(x => x.AdminDecidedByUser).WithMany().HasForeignKey(x => x.AdminDecidedByUserId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.SafeguardingReviewedByUser).WithMany().HasForeignKey(x => x.SafeguardingReviewedByUserId).OnDelete(DeleteBehavior.SetNull);
+            e.HasOne(x => x.AdminDecidedByUser).WithMany().HasForeignKey(x => x.AdminDecidedByUserId).OnDelete(DeleteBehavior.SetNull);
             e.HasOne(x => x.Student).WithMany().HasForeignKey(x => x.StudentId).OnDelete(DeleteBehavior.SetNull);
             e.HasOne(x => x.ConsentRecord).WithMany().HasForeignKey(x => x.ConsentRecordId).OnDelete(DeleteBehavior.SetNull);
             e.HasOne(x => x.SensitiveDetails).WithOne(x => x.StudentApplication)

@@ -139,6 +139,25 @@ public sealed class AttendanceServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task ARegisterTakenByADeletedAccount_KeepsItsMarks_AndReadsAFormerMemberOfStaff()
+    {
+        await Save(Today, (100, true), (200, false));
+        using (var db = CreateDb(TestSeedUserContext.Instance))
+        {
+            // As the retention purge deletes an account (docs/adr/0014): the database clears the reference.
+            db.AppUsers.Remove(db.AppUsers.Single(u => u.Id == Teacher));
+            db.SaveChanges();
+            Assert.Null(db.AttendanceRegisters.Single().TakenByUserId);
+        }
+
+        var view = await View(As(Admin, Role.Admin), Today);
+
+        Assert.True(view!.Taken);
+        Assert.Equal(FormerStaff.Name, view.TakenByName);
+        Assert.Equal([true, false], view.Students.Select(r => r.Present));
+    }
+
+    [Fact]
     public async Task Teacher_TakesTheRegister_AndItListsEveryActiveStudentInTheClassWithTheirMark()
     {
         var result = await Save(Today, (100, true), (200, false));

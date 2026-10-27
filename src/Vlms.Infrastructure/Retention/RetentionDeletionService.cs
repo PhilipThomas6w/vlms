@@ -59,9 +59,11 @@ public sealed record RetentionDeletionResult(
 /// still in the programme (a guardian row with a link, or a student record), a DBS check, or a
 /// registration application. A staff leaver's account goes only once they left at least 6 years ago
 /// (the DBS retention period) and their DBS records are deleted; their staff roles, kept as history,
-/// do not count as current. The account is also kept, and reported as kept, while any other kept
-/// record still refers to it (for example a lesson they suggested), because deleting it would break
-/// that record. The caller's own account is never deleted.</item>
+/// do not count as current. The caller's own account is never deleted. A kept record that names the
+/// person only as the one who acted (a register taken by, a lesson version suggested or approved
+/// by, a step-down recorded by, and similar) does not keep the account: it keeps its content, the
+/// link to the person is cleared by the database (ON DELETE SET NULL), and it shows
+/// <see cref="FormerStaff.Name"/> (docs/adr/0014, settled after build 27/10/2026).</item>
 /// <item>Each deleted record, guardian row and account writes a <see cref="DeletionLogEntry"/> in the
 /// same transaction: type, id, date, who, chapter; no personal data.</item>
 /// </list>
@@ -340,30 +342,20 @@ public sealed class RetentionDeletionService
             }
         }
 
-        var guardiansToLog = orphanGuardians.Select(g => g.Id).ToList();
         _db.ParentGuardians.RemoveRange(orphanGuardians);
         await _db.SaveChangesAsync(ct);
-
-        if (await IsReferencedAsync(typeof(AppUser), userId, ct))
+        foreach (var guardian in orphanGuardians)
         {
-            // Another kept record names this account (for example a lesson they suggested or a
-            // register they took): deleting it would break that record. Kept and reported.
-            _logger.LogWarning("Account {UserId} kept: other records still refer to it.", userId);
-            foreach (var guardianId in guardiansToLog)
-            {
-                Log(DeletionLogEntry.RecordTypes.ParentGuardian, guardianId, now, adminId, chapterId);
-            }
-
-            return false;
+            Log(DeletionLogEntry.RecordTypes.ParentGuardian, guardian.Id, now, adminId, chapterId);
         }
 
-        foreach (var guardianId in guardiansToLog)
-        {
-            Log(DeletionLogEntry.RecordTypes.ParentGuardian, guardianId, now, adminId, chapterId);
-        }
-
-        // Roles, the active-chapter choice, calendar preferences and subscribe links cascade from the
-        // account; the sign-in's claims, logins and tokens cascade from the sign-in.
+        // Roles, the active-chapter choice, calendar preferences, subscribe links and step-down
+        // history cascade from the account; the sign-in's claims, logins and tokens cascade from the
+        // sign-in. Records that name the person only as the one who acted (a register they took, a
+        // lesson version they suggested or approved, a step-down they recorded, and the like) keep
+        // their content: the database's ON DELETE SET NULL clears the link, and they show "a former
+        // member of staff" (docs/adr/0014, settled after build). The only other references to an
+        // account are the keep-rules above (DBS check, student record, guardian row, application).
         _db.AppUsers.Remove(user);
         var signIn = await _db.Users.SingleOrDefaultAsync(u => u.Id == userId, ct);
         if (signIn is not null)

@@ -14,7 +14,8 @@ public sealed class StudentGuardianLink : IChapterOwned
 
     public required int StudentId { get; init; }
     public required int ParentGuardianId { get; init; }
-    public required int CreatedByUserId { get; init; }
+    /// <summary>Null once that person's account has been deleted under the retention rules (docs/adr/0014).</summary>
+    public required int? CreatedByUserId { get; init; }
 
     /// <summary>The guardian's relationship to the child, as given in a parent's registration application. Null for links made by staff.</summary>
     public string? Relationship { get; init; }

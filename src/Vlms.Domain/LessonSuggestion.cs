@@ -46,7 +46,8 @@ public sealed class LessonSuggestion
     /// <summary>The <see cref="LessonVersion.Number"/> it was based on; null for a new lesson. A suggestion based on an older version cannot be approved.</summary>
     public int? BaseVersionNumber { get; init; }
 
-    public required int AuthorUserId { get; init; }
+    /// <summary>Null once that person's account has been deleted under the retention rules (docs/adr/0014).</summary>
+    public required int? AuthorUserId { get; init; }
 
     public required string Title { get; init; }
     public required int Order { get; init; }
@@ -103,7 +104,8 @@ public sealed class LessonSuggestionApproval
 
     public required int Id { get; init; }
     public required int LessonSuggestionId { get; init; }
-    public required int ApproverUserId { get; init; }
+    /// <summary>Null once that person's account has been deleted under the retention rules (docs/adr/0014).</summary>
+    public required int? ApproverUserId { get; init; }
 
     /// <summary>1, 2 or 3: the order the approvals were given in.</summary>
     public required int Position { get; init; }
@@ -144,7 +146,8 @@ public sealed class LessonPublishingSettingChange
 {
     public required int Id { get; init; }
     public required bool DirectPublishingAllowed { get; init; }
-    public required int ChangedByUserId { get; init; }
+    /// <summary>Null once that person's account has been deleted under the retention rules (docs/adr/0014).</summary>
+    public required int? ChangedByUserId { get; init; }
     public required DateTime ChangedAt { get; init; }
 
     public AppUser? ChangedByUser { get; init; }

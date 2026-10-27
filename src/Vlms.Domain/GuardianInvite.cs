@@ -44,7 +44,8 @@ public sealed class GuardianInvite : IChapterOwned
     public required int Id { get; init; }
     public required int StudentId { get; init; }
     public required int ParentGuardianId { get; init; }
-    public required int CreatedByUserId { get; init; }
+    /// <summary>Null once that person's account has been deleted under the retention rules (docs/adr/0014).</summary>
+    public required int? CreatedByUserId { get; init; }
     public required DateTimeOffset CreatedAt { get; init; }
     public required DateTimeOffset ExpiresAt { get; init; }
 

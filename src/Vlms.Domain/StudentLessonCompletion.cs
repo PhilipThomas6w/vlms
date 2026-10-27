@@ -9,7 +9,8 @@ public sealed class StudentLessonCompletion : IChapterOwned
     public required int Id { get; init; }
     public required int StudentId { get; init; }
     public required int LessonId { get; init; }
-    public required int CompletedByUserId { get; init; }
+    /// <summary>Null once that person's account has been deleted under the retention rules (docs/adr/0014).</summary>
+    public required int? CompletedByUserId { get; init; }
     public required DateTime CompletedAt { get; init; }
     public string? Note { get; init; }
     public required bool IsReversed { get; init; }

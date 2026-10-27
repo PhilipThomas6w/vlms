@@ -355,6 +355,57 @@ public sealed class LessonSuggestionCommitteeTests : IDisposable
         Assert.Null(history.Versions[1].Referral);
     }
 
+    // --- Deleted accounts (docs/adr/0014, settled after build) -----------------------------------------------------
+
+    [Fact]
+    public async Task WhenTheAccountsNamedAreDeleted_TheRecordsAreKept_AndReadAFormerMemberOfStaff()
+    {
+        // Version 2: suggested by the Teacher, referred by Approver A, approved by committee.
+        var referred = await SubmitAndReferAsync();
+        foreach (var approver in new[] { ApproverB, ApproverC, ApproverA })
+        {
+            await As(approver, ApproverRoles, s => s.ApproveReferredAsync(referred));
+        }
+        // Version 3: published directly by Approver D.
+        await As(ApproverD, ApproverRoles, s => s.PublishNowAsync(Edit(ChangedBody + "- And a third question?\n")));
+        // Sent back by Approver B; then one submitted and awaiting review.
+        var sentBack = await As(Teacher, TeacherRoles, s => s.SubmitAsync(Edit(ChangedBody + "- A fourth?\n")));
+        await As(ApproverB, ApproverRoles, s => s.SendBackAsync(sentBack, "Not this one."));
+        await As(Teacher, TeacherRoles, s => s.SubmitAsync(Edit(ChangedBody + "- A fifth?\n")));
+        await As(Admin, [Role.NationalAdministrator], s => s.SetDirectPublishingAllowedAsync(false));
+
+        // The accounts go (their roles cascade); the database clears every reference to them.
+        using (var db = Context(new FakeCurrentUserContext(Admin, Role.Admin)))
+        {
+            db.AppUsers.RemoveRange(db.AppUsers.Where(u => u.Id != ApproverC));
+            await db.SaveChangesAsync();
+            Assert.Equal(3, await db.LessonVersions.CountAsync());
+            Assert.Equal(3, await db.LessonSuggestionApprovals.CountAsync());
+            var version2 = await db.LessonVersions.SingleAsync(v => v.Number == 2);
+            Assert.Contains("Which two Liturgies", version2.Body);
+            Assert.Equal((null, null, null), (version2.SuggestedByUserId, version2.ApprovedByUserId, version2.PublishedByUserId));
+        }
+
+        var history = await As(ApproverC, ApproverRoles, s => s.GetHistoryAsync(LessonCode));
+        var direct = history!.Versions[0];
+        Assert.Equal((3, FormerStaff.Name, null, FormerStaff.Name), (direct.Number, direct.SuggestedBy, direct.ApprovedBy, direct.PublishedBy));
+        var approved = history.Versions[1];
+        Assert.Equal((2, FormerStaff.Name, FormerStaff.Name, null), (approved.Number, approved.SuggestedBy, approved.ApprovedBy, approved.PublishedBy));
+        Assert.Equal(FormerStaff.Name, approved.Referral!.ReferredBy);
+        Assert.Equal([FormerStaff.Name, "Approver C", FormerStaff.Name], approved.CommitteeApprovals!.Select(a => a.ApprovedBy));
+        var converted = history.Versions[2];
+        Assert.Equal((LessonVersionKind.Converted, null, null, null), (converted.Kind, converted.SuggestedBy, converted.ApprovedBy, converted.PublishedBy));
+        var back = Assert.Single(history.SentBack);
+        Assert.Equal((FormerStaff.Name, FormerStaff.Name, "Not this one."), (back.SuggestedBy, back.SentBackBy, back.Comment));
+
+        var review = await As(ApproverC, ApproverRoles, s => s.GetReviewAsync(sentBack));
+        Assert.Equal((FormerStaff.Name, FormerStaff.Name), (review!.SuggestedBy, review.DecidedBy));
+        var queued = Assert.Single(await As(ApproverC, ApproverRoles, s => s.GetQueueAsync()));
+        Assert.Equal(FormerStaff.Name, queued.SuggestedBy);
+        var setting = await As(ApproverC, [Role.NationalAdministrator], s => s.GetPublishingSettingAsync());
+        Assert.Equal(FormerStaff.Name, Assert.Single(setting.Changes).ChangedBy);
+    }
+
     // --- Alerts ----------------------------------------------------------------------------------------------------
 
     [Fact]

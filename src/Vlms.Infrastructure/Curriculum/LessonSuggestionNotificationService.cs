@@ -44,7 +44,7 @@ public sealed class LessonSuggestionNotificationService
                 {
                     s.Kind,
                     Title = s.Lesson != null ? s.Lesson.Title : s.Title,
-                    Author = s.AuthorUser!.DisplayName,
+                    Author = s.AuthorUser != null ? s.AuthorUser.DisplayName : FormerStaff.Name,
                     s.RankId
                 })
                 .SingleAsync(ct);

@@ -948,8 +948,10 @@ public sealed class StudentApplicationService
                 Application = a,
                 ApplicantName = a.ApplicantUser!.DisplayName,
                 ApplicantEmail = a.ApplicantUser.Email,
-                ReviewerName = a.SafeguardingReviewedByUser == null ? null : a.SafeguardingReviewedByUser.DisplayName,
-                AdminName = a.AdminDecidedByUser == null ? null : a.AdminDecidedByUser.DisplayName
+                ReviewerName = a.SafeguardingReviewedByUser != null ? a.SafeguardingReviewedByUser.DisplayName
+                    : a.SafeguardingReviewedAt != null ? FormerStaff.Name : null,
+                AdminName = a.AdminDecidedByUser != null ? a.AdminDecidedByUser.DisplayName
+                    : a.AdminDecidedAt != null ? FormerStaff.Name : null
             })
             .ToListAsync(ct);
 
