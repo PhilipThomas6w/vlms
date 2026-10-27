@@ -66,9 +66,19 @@ public sealed record ExistingStudentMatch(
 /// <summary>A rank the Admin can choose as the starting rank.</summary>
 public sealed record RankOption(int Id, int Order, string Name);
 
+/// <summary>
+/// A guardian record in the application's chapter with no account whose email matches the
+/// applicant's (adr/0008 decision 8): the Admin may attach the applicant's account to it instead of
+/// creating a second guardian record.
+/// </summary>
+public sealed record ExistingGuardianMatch(int ParentGuardianId, string Name, IReadOnlyList<string> ChildNames);
+
 /// <summary>What the Admin's approval page needs.</summary>
 public sealed record ApplicationForApproval(
-    ApplicationView Application, IReadOnlyList<ExistingStudentMatch> SameNameAndDateOfBirth, IReadOnlyList<RankOption> Ranks);
+    ApplicationView Application,
+    IReadOnlyList<ExistingStudentMatch> SameNameAndDateOfBirth,
+    IReadOnlyList<RankOption> Ranks,
+    IReadOnlyList<ExistingGuardianMatch> GuardiansWithSameEmail);
 
 /// <summary>
 /// Parent registration with two-stage approval (functional.md FR-004 as amended 22/10/2026,
@@ -429,7 +439,9 @@ public sealed class StudentApplicationService
         var view = await LoadViewAsync(applicationId, ct);
         var matches = await FindSameNameAndDateOfBirthAsync(view.ChildName, view.ChildDateOfBirth, ct);
         var ranks = await _db.Ranks.OrderBy(r => r.Order).Select(r => new RankOption(r.Id, r.Order, r.Name)).ToListAsync(ct);
-        return new ApplicationForApproval(view, matches, ranks);
+        var chapterId = await StaffApplications.Where(a => a.Id == applicationId).Select(a => a.ChapterId).SingleAsync(ct);
+        var guardians = await FindGuardiansWithSameEmailAsync(view.ApplicantUserId, chapterId, ct);
+        return new ApplicationForApproval(view, matches, ranks, guardians);
     }
 
     /// <summary>
@@ -438,8 +450,22 @@ public sealed class StudentApplicationService
     /// with the same name and date of birth) must be given. Everything is created in one
     /// transaction; see the class comment. Returns the student's id.
     /// </summary>
+    public Task<int> ApproveAsync(
+        int applicationId, int? startingRankId, int? existingStudentId = null, CancellationToken ct = default) =>
+        ApproveAsync(applicationId, startingRankId, existingStudentId, existingGuardianId: null, ct);
+
+    /// <summary>
+    /// Final approval, as <see cref="ApproveAsync(int, int?, int?, CancellationToken)"/>. With
+    /// <paramref name="existingGuardianId"/> (adr/0008 decision 8), the applicant's account is
+    /// attached to that existing guardian record instead of a new one being created. It must still,
+    /// at this moment, be one of <see cref="ApplicationForApproval.GuardiansWithSameEmail"/>: in the
+    /// application's chapter, with no account, its email the applicant's (trimmed, case-insensitive),
+    /// and the applicant with no guardian record of their own in the chapter. The record keeps its
+    /// own name, email, phone and address; phone and address are filled from the application only
+    /// where the record has none.
+    /// </summary>
     public async Task<int> ApproveAsync(
-        int applicationId, int? startingRankId, int? existingStudentId = null, CancellationToken ct = default)
+        int applicationId, int? startingRankId, int? existingStudentId, int? existingGuardianId, CancellationToken ct = default)
     {
         var adminId = RequireAdmin();
         if ((startingRankId is null) == (existingStudentId is null))
@@ -510,10 +536,50 @@ public sealed class StudentApplicationService
         }
 
         // The applicant's guardian record: their own, linked to their signed-in account. An
-        // unlinked guardian record with the same email is deliberately not adopted: ownership is
-        // proved by accepting that record's invite, never by matching the email alone (FR-004).
-        var guardian = await _db.ParentGuardians.Where(g => g.AppUserId == applicant.Id).OrderBy(g => g.Id).FirstOrDefaultAsync(ct);
-        if (guardian is null)
+        // unlinked guardian record with the same email is never adopted automatically, only when
+        // the Admin chooses it here (adr/0008 decision 8), re-checked now.
+        ParentGuardian? guardian;
+        var reuseExistingLink = false;
+        if (existingGuardianId is int chosenGuardianId)
+        {
+            var candidates = await FindGuardiansWithSameEmailAsync(applicant.Id, application.ChapterId, ct);
+            if (candidates.All(c => c.ParentGuardianId != chosenGuardianId))
+            {
+                throw new InvalidOperationException(
+                    "That guardian record can no longer be linked: it has an account, is in another chapter, or its email has changed. Open the application again.");
+            }
+
+            guardian = await _db.ParentGuardians.SingleAsync(g => g.Id == chosenGuardianId && g.ChapterId == application.ChapterId, ct);
+            var chosenId = guardian.Id;
+            var linkedStudents = await _db.StudentGuardianLinks
+                .Where(l => l.ParentGuardianId == chosenId)
+                .Select(l => new { l.StudentId, l.Student!.Name })
+                .ToListAsync(ct);
+            var sameName = linkedStudents.FirstOrDefault(l => NormaliseName(l.Name) == childKey);
+            if (sameName is not null)
+            {
+                if (sameName.StudentId != student.Id)
+                {
+                    throw new InvalidOperationException(
+                        $"{guardian.Name} is already linked to a student called {sameName.Name}. Link to that student instead.");
+                }
+
+                reuseExistingLink = true;
+            }
+
+            var guardianValues = _db.Entry(guardian).CurrentValues;
+            guardianValues[nameof(ParentGuardian.AppUserId)] = applicant.Id;
+            if (string.IsNullOrWhiteSpace(guardian.Phone))
+            {
+                guardianValues[nameof(ParentGuardian.Phone)] = application.ParentPhone;
+            }
+
+            if (string.IsNullOrWhiteSpace(guardian.PostalAddress))
+            {
+                guardianValues[nameof(ParentGuardian.PostalAddress)] = application.ParentPostalAddress;
+            }
+        }
+        else if ((guardian = await _db.ParentGuardians.Where(g => g.AppUserId == applicant.Id).OrderBy(g => g.Id).FirstOrDefaultAsync(ct)) is null)
         {
             guardian = new ParentGuardian
             {
@@ -534,19 +600,25 @@ public sealed class StudentApplicationService
             guardianValues[nameof(ParentGuardian.PostalAddress)] = application.ParentPostalAddress;
         }
 
-        if (existingStudentId is not null
+        if (!reuseExistingLink
+            && existingStudentId is not null
             && await _db.StudentGuardianLinks.AnyAsync(l => l.StudentId == student.Id && l.ParentGuardianId == guardian.Id, ct))
         {
             throw new InvalidOperationException($"{applicant.DisplayName} is already linked to {student.Name}.");
         }
 
-        _db.StudentGuardianLinks.Add(new StudentGuardianLink
+        // A staff-entered guardian already linked to this student: the account now reaches the
+        // student through that link, which is kept as it is.
+        if (!reuseExistingLink)
         {
-            StudentId = student.Id,
-            ParentGuardianId = guardian.Id,
-            CreatedByUserId = adminId,
-            Relationship = application.Relationship
-        });
+            _db.StudentGuardianLinks.Add(new StudentGuardianLink
+            {
+                StudentId = student.Id,
+                ParentGuardianId = guardian.Id,
+                CreatedByUserId = adminId,
+                Relationship = application.Relationship
+            });
+        }
 
         // The consent form on the application, reviewed at stage 1, becomes the approved consent.
         // ApprovedByUserId is the Safeguarding Officer who reviewed it (consent sign-off is theirs,
@@ -799,6 +871,37 @@ public sealed class StudentApplicationService
             .ToListAsync(ct);
         return studentNames.Select(NormaliseName).ToHashSet();
     }
+
+    /// <summary>
+    /// Guardian records the applicant's account may be attached to (adr/0008 decision 8): in
+    /// <paramref name="chapterId"/> and visible through the chapter query filter, with no account,
+    /// whose email equals the applicant's, trimmed and case-insensitive. None when the applicant
+    /// already has a guardian record of their own in the chapter.
+    /// </summary>
+    private async Task<IReadOnlyList<ExistingGuardianMatch>> FindGuardiansWithSameEmailAsync(
+        int applicantUserId, int chapterId, CancellationToken ct)
+    {
+        var email = await _db.AppUsers.Where(u => u.Id == applicantUserId).Select(u => u.Email).SingleAsync(ct);
+        var key = NormaliseEmail(email);
+        if (key.Length == 0
+            || await _db.ParentGuardians.AnyAsync(g => g.AppUserId == applicantUserId && g.ChapterId == chapterId, ct))
+        {
+            return [];
+        }
+
+        var unlinked = await _db.ParentGuardians
+            .Where(g => g.ChapterId == chapterId && g.AppUserId == null)
+            .Select(g => new { g.Id, g.Name, g.ContactInfo, Children = g.StudentLinks.Select(l => l.Student!.Name).ToList() })
+            .ToListAsync(ct);
+
+        return unlinked
+            .Where(g => NormaliseEmail(g.ContactInfo) == key)
+            .OrderBy(g => g.Id)
+            .Select(g => new ExistingGuardianMatch(g.Id, g.Name, g.Children.Order().ToList()))
+            .ToList();
+    }
+
+    private static string NormaliseEmail(string? email) => (email ?? "").Trim().ToUpperInvariant();
 
     private async Task<IReadOnlyList<ExistingStudentMatch>> FindSameNameAndDateOfBirthAsync(
         string childName, DateOnly dateOfBirth, CancellationToken ct)

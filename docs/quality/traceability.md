@@ -25,7 +25,7 @@ Note: `BR-nnn` identifiers here are provisional groupings assigned during design
 | FR-001 Annual consent record, approved by SO/Admin only | `ConsentRecordService` | TC-008 (`ConsentRecordServiceTests`) | Verified (automated) |
 | FR-002 DBS tracking, Admin/SO only | `DbsCheckService`, query filters | TC-007, TC-008 | Verified (automated) |
 | FR-003 Expiry monitoring, escalating alerts, expired consent blocks completion | `ConsentExpiryJob`, `ConsentExpiryNotifier`, `CompletionService` | TC-002, TC-009, TC-013 | Verified (automated); escalation reaches Admin/SO by email and log, alert route for failures `[TBC – Philip]` |
-| FR-004 Guardian link by Admin/Teacher only; invite grants no role | `GuardianLinkService`, `StudentRegistrationService`, `RoleAssignmentService` | TC-012 | Verified (automated) |
+| FR-004 Guardian link by Admin/Teacher only; invite grants no role; link to an existing staff-entered guardian at final approval (`adr/0008` decision 8) | `GuardianLinkService`, `StudentRegistrationService`, `RoleAssignmentService`, `StudentApplicationService` | TC-012, TC-039a | Verified (automated) |
 | FR-005 Every sensitive read audit-logged | `IMaterializationInterceptor` audit | TC-011, TC-014 | Verified (automated); TC-014 live check pending go-live |
 
 ## Completeness check (13/10/2026)

@@ -61,6 +61,26 @@
                         }
                     </fieldset>
                 }
+                @if (selected.GuardiansWithSameEmail.Count > 0)
+                {
+                    <fieldset>
+                        <legend>Guardian records with the parent's email</legend>
+                        <div class="field--check">
+                            <input id="newGuardian" type="radio" name="Input.ExistingGuardianId" value="" checked="@(Input.ExistingGuardianId is null)" />
+                            <label for="newGuardian">Create a new guardian record</label>
+                        </div>
+                        @foreach (var guardian in selected.GuardiansWithSameEmail)
+                        {
+                            var guardianId = guardian.ParentGuardianId;
+                            <div class="field--check">
+                                <input id="guardian@(guardianId)" type="radio" name="Input.ExistingGuardianId" value="@guardianId" checked="@(Input.ExistingGuardianId == guardianId)" />
+                                <label for="guardian@(guardianId)">
+                                    Link to existing guardian @guardian.Name (children: @(guardian.ChildNames.Count == 0 ? "none" : string.Join(", ", guardian.ChildNames)))
+                                </label>
+                            </div>
+                        }
+                    </fieldset>
+                }
                 <div class="field">
                     <label for="startingRank">Starting rank (for a new student record)</label>
                     <select id="startingRank" name="Input.StartingRankId">
@@ -133,8 +153,10 @@ else
     {
         try
         {
-            _applications = (await Applications.ListForAdminAsync()).ToList();
-            _selected = Id is int id ? await Applications.GetForApprovalAsync(id) : null;
+            var applications = (await Applications.ListForAdminAsync()).ToList();
+            var selected = Id is int id ? await Applications.GetForApprovalAsync(id) : null;
+            _applications = applications;
+            _selected = selected;
         }
         catch (Exception ex) when (ex is UnauthorizedAccessException or InvalidOperationException)
         {
@@ -157,12 +179,12 @@ else
                 case "approve":
                     if (Input.ExistingStudentId is int existingId)
                     {
-                        await Applications.ApproveAsync(selected.Application.Id, startingRankId: null, existingStudentId: existingId);
+                        await Applications.ApproveAsync(selected.Application.Id, startingRankId: null, existingStudentId: existingId, Input.ExistingGuardianId);
                         _statusMessage = $"Approved. The parent is now linked to the existing record for {childName}.";
                     }
                     else if (Input.StartingRankId is int rankId)
                     {
-                        await Applications.ApproveAsync(selected.Application.Id, rankId);
+                        await Applications.ApproveAsync(selected.Application.Id, rankId, existingStudentId: null, Input.ExistingGuardianId);
                         _statusMessage = $"Approved. {childName} is registered.";
                     }
                     else
@@ -194,6 +216,7 @@ else
     {
         public int? StartingRankId { get; set; }
         public int? ExistingStudentId { get; set; }
+        public int? ExistingGuardianId { get; set; }
         public string? Comments { get; set; }
         public string? Action { get; set; }
     }
