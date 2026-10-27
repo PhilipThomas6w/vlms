@@ -25,6 +25,7 @@ Description=VLMS nightly PostgreSQL backup (pg_dump, shipped to off-box S3-compa
 Documentation=https://github.com/ (see docs/adr/0005-hosting-pivot-self-hosted-vps-postgresql.md in the repository)
 After=network-online.target postgresql.service
 Wants=network-online.target
+OnFailure=vlms-alert.service
 
 [Service]
 Type=oneshot

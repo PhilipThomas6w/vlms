@@ -31,6 +31,8 @@ Description=VLMS scheduled jobs (ConsentExpiryJob: consent/DBS expiry + at-risk 
 Documentation=https://github.com/ (see docs/adr/0003-scheduled-jobs-webjobs.md and docs/adr/0005-hosting-pivot-self-hosted-vps-postgresql.md in the repository)
 After=network-online.target postgresql.service
 Wants=network-online.target
+# A failed run starts the alert digest at once (vlms-alert.service; docs/operations/monitoring.md §3).
+OnFailure=vlms-alert.service
 # Not co-located with vlms-web.service's own [Unit] dependencies — the two are independent units, a
 # deliberate improvement over the original Azure WebJob's shared-App-Service-plan-lifecycle coupling
 # (see adr/0003's "Amendment" note in Consequences).

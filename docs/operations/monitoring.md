@@ -46,8 +46,14 @@ Caddy access log: rotated by Caddy itself (default 100 MiB per file, keeps 10 fi
 
 These escalations are written to the log only, so the alert route below carries them to a person.
 
-- **Alert route — decided (Philip, 27/10/2026):**
-  1. A daily jobs-service command (systemd timer, mornings) searches the journal for `ESCALATION:` lines and failed `vlms-*` units since its last run and, if it finds any, emails them through the app's Graph mailer to `alerts@varangians.co.uk`. Nothing found, nothing sent. Each `vlms-*` unit also has `OnFailure=` starting the same command, so a failed job or backup is reported at once.
+- **Alert route — decided (Philip, 27/10/2026), built 27/10/2026:**
+  1. `Vlms.Jobs alert-digest` (`AlertDigestService`) searches the journal of `vlms-web.service` and `vlms-jobs.service` for `ESCALATION:` lines, and lists failed `vlms-*` units, since its last successful run. If it finds anything it sends one email through the app's Graph mailer to `Alerts:Recipient` (default `alerts@varangians.co.uk`, set as `Alerts__Recipient` in `/etc/vlms/jobs.env` to change). Nothing found, nothing sent. `vlms-alert.timer` runs it at 07:30 UTC daily; every `vlms-*` service unit has `OnFailure=vlms-alert.service`, so a failed job or backup is reported at once. Details and behaviour:
+     - The time of the last successful run, and the failed units already reported, are kept in `alert-state.json` under `/var/lib/vlms-alert`. They move forward only after the email was accepted, so a failed run covers the same period next time. The first run looks back 24 hours.
+     - A unit that stays failed is reported once, not daily; run `systemctl reset-failed <unit>` after fixing it. A unit that fails again while still in the failed state is not re-reported (the weekly look is the backstop).
+     - The email carries the journal lines as they are (names and recipient addresses already in the journal), capped at 200 lines and 60,000 characters, with a note of what was left out.
+     - If the host cannot be read or the email cannot be sent, the command logs an error and exits non-zero, so `vlms-alert.service` shows in `systemctl --failed`. It is never reported as "nothing found".
+     - The unit has `systemd-journal` for itself only, so `journalctl` can read the web and jobs entries; the web process does not get it.
+     - Install and test: `deploy/README.md` §5a.
   2. `alerts@varangians.co.uk` is an M365 address forwarding to Philip (he creates it); more recipients are added there, not in the app.
   3. A weekly look at the §3 searches stays as the backstop.
   4. Rejected: an external log service (cost, and personal data would leave the box).
@@ -64,6 +70,6 @@ Run as a user that has `backup.env` loaded, or with `systemd-run` as in `deploy/
 
 ## 5. Uptime
 
-- **External uptime check — decided (Philip, 27/10/2026):** UptimeRobot free plan polling `https://www.varangians.co.uk/health` every 5 minutes, alerting `alerts@varangians.co.uk` on failure and on certificate expiry. `/health` is a code item: it checks the database, so the check covers Caddy, TLS, Kestrel and PostgreSQL.
+- **External uptime check — decided (Philip, 27/10/2026):** UptimeRobot free plan polling `https://www.varangians.co.uk/health` every 5 minutes, alerting `alerts@varangians.co.uk` on failure and on certificate expiry. `/health` is built (`src/Vlms.Web/HealthEndpoint.cs`): anonymous, no antiforgery, it opens a database connection (five-second limit) and answers 200 `Healthy` or 503 `Unhealthy`, nothing else in the body, no exception text. So the check covers Caddy, TLS, Kestrel and PostgreSQL. A crash loop of `vlms-web.service` is caught here rather than by `OnFailure=`, because `Restart=always` with a 10-second delay never reaches the start-limit that would mark the unit failed.
 - **Certificate expiry:** Caddy renews automatically. The uptime monitor's TLS-expiry warning (where offered) is the backstop.
 - **DigitalOcean monitoring agent — decided (Philip, 27/10/2026):** installed, with an alert policy at 80% disk use emailing `alerts@varangians.co.uk`.

@@ -13,6 +13,8 @@
 Description=VLMS monthly retention run (records-due reminder and audit-log purge)
 After=network-online.target postgresql.service
 Wants=network-online.target
+# A failed run starts the alert digest at once (vlms-alert.service; docs/operations/monitoring.md §3).
+OnFailure=vlms-alert.service
 
 [Service]
 Type=oneshot

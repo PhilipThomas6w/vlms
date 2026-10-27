@@ -238,6 +238,7 @@ $hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Web/ChapterSwitchEndpoin
 # FR-022 calendar: event and calendar role checks, the subscribe link and its anonymous endpoint.
 $hashedFiles += Get-ChildItem (Join-Path $repoRoot "src/Vlms.Infrastructure/Calendar") -Filter "*.cs"
 $hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Web/CalendarFeedEndpoint.cs")
+$hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Web/HealthEndpoint.cs")
 # FR-006/FR-024 lesson library and app-hosted lessons (adr/0012): the library role check, the
 # staff-only Teacher's Information, and the file, picture and offline-page endpoints.
 $hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Infrastructure/Curriculum/LessonLibraryService.cs")

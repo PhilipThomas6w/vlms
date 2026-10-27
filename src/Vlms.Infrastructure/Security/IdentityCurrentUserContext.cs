@@ -197,6 +197,26 @@ public sealed class IdentityCurrentUserContext : ICurrentUserContext
         }
     }
 
+    /// <summary>
+    /// Whether the caller holds a staff role that still counts in any chapter, whatever the active
+    /// chapter (docs/adr/0010-chapters.md assumption 9, amended 27/10/2026). Re-read on every access,
+    /// so it holds straight after sign-in and after every chapter switch. Ignores
+    /// <see cref="ChapterScopeOverride"/>, which changes only the active chapter.
+    /// </summary>
+    public bool HoldsStaffRoleInAnyChapter
+    {
+        get
+        {
+            if (ClaimedUserId() is not int userId)
+            {
+                return false;
+            }
+
+            using var db = NewLookupContext();
+            return LeftStaffPolicy.HoldsCountingStaffRoleInAnyChapter(db, userId);
+        }
+    }
+
     // ClaimTypes.NameIdentifier is Identity's own standard user-id claim (set by the default
     // IUserClaimsPrincipalFactory<VlmsIdentityUser> on sign-in) — its value is the shared
     // AppUser/VlmsIdentityUser id directly, not an external identifier requiring a lookup join

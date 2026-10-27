@@ -270,6 +270,7 @@ restart `vlms-web.service`, then delete the old secret:
 sudo cp deploy/systemd/vlms-web.service /etc/systemd/system/
 sudo cp deploy/systemd/vlms-jobs.service deploy/systemd/vlms-jobs.timer /etc/systemd/system/
 sudo cp deploy/systemd/vlms-retention.service deploy/systemd/vlms-retention.timer /etc/systemd/system/
+sudo cp deploy/systemd/vlms-alert.service deploy/systemd/vlms-alert.timer /etc/systemd/system/
 sudo cp deploy/backup/vlms-backup.service deploy/backup/vlms-backup.timer /etc/systemd/system/
 sudo cp deploy/backup/vlms-files-backup.service deploy/backup/vlms-files-backup.timer /etc/systemd/system/
 sudo cp deploy/backup/pg-backup.sh deploy/backup/files-backup.sh /opt/vlms/backup/
@@ -280,6 +281,7 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now vlms-web.service
 sudo systemctl enable --now vlms-jobs.timer      # NOT vlms-jobs.service directly — see deploy/systemd/README.md
 sudo systemctl enable --now vlms-retention.timer # monthly: records-due reminder, then audit-log purge (adr/0014)
+sudo systemctl enable --now vlms-alert.timer     # NOT vlms-alert.service directly — see §5a
 sudo systemctl enable --now vlms-backup.timer    # NOT vlms-backup.service directly, same reason
 sudo systemctl enable --now vlms-files-backup.timer
 ```
@@ -290,6 +292,34 @@ section, cross-referenced rather than duplicated. `vlms-web.service` and `vlms-b
 item's own new units — see their own file comments for the reasoning behind each choice
 (`Type=simple` vs `Type=oneshot`, port/`ASPNETCORE_URLS`, the 02:00/03:00 UTC ordering between
 backup and the consent/DBS sweep).
+
+## 5a. Alerts and the uptime check (`docs/operations/monitoring.md` §3 and §5)
+
+`vlms-alert.service` runs `Vlms.Jobs alert-digest`: it emails the journal's `ESCALATION:` lines and any
+newly failed `vlms-*` unit to `alerts@varangians.co.uk` (nothing found, nothing sent). The timer runs it at
+07:30 UTC daily; `vlms-web`, `vlms-jobs`, `vlms-backup` and `vlms-files-backup` each start it with
+`OnFailure=` the moment they fail. Prerequisites and checks:
+
+- `GraphMail__ClientSecret` must be in `/etc/vlms/jobs.env` (§4). To use another address, add
+  `Alerts__Recipient=<address>` there; the default is `alerts@varangians.co.uk`, an M365 address that forwards
+  to Philip (create it first; more recipients are added on that address, not in the app).
+- The unit adds the `systemd-journal` group for itself only (`SupplementaryGroups=`), so `journalctl` can
+  read the web and jobs entries. Its state (`alert-state.json`) is in `/var/lib/vlms-alert`, created by systemd.
+- Test it end to end, once. `sudo systemctl start vlms-alert.service` sends nothing when there is nothing to
+  report (`journalctl -u vlms-alert.service` shows the run). To prove the email path, make a throwaway unit
+  fail: `sudo systemd-run --unit=vlms-fail-test --property=OnFailure=vlms-alert.service /bin/false`. The
+  alert service starts at once and the email lists `vlms-fail-test.service` as a failed unit. Clear it
+  afterwards with `sudo systemctl reset-failed vlms-fail-test.service`.
+- A failed alert run exits non-zero and shows in `systemctl --failed`; the next run covers the same period again.
+  A unit still in the failed state from an earlier report is not reported again until it recovers, so after a
+  fix run `sudo systemctl reset-failed <unit>`.
+- `GET https://www.varangians.co.uk/health` answers 200 `Healthy` or 503 `Unhealthy` (database reachable or
+  not), anonymously, with nothing else in the body. Point UptimeRobot at it (`docs/operations/monitoring.md` §5).
+  `curl -s -o /dev/null -w '%{http_code}\n' https://www.varangians.co.uk/health` should print `200`.
+
+Not verified on a live host (no VPS yet): the unit files, the `journalctl --grep` exit code when nothing
+matches (the command treats exit 1 with no output as "nothing found" and any other failure as an error),
+and the digest email itself.
 
 ## 6. Install and start the Caddyfile
 
