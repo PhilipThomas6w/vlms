@@ -14,7 +14,7 @@ In addition to the document for the session, the teacher can develop the role th
 There are many worksheets and images to use for this month’s session. A broad overview, or a focus on one aspect of his life from the Old Testament, would help the children to complete the worksheets provided.
 
 ## Miracles
-The teachers should focus on various passages from the New Testament which exhibit different types of miracles. John’s gospel should be especially consulted, with attention given to how Christ heals – i.e through speech, and touch. In this example ([John 9 ESV - Jesus Heals a Man Born Blind - As he - Bible Gateway](https://www.biblegateway.com/passage/?search=John%209&version=ESV)), Christ places mud on the blind man’s eyes and he then sees. This is not just a healing, but a re-creation – it echoes Adam being formed from the clay of the earth by God! What does this then say about who Christ is!
+The teachers should focus on various passages from the New Testament which exhibit different types of miracles. John’s gospel should be especially consulted, with attention given to how Christ heals – i.e through speech, and touch. In this example (John 9), Christ places mud on the blind man’s eyes and he then sees. This is not just a healing, but a re-creation – it echoes Adam being formed from the clay of the earth by God! What does this then say about who Christ is!
 
 ## Feasts of the Lord
 This session will introduce the children to a variety of the Church’s feasts which focus on various points in the Lord’s life. Attention to the corresponding icons for these feasts should be paid, in addition to using the written material for this month’s session.

@@ -2,7 +2,7 @@
 In addition to introducing the children to the practice of praying for the departed, teachers are also to recount stories from the Church’s Tradition which evidence the efficacy of this ancient practice. Several examples, reasons for the Church’s practice (as well as the practice’s antiquity), can be found in the images section for this session.
 
 ## The Epitaphios
-In this session, the children will learn about the Epitaphios, what it is, and the occasions for its use. In addition to the material provided, the teachers could talk about how in processing with the Epitaphios, we are actually participating in the death and burial of Christ itself. See: [Mark 15 ESV - Jesus Delivered to Pilate - And as soon - Bible Gateway](https://www.biblegateway.com/passage/?search=Mark%2015&version=ESV).
+In this session, the children will learn about the Epitaphios, what it is, and the occasions for its use. In addition to the material provided, the teachers could talk about how in processing with the Epitaphios, we are actually participating in the death and burial of Christ itself. See: Mark 15.
 
 ## Confession
 This session will cover what confession is (and isn’t) and why we do it. It also aims to give the children tools to critically reflect on their own lives, both in the past and going forward, and how Confession can be utilised by them in their repentance in order to become closer to Christ.
