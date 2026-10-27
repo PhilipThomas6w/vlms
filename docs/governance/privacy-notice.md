@@ -6,7 +6,7 @@ Status: **draft for Philip's review**, 13/10/2026. Content follows the UK GDPR A
 
 ## How Varangians uses your and your child's information
 
-**Who we are.** Varangians is the youth club of Shrewsbury Orthodox Church. The church is the data controller for the information in the Varangians app. `[TBC – Philip: legal name and address of the controller]`. Contact us about your data at `[TBC – Philip: contact email]`.
+**Who we are.** Varangians is the youth club of Shrewsbury Orthodox Church. The church is the data controller for the information in the Varangians app. Shrewsbury Orthodox Church is a charitable incorporated organisation (charity no. 1166735), registered address Greek Orthodox Church, Dove Close, Shrewsbury SY2 6FB. Contact us about your data at admin@varangians.co.uk.
 
 **What we hold and why.**
 
@@ -25,7 +25,7 @@ Status: **draft for Philip's review**, 13/10/2026. Content follows the UK GDPR A
 - Cloudflare (encrypted backup copies, stored in the EU);
 - Microsoft (sending emails from the club's address, data held in the UK).
 
-Each acts only on our instructions. We share information with others only where the law requires it, or to protect a child (for example, telling emergency services about a medical condition). `[TBC – Philip: any other recipients, e.g. the diocese]`
+Each acts only on our instructions. We share information with others only where the law requires it, or to protect a child (for example, telling emergency services about a medical condition). Personal information is not shared outside the chapter, unless it concerns a safeguarding issue, when it may be shared with the relevant legal authorities.
 
 **Transfers outside the UK.** Our backup copies are stored in the European Union, which UK law recognises as protecting personal data adequately. We make no other transfers outside the UK.
 
@@ -34,13 +34,13 @@ Each acts only on our instructions. We share information with others only where 
 - Your child's records, including consent and health information: 3 years after they leave the club, then deleted.
 - DBS records: 6 years after the check expires or the volunteer leaves.
 - The security log of who viewed health or DBS records: 6 years.
-- Information we delete stays in our backup copies until they expire, up to `[TBC – Philip: e.g. 35 days]` later, and is then overwritten.
+- Information we delete stays in our backup copies until they expire, up to 35 days later, and is then overwritten.
 
-**Your rights.** You can ask to see the information we hold, to correct it, or for it to be deleted or restricted, and you can object to how we use it. Where we rely on your consent you can withdraw it at any time. For your child, a parent can usually exercise these rights; older children may be able to do so themselves. Contact `[TBC – Philip]`. We will reply within one month.
+**Your rights.** You can ask to see the information we hold, to correct it, or for it to be deleted or restricted, and you can object to how we use it. Where we rely on your consent you can withdraw it at any time. For your child, a parent can usually exercise these rights; older children may be able to do so themselves. Contact admin@varangians.co.uk. We will reply within one month.
 
 **Automated decisions.** The app promotes a student automatically when every lesson in their rank is complete, and it stops new lessons being recorded while consent has expired. These are fixed club rules applied to the records, not profiling, and a teacher or the Admin can correct them.
 
-**Do you have to give us this information?** We need the consent form and emergency information before your child can take part in sessions. `[TBC – Philip: confirm]`
+**Do you have to give us this information?** We need the consent form and emergency information before your child can take part in sessions.
 
 **Complaints.** Please contact us first. You can also complain to the Information Commissioner's Office: [ico.org.uk/make-a-complaint](https://ico.org.uk/make-a-complaint/), 0303 123 1113.
 
@@ -50,5 +50,5 @@ Each acts only on our instructions. We share information with others only where 
 
 ## Publication notes (not part of the notice)
 
-- Where it appears: linked from the app's sign-in page and footer `[TBC – needs a small code change]`, given on paper with the consent form, and in the guardian invite email `[TBC – Philip]`.
+- Where it appears: linked from the app's sign-in page and footer `[TBC – needs a small code change]`, given on paper with the consent form, and in the guardian invite email.
 - Play Store listing (`STATE.md` Next) needs a public privacy policy URL; this notice can serve once published.

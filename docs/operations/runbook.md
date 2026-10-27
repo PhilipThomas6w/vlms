@@ -12,15 +12,15 @@
 | File-storage backup (certificate PDFs → R2) | daily 02:30 UTC | `vlms` | `vlms-files-backup.timer` → `vlms-files-backup.service` |
 | Outbound email | Microsoft Graph as `noreply@varangians.co.uk` | Entra app "Varangians LMS mailer" | `GraphMail__ClientSecret` in `web.env`/`jobs.env` |
 
-Host: DigitalOcean Droplet, London (LON1), Basic 2 GiB / 1 vCPU / 50 GiB. OS image: `[TBC – Philip]` (the deployment scripts assume a Debian/Ubuntu-family distribution; an Ubuntu LTS release is the working assumption). DNS: A records for `varangians.co.uk` and `www` in Hostinger.
+Host: DigitalOcean Droplet, London (LON1), Basic 2 GiB / 1 vCPU / 50 GiB. OS image: Ubuntu 24.04 LTS (Philip, 27/10/2026) (the deployment scripts assume a Debian/Ubuntu-family distribution; an Ubuntu LTS release is the working assumption). DNS: A records for `varangians.co.uk` and `www` in Hostinger.
 
 All times in this pack are **UTC** (see `README.md`).
 
 ## 2. Support model
 
 - **Operator and sole maintainer:** Philip. There is no on-call rota and no out-of-hours cover, consistent with the best-effort availability NFR (`requirements/non-functional.md`).
-- **Users report problems to:** `[TBC – Philip]` (an address or channel teachers and parents can use).
-- **Backup operator if Philip is unavailable:** `[TBC – Philip]`. Without one, the service waits until Philip is back (see `dr-bcp.md` §5).
+- **Users report problems to:** admin@varangians.co.uk (Philip, 27/10/2026) (an address or channel teachers and parents can use).
+- **Backup operator if Philip is unavailable:** none; Philip is the sole operator (Philip, 27/10/2026). Without one, the service waits until Philip is back (see `dr-bcp.md` §5).
 - **Priority:** anything affecting safeguarding data, consent-expiry blocking, or a suspected data breach comes first; everything else is fixed in the next available session.
 
 ## 3. Routine operations
@@ -66,7 +66,7 @@ In the app: `/administration/user-roles` (Admin only, MFA required). Guardian in
 ### A user is locked out or lost their authenticator
 
 - Wrong password five times locks the account for 15 minutes (`VlmsIdentityPolicy`). Wait, or use "Forgot your password?".
-- Lost authenticator device: the user signs in with a recovery code. If they have none, there is no in-app admin reset of two-factor authentication. Procedure: `[TBC – Philip]` (direct database change by the operator, or a feature to add).
+- Lost authenticator device: the user signs in with a recovery code. If they have none, there is no in-app admin reset of two-factor authentication. Procedure: the operator clears the user's authenticator key with a direct database change and they set two-factor sign-in up again at next sign-in (Philip, 27/10/2026) (direct database change by the operator, or a feature to add).
 
 ### Mark a leaver
 
@@ -77,7 +77,7 @@ Students and teachers are flagged as leaving in the app (manual "leaving" flag).
 1. **Site down (no response or a Caddy 502):** `systemctl status vlms-web.service`; read the last 100 journal lines; check `df -h` and `free -m`; `sudo systemctl restart vlms-web.service`. If PostgreSQL is down, start it and check its log (`journalctl -u postgresql`).
 2. **Certificate error:** `journalctl -u caddy -n 200`; confirm DNS still points at the Droplet and ports 80/443 are open (`host-hardening.md` §2).
 3. **Email not arriving:** search the journal for Graph errors (`journalctl -u vlms-web.service -g Graph`). A `401`/`invalid_client` usually means the client secret has expired; rotate it.
-4. **Suspected data breach or unauthorised access to safeguarding data:** preserve evidence first (do not restart or delete anything), export `sensitive_data_access_logs` and the journal, then follow `governance/security-compliance.md`. Whether and how to report to the ICO within 72 hours: `[TBC – Philip]` (ICO question open in `STATE.md` Blocked).
+4. **Suspected data breach or unauthorised access to safeguarding data:** preserve evidence first (do not restart or delete anything), export `sensitive_data_access_logs` and the journal, then follow `governance/security-compliance.md`. Whether and how to report to the ICO within 72 hours: Philip decides and reports a reportable breach to the ICO within 72 hours (`governance/dpia.md` risk 10).
 5. **Anything requiring a rebuild:** `dr-bcp.md` §3.
 
-Record every incident (date, impact, cause, fix) in `[TBC – Philip: incident log location]`.
+Record every incident (date, impact, cause, fix) in `docs/operations/log.md`.

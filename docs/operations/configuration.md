@@ -12,7 +12,7 @@ Configuration loads in the standard ASP.NET Core order: `appsettings.json` → `
 | `App:PublicBaseUrl` | unit: `https://www.varangians.co.uk` | placeholder | Builds absolute links in invite and account emails |
 | `AllowedHosts` | unit: `www.varangians.co.uk` | `*` | Production refuses to start with `*` or empty (`WebHardening`) |
 | `DataProtection:KeysPath` | unit: `/var/lib/vlms/keys` | empty | Required in Production; directory created by `StateDirectory=` |
-| `Storage:LocalRootPath` | `web.env` `[TBC – Philip: e.g. /var/lib/vlms/blobs or /opt/vlms/blobs]` | `App_Data/blobs` | Must equal `FILES_ROOT` in `backup.env` |
+| `Storage:LocalRootPath` | `web.env` `/var/lib/vlms/blobs` (Philip, 27/10/2026) | `App_Data/blobs` | Must equal `FILES_ROOT` in `backup.env` |
 | `Hsts:MaxAgeDays` | default | 365 | |
 | `RateLimiting:AccountFormPostsPerMinute` | default | 20 | Per client IP and account page, POSTs only |
 | `ASPNETCORE_ENVIRONMENT` | unit: `Production` | n/a | |
@@ -44,9 +44,9 @@ File permissions: `web.env`, `jobs.env`, `backup.env` are `root:vlms 0640`; `mig
 ## 4. Changing configuration
 
 1. **Checked-in config** (`appsettings.json`, unit files, Caddyfile, scripts): change in git, pass the gate, deploy as a release (`release.md`).
-2. **Server-only config** (`/etc/vlms/*.env`): edit with `sudoedit`, then restart the affected unit (`vlms-web.service`; jobs and backups pick it up on their next run). Note the change, without secret values, in `[TBC – Philip: change log location]`.
+2. **Server-only config** (`/etc/vlms/*.env`): edit with `sudoedit`, then restart the affected unit (`vlms-web.service`; jobs and backups pick it up on their next run). Note the change, without secret values, in `docs/operations/log.md` (Philip, 27/10/2026).
 3. **Never** put a real secret in the repository. The gate's secret scan (gitleaks plus project patterns, `build/check-secrets.ps1`) is the backstop, not the control.
-4. **Where secrets are kept off the server:** `[TBC – Philip]` (a password manager). Needed for the rebuild in `dr-bcp.md` §3.
+4. **Where secrets are kept off the server:** Philip's password manager (Philip, 27/10/2026). Needed for the rebuild in `dr-bcp.md` §3.
 
 ### Secret inventory
 

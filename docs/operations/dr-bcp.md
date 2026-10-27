@@ -2,7 +2,7 @@
 
 ## 1. Targets
 
-`requirements/non-functional.md` sets no formal SLA, RPO or RTO ("best-effort"). The figures below are what the current design actually delivers, stated so Philip can accept or change them: `[TBC – Philip: accept as targets]`.
+`requirements/non-functional.md` sets no formal SLA, RPO or RTO ("best-effort"). The figures below are what the current design actually delivers, stated so Philip can accept or change them: accepted as targets (Philip, 27/10/2026).
 
 | Measure | Delivered by the design | Basis |
 |---|---|---|
@@ -16,14 +16,14 @@ A 24-hour RPO means completions, consent records or DBS checks entered during th
 
 | Data | Backup | Where | Retention |
 |---|---|---|---|
-| PostgreSQL `vlms` database (everything incl. audit log and Identity) | `pg_dump -Fc` nightly 02:00 UTC (`deploy/backup/pg-backup.sh`) | R2 `s3://<bucket>/postgres/`; local copy in `/var/backups/vlms` | local 7 days (`LOCAL_RETENTION_DAYS`); R2 `[TBC – Philip]` (bucket lifecycle rule, not set by the script) |
+| PostgreSQL `vlms` database (everything incl. audit log and Identity) | `pg_dump -Fc` nightly 02:00 UTC (`deploy/backup/pg-backup.sh`) | R2 `s3://<bucket>/postgres/`; local copy in `/var/backups/vlms` | local 7 days (`LOCAL_RETENTION_DAYS`); R2 35 days (Philip, 27/10/2026) (bucket lifecycle rule, not set by the script) |
 | Certificate PDFs (`Storage__LocalRootPath`) | `aws s3 sync`, no delete, nightly 02:30 UTC (`files-backup.sh`) | R2 `s3://<bucket>/files/` | indefinite; bucket versioning recommended (`deploy/README.md` §7) |
 | Configuration and code | git repository | GitHub `PhilipThomas6w/vlms` plus local clones | git history |
 | Secrets (`/etc/vlms/*.env`) | **not backed up** | recreated (§3) | n/a |
 | DataProtection keys | **deliberately not backed up** | n/a | losing them signs everyone out and voids open invite links (`deploy/README.md` §1) |
 | Caddy certificates | not backed up | reissued automatically | n/a |
 
-Backup retention and data retention interact: a deleted student remains in older dumps until those dumps expire. The R2 lifecycle period should therefore be short and written into the privacy notice: `[TBC – Philip]`, e.g. 35 days.
+Backup retention and data retention interact: a deleted student remains in older dumps until those dumps expire. The R2 lifecycle period should therefore be short and written into the privacy notice: 35 days (Philip, 27/10/2026).
 
 Database backup is from the same night as the file backup, so a restore of both is consistent to within 30 minutes.
 
@@ -39,7 +39,7 @@ Database backup is from the same night as the file backup, so a restore of both 
    sudo -u postgres psql -d vlms -f deploy/postgres/10-grant-app-privileges.sql
    ```
    Then run `migrate.sh` (a no-op if the dump is current) and the §3 RLS checks. Exact restore flags are confirmed by the backup restore test (`STATE.md`) before this procedure is relied on: `[TBC – restore test]`.
-5. Recreate `/etc/vlms/web.env`, `jobs.env`, `backup.env`, `migrate.env` from the password manager `[TBC – Philip: where secrets are kept]`. The Graph client secret can be reissued (`deploy/README.md` §4).
+5. Recreate `/etc/vlms/web.env`, `jobs.env`, `backup.env`, `migrate.env` from Philip's password manager. The Graph client secret can be reissued (`deploy/README.md` §4).
 6. Publish the release that matches the dump's last migration (`release.md` §2), install the units (§5) and the Caddyfile (§6).
 7. Restore files: `deploy/README.md` §9.
 8. Run the `deploy/README.md` §7 checklist. Tell users they need to sign in again.
@@ -49,13 +49,13 @@ If the cause was a compromise: rotate every credential (both role passwords, R2 
 ## 4. Testing
 
 - Before go-live and then quarterly: restore the latest dump into a scratch database and the file store into a scratch directory, and spot-check (`STATE.md` "Backup restore test"; `deploy/README.md` §7).
-- Record each test (date, dump used, result, time taken) in `[TBC – Philip: test log location]`. The time taken is the evidence for the RTO above.
+- Record each test (date, dump used, result, time taken) in `docs/operations/log.md`. The time taken is the evidence for the RTO above.
 
 ## 5. Continuity (people and accounts)
 
 The largest continuity risk is the single operator, not the server.
 
 - Accounts needed to run or recover VLMS: DigitalOcean, Cloudflare (R2), Hostinger (DNS and domain renewal), Microsoft 365 tenant (Graph mailer, mailboxes), GitHub. All are currently held by Philip.
-- Break-glass: `[TBC – Philip]`, e.g. a sealed record of how to reach these accounts, held by a named person at the church, plus this pack.
-- Domain renewal date: `[TBC – Philip]`. An expired domain takes the service and its email down.
-- If VLMS is unavailable for a long period, sessions carry on and progress is recorded on paper, then entered once it is back. Consent checks before activities fall back to the paper forms the club holds `[TBC – Philip: confirm paper fallback exists]`.
+- Break-glass: none for now (Philip, 27/10/2026). Philip is the sole operator; Shrewsbury's two other Admins run the app (users, roles, records) but have no server or account access, so the service waits for Philip. Server access survives the loss of Philip's machine: SSH key in his password manager, and DigitalOcean's Recovery Console with a control-panel root password reset (`host-hardening.md`).
+- Domain renewal date: 12/10/2027 (Hostinger) (Philip, 27/10/2026). An expired domain takes the service and its email down.
+- If VLMS is unavailable for a long period, sessions carry on and progress is recorded on paper, then entered once it is back. Consent checks before activities fall back to the paper forms the club holds (paper forms exist; Philip, 27/10/2026).

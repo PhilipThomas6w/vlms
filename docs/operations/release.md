@@ -5,9 +5,9 @@ There is one environment: production. No staging server or deployment slot exist
 ## 1. Before a release
 
 1. `pwsh -File build/verify.ps1` exits 0 on the commit being released (full gate, not `-Fast`).
-2. Tag the commit: `git tag vlms-YYYY.MM.DD[-n]` and push the tag. Tag format: `[TBC – Philip]`.
+2. Tag the commit: `git tag vlms-YYYY.MM.DD[-n]` and push the tag. Tag format: `vlms-YYYY.MM.DD[-n]` (Philip, 27/10/2026).
 3. Check whether the release adds EF Core migrations (`git diff <last-tag>.. --stat -- src/Vlms.Infrastructure/Migrations`). If it does, read each migration's `Up` and `Down` for anything that drops or rewrites data.
-4. Pick a time outside session hours (evenings and weekends are when the system is used; `requirements/non-functional.md`). Release window: `[TBC – Philip]`.
+4. Pick a time outside session hours (evenings and weekends are when the system is used; `requirements/non-functional.md`). Release window: weekday daytime (Philip, 27/10/2026).
 
 ## 2. Build (on the development machine)
 
@@ -51,7 +51,7 @@ Migrations run while the app is stopped, so the old build never runs against a n
 - `systemctl status vlms-web.service` is `active (running)`; no errors in `journalctl -u vlms-web.service -n 100`.
 - Sign in, open a page for each role touched by the release, confirm the Blazor circuit connects.
 - If the release touched email: trigger a password reset to a test account.
-- Record the release (tag, date, migrations applied, result) in `[TBC – Philip: release log location]`.
+- Record the release (tag, date, migrations applied, result) in `docs/operations/log.md`.
 
 ## 5. Rollback
 

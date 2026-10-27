@@ -28,7 +28,7 @@ SystemMaxUse=1G
 MaxRetentionSec=90day
 ```
 
-then `sudo systemctl restart systemd-journald`. Values: `[TBC – Philip]`. The suggested 90 days covers a term's worth of incident lookback while keeping logged personal data short-lived. The 6-year retention for the safeguarding read audit is met by the database table, not the journal.
+then `sudo systemctl restart systemd-journald`. Values: 90 days (Philip, 27/10/2026). The suggested 90 days covers a term's worth of incident lookback while keeping logged personal data short-lived. The 6-year retention for the safeguarding read audit is met by the database table, not the journal.
 
 Caddy access log: rotated by Caddy itself (default 100 MiB per file, keeps 10 files and 90 days; [Caddy `log` directive](https://caddyserver.com/docs/caddyfile/directives/log)). No extra configuration needed.
 
