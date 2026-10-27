@@ -1,0 +1,39 @@
+# vlms-alert.service — runs `Vlms.Jobs alert-digest` to completion: emails the journal's ESCALATION:
+# lines and any newly failed vlms-* unit to Alerts:Recipient (alerts@varangians.co.uk), through the
+# app's Graph mailer. Nothing found, nothing sent (docs/operations/monitoring.md §3, decided 27/10/2026).
+#
+# Started two ways, both without enabling this unit directly (it has no [Install] section):
+#   - vlms-alert.timer, each morning;
+#   - OnFailure=vlms-alert.service in vlms-web, vlms-jobs, vlms-backup and vlms-files-backup, so a
+#     failed job or backup is reported at once. This unit deliberately has no OnFailure= of its own
+#     (a failing alert must not start itself); a failed run exits non-zero and shows in
+#     `systemctl --failed`, and the next run covers the same period again.
+#
+# SupplementaryGroups=systemd-journal: the vlms user cannot read other units' journal entries without
+# it (journalctl otherwise says "No journal files were opened due to insufficient permissions").
+# Membership of that group allows reading the whole system journal, which is why this is granted to
+# this one short-lived unit and not added to the vlms user (so the web process never gets it).
+#
+# StateDirectory=vlms-alert: systemd creates /var/lib/vlms-alert owned by vlms and sets
+# STATE_DIRECTORY, where the command keeps alert-state.json (the time of the last successful run and
+# the failed units already reported). Delete that file to make the next run look back 24 hours.
+#
+# Configuration and the Graph secret come from /etc/vlms/jobs.env, as for vlms-jobs.service.
+# Optional there: Alerts__Recipient=... (default alerts@varangians.co.uk).
+
+[Unit]
+Description=VLMS alert digest (journal ESCALATION lines and failed vlms-* units, emailed to the alert address)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=vlms
+Group=vlms
+SupplementaryGroups=systemd-journal
+WorkingDirectory=/opt/vlms/jobs
+EnvironmentFile=-/etc/vlms/jobs.env
+StateDirectory=vlms-alert
+ExecStart=/usr/bin/dotnet /opt/vlms/jobs/Vlms.Jobs.dll alert-digest
+TimeoutStartSec=120
+SyslogIdentifier=vlms-alert

@@ -44,6 +44,9 @@ Description=VLMS web application (Vlms.Web — Blazor Web App, Server interactiv
 Documentation=https://github.com/ (see docs/adr/0001-technology-stack.md and docs/adr/0005-hosting-pivot-self-hosted-vps-postgresql.md in the repository)
 After=network-online.target postgresql.service
 Wants=network-online.target
+# Once the unit gives up (restart limit reached) it is failed: start the alert digest
+# (vlms-alert.service; docs/operations/monitoring.md §3).
+OnFailure=vlms-alert.service
 # Independent of vlms-jobs.service (see that unit's own [Unit] section / adr/0003's "Amendment"
 # note) — a Vlms.Web restart no longer implicitly restarts the scheduled job, and vice versa.
 

@@ -37,6 +37,7 @@ using Vlms.Infrastructure.Chapters;
 using Vlms.Infrastructure.Curriculum;
 using Vlms.Infrastructure.Engagement;
 using Vlms.Infrastructure.Identity;
+using Vlms.Infrastructure.Monitoring;
 using Vlms.Infrastructure.Notifications;
 using Vlms.Infrastructure.Safeguarding;
 using Vlms.Infrastructure.Security;
@@ -65,8 +66,13 @@ var seedCurriculumArgs = args is ["seed-curriculum", ..] ? SeedCurriculumArgs.Pa
 // run (it is also part of every daily run, below).
 var importCalendarOnly = args is ["import-calendar"];
 
+// `Vlms.Jobs alert-digest` — emails the journal's ESCALATION: lines and newly failed vlms-* units since
+// the last successful run to Alerts:Recipient (docs/operations/monitoring.md §3). Started by
+// vlms-alert.timer each morning and by OnFailure= on every vlms-* unit (deploy/systemd/vlms-alert.service).
+var alertDigestOnly = args is ["alert-digest"];
+
 var isCommand = bootstrapEmail is not null || bootstrapNationalEmail is not null || seedDevPassword is not null
-    || seedCurriculumArgs is not null || importCalendarOnly;
+    || seedCurriculumArgs is not null || importCalendarOnly || alertDigestOnly;
 var builder = Host.CreateApplicationBuilder(isCommand ? [] : args);
 
 builder.Services.AddDbContext<VlmsDbContext>(options =>
@@ -137,6 +143,17 @@ builder.Services.AddSingleton(_ => new HttpClient { Timeout = TimeSpan.FromMinut
 builder.Services.AddScoped(sp => new LiturgicalCalendarImporter(
     sp.GetRequiredService<VlmsDbContext>(), sp.GetRequiredService<ICurrentUserContext>(), sp.GetRequiredService<HttpClient>(),
     sp.GetRequiredService<ILogger<LiturgicalCalendarImporter>>(), builder.Configuration[LiturgicalCalendarImporter.FeedUrlKey]));
+
+// The alert digest (docs/operations/monitoring.md §3): reads journalctl/systemctl, mails through the
+// IEmailSender above, and keeps its last-run time in a small file (Alerts:StatePath, by default under the
+// unit's STATE_DIRECTORY).
+builder.Services.AddSingleton<IProcessRunner, ProcessRunner>();
+builder.Services.AddSingleton<ISystemStatusSource, SystemdStatusSource>();
+builder.Services.AddSingleton(sp => AlertDigestOptions.FromConfiguration(
+    sp.GetRequiredService<IConfiguration>(), AppContext.BaseDirectory));
+builder.Services.AddSingleton<IAlertStateStore>(sp =>
+    new FileAlertStateStore(sp.GetRequiredService<AlertDigestOptions>().StatePath));
+builder.Services.AddSingleton<AlertDigestService>();
 
 using var host = builder.Build();
 
@@ -246,6 +263,17 @@ if (seedCurriculumArgs is not null)
     catch (Exception ex)
     {
         seedLogger.LogCritical(ex, "seed-curriculum failed.");
+        Environment.ExitCode = 1;
+    }
+
+    return;
+}
+
+if (alertDigestOnly)
+{
+    var digest = await scope.ServiceProvider.GetRequiredService<AlertDigestService>().RunAsync(DateTimeOffset.UtcNow);
+    if (digest == AlertDigestOutcome.Failed)
+    {
         Environment.ExitCode = 1;
     }
 

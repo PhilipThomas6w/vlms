@@ -64,6 +64,9 @@ builder.Services.AddVlmsWebHardening(builder.Configuration, builder.Environment)
 builder.Services.AddDbContext<VlmsDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("VlmsDatabase")));
 
+// /health for the external uptime monitor (docs/operations/monitoring.md §5): a database check, status only.
+builder.Services.AddVlmsHealthChecks();
+
 // --- Current-user context: IdentityCurrentUserContext (not NullCurrentUserContext, which stays
 // reserved for design-time/migration use in VlmsDbContextFactory) is what VlmsDbContext resolves
 // at runtime here, per adr/0004-sensitive-data-access-control.md. Built from the AuthenticationStateProvider
@@ -414,6 +417,7 @@ app.UseAuthorization();
 app.UseAntiforgery();
 
 app.MapStaticAssets();
+app.MapVlmsHealth();
 app.MapLessonFileEndpoint();
 app.MapSavedLessonsEndpoint();
 app.MapLessonPageEndpoints();
