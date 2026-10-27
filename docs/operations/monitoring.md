@@ -44,12 +44,13 @@ Caddy access log: rotated by Caddy itself (default 100 MiB per file, keeps 10 fi
 | Graph `401`/`invalid_client` | Email secret expired or wrong | `journalctl -u vlms-web.service -g Graph` |
 | Disk over 80% | Risk to PostgreSQL and backups | `df -h /` |
 
-These escalations are written to the log only, so they reach nobody until someone looks. Choosing an alert route is the main open monitoring decision:
+These escalations are written to the log only, so the alert route below carries them to a person.
 
-- **Alert route:** `[TBC – Philip]`. Options, cheapest first:
-  1. Weekly manual check (§3 searches) and nothing automated. Acceptable for best-effort availability, but a failed safeguarding email could then go unnoticed for up to a week.
-  2. A small systemd `OnFailure=` unit plus a daily timer that emails Philip any `ESCALATION:` lines or failed units. The app's own Graph mailer can't be reused from a shell script without more code, so this needs a code item.
-  3. An external log service. Not recommended: more cost, and personal data leaves the box.
+- **Alert route — decided (Philip, 27/10/2026):**
+  1. A daily jobs-service command (systemd timer, mornings) searches the journal for `ESCALATION:` lines and failed `vlms-*` units since its last run and, if it finds any, emails them through the app's Graph mailer to `alerts@varangians.co.uk`. Nothing found, nothing sent. Each `vlms-*` unit also has `OnFailure=` starting the same command, so a failed job or backup is reported at once.
+  2. `alerts@varangians.co.uk` is an M365 address forwarding to Philip (he creates it); more recipients are added there, not in the app.
+  3. A weekly look at the §3 searches stays as the backstop.
+  4. Rejected: an external log service (cost, and personal data would leave the box).
 
 ## 4. Backup checks
 
@@ -63,6 +64,6 @@ Run as a user that has `backup.env` loaded, or with `systemd-run` as in `deploy/
 
 ## 5. Uptime
 
-- **External uptime check:** `[TBC – Philip]`, e.g. a free-tier HTTP monitor (UptimeRobot, Better Stack) or DigitalOcean's uptime checks, polling `https://www.varangians.co.uk/Account/Login` every 5 minutes and emailing Philip on failure. The app has no dedicated health endpoint. The login page exercises Caddy, TLS and Kestrel but not the database; adding `/health` with a database check is an optional code item.
+- **External uptime check — decided (Philip, 27/10/2026):** UptimeRobot free plan polling `https://www.varangians.co.uk/health` every 5 minutes, alerting `alerts@varangians.co.uk` on failure and on certificate expiry. `/health` is a code item: it checks the database, so the check covers Caddy, TLS, Kestrel and PostgreSQL.
 - **Certificate expiry:** Caddy renews automatically. The uptime monitor's TLS-expiry warning (where offered) is the backstop.
-- **DigitalOcean monitoring agent** (free CPU/memory/disk graphs and alert policies): `[TBC – Philip]`. Recommended at least for a disk-usage alert.
+- **DigitalOcean monitoring agent — decided (Philip, 27/10/2026):** installed, with an alert policy at 80% disk use emailing `alerts@varangians.co.uk`.
