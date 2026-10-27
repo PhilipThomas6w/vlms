@@ -11,8 +11,9 @@ namespace Vlms.Tests.Infrastructure;
 /// <summary>
 /// Emails around the consent form (FR-003, adr/0008 decision 3, TC-035): the Admin and Safeguarding
 /// Officer alert and parent confirmation on submission, and the parent's outcome email on approval
-/// or rejection. Covers recipients (not-left staff only, the submitting parent only), no sensitive
-/// content, sent after the save, and a failing send neither throwing nor undoing the action.
+/// or rejection (the rejection comment is not emailed, adr/0008 decision 8). Covers recipients
+/// (not-left staff only, the submitting parent only), no sensitive content, sent after the save, and a
+/// failing send neither throwing nor undoing the action.
 /// </summary>
 public sealed class ConsentNotificationServiceTests : IDisposable
 {
@@ -189,20 +190,27 @@ public sealed class ConsentNotificationServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task Reject_EmailsParentWithReviewerCommentsAndFormLink_WithoutSensitiveContent()
+    public async Task Reject_EmailsParentWithSignInPointerAndFormLink_ButNotTheReviewerComments()
     {
+        const string comment = "Please add a second emergency contact.";
         var recordId = await SubmitAsync(new FakeNotificationService());
         var fake = new FakeNotificationService();
 
         using var sg = CreateContext(2, Role.SafeguardingOfficer);
-        await sg.Records(fake).DecideAsync(recordId, approve: false, comments: "Please add a second emergency contact.");
+        await sg.Records(fake).DecideAsync(recordId, approve: false, comments: comment);
 
         var mail = Assert.Single(fake.SentRequests);
         Assert.Equal("jane@example.com", mail.RecipientEmail);
         Assert.Contains("needs changes", mail.Subject);
-        Assert.Contains("Please add a second emergency contact.", mail.Body);
+        Assert.DoesNotContain(comment, mail.Subject + mail.Body);
+        Assert.DoesNotContain("second emergency contact", mail.Subject + mail.Body);
+        Assert.Contains("Please sign in to read the comments from the reviewer.", mail.Body);
         Assert.Contains($"{BaseUrl}/parent/consent", mail.Body);
         AssertNoSensitiveContent(fake.SentRequests);
+
+        // The comment itself is still kept on the record, where the parent's consent page reads it after sign-in.
+        using var verify = CreateContext(1, Role.Admin);
+        Assert.Equal(comment, verify.Context.ConsentRecords.Single(c => c.Id == recordId).DecisionComments);
     }
 
     [Fact]

@@ -43,4 +43,10 @@ public sealed class FakeCurrentUserContext : ICurrentUserContext
     public int? ActiveChapterId { get; init; } = Chapter.ShrewsburyId;
 
     public bool SeesAllChapters { get; init; }
+
+    /// <summary>A staff role held in a chapter other than the active one (docs/adr/0010-chapters.md assumption 9).</summary>
+    public bool StaffRoleInAnotherChapter { get; init; }
+
+    public bool HoldsStaffRoleInAnyChapter =>
+        StaffRoleInAnotherChapter || HasRole(Role.Admin) || HasRole(Role.SafeguardingOfficer) || HasRole(Role.Teacher);
 }
