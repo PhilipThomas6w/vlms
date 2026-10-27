@@ -15,9 +15,70 @@
     attendance by month. These are counts only: no child is named. Each chapter's Admins see their own chapter's full reports.
 </p>
 
+<h2>National totals</h2>
+<p>Students on roll: @_national.StudentsOnRoll</p>
+<table class="data-table">
+    <caption>Students on roll at each rank, all chapters</caption>
+    <thead>
+        <tr>
+            <th scope="col">Rank</th>
+            <th scope="col">Students</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var rank in _national.ByRank)
+        {
+            <tr>
+                <th scope="row" data-label="Rank">@rank.RankName</th>
+                <td data-label="Students">@rank.Students</td>
+            </tr>
+        }
+    </tbody>
+    <tfoot>
+        <tr>
+            <th scope="row" data-label="Rank">Total</th>
+            <td data-label="Students">@_national.StudentsOnRoll</td>
+        </tr>
+    </tfoot>
+</table>
+
+@if (_national.Attendance.Count == 0)
+{
+    <p>No registers taken in the last @NationalTotalsService.AttendanceMonths months.</p>
+}
+else
+{
+    <table class="data-table">
+        <caption>Attendance by month, all chapters</caption>
+        <thead>
+            <tr>
+                <th scope="col">Month</th>
+                <th scope="col">Meetings</th>
+                <th scope="col">Present</th>
+                <th scope="col">Absent</th>
+                <th scope="col">Attendance</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var month in _national.Attendance)
+            {
+                <tr>
+                    <th scope="row" data-label="Month">@(new DateOnly(month.Year, month.Month, 1).ToString("MMMM yyyy"))</th>
+                    <td data-label="Meetings">@month.Meetings</td>
+                    <td data-label="Present">@month.Present</td>
+                    <td data-label="Absent">@(month.Marks - month.Present)</td>
+                    <td data-label="Attendance">@(month.RatePercent is int rate ? $"{rate}%" : "–")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+<h2>By chapter</h2>
+
 @foreach (var chapter in _chapters)
 {
-    <h2>@chapter.ChapterName@(chapter.IsActive ? "" : " (closed)")</h2>
+    <h3>@chapter.ChapterName@(chapter.IsActive ? "" : " (closed)")</h3>
     <p>Students on roll: @chapter.StudentsOnRoll</p>
     <table class="data-table">
         <caption>Students on roll at each rank, @chapter.ChapterName</caption>
@@ -74,5 +135,14 @@
 @code {
     private IReadOnlyList<ChapterTotals> _chapters = [];
 
-    protected override async Task OnInitializedAsync() => _chapters = await Totals.GetAsync();
+    private NationalCollated _national = NationalCollated.From([]);
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Load into locals and assign together: Blazor renders at the first await.
+        var chapters = await Totals.GetAsync();
+        var national = NationalCollated.From(chapters);
+        _chapters = chapters;
+        _national = national;
+    }
 }

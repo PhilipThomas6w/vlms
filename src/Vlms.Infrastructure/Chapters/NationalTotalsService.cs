@@ -19,6 +19,32 @@ public sealed record ChapterTotals(
     IReadOnlyList<ChapterMonthAttendance> Attendance);
 
 /// <summary>
+/// The figures collated across every chapter (Philip, 27/10/2026): students on roll per rank and in
+/// all, and attendance per month. Pure sums of the per-chapter counts, so no further read is made;
+/// the rate is worked out from the summed marks, not averaged over the chapters' rates.
+/// </summary>
+public sealed record NationalCollated(
+    int StudentsOnRoll, IReadOnlyList<ChapterRankTotal> ByRank, IReadOnlyList<ChapterMonthAttendance> Attendance)
+{
+    public static NationalCollated From(IReadOnlyList<ChapterTotals> chapters)
+    {
+        var byRank = chapters
+            .SelectMany(c => c.ByRank)
+            .GroupBy(r => (r.RankId, r.RankName, r.RankOrder))
+            .OrderBy(g => g.Key.RankOrder)
+            .Select(g => new ChapterRankTotal(g.Key.RankId, g.Key.RankName, g.Key.RankOrder, g.Sum(r => r.Students)))
+            .ToList();
+        var attendance = chapters
+            .SelectMany(c => c.Attendance)
+            .GroupBy(m => (m.Year, m.Month))
+            .OrderByDescending(g => g.Key)
+            .Select(g => new ChapterMonthAttendance(g.Key.Year, g.Key.Month, g.Sum(m => m.Meetings), g.Sum(m => m.Marks), g.Sum(m => m.Present)))
+            .ToList();
+        return new NationalCollated(byRank.Sum(r => r.Students), byRank, attendance);
+    }
+}
+
+/// <summary>
 /// Anonymous figures per chapter for the national administrator (FR-021, docs/design/chapters-and-
 /// attendance.md 2.7 and section 5, Philip 24/10/2026): how many students are on roll (status
 /// Active) at each rank in each chapter, never who. The national administrator holds no chapter
