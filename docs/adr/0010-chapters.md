@@ -70,7 +70,7 @@ All in reviewed, gate-checked places (`build/check-access-control.ps1` fails on 
 
 ## Assumptions (least privilege chosen; Philip to confirm)
 
-**Confirmed by Philip, 24/10/2026:** 1, 2, 4, 6 and 8. Not yet put to him individually: 3, 5, 7 and 9. The DBS certificate number is kept (Philip, 24/10/2026).
+**Confirmed by Philip, 24/10/2026:** 1, 2, 4, 6 and 8; **27/10/2026:** 3, 5 and 7, and 9 amended (below). The DBS certificate number is kept (Philip, 24/10/2026).
 
 1. **Rank badges are managed by the National Administrator only.** Badges are national; a chapter Admin could otherwise change every chapter's artwork. The National Administrator can also read the lesson library (national curriculum, no child data) so the badges page works.
 2. **Approver is granted by the National Administrator**, not by chapter Admins (it is a national role).
@@ -79,5 +79,7 @@ All in reviewed, gate-checked places (`build/check-access-control.ps1` fails on 
 5. **The active chapter is per person, kept in the database** (section 3), not per browser.
 6. **Staff see their own children from another chapter only after switching to it** (section 2, arm 3).
 7. **National figures show exact counts**, however small; no small-number suppression was asked for. With very small chapters a count of one could point to a child for someone who knows the parish; Philip may want counts below a threshold hidden.
+   - **Confirmed (Philip, 27/10/2026):** exact counts, because only the National Administrator (Philip) sees them; revisit if someone outside the charity's trustees holds that role. **Added (Philip, 27/10/2026):** the national figures pages show collated national totals first, at the top, followed by the per-chapter breakdown.
 8. **The Shrewsbury chapter is named "Shrewsbury Orthodox Church"** (place "Shrewsbury"); the National Administrator can rename it.
 9. **MFA for chapter roles is judged in the active chapter**: a Teacher in A who is only a Parent in B is not asked for MFA while working in B, where they hold no staff role. Their B access is a parent's.
+   - **Amended (Philip, 27/10/2026):** an account holding a staff role in any chapter must use MFA whatever its active chapter: one account has one password, and a stolen one must not sign in without MFA as a parent elsewhere.
