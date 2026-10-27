@@ -373,7 +373,8 @@
 
     private async Task SubmitAsync()
     {
-        if (_lessonId == 0 || _selected.Count == 0)
+        // A second click during a slow submit must not start a concurrent batch on the same DbContext.
+        if (_busy || _lessonId == 0 || _selected.Count == 0)
         {
             return;
         }
@@ -382,6 +383,9 @@
         _errorMessage = null;
         try
         {
+            // Render the disabled "Recording..." state before the slow batch starts.
+            StateHasChanged();
+            await Task.Yield();
             _results = await CompletionService.MarkCompleteBatchAsync(_selected.ToList(), _lessonId, _note);
             _selected.Clear();
             _note = null;
