@@ -24,6 +24,7 @@ public class NavigationCoverageTests
         ["RequireSafeguardingOfficer"] = ["SafeguardingOfficer"],
         ["RequireNationalAdministrator"] = ["NationalAdministrator"],
         ["RequireAdminOrTeacher"] = ["Admin", "Teacher"],
+        ["RequireAttendanceReader"] = ["Admin", "Teacher", "SafeguardingOfficer"],
         ["RequireAdminOrSafeguardingOfficer"] = ["Admin", "SafeguardingOfficer"],
         ["RequireChapterMember"] = ["Admin", "Teacher", "SafeguardingOfficer", "Parent", "Student"],
         ["RequireLessonLibrary"] = ["Teacher", "Approver", "Admin", "Student", "Parent", "NationalAdministrator"],

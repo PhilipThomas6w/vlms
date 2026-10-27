@@ -32,6 +32,7 @@ public sealed class RoleMatrixEndToEndTests(RoleMatrixEndToEndTests.Sessions ses
         ["RequireSafeguardingOfficer"] = [Role.SafeguardingOfficer],
         ["RequireNationalAdministrator"] = [Role.NationalAdministrator],
         ["RequireAdminOrTeacher"] = [Role.Admin, Role.Teacher],
+        ["RequireAttendanceReader"] = [Role.Admin, Role.Teacher, Role.SafeguardingOfficer],
         ["RequireAdminOrSafeguardingOfficer"] = [Role.Admin, Role.SafeguardingOfficer],
         ["RequireChapterMember"] = [Role.Admin, Role.Teacher, Role.SafeguardingOfficer, Role.Parent, Role.Student],
         ["RequireLessonLibrary"] = [Role.Teacher, Role.Approver, Role.Admin, Role.Student, Role.Parent, Role.NationalAdministrator],

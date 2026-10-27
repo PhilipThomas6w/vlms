@@ -30,7 +30,7 @@ Emails the active chapter's Safeguarding Officers (`ChapterMembership.StaffIn`) 
 ## Pages
 
 - `Pages/Attendance/TakeRegister.razor` (`/attendance/{eventId}/{rankId}` and `/attendance/{eventId}/everyone`, `RequireTeacher`): one class's register, or an excursion's ("Excursion register", no record-lessons link), opened from the event page; tick who is here, consent warning per child, link to `/progress/record?date=`.
-- `Pages/Attendance/Registers.razor` (`/attendance`, `RequireAdminOrTeacher`, nav "Registers"): meeting days coming up, and past days with their collated totals; excursions marked "(excursion)".
+- `Pages/Attendance/Registers.razor` (`/attendance`, `RequireAttendanceReader` = Admin, Teacher or Safeguarding Officer since 27/10/2026, nav "Registers"): meeting days coming up, and past days with their collated totals; excursions marked "(excursion)".
 - `Pages/Calendar/EventPage.razor` (`/calendar/events/{id}`): for Teachers and Admins, the class registers and the day's total ([calendar.md](calendar.md)).
 - `Administration/UserRoles.razor`: the "Class teachers" section.
 - `Progress/RecordCompletions.razor`: reads the meeting's marks (`?date=`, default today); "Here"/"Absent" pills; "Select everyone here and ready" skips absent children; recording an absent child needs the catch-up confirmation.

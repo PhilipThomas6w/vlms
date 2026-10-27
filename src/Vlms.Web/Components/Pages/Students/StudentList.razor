@@ -1,5 +1,5 @@
 @page "/students"
-@attribute [Authorize(Policy = "RequireAdminOrTeacher")]
+@attribute [Authorize(Policy = "RequireAttendanceReader")]
 @rendermode InteractiveServer
 @using Vlms.Infrastructure.Engagement
 @inject StudentRosterService Roster

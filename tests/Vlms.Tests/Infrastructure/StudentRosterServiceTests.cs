@@ -113,12 +113,19 @@ public sealed class StudentRosterServiceTests : IDisposable
         Assert.Equal(2, list.Count);
     }
 
+    [Fact]
+    public async Task List_SafeguardingOfficer_IsAllowed_ToReadAttendance()
+    {
+        var list = await Run(new FakeCurrentUserContext(10, Role.SafeguardingOfficer), s => s.ListActiveStudentsAsync());
+
+        Assert.Equal(2, list.Count);
+    }
+
     [Theory]
     [InlineData(Role.Parent)]
     [InlineData(Role.Student)]
     [InlineData(Role.Approver)]
-    [InlineData(Role.SafeguardingOfficer)]
-    public async Task Roles_OtherThanTeacherAndAdmin_AreRefused(Role role)
+    public async Task Roles_OtherThanTeacherAdminAndSafeguardingOfficer_AreRefused(Role role)
     {
         var user = new FakeCurrentUserContext(10, role);
 
