@@ -34,7 +34,7 @@ Each acts only on our instructions. We share information with others only where 
 - Your child's records, including consent and health information: 3 years after they leave the club, then deleted.
 - DBS records: 6 years after the check expires or the volunteer leaves.
 - The security log of who viewed health or DBS records: 6 years.
-- Backup copies are kept for up to `[TBC – Philip: e.g. 35 days]` after that, then overwritten.
+- Information we delete stays in our backup copies until they expire, up to `[TBC – Philip: e.g. 35 days]` later, and is then overwritten.
 
 **Your rights.** You can ask to see the information we hold, to correct it, or for it to be deleted or restricted, and you can object to how we use it. Where we rely on your consent you can withdraw it at any time. For your child, a parent can usually exercise these rights; older children may be able to do so themselves. Contact `[TBC – Philip]`. We will reply within one month.
 

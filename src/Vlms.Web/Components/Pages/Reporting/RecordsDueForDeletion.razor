@@ -2,7 +2,9 @@
 @attribute [Authorize(Policy = "RequireAdmin")]
 @rendermode InteractiveServer
 @using Vlms.Infrastructure.Reporting
+@using Vlms.Infrastructure.Retention
 @inject RecordsDueForDeletionService ReportService
+@inject RetentionDeletionService DeletionService
 
 <PageTitle>Records due for deletion</PageTitle>
 
@@ -11,21 +13,53 @@
 <p class="intro">
     Student, DBS check and registration application records past their UK GDPR retention period
     (student records 3 years after leaving or graduating; DBS checks 6 years after expiry;
-    registration applications 1 year after the decision). This is a flagging report only — deletion itself
-    stays a manual, Admin-triggered action outside this system; nothing on this page deletes
-    anything.
+    registration applications 1 year after the decision). Deleting a record cannot be undone.
 </p>
 
 @if (_errorMessage is not null)
 {
     <p class="error" role="alert">@_errorMessage</p>
 }
-else if (_report is null)
+@if (_statusMessage is not null)
 {
-    <p>Loading…</p>
+    <p role="status">@_statusMessage</p>
+}
+
+@if (_report is null)
+{
+    @if (_errorMessage is null)
+    {
+        <p>Loading…</p>
+    }
 }
 else
 {
+    @if (Shown.Count > 0)
+    {
+        @if (_confirmingAll)
+        {
+            <section class="confirm-all" aria-labelledby="confirm-all-heading">
+                <h2 id="confirm-all-heading">Delete all shown</h2>
+                <p>Type each name to confirm.</p>
+                @foreach (var record in Shown)
+                {
+                    var key = record.Key;
+                    <div class="field">
+                        <label for="@InputId("all", key)">@record.Name</label>
+                        <input id="@InputId("all", key)" autocomplete="off" value="@_allNames.GetValueOrDefault(key)"
+                               @oninput="e => _allNames[key] = e.Value?.ToString() ?? string.Empty" />
+                    </div>
+                }
+                <button class="btn--danger" disabled="@(_busy || !AllNamesMatch)" @onclick="DeleteAllAsync">Delete all</button>
+                <button class="btn--secondary" disabled="@_busy" @onclick="CancelConfirm">Cancel</button>
+            </section>
+        }
+        else
+        {
+            <p><button class="btn--secondary" disabled="@_busy" @onclick="AskToConfirmAll">Delete all shown</button></p>
+        }
+    }
+
     <h2>Students</h2>
     <p>
         Graduated students whose graduation date is more than 3 years ago, and Inactive students
@@ -45,6 +79,7 @@ else
                     <th>Reason</th>
                     <th>Date</th>
                     <th>Days past retention</th>
+                    <th></th>
                 </tr>
             </thead>
             <tbody>
@@ -55,6 +90,7 @@ else
                         <td data-label="Reason">@flag.Reason</td>
                         <td data-label="Date">@flag.AnchorDate.ToString("d MMMM yyyy")</td>
                         <td data-label="Days past retention">@flag.DaysPastRetention</td>
+                        <td>@DeleteCell(new RecordKey(RetentionRecordKind.Student, flag.StudentId), flag.StudentName)</td>
                     </tr>
                 }
             </tbody>
@@ -80,6 +116,7 @@ else
                     <th>Reason</th>
                     <th>Retention anchor date</th>
                     <th>Days past retention</th>
+                    <th></th>
                 </tr>
             </thead>
             <tbody>
@@ -91,6 +128,7 @@ else
                         <td data-label="Reason">@flag.Reason</td>
                         <td data-label="Retention anchor date">@flag.AnchorDate.ToString("d MMMM yyyy")</td>
                         <td data-label="Days past retention">@flag.DaysPastRetention</td>
+                        <td>@DeleteCell(new RecordKey(RetentionRecordKind.DbsCheck, flag.DbsCheckId), flag.TeacherName)</td>
                     </tr>
                 }
             </tbody>
@@ -116,6 +154,7 @@ else
                     <th>Outcome</th>
                     <th>Decided</th>
                     <th>Days past retention</th>
+                    <th></th>
                 </tr>
             </thead>
             <tbody>
@@ -126,6 +165,7 @@ else
                         <td data-label="Outcome">@flag.Status</td>
                         <td data-label="Decided">@flag.DecidedAt.ToString("d MMMM yyyy")</td>
                         <td data-label="Days past retention">@flag.DaysPastRetention</td>
+                        <td>@DeleteCell(new RecordKey(RetentionRecordKind.StudentApplication, flag.ApplicationId), flag.ChildName)</td>
                     </tr>
                 }
             </tbody>
@@ -134,18 +174,129 @@ else
 }
 
 @code {
+    private sealed record RecordKey(RetentionRecordKind Kind, int Id);
+    private sealed record ShownRecord(RecordKey Key, string Name);
+
     private RecordsDueForDeletionReport? _report;
     private string? _errorMessage;
+    private string? _statusMessage;
+    private RecordKey? _confirming;
+    private string _confirmName = string.Empty;
+    private bool _confirmingAll;
+    private Dictionary<RecordKey, string> _allNames = new();
+    private bool _busy;
+
+    private List<ShownRecord> Shown => _report is null
+        ? []
+        : _report.Students.Select(s => new ShownRecord(new RecordKey(RetentionRecordKind.Student, s.StudentId), s.StudentName))
+            .Concat(_report.DbsChecks.Select(d => new ShownRecord(new RecordKey(RetentionRecordKind.DbsCheck, d.DbsCheckId), d.TeacherName)))
+            .Concat(_report.Applications.Select(a => new ShownRecord(new RecordKey(RetentionRecordKind.StudentApplication, a.ApplicationId), a.ChildName)))
+            .ToList();
+
+    private bool AllNamesMatch => Shown.All(r => RetentionDeletionService.NameMatches(_allNames.GetValueOrDefault(r.Key), r.Name));
+
+    private static string InputId(string prefix, RecordKey key) => $"confirm-{prefix}-{key.Kind}-{key.Id}".ToLowerInvariant();
+
+    private RenderFragment DeleteCell(RecordKey key, string name) => __builder =>
+    {
+        if (_confirming == key)
+        {
+            <label for="@InputId("one", key)">Type @name to confirm</label>
+            <input id="@InputId("one", key)" autocomplete="off" value="@_confirmName"
+                   @oninput="e => _confirmName = e.Value?.ToString() ?? string.Empty" />
+            <button class="btn--danger" aria-label="@($"Delete {name}")" disabled="@(_busy || !RetentionDeletionService.NameMatches(_confirmName, name))"
+                    @onclick="() => DeleteOneAsync(key, name)">Delete</button>
+            <button class="btn--secondary" aria-label="@($"Cancel deleting {name}")" disabled="@_busy" @onclick="CancelConfirm">Cancel</button>
+        }
+        else
+        {
+            <button class="btn--secondary" aria-label="@($"Delete {name}")" disabled="@_busy" @onclick="() => AskToConfirm(key)">Delete</button>
+        }
+    };
 
     protected override async Task OnInitializedAsync()
     {
         try
         {
-            _report = await ReportService.GetReportAsync();
+            await LoadAsync();
         }
         catch (UnauthorizedAccessException ex)
         {
             _errorMessage = ex.Message;
         }
+    }
+
+    // The page can render at any await, so the report is loaded first and swapped in at once.
+    private async Task LoadAsync()
+    {
+        var report = await ReportService.GetReportAsync();
+        _report = report;
+    }
+
+    private void AskToConfirm(RecordKey key)
+    {
+        (_errorMessage, _statusMessage, _confirming, _confirmName, _confirmingAll) = (null, null, key, string.Empty, false);
+    }
+
+    private void AskToConfirmAll()
+    {
+        (_errorMessage, _statusMessage, _confirming, _confirmingAll, _allNames) = (null, null, null, true, new Dictionary<RecordKey, string>());
+    }
+
+    private void CancelConfirm()
+    {
+        (_confirming, _confirmName, _confirmingAll, _allNames) = (null, string.Empty, false, new Dictionary<RecordKey, string>());
+    }
+
+    private async Task DeleteOneAsync(RecordKey key, string name)
+    {
+        if (_busy)
+        {
+            return;
+        }
+
+        _busy = true;
+        string? error = null;
+        string? status = null;
+        try
+        {
+            await DeletionService.DeleteAsync(new RetentionDeletionRequest(key.Kind, key.Id, _confirmName));
+            status = $"{name} deleted.";
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException)
+        {
+            error = ex.Message;
+        }
+
+        var report = await ReportService.GetReportAsync();
+        (_report, _errorMessage, _statusMessage, _confirming, _confirmName, _busy) = (report, error, status, null, string.Empty, false);
+    }
+
+    private async Task DeleteAllAsync()
+    {
+        if (_busy)
+        {
+            return;
+        }
+
+        _busy = true;
+        var requests = Shown.Select(r => new RetentionDeletionRequest(r.Key.Kind, r.Key.Id, _allNames.GetValueOrDefault(r.Key) ?? string.Empty)).ToList();
+        string? error = null;
+        string? status = null;
+        try
+        {
+            var results = await DeletionService.DeleteAllAsync(requests);
+            var deleted = results.Count(r => r.Deleted);
+            status = deleted == 1 ? "1 record deleted." : $"{deleted} records deleted.";
+            var refused = results.Where(r => !r.Deleted).Select(r => r.Error).Distinct().ToList();
+            error = refused.Count == 0 ? null : string.Join(" ", refused);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            error = ex.Message;
+        }
+
+        var report = await ReportService.GetReportAsync();
+        (_report, _errorMessage, _statusMessage, _confirmingAll, _allNames, _busy) = (report, error, status, false, new Dictionary<RecordKey, string>(), false);
     }
 }

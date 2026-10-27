@@ -23,5 +23,11 @@ public sealed class InMemoryBlobStorage : IBlobStorage
     public Task<bool> ExistsAsync(string blobKey, CancellationToken ct = default) =>
         Task.FromResult(_blobs.ContainsKey(blobKey));
 
+    public Task DeleteAsync(string blobKey, CancellationToken ct = default)
+    {
+        _blobs.Remove(blobKey);
+        return Task.CompletedTask;
+    }
+
     public bool TryGetBlob(string blobKey, out byte[] content) => _blobs.TryGetValue(blobKey, out content!);
 }

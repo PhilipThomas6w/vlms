@@ -20,7 +20,7 @@ public enum StudentDeletionReason
 /// <see cref="Reason"/> for which event it represents.
 /// </summary>
 public sealed record StudentDueForDeletion(
-    int StudentId, string StudentName, StudentDeletionReason Reason, DateTime AnchorDate, int DaysPastRetention);
+    int StudentId, string StudentName, StudentDeletionReason Reason, DateTime AnchorDate, int DaysPastRetention, int ChapterId);
 
 /// <summary>Why a <see cref="DbsCheckDueForDeletion"/> flag was raised.</summary>
 public enum DbsCheckDeletionReason
@@ -45,7 +45,7 @@ public enum DbsCheckDeletionReason
 /// </summary>
 public sealed record DbsCheckDueForDeletion(
     int DbsCheckId, int TeacherUserId, string TeacherName, DateOnly ExpiryDate,
-    DbsCheckDeletionReason Reason, DateOnly AnchorDate, int DaysPastRetention);
+    DbsCheckDeletionReason Reason, DateOnly AnchorDate, int DaysPastRetention, int ChapterId);
 
 /// <summary>
 /// A parent's registration application (and its restricted details) whose retention period has
@@ -53,7 +53,7 @@ public sealed record DbsCheckDueForDeletion(
 /// <see cref="DecidedAt"/> is the Admin's final decision, or the Safeguarding Officer's stage-1 rejection.
 /// </summary>
 public sealed record ApplicationDueForDeletion(
-    int ApplicationId, string ChildName, StudentApplicationStatus Status, DateTime DecidedAt, int DaysPastRetention);
+    int ApplicationId, string ChildName, StudentApplicationStatus Status, DateTime DecidedAt, int DaysPastRetention, int ChapterId);
 
 /// <summary>
 /// The retention-flagging computation behind the "records due for deletion" report
@@ -122,7 +122,7 @@ public static class RetentionFlagging
         var cutoff = now.AddYears(-ApplicationRetentionYears);
         var decided = await db.StudentApplications
             .Where(a => a.Status == StudentApplicationStatus.Approved || a.Status == StudentApplicationStatus.Rejected)
-            .Select(a => new { a.Id, a.ChildName, a.Status, DecidedAt = a.AdminDecidedAt ?? a.SafeguardingReviewedAt })
+            .Select(a => new { a.Id, a.ChildName, a.Status, DecidedAt = a.AdminDecidedAt ?? a.SafeguardingReviewedAt, a.ChapterId })
             .ToListAsync(ct);
 
         return decided
@@ -130,7 +130,7 @@ public static class RetentionFlagging
             .OrderBy(a => a.DecidedAt)
             .Select(a => new ApplicationDueForDeletion(
                 a.Id, a.ChildName, a.Status, a.DecidedAt!.Value,
-                (int)(now - a.DecidedAt!.Value.AddYears(ApplicationRetentionYears)).TotalDays))
+                (int)(now - a.DecidedAt!.Value.AddYears(ApplicationRetentionYears)).TotalDays, a.ChapterId))
             .ToList();
     }
 
@@ -149,7 +149,7 @@ public static class RetentionFlagging
 
         var graduatedStudents = await db.Students
             .Where(s => s.Status == StudentStatus.Graduated)
-            .Select(s => new { s.Id, s.Name })
+            .Select(s => new { s.Id, s.Name, s.ChapterId })
             .ToListAsync(ct);
 
         if (graduatedStudents.Count > 0)
@@ -166,14 +166,14 @@ public static class RetentionFlagging
                 {
                     var daysPastRetention = (int)(now - graduatedAt.AddYears(StudentRetentionYears)).TotalDays;
                     flags.Add(new StudentDueForDeletion(
-                        student.Id, student.Name, StudentDeletionReason.Graduated, graduatedAt, daysPastRetention));
+                        student.Id, student.Name, StudentDeletionReason.Graduated, graduatedAt, daysPastRetention, student.ChapterId));
                 }
             }
         }
 
         var inactiveStudents = await db.Students
             .Where(s => s.Status == StudentStatus.Inactive)
-            .Select(s => new { s.Id, s.Name, s.LeftAt })
+            .Select(s => new { s.Id, s.Name, s.LeftAt, s.ChapterId })
             .ToListAsync(ct);
 
         foreach (var student in inactiveStudents)
@@ -182,7 +182,7 @@ public static class RetentionFlagging
             {
                 var daysPastRetention = (int)(now - leftAt.AddYears(StudentRetentionYears)).TotalDays;
                 flags.Add(new StudentDueForDeletion(
-                    student.Id, student.Name, StudentDeletionReason.Left, leftAt, daysPastRetention));
+                    student.Id, student.Name, StudentDeletionReason.Left, leftAt, daysPastRetention, student.ChapterId));
             }
         }
 
@@ -256,7 +256,7 @@ public static class RetentionFlagging
             {
                 var daysPastRetention = today.DayNumber - retentionCutoffDate.DayNumber;
                 flags.Add(new DbsCheckDueForDeletion(
-                    check.Id, check.TeacherUserId, teacherName, check.ExpiryDate, reason, anchor, daysPastRetention));
+                    check.Id, check.TeacherUserId, teacherName, check.ExpiryDate, reason, anchor, daysPastRetention, check.ChapterId));
             }
         }
 

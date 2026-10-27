@@ -6,7 +6,7 @@ Status: delivery gate, completeness check 13/10/2026. Status values: **Verified 
 |---|---|---|---|---|
 | BR-001 Progress tracking | Lesson completion, auto-promotion (`functional.md`) | `data-design.md` (StudentLessonCompletion, StudentRankProgress), `low-level-design.md` (PromotionService) | TC-001, TC-003 | **Partial (22/10/2026):** services verified (automated), but no page records a completion (FR-008) |
 | BR-002 Curriculum management | Suggest, review, approve or send back, publish now, refer to committee, Approver alerts, version history (`functional.md` FR-007, `adr/0013`) | `data-design.md` (LessonSuggestion, LessonSuggestionApproval, LessonVersion), `low-level-design.md` (LessonSuggestionService) | TC-004, TC-005, TC-017, TC-057 | Verified (automated) |
-| BR-003 Safeguarding & consent | Annual consent, DBS, expiry blocking, guardian-link verification (`functional.md`) | `data-design.md` (ConsentRecord, ConsentSensitiveDetails, DbsCheck, StudentGuardianLink), `low-level-design.md` (ConsentExpiryJob) | TC-002, TC-009, TC-012, TC-013, TC-014 | Verified (automated); TC-014 live check pending go-live; retention purge not built |
+| BR-003 Safeguarding & consent | Annual consent, DBS, expiry blocking, guardian-link verification (`functional.md`) | `data-design.md` (ConsentRecord, ConsentSensitiveDetails, DbsCheck, StudentGuardianLink), `low-level-design.md` (ConsentExpiryJob) | TC-002, TC-009, TC-012, TC-013, TC-014, TC-058 | Verified (automated); TC-014 and TC-058 live checks pending go-live |
 | BR-004 Certificates & badges | Auto-generated PDF, tracked badge records (`functional.md`) | `data-design.md` (Certificate, RankBadge, StudentBadge), `low-level-design.md` (CertificateService) | TC-001, TC-003 | **Partial (22/10/2026):** PDFs generated, but no one can download them (FR-010); badge images: Admin upload built (FR-014), awaiting Philip's live check |
 | BR-005 Parent engagement | Dashboard + notifications (`functional.md`) | `low-level-design.md` (NotificationService, GuardianNotificationService) | TC-006, TC-013, TC-015 | Verified (automated); proactive parent emails built 20/10/2026 (`GuardianNotificationService`); first live send pending go-live |
 | BR-007 Lesson content access and usability by role (22/10/2026) | FR-006 to FR-016 (`functional.md`) | `requirements/user-journeys.md` | TC-016 to TC-026 | **Not built** |
@@ -33,5 +33,5 @@ Note: `BR-nnn` identifiers here are provisional groupings assigned during design
 - Every BR and NFR row has a design reference and either a TC or an explicit "not test-gated" reason. Every TC-001…TC-015 traces back to at least one row.
 - **Gaps found:**
   1. ~~**BR-005 proactive parent notifications not built.**~~ Closed 20/10/2026: `GuardianNotificationService`, TC-015.
-  2. **Retention purge not built** (BR-003; `STATE.md` Blocked).
+  2. ~~**Retention purge not built** (BR-003; `STATE.md` Blocked).~~ Closed 27/10/2026: `adr/0014`, TC-058.
   3. **Narrative requirements without FR numbers** (curriculum, progress, parent, reporting) are traced at BR level only, as the note below allows.

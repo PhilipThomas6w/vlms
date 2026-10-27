@@ -28,7 +28,12 @@ because this STATE.md item was scoped narrowly to the scheduled-jobs retarget.
   Safeguarding__ExpiryWarningWindowDays=28
   GraphMail__ClientSecret=<written by the command in deploy/README.md §4 "Email secret">
   App__PublicBaseUrl=https://www.varangians.co.uk
+  ConnectionStrings__AuditLogPurge=Host=localhost;Database=vlms;Username=vlms_retention;Password=<real password>
   ```
+  `ConnectionStrings__AuditLogPurge` is read only by `vlms-retention.service` (`Vlms.Jobs
+  retention-monthly`, monthly, `docs/adr/0014-retention-purge.md`): the records-due reminder to each
+  chapter's Admins, then the audit-log purge as the `vlms_retention` role (`deploy/README.md` step 3b).
+  Install and enable `vlms-retention.timer` the same way as `vlms-jobs.timer` below.
   `App__PublicBaseUrl` is optional: it adds the parent-dashboard link to consent reminders.
   Mode `0640`, owned by `root:vlms` (readable by the `vlms` group, not world-readable) — never commit
   real values anywhere in this repository; `src/Vlms.Jobs/appsettings.json`'s checked-in values are

@@ -22,3 +22,13 @@ Retention is confirmed (`governance/security-compliance.md`): students 3 years a
 - One new entity (the deletion log) and one EF migration; a new database role and RLS policy in a PostgreSQL-only migration, with its provisioning added to `deploy/README.md` (roles and grants) and the role's credentials held only by the jobs service.
 - Deletion code is security-critical (it crosses the `0004` whole-entity restrictions on `DbsCheck` and `ConsentSensitiveDetails`), so it is enforced in the service layer, audited, and re-reviewed in the ASVS checklist.
 - Deletion is manual, so a record can stay past its date if Admins ignore the reminder. Accepted at this scale.
+
+## Built (27/10/2026)
+
+`Retention/RetentionDeletionService` (Delete and Delete all shown on the report), `RetentionReminderService` and `AuditLogPurgeService`, run monthly by `Vlms.Jobs retention-monthly` (`deploy/systemd/vlms-retention.*`); entity `DeletionLogEntry` and migration `AddDeletionLog` (append-only deletion log; the `vlms_retention` DELETE policy); provisioning in `deploy/README.md` step 3b. Readings made while building, for confirmation:
+
+- An account is also kept while it holds an Approver or national role or any role in another chapter, while it has a registration application on record, and while any other kept record still names it (a register they took, a lesson version they suggested). Deleting it would break that record; such staff accounts are therefore kept until a decision on those references.
+- A staff leaver's account goes only once they left at least 6 years ago, whichever record's deletion triggers the check.
+- Deleting an application does not delete the applicant's account (this ADR names no rule for it).
+- "Delete all shown" asks for each person's name, one field per record.
+- The audit-log purge writes no deletion-log row (it removes log rows, not a person's record); its count is in the job's journal.

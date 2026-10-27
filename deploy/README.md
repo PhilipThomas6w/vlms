@@ -99,8 +99,44 @@ sudo -u postgres psql -f deploy/postgres/00-create-roles-and-database.sql
 #    0600 — see deploy/migrate.sh's header for its one variable, VLMS_OWNER_CONNECTION), then:
 sudo /opt/vlms-migrations/migrate.sh
 
-# 3. Grant vlms_app exactly what it needs, now that the schema exists.
+# 3. Grant vlms_app exactly what it needs, now that the schema exists (and vlms_retention its
+#    audit-log purge rights, below).
 sudo -u postgres psql -d vlms -f deploy/postgres/10-grant-app-privileges.sql
+```
+
+### 3b. The audit-log purge role (`vlms_retention`, `docs/adr/0014-retention-purge.md` decision 6)
+
+`00-create-roles-and-database.sql` also creates `vlms_retention` (LOGIN, `NOSUPERUSER`, never
+`BYPASSRLS`), and `10-grant-app-privileges.sql` grants it `CONNECT`, `USAGE` on the schema and
+`SELECT, DELETE` on `sensitive_data_access_logs` only. The `AddDeletionLog` migration's one DELETE
+policy on that table admits only rows older than 6 years, and only for `vlms_retention`. Its
+password goes in `/etc/vlms/jobs.env` only, as its own connection string (never in `web.env`):
+
+```sh
+sudo -u postgres psql -c "ALTER ROLE vlms_retention PASSWORD '<new password>';"
+# then add to /etc/vlms/jobs.env (root:vlms, 0640):
+# ConnectionStrings__AuditLogPurge=Host=localhost;Database=vlms;Username=vlms_retention;Password=<new password>
+```
+
+Verify (as `postgres`, then as each role):
+
+```sh
+sudo -u postgres psql -d vlms -c \
+  "SELECT policyname, cmd FROM pg_policies WHERE tablename IN ('sensitive_data_access_logs', 'deletion_log') ORDER BY 1;"
+# expected: deletion_log_allow_insert (a), deletion_log_allow_select (r),
+# sensitive_data_access_logs_allow_insert (a), sensitive_data_access_logs_allow_select (r),
+# sensitive_data_access_logs_retention_delete (d). No UPDATE policy; no DELETE policy on deletion_log.
+
+PGPASSWORD='<vlms_app password>' psql -h localhost -U vlms_app -d vlms -c "DELETE FROM sensitive_data_access_logs;"
+# expected: ERROR: permission denied for table sensitive_data_access_logs
+PGPASSWORD='<vlms_app password>' psql -h localhost -U vlms_app -d vlms -c "DELETE FROM deletion_log;"
+# expected: ERROR: permission denied for table deletion_log
+
+PGPASSWORD='<vlms_retention password>' psql -h localhost -U vlms_retention -d vlms -c \
+  "BEGIN; DELETE FROM sensitive_data_access_logs WHERE accessed_at >= now() - interval '6 years'; ROLLBACK;"
+# expected: DELETE 0 — the policy hides every row younger than 6 years, whatever the WHERE says.
+PGPASSWORD='<vlms_retention password>' psql -h localhost -U vlms_retention -d vlms -c "SELECT count(*) FROM students;"
+# expected: ERROR: permission denied for table students — the role can touch nothing else.
 ```
 
 **Verification, not assumption:** confirm `vlms_app` can connect and read/write ordinary tables but
@@ -133,8 +169,9 @@ sudo -u postgres psql -d vlms -c \
 
 sudo -u postgres psql -d vlms -c \
   "SELECT policyname, cmd FROM pg_policies WHERE tablename = 'sensitive_data_access_logs';"
-# expected: exactly two rows — sensitive_data_access_logs_allow_select (cmd 'r'),
-# sensitive_data_access_logs_allow_insert (cmd 'a'). No row for UPDATE/DELETE.
+# expected: sensitive_data_access_logs_allow_select (cmd 'r'), sensitive_data_access_logs_allow_insert
+# (cmd 'a'), and since AddDeletionLog (adr/0014) sensitive_data_access_logs_retention_delete (cmd 'd'),
+# limited to vlms_retention and rows older than 6 years (step 3b). No row for UPDATE.
 
 # Then, connected AS vlms_owner specifically (not postgres) — this is the check that proves FORCE is
 # actually binding the owner, not just present in the catalog:
@@ -195,7 +232,8 @@ by the `vlms` group, never world-readable), never committed anywhere in this rep
   (`AllowedHosts` and `App__PublicBaseUrl` are set in `vlms-web.service` itself — not secrets.)
 - `/etc/vlms/jobs.env` — see `deploy/systemd/README.md` (already documents this file's shape;
   not repeated here) — same `ConnectionStrings__VlmsDatabase` (as `vlms_app`),
-  `GraphMail__ClientSecret`, `Safeguarding__ExpiryWarningWindowDays`.
+  `GraphMail__ClientSecret`, `Safeguarding__ExpiryWarningWindowDays`, and
+  `ConnectionStrings__AuditLogPurge` (as `vlms_retention`, step 3b; this file only).
 - `/etc/vlms/backup.env` — see `deploy/backup/pg-backup.sh`'s own comment for the full variable
   list (`PGHOST`/`PGUSER=vlms_app`/`PGPASSWORD`/`BACKUP_S3_*`/`AWS_*`), plus `FILES_ROOT` for
   `deploy/backup/files-backup.sh` — the same path as `Storage__LocalRootPath` in `web.env`.
@@ -231,6 +269,7 @@ restart `vlms-web.service`, then delete the old secret:
 ```sh
 sudo cp deploy/systemd/vlms-web.service /etc/systemd/system/
 sudo cp deploy/systemd/vlms-jobs.service deploy/systemd/vlms-jobs.timer /etc/systemd/system/
+sudo cp deploy/systemd/vlms-retention.service deploy/systemd/vlms-retention.timer /etc/systemd/system/
 sudo cp deploy/backup/vlms-backup.service deploy/backup/vlms-backup.timer /etc/systemd/system/
 sudo cp deploy/backup/vlms-files-backup.service deploy/backup/vlms-files-backup.timer /etc/systemd/system/
 sudo cp deploy/backup/pg-backup.sh deploy/backup/files-backup.sh /opt/vlms/backup/
@@ -240,6 +279,7 @@ sudo chmod +x /opt/vlms/backup/pg-backup.sh /opt/vlms/backup/files-backup.sh
 sudo systemctl daemon-reload
 sudo systemctl enable --now vlms-web.service
 sudo systemctl enable --now vlms-jobs.timer      # NOT vlms-jobs.service directly — see deploy/systemd/README.md
+sudo systemctl enable --now vlms-retention.timer # monthly: records-due reminder, then audit-log purge (adr/0014)
 sudo systemctl enable --now vlms-backup.timer    # NOT vlms-backup.service directly, same reason
 sudo systemctl enable --now vlms-files-backup.timer
 ```
