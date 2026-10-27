@@ -9,21 +9,22 @@
 @inject LeavingService LeavingService
 @inject ICurrentUserContext CurrentUser
 
-<PageTitle>Mark as left</PageTitle>
+<PageTitle>Leaving and stepping down</PageTitle>
 
-<PageHeader Title="Mark as left" />
+<PageHeader Title="Leaving and stepping down" />
 
 <p class="intro">
-    A manual action for Admins only. It is not inferred from disengagement or activity. Marking a Student or staff member as having left records the
-    date automatically (the moment you click the button, not a backdated date you choose) and feeds
-    the <a href="/reporting/records-due-for-deletion">records due for deletion</a> retention report.
+    A manual action for Admins only. It is not inferred from disengagement or activity. Marking a Student as having left, or
+    stepping down a staff member, records the date automatically (the moment you click the button, not a backdated date you choose)
+    and feeds the <a href="/reporting/records-due-for-deletion">records due for deletion</a> retention report.
     This does not delete anything and does not affect promotions, badges, or certificates.
 </p>
 <p>
     Students, parents and Approvers who leave keep their sign-in. A Teacher, Admin or Safeguarding Officer
-    marked as left loses all staff access at once. If they are also a parent they can still sign in, but
+    who steps down loses all staff access at once. If they are also a parent they can still sign in, but
     only as a parent of their own children; otherwise they can no longer sign in at all. Their staff
-    roles are kept as a record. You can't mark yourself as left, or the last Admin who hasn't left.
+    roles are kept, and reinstating them restores those roles. You can't step down or reinstate yourself,
+    or step down the last Admin.
 </p>
 
 @if (_errorMessage is not null)
@@ -66,7 +67,7 @@ else
 <h2>Staff</h2>
 @if (_currentStaff.Count == 0)
 {
-    <p>No Teachers, Admins or Safeguarding Officers who have not already been marked as left.</p>
+    <p>No Teachers, Admins or Safeguarding Officers who have not stepped down.</p>
 }
 else
 {
@@ -76,6 +77,7 @@ else
                 <th>Name</th>
                 <th>Email</th>
                 <th>Roles</th>
+                <th>History</th>
                 <th></th>
             </tr>
         </thead>
@@ -83,19 +85,67 @@ else
             @foreach (var member in _currentStaff)
             {
                 <tr>
-                    <td data-label="Name">@member.User.DisplayName</td>
-                    <td data-label="Email">@member.User.Email</td>
-                    <td data-label="Roles">@string.Join(", ", member.Roles.Select(r => r.DisplayName()))</td>
+                    <td data-label="Name">@member.DisplayName</td>
+                    <td data-label="Email">@member.Email</td>
+                    <td data-label="Roles">@RolesText(member)</td>
+                    <td data-label="History">@foreach (var line in History(member)) { <div>@line</div> }</td>
                     <td>
-                        @if (_confirmingUserId == member.User.Id)
+                        @if (_confirming == (member.UserId, ConfirmKind.StepDown))
                         {
-                            <p role="alert">Mark @member.User.DisplayName as left? They lose all staff access at once, and you cannot undo this in the app.</p>
-                            <button class="btn--danger" aria-label="@($"Confirm: mark {member.User.DisplayName} as left")" @onclick="() => MarkStaffLeftAsync(member.User.Id)">Confirm</button>
-                            <button aria-label="@($"Cancel marking {member.User.DisplayName} as left")" @onclick="CancelConfirm" class="btn--secondary">Cancel</button>
+                            <p role="alert">Step down @member.DisplayName? They lose all staff access at once.</p>
+                            <button class="btn--danger" aria-label="@($"Confirm: step down {member.DisplayName}")" @onclick="() => StepDownAsync(member.UserId)">Step down</button>
+                            <button aria-label="@($"Cancel stepping down {member.DisplayName}")" @onclick="CancelConfirm" class="btn--secondary">Cancel</button>
                         }
                         else
                         {
-                            <button class="btn--secondary" aria-label="@($"Mark {member.User.DisplayName} as left")" @onclick="() => AskToConfirm(member.User.Id)">Mark as left</button>
+                            <button class="btn--secondary" aria-label="@($"Step down {member.DisplayName}")" @onclick="() => AskToConfirm(member.UserId, ConfirmKind.StepDown)">Step down</button>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+<h2>Stepped down</h2>
+@if (_steppedDown.Count == 0)
+{
+    <p>Nobody in this chapter has stepped down.</p>
+}
+else
+{
+    <table class="data-table data-table--wide">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Roles</th>
+                <th>History</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var member in _steppedDown)
+            {
+                <tr>
+                    <td data-label="Name">@member.DisplayName</td>
+                    <td data-label="Email">@member.Email</td>
+                    <td data-label="Roles">@RolesText(member)</td>
+                    <td data-label="History">@foreach (var line in History(member)) { <div>@line</div> }</td>
+                    <td>
+                        @if (member.UserId == CurrentUser.UserId)
+                        {
+                            // Nobody reinstates themselves (LeavingService.ReinstateAsync refuses it too).
+                        }
+                        else if (_confirming == (member.UserId, ConfirmKind.Reinstate))
+                        {
+                            <p role="alert">Reinstate @member.DisplayName as @RolesText(member)?</p>
+                            <button aria-label="@($"Confirm: reinstate {member.DisplayName}")" @onclick="() => ReinstateAsync(member.UserId)">Reinstate</button>
+                            <button aria-label="@($"Cancel reinstating {member.DisplayName}")" @onclick="CancelConfirm" class="btn--secondary">Cancel</button>
+                        }
+                        else
+                        {
+                            <button class="btn--secondary" aria-label="@($"Reinstate {member.DisplayName}")" @onclick="() => AskToConfirm(member.UserId, ConfirmKind.Reinstate)">Reinstate</button>
                         }
                     </td>
                 </tr>
@@ -105,46 +155,48 @@ else
 }
 
 @code {
-    private List<Student> _activeStudents = new();
-    private List<StaffRow> _currentStaff = new();
+    private enum ConfirmKind { StepDown, Reinstate }
 
-    private sealed record StaffRow(AppUser User, IReadOnlyList<Role> Roles);
+    private List<Student> _activeStudents = new();
+    private List<LeavingService.StaffMember> _currentStaff = new();
+    private List<LeavingService.StaffMember> _steppedDown = new();
+
     private string? _errorMessage;
     private string? _statusMessage;
-    private int? _confirmingUserId;
+    private (int UserId, ConfirmKind Kind)? _confirming;
 
-    private void AskToConfirm(int userId)
+    private static string RolesText(LeavingService.StaffMember member) =>
+        string.Join(", ", member.Roles.Select(r => r.DisplayName()));
+
+    private static IEnumerable<string> History(LeavingService.StaffMember member) =>
+        member.History.Select(p =>
+            $"Stepped down {p.SteppedDownAt:d MMMM yyyy}" + (p.SteppedDownBy is { } by ? $" by {by}" : "")
+            + (p.ReinstatedAt is { } back ? $"; reinstated {back:d MMMM yyyy}" + (p.ReinstatedBy is { } who ? $" by {who}" : "") : ""));
+    private void AskToConfirm(int userId, ConfirmKind kind)
     {
         _errorMessage = null;
         _statusMessage = null;
-        _confirmingUserId = userId;
+        _confirming = (userId, kind);
     }
 
-    private void CancelConfirm() => _confirmingUserId = null;
+    private void CancelConfirm() => _confirming = null;
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
 
     private async Task LoadAsync()
     {
-        _activeStudents = await Db.Students
+        // Loaded into locals and assigned together: the page renders at its first await.
+        var students = await Db.Students
             .Where(s => s.Status == StudentStatus.Active)
             .OrderBy(s => s.Name)
             .ToListAsync();
 
-        // FR-017: Teachers, Admins and Safeguarding Officers (LeftStaffPolicy.StaffRoles).
-        // This chapter's staff only (docs/adr/0010-chapters.md).
-        var staffRoles = await Db.UserRoles
-            .Where(r => (r.Role == Role.Teacher || r.Role == Role.Admin || r.Role == Role.SafeguardingOfficer)
-                && r.ChapterId == CurrentUser.ActiveChapterId)
-            .ToListAsync();
-        var rolesByUser = staffRoles.ToLookup(r => r.UserId, r => r.Role);
-        var staffUserIds = rolesByUser.Select(g => g.Key).ToList();
+        // FR-017: Teachers, Admins and Safeguarding Officers of this chapter (docs/adr/0010-chapters.md).
+        var staff = await LeavingService.ListStaffAsync();
 
-        var users = await Db.AppUsers
-            .Where(u => staffUserIds.Contains(u.Id) && !u.HasLeft)
-            .OrderBy(u => u.DisplayName)
-            .ToListAsync();
-        _currentStaff = users.Select(u => new StaffRow(u, rolesByUser[u.Id].OrderBy(r => r).ToList())).ToList();
+        _activeStudents = students;
+        _currentStaff = staff.Where(m => !m.SteppedDown).ToList();
+        _steppedDown = staff.Where(m => m.SteppedDown).ToList();
     }
 
     private async Task MarkStudentInactiveAsync(int studentId)
@@ -164,16 +216,34 @@ else
         }
     }
 
-    private async Task MarkStaffLeftAsync(int userId)
+    private async Task StepDownAsync(int userId)
     {
-        _confirmingUserId = null;
+        _confirming = null;
         _errorMessage = null;
         _statusMessage = null;
 
         try
         {
-            var member = await LeavingService.MarkStaffLeftAsync(userId);
-            _statusMessage = $"{member.DisplayName} marked as left. Their staff access has ended.";
+            var member = await LeavingService.StepDownAsync(userId);
+            _statusMessage = $"{member.DisplayName} stepped down. Their staff access has ended.";
+            await LoadAsync();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+
+    private async Task ReinstateAsync(int userId)
+    {
+        _confirming = null;
+        _errorMessage = null;
+        _statusMessage = null;
+
+        try
+        {
+            var member = await LeavingService.ReinstateAsync(userId);
+            _statusMessage = $"{member.DisplayName} reinstated.";
             await LoadAsync();
         }
         catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException)

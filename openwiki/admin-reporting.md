@@ -54,7 +54,7 @@ itself (no self-service path for a Student/Teacher to mark themselves inactive/l
   the Admin explicitly enables", not a date-entry form; flagged as revisitable if backdating is ever
   wanted. Throws if the student is not currently Active (an already-Inactive or Graduated student has
   no "leaving" transition to make).
-- **`MarkStaffLeftAsync(userId, ct)`** (was `MarkTeacherLeftAsync` until FR-017 was amended,
+- **`StepDownAsync(userId, ct)`** (was `MarkTeacherLeftAsync` until FR-017 was amended,
   22/10/2026) — sets `AppUser.HasLeft = true`/`AppUser.LeftAt = DateTime.UtcNow` on the target
   `AppUser` (same auto-captured-timestamp reasoning) and rotates the security stamp. Validates the
   target holds Teacher, Admin or Safeguarding Officer; refuses the caller themselves and the last

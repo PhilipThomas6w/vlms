@@ -73,7 +73,7 @@
                 @foreach (var admin in _admins[chapter.Id])
                 {
                     <li>
-                        @admin.DisplayName (@admin.Email)@(admin.HasLeft ? " (left)" : "")
+                        @admin.DisplayName (@admin.Email)@(admin.HasLeft ? " (stepped down)" : "")
                         <button type="button" class="btn--secondary" aria-label="@($"Remove {admin.DisplayName} as Admin of {chapter.Name}")"
                                 @onclick="() => RemoveAdminAsync(chapter, admin)">Remove</button>
                     </li>

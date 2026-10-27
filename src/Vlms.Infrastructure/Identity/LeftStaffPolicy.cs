@@ -26,6 +26,11 @@ namespace Vlms.Infrastructure.Identity;
 /// </list>
 /// An Approver, Parent or Student who leaves keeps access (an Admin can remove an Approver's role).
 ///
+/// <b>Stepped down and reinstated (FR-017 amended 27/10/2026).</b> For staff, <see cref="AppUser.HasLeft"/>
+/// means <i>stepped down</i>. <c>Retention.LeavingService.ReinstateAsync</c> clears it, so the kept staff rows
+/// count again, exactly as they were, the lockout lifts and the MFA rule applies again. Parent may be
+/// granted while stepped down (<see cref="RoleAssignmentService.GrantAsync"/>); no staff role may.
+///
 /// <b>Role rows are kept, not revoked.</b> They are the history (who taught, who held Admin, whose
 /// DBS checks these are) and what tells a staff leaver apart from a parent who left. To keep that
 /// stable, <see cref="RoleAssignmentService.RevokeAsync"/> refuses to remove a staff role from a

@@ -1424,6 +1424,52 @@ namespace Vlms.Infrastructure.Migrations
                     b.ToTable("sensitive_data_access_logs");
                 });
 
+            modelBuilder.Entity("Vlms.Domain.StaffStepDown", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ChapterId")
+                        .HasColumnType("integer")
+                        .HasColumnName("chapter_id");
+
+                    b.Property<DateTime?>("ReinstatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("reinstated_at");
+
+                    b.Property<int?>("ReinstatedByUserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("reinstated_by_user_id");
+
+                    b.Property<DateTime>("SteppedDownAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("stepped_down_at");
+
+                    b.Property<int?>("SteppedDownByUserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("stepped_down_by_user_id");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChapterId");
+
+                    b.HasIndex("ReinstatedByUserId");
+
+                    b.HasIndex("SteppedDownByUserId");
+
+                    b.HasIndex("UserId", "SteppedDownAt");
+
+                    b.ToTable("staff_step_downs");
+                });
+
             modelBuilder.Entity("Vlms.Domain.Student", b =>
                 {
                     b.Property<int>("Id")
@@ -2479,6 +2525,31 @@ namespace Vlms.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Rank");
+                });
+
+            modelBuilder.Entity("Vlms.Domain.StaffStepDown", b =>
+                {
+                    b.HasOne("Vlms.Domain.Chapter", null)
+                        .WithMany()
+                        .HasForeignKey("ChapterId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Vlms.Domain.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("ReinstatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Vlms.Domain.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("SteppedDownByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Vlms.Domain.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Vlms.Domain.Student", b =>

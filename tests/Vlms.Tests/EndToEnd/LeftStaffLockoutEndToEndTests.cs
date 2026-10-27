@@ -15,8 +15,8 @@ namespace Vlms.Tests.EndToEnd;
 /// can't be finished, an open session loses its access at once and is ended at its next
 /// security-stamp validation, and a password reset doesn't let them back in. One who is also a
 /// parent signs in as a parent only. Students, parents and Approvers who leave keep access.
-/// Leaving runs through the real <c>LeavingService.MarkStaffLeftAsync</c>
-/// (<see cref="VlmsWebFactory.MarkStaffLeftAsync"/>).
+/// Leaving runs through the real <c>LeavingService.StepDownAsync</c>
+/// (<see cref="VlmsWebFactory.StepDownAsync"/>).
 /// </summary>
 public sealed class LeftStaffLockoutEndToEndTests : IDisposable
 {
@@ -35,7 +35,7 @@ public sealed class LeftStaffLockoutEndToEndTests : IDisposable
     {
         var boss = await _factory.SeedUserAsync("boss@test.example", withTotp: true, Role.Admin);
         var leaver = await _factory.SeedUserAsync("leaver@test.example", withTotp, role);
-        await _factory.MarkStaffLeftAsync(boss.Id, leaver.Id);
+        await _factory.StepDownAsync(boss.Id, leaver.Id);
 
         var client = _factory.CreateBrowser();
         var response = await Browser.PostLoginAsync(client, leaver.Email, VlmsWebFactory.Password);
@@ -56,7 +56,7 @@ public sealed class LeftStaffLockoutEndToEndTests : IDisposable
     {
         var boss = await _factory.SeedUserAsync("boss@test.example", withTotp: true, Role.Admin);
         var leaver = await _factory.SeedUserAsync("leaver@test.example", withTotp: true, Role.Teacher);
-        await _factory.MarkStaffLeftAsync(boss.Id, leaver.Id);
+        await _factory.StepDownAsync(boss.Id, leaver.Id);
 
         var wrong = await Browser.PostLoginAsync(_factory.CreateBrowser(), leaver.Email, "Not-The-Password-1!");
 
@@ -76,7 +76,7 @@ public sealed class LeftStaffLockoutEndToEndTests : IDisposable
         Assert.Equal(HttpStatusCode.OK, (await before.GetAsync("/students")).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await before.GetAsync("/administration/students")).StatusCode);
 
-        await _factory.MarkStaffLeftAsync(boss.Id, leaver.Id);
+        await _factory.StepDownAsync(boss.Id, leaver.Id);
         var client = await Browser.SignInAsync(_factory, leaver);
 
         Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/parent/dashboard")).StatusCode);
@@ -94,7 +94,7 @@ public sealed class LeftStaffLockoutEndToEndTests : IDisposable
     {
         var boss = await _factory.SeedUserAsync("boss@test.example", withTotp: true, Role.Admin);
         var leaver = await _factory.SeedUserAsync("staff-parent@test.example", withTotp: true, Role.Teacher, Role.Parent);
-        await _factory.MarkStaffLeftAsync(boss.Id, leaver.Id);
+        await _factory.StepDownAsync(boss.Id, leaver.Id);
 
         await PostForgotPasswordAsync(leaver.Email);
 
@@ -111,7 +111,7 @@ public sealed class LeftStaffLockoutEndToEndTests : IDisposable
         var twoFactorUrl = Browser.RelativeLocation(login);
         Assert.StartsWith("/Account/LoginWith2fa", twoFactorUrl, StringComparison.OrdinalIgnoreCase);
 
-        await _factory.MarkStaffLeftAsync(boss.Id, leaver.Id);
+        await _factory.StepDownAsync(boss.Id, leaver.Id);
         var second = await Browser.PostTwoFactorAsync(client, twoFactorUrl, Browser.Totp(leaver.AuthenticatorKey!));
 
         Assert.Equal(HttpStatusCode.OK, second.StatusCode);
@@ -136,7 +136,7 @@ public sealed class LeftStaffLockoutEndToEndTests : IDisposable
         var login = await Browser.PostLoginAsync(client, leaver.Email, VlmsWebFactory.Password);
         Assert.StartsWith("/Account/LoginWith2fa", Browser.RelativeLocation(login), StringComparison.OrdinalIgnoreCase);
 
-        await _factory.MarkStaffLeftAsync(boss.Id, leaver.Id);
+        await _factory.StepDownAsync(boss.Id, leaver.Id);
         const string url = "/Account/LoginWithRecoveryCode";
         var token = await Browser.GetAntiforgeryTokenAsync(client, url);
         var response = await client.PostAsync(url, new FormUrlEncodedContent(
@@ -163,7 +163,7 @@ public sealed class LeftStaffLockoutEndToEndTests : IDisposable
         var client = await Browser.SignInAsync(_factory, leaver);
         Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/students")).StatusCode);
 
-        await _factory.MarkStaffLeftAsync(boss.Id, leaver.Id);
+        await _factory.StepDownAsync(boss.Id, leaver.Id);
 
         var after = await client.GetAsync("/students");
         Assert.Equal(HttpStatusCode.Redirect, after.StatusCode);
@@ -178,7 +178,7 @@ public sealed class LeftStaffLockoutEndToEndTests : IDisposable
         var client = await Browser.SignInAsync(factory, leaver);
         Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/Account/Manage/TwoFactorAuthentication")).StatusCode);
 
-        await factory.MarkStaffLeftAsync(boss.Id, leaver.Id);
+        await factory.StepDownAsync(boss.Id, leaver.Id);
 
         // Any signed-in page (not only staff ones) now sends them to log in: the session is over.
         var after = await client.GetAsync("/Account/Manage/TwoFactorAuthentication");
@@ -214,7 +214,7 @@ public sealed class LeftStaffLockoutEndToEndTests : IDisposable
         var boss = await _factory.SeedUserAsync("boss@test.example", withTotp: true, Role.Admin);
         var leaver = await _factory.SeedUserAsync("leaver@test.example", withTotp: true, Role.Teacher);
         var colleague = await _factory.SeedUserAsync("colleague@test.example", withTotp: true, Role.Teacher);
-        await _factory.MarkStaffLeftAsync(boss.Id, leaver.Id);
+        await _factory.StepDownAsync(boss.Id, leaver.Id);
 
         var leaverPage = await PostForgotPasswordAsync(leaver.Email);
         var colleaguePage = await PostForgotPasswordAsync(colleague.Email);
@@ -231,7 +231,7 @@ public sealed class LeftStaffLockoutEndToEndTests : IDisposable
     {
         var boss = await _factory.SeedUserAsync("boss@test.example", withTotp: true, Role.Admin);
         var leaver = await _factory.SeedUserAsync("leaver@test.example", withTotp: true, Role.Teacher);
-        await _factory.MarkStaffLeftAsync(boss.Id, leaver.Id);
+        await _factory.StepDownAsync(boss.Id, leaver.Id);
 
         // Suppose a reset happened anyway (e.g. a link they already held, or an operator's reset).
         const string newPassword = "Brand-New-Pass-7!";

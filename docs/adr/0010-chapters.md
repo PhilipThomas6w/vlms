@@ -46,7 +46,7 @@ National figures (`/reporting/national`, `Chapters/NationalTotalsService`): stud
 
 ### 5. Chapter Admins
 
-`RoleAssignmentService` and `/administration/user-roles` work on the Admin's active chapter only: they list the people holding a role in it (and only those roles), grant Admin, Teacher, Safeguarding Officer or Parent there, and revoke them there; the last-Admin guard counts that chapter's Admins. Someone new is found by their exact email address rather than by listing every account on the platform. National roles are not granted here. Leaving (`LeavingService.MarkStaffLeftAsync`) is recorded on the account, so it would end staff roles in every chapter; a chapter Admin may mark as left only staff whose staff roles are all in their own chapter.
+`RoleAssignmentService` and `/administration/user-roles` work on the Admin's active chapter only: they list the people holding a role in it (and only those roles), grant Admin, Teacher, Safeguarding Officer or Parent there, and revoke them there; the last-Admin guard counts that chapter's Admins. Someone new is found by their exact email address rather than by listing every account on the platform. National roles are not granted here. Leaving (`LeavingService.StepDownAsync`) is recorded on the account, so it would end staff roles in every chapter; a chapter Admin may mark as left only staff whose staff roles are all in their own chapter.
 
 ### 6. Registration, notifications, the scheduled job
 

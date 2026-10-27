@@ -200,7 +200,7 @@ public sealed class ChapterService
 
         if (await _db.AppUsers.AnyAsync(u => u.Id == userId && u.HasLeft, ct))
         {
-            throw new InvalidOperationException("This person has left: their Admin role is kept as a record and already gives them nothing.");
+            throw new InvalidOperationException("This person has stepped down: their Admin role is kept for reinstatement and gives them nothing meanwhile.");
         }
 
         if (!await _db.AppUsers.AnyAsync(u => u.Id != userId && !u.HasLeft
@@ -280,7 +280,7 @@ public sealed class ChapterService
 
         if (user.HasLeft)
         {
-            throw new InvalidOperationException($"{user.DisplayName} has been marked as having left.");
+            throw new InvalidOperationException($"{user.DisplayName} has stepped down.");
         }
 
         return user;

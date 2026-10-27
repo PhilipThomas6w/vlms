@@ -853,19 +853,24 @@ public sealed class StudentApplicationServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task Approval_IsRefused_WhenTheApplicantHasSinceLeft()
+    public async Task Approval_IsAllowed_WhenTheApplicantHasSinceSteppedDownAsStaff()
     {
+        // FR-017 (amended 27/10/2026): someone who stepped down can be approved as a parent; their
+        // staff role stays (off) and Parent is added.
         var id = await SubmitAndPassStageOneAsync();
         using (var admin = Caller(AdminId, Role.Admin))
         {
+            admin.Db.UserRoles.Add(new UserRole { UserId = ApplicantId, Role = Role.Teacher });
             var user = admin.Db.AppUsers.Single(u => u.Id == ApplicantId);
             admin.Db.Entry(user).CurrentValues[nameof(AppUser.HasLeft)] = true;
+            admin.Db.Entry(user).CurrentValues[nameof(AppUser.LeftAt)] = DateTime.UtcNow;
             admin.Db.SaveChanges();
         }
 
         using var approver = Caller(AdminId, Role.Admin);
-        await Assert.ThrowsAsync<InvalidOperationException>(() => approver.Service.ApproveAsync(id, startingRankId: 1));
-        Assert.Empty(RolesOf(ApplicantId));
+        await approver.Service.ApproveAsync(id, startingRankId: 1);
+        Assert.Contains(Role.Parent, RolesOf(ApplicantId));
+        Assert.Contains(Role.Teacher, RolesOf(ApplicantId));
     }
 
     [Fact]

@@ -162,11 +162,11 @@ public sealed class VlmsWebFactory : WebApplicationFactory<Vlms.Web.Components.A
     }
 
     /// <summary>
-    /// Runs the real <see cref="LeavingService.MarkStaffLeftAsync"/> against this app's database, as
+    /// Runs the real <see cref="LeavingService.StepDownAsync"/> against this app's database, as
     /// the Admin <paramref name="adminUserId"/> (the page that calls it is interactive, so it can't be
     /// driven by a form post here).
     /// </summary>
-    public async Task<AppUser> MarkStaffLeftAsync(int adminUserId, int userId)
+    public async Task<AppUser> StepDownAsync(int adminUserId, int userId)
     {
         var services = new ServiceCollection();
         services.AddLogging();
@@ -176,7 +176,7 @@ public sealed class VlmsWebFactory : WebApplicationFactory<Vlms.Web.Components.A
         services.AddScoped<LeavingService>();
         await using var provider = services.BuildServiceProvider();
         await using var scope = provider.CreateAsyncScope();
-        return await scope.ServiceProvider.GetRequiredService<LeavingService>().MarkStaffLeftAsync(userId);
+        return await scope.ServiceProvider.GetRequiredService<LeavingService>().StepDownAsync(userId);
     }
 
     protected override void Dispose(bool disposing)

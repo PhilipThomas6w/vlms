@@ -16,7 +16,7 @@
     held in this chapter, and roles someone holds in another chapter are not shown. A new account has no
     roles and can do nothing until a role is granted here. Admin, Safeguarding Officer and Teacher holders
     must enrol two-factor authentication before those roles take effect. The chapter's last remaining Admin
-    cannot lose the Admin role, and a user marked as having left cannot be granted a role. The
+    cannot lose the Admin role, and someone who has stepped down can be granted only Parent. The
     Student role comes only from a parent creating their child's sign-in, and a student sign-in
     can't be given other roles. The Approver role is national and is granted by a National Administrator.
 </p>
@@ -102,8 +102,8 @@
     {
         var foundSelectId = $"grant-role-found-{found.UserId}";
         <div class="panel">
-            <p><strong>@found.DisplayName</strong> (@found.Email)@(found.HasLeft ? " has left." : "")</p>
-            @if (!found.HasLeft && GrantableRoles(found) is { Count: > 0 } foundRoles)
+            <p><strong>@found.DisplayName</strong> (@found.Email)@(found.HasLeft ? " has stepped down." : "")</p>
+            @if (GrantableRoles(found) is { Count: > 0 } foundRoles)
             {
                 <div class="field-row">
                     <div class="field">
@@ -145,7 +145,7 @@
                 @foreach (var user in _users)
                 {
                     <tr>
-                        <td data-label="User">@user.DisplayName@(user.HasLeft ? " (left)" : "")</td>
+                        <td data-label="User">@user.DisplayName@(user.HasLeft ? " (stepped down)" : "")</td>
                         <td data-label="Email">@user.Email</td>
                         <td data-label="Roles">
                             @if (user.Roles.Count == 0)
@@ -164,8 +164,7 @@
                             </div>
                         </td>
                         <td data-label="Grant a role">
-                            @if (!user.HasLeft)
-                            {
+                            @{
                                 var available = GrantableRoles(user);
                                 if (available.Count > 0)
                                 {
@@ -297,7 +296,7 @@
     private static List<Role> GrantableRoles(RoleAssignmentService.UserWithRoles user) =>
         user.Roles.Contains(Role.Student) || string.IsNullOrEmpty(user.Email)
             ? []
-            : RoleAssignmentService.AssignableRoles.Except(user.Roles).ToList();
+            : RoleAssignmentService.AssignableRoles.Where(r => !user.HasLeft || r == Role.Parent).Except(user.Roles).ToList();
 
     private string? _findEmail;
     private RoleAssignmentService.UserWithRoles? _found;
