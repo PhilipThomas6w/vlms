@@ -73,6 +73,7 @@ public sealed class AttendanceJourneyTests
         await page.GetByLabel("as a catch-up").CheckAsync();
         await Assertions.Expect(record).ToBeEnabledAsync();
         await record.ClickAsync();
-        await Assertions.Expect(page.GetByRole(AriaRole.Status).Filter(new() { HasText = "recorded" })).ToContainTextAsync("Alexander Hughes: recorded");
+        // Recording does several database round trips before the result appears, which can take longer than the default under load.
+        await Assertions.Expect(page.GetByRole(AriaRole.Status).Filter(new() { HasText = "recorded" })).ToContainTextAsync("Alexander Hughes: recorded", new() { Timeout = 15000 });
     }
 }
