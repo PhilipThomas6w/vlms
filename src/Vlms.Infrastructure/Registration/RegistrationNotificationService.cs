@@ -145,7 +145,12 @@ public sealed class RegistrationNotificationService
         {
             var row = await _db.StudentApplications
                 .Where(a => a.Id == applicationId)
-                .Select(a => new { a.ChildName, a.ApplicantUser!.Email, a.ApplicantUser.DisplayName, a.ApplicantUser.HasLeft })
+                .Select(a => new
+                {
+                    a.ChildName, a.ApplicantUser!.Email, a.ApplicantUser.DisplayName,
+                    // Staff who stepped down are still told as parents (FR-017, LeftStaffPolicy).
+                    HasLeft = a.ApplicantUser.HasLeft && !a.ApplicantUser.Roles.Any(r => r.Role == Role.Teacher || r.Role == Role.Admin || r.Role == Role.SafeguardingOfficer)
+                })
                 .SingleAsync(ct);
             if (row.HasLeft || string.IsNullOrWhiteSpace(row.Email))
             {

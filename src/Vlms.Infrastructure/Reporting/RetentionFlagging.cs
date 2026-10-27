@@ -30,7 +30,7 @@ public enum DbsCheckDeletionReason
 
     /// <summary>
     /// Anchor date is the teacher's <see cref="AppUser.LeftAt"/> (set by
-    /// <see cref="Retention.LeavingService.MarkStaffLeftAsync"/>), because it falls earlier than
+    /// <see cref="Retention.LeavingService.StepDownAsync"/>), because it falls earlier than
     /// this check's own <see cref="DbsCheck.ExpiryDate"/> — "the teacher leaving" can only ever bring
     /// the retention anchor forward, never push it back (see this file's class doc comment).
     /// </summary>

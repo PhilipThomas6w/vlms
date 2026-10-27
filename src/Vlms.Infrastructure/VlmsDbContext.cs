@@ -70,6 +70,7 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
     public DbSet<StudentApplicationSensitiveDetails> StudentApplicationSensitiveDetails => Set<StudentApplicationSensitiveDetails>();
     public DbSet<SensitiveDataAccessLog> SensitiveDataAccessLogs => Set<SensitiveDataAccessLog>();
     public DbSet<DeletionLogEntry> DeletionLog => Set<DeletionLogEntry>();
+    public DbSet<StaffStepDown> StaffStepDowns => Set<StaffStepDown>();
     public DbSet<Chapter> Chapters => Set<Chapter>();
     public DbSet<ActiveChapterChoice> ActiveChapterChoices => Set<ActiveChapterChoice>();
     public DbSet<AttendanceRegister> AttendanceRegisters => Set<AttendanceRegister>();
@@ -575,6 +576,21 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
             e.Property(x => x.Id).ValueGeneratedOnAdd();
             e.Property(x => x.RecordType).HasMaxLength(DeletionLogEntry.MaxRecordTypeLength);
             e.HasIndex(x => new { x.ChapterId, x.DeletedAt });
+        });
+
+        // Staff stepping down and reinstatement (functional.md FR-017 as amended 27/10/2026):
+        // national like UserRole, no query filter; LeavingService reads the active chapter's rows.
+        // A person's rows go with their account; the Admins named are kept (Restrict), as for
+        // every other "who did this" reference.
+        modelBuilder.Entity<StaffStepDown>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedOnAdd();
+            e.HasOne<AppUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<AppUser>().WithMany().HasForeignKey(x => x.SteppedDownByUserId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne<AppUser>().WithMany().HasForeignKey(x => x.ReinstatedByUserId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne<Chapter>().WithMany().HasForeignKey(x => x.ChapterId).OnDelete(DeleteBehavior.Restrict);
+            e.HasIndex(x => new { x.UserId, x.SteppedDownAt });
         });
 
         // Guardian invite tokens (STATE.md "Identity" item 5, replacing the Microsoft Graph

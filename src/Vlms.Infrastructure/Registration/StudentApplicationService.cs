@@ -84,8 +84,8 @@ public sealed record ApplicationForApproval(
 /// Parent registration with two-stage approval (functional.md FR-004 as amended 22/10/2026,
 /// adr/0008 answers 1, 4, 5, 6).
 ///
-/// <b>The application.</b> A signed-in adult (any account that is not a student sign-in and has not
-/// left; they need hold no role yet) applies to register one or more children, giving their phone
+/// <b>The application.</b> A signed-in adult (any account that is not a student sign-in, including
+/// staff who stepped down; they need hold no role yet) applies to register one or more children, giving their phone
 /// number and postal address, their relationship to each child, and a full consent form for each.
 /// Each child becomes one <see cref="StudentApplication"/> with its sensitive fields in a
 /// <see cref="StudentApplicationSensitiveDetails"/> row (restricted and read-audited). Nothing else is
@@ -476,11 +476,9 @@ public sealed class StudentApplicationService
         var application = await LoadAtStatusAsync(applicationId, StudentApplicationStatus.AwaitingAdminApproval, ct);
         var details = await RequireDetailsAsync(applicationId, ct);
 
+        // FR-017 (amended 27/10/2026): an applicant who has stepped down as staff can still be
+        // approved as a parent; their staff roles stay off (LeftStaffPolicy).
         var applicant = await _db.AppUsers.SingleAsync(u => u.Id == application.ApplicantUserId, ct);
-        if (applicant.HasLeft)
-        {
-            throw new InvalidOperationException("The applicant has been marked as having left, so the application cannot be approved.");
-        }
 
         if (await _db.Students.AnyAsync(s => s.AppUserId == applicant.Id, ct))
         {
@@ -983,8 +981,7 @@ public sealed class StudentApplicationService
     }
 
     /// <summary>
-    /// Any signed-in adult may apply, holding no role yet: not a student sign-in, and not someone
-    /// marked as having left.
+    /// Any signed-in adult may apply, holding no role yet: not a student sign-in.
     /// </summary>
     private async Task<int> RequireApplicantAsync(CancellationToken ct)
     {
@@ -998,8 +995,9 @@ public sealed class StudentApplicationService
             throw new UnauthorizedAccessException("A student sign-in cannot apply to register a child. Please ask your parent.");
         }
 
-        var hasLeft = await _db.AppUsers.Where(u => u.Id == userId).Select(u => (bool?)u.HasLeft).SingleOrDefaultAsync(ct);
-        if (hasLeft is not false)
+        // Someone who stepped down as staff may apply (FR-017, amended 27/10/2026): if they can sign
+        // in at all they hold a non-staff role (LeftStaffPolicy.IsLockedOut).
+        if (!await _db.AppUsers.AnyAsync(u => u.Id == userId, ct) || await LeftStaffPolicy.IsLockedOutAsync(_db, userId, ct))
         {
             throw new UnauthorizedAccessException("Caller's account is not an active user.");
         }

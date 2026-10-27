@@ -188,12 +188,12 @@ public sealed class LeavingServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task MarkStaffLeftAsync_ByAdmin_SetsHasLeftAndCapturesLeftAtAutomatically()
+    public async Task StepDownAsync_ByAdmin_SetsHasLeftAndCapturesLeftAtAutomatically()
     {
         using var admin = CreateContext(1, Role.Admin);
         var before = DateTime.UtcNow;
 
-        var teacher = await admin.Service.MarkStaffLeftAsync(10, CancellationToken.None);
+        var teacher = await admin.Service.StepDownAsync(10, CancellationToken.None);
 
         var after = DateTime.UtcNow;
         Assert.True(teacher.HasLeft);
@@ -212,12 +212,12 @@ public sealed class LeavingServiceTests : IDisposable
     [InlineData(Role.Parent)]
     [InlineData(Role.Student)]
     [InlineData(Role.SafeguardingOfficer)]
-    public async Task MarkStaffLeftAsync_ByNonAdminRole_Throws_AndChangesNothing(Role role)
+    public async Task StepDownAsync_ByNonAdminRole_Throws_AndChangesNothing(Role role)
     {
         using var caller = CreateContext(2, role);
 
         await Assert.ThrowsAsync<UnauthorizedAccessException>(
-            () => caller.Service.MarkStaffLeftAsync(10, CancellationToken.None));
+            () => caller.Service.StepDownAsync(10, CancellationToken.None));
 
         using var verify = CreateContext(1, Role.Admin);
         var stillThere = await verify.Context.AppUsers.SingleAsync(u => u.Id == 10);
@@ -226,35 +226,35 @@ public sealed class LeavingServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task MarkStaffLeftAsync_NonTeacherAppUser_Throws()
+    public async Task StepDownAsync_NonTeacherAppUser_Throws()
     {
         using var admin = CreateContext(1, Role.Admin);
 
         // AppUser 20 holds Approver, not Teacher.
         await Assert.ThrowsAsync<InvalidOperationException>(
-            () => admin.Service.MarkStaffLeftAsync(20, CancellationToken.None));
+            () => admin.Service.StepDownAsync(20, CancellationToken.None));
     }
 
     [Fact]
-    public async Task MarkStaffLeftAsync_UnknownAppUser_Throws()
+    public async Task StepDownAsync_UnknownAppUser_Throws()
     {
         using var admin = CreateContext(1, Role.Admin);
 
         await Assert.ThrowsAsync<InvalidOperationException>(
-            () => admin.Service.MarkStaffLeftAsync(9999, CancellationToken.None));
+            () => admin.Service.StepDownAsync(9999, CancellationToken.None));
     }
 
     [Fact]
-    public async Task MarkStaffLeftAsync_AlreadyLeft_Throws()
+    public async Task StepDownAsync_AlreadyLeft_Throws()
     {
         using (var admin = CreateContext(1, Role.Admin))
         {
-            await admin.Service.MarkStaffLeftAsync(10, CancellationToken.None);
+            await admin.Service.StepDownAsync(10, CancellationToken.None);
         }
 
         using var secondAttempt = CreateContext(1, Role.Admin);
         await Assert.ThrowsAsync<InvalidOperationException>(
-            () => secondAttempt.Service.MarkStaffLeftAsync(10, CancellationToken.None));
+            () => secondAttempt.Service.StepDownAsync(10, CancellationToken.None));
     }
 
     // --- FR-017 (amended 22/10/2026): staff who leave are locked out entirely. ---
@@ -263,14 +263,14 @@ public sealed class LeavingServiceTests : IDisposable
     [InlineData(30)] // Admin
     [InlineData(40)] // Safeguarding Officer
     [InlineData(50)] // Teacher who is also a Parent
-    public async Task MarkStaffLeftAsync_AnyStaffRole_SetsHasLeft_RotatesStamp_KeepsRoles(int userId)
+    public async Task StepDownAsync_AnyStaffRole_SetsHasLeft_RotatesStamp_KeepsRoles(int userId)
     {
         var stampBefore = await CreateSignInAsync(userId);
         var rolesBefore = await RolesOfAsync(userId);
 
         using (var admin = CreateContext(1, Role.Admin))
         {
-            await admin.Service.MarkStaffLeftAsync(userId, CancellationToken.None);
+            await admin.Service.StepDownAsync(userId, CancellationToken.None);
         }
 
         using var verify = CreateContext(1, Role.Admin);
@@ -284,12 +284,12 @@ public sealed class LeavingServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task MarkStaffLeftAsync_Self_Throws_AndChangesNothing()
+    public async Task StepDownAsync_Self_Throws_AndChangesNothing()
     {
         using (var admin = CreateContext(1, Role.Admin))
         {
             var ex = await Assert.ThrowsAsync<InvalidOperationException>(
-                () => admin.Service.MarkStaffLeftAsync(1, CancellationToken.None));
+                () => admin.Service.StepDownAsync(1, CancellationToken.None));
             Assert.Contains("yourself", ex.Message);
         }
 
@@ -298,19 +298,19 @@ public sealed class LeavingServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task MarkStaffLeftAsync_LastAdminWhoHasNotLeft_Throws()
+    public async Task StepDownAsync_LastAdminWhoHasNotLeft_Throws()
     {
         // Admin Two leaves first (allowed: Admin One remains). Then a caller other than Admin One
         // (context user id 99) can't mark Admin One, the last working Admin, as left.
         using (var admin = CreateContext(1, Role.Admin))
         {
-            await admin.Service.MarkStaffLeftAsync(30, CancellationToken.None);
+            await admin.Service.StepDownAsync(30, CancellationToken.None);
         }
 
         using (var other = CreateContext(99, Role.Admin))
         {
             var ex = await Assert.ThrowsAsync<InvalidOperationException>(
-                () => other.Service.MarkStaffLeftAsync(1, CancellationToken.None));
+                () => other.Service.StepDownAsync(1, CancellationToken.None));
             Assert.Contains("last Admin", ex.Message);
         }
 
@@ -319,11 +319,11 @@ public sealed class LeavingServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task MarkStaffLeftAsync_AdminWhenAnotherWorkingAdminExists_Succeeds()
+    public async Task StepDownAsync_AdminWhenAnotherWorkingAdminExists_Succeeds()
     {
         using var admin = CreateContext(1, Role.Admin);
 
-        var left = await admin.Service.MarkStaffLeftAsync(30, CancellationToken.None);
+        var left = await admin.Service.StepDownAsync(30, CancellationToken.None);
 
         Assert.True(left.HasLeft);
     }
@@ -334,7 +334,7 @@ public sealed class LeavingServiceTests : IDisposable
         await CreateSignInAsync(10);
         using (var admin = CreateContext(1, Role.Admin))
         {
-            await admin.Service.MarkStaffLeftAsync(10, CancellationToken.None);
+            await admin.Service.StepDownAsync(10, CancellationToken.None);
             admin.Context.UserRoles.RemoveRange(admin.Context.UserRoles.Where(r => r.UserId == 10));
             await admin.Context.SaveChangesAsync();
         }

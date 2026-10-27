@@ -30,8 +30,10 @@ namespace Vlms.Infrastructure.Identity;
 /// is refused — otherwise the chapter can be left with no Admin, recoverable only by a National
 /// Administrator. A staff leaver keeps their role rows, which no longer count (FR-017,
 /// <see cref="LeftStaffPolicy"/>), so they don't count here either.</item>
-/// <item>Granting any role to an <see cref="AppUser"/> marked as having left
-/// (<see cref="AppUser.HasLeft"/>) is refused — a leaver should not regain access through this page.
+/// <item>Granting any role but Parent to an <see cref="AppUser"/> who has stepped down
+/// (<see cref="AppUser.HasLeft"/>) is refused: staff access comes back only by reinstatement
+/// (<c>Retention.LeavingService.ReinstateAsync</c>), and Parent may be granted at any time (FR-017
+/// as amended 27/10/2026).
 /// Revoking a non-staff role (Parent) from a leaver stays allowed (removing access is always safe).
 /// Revoking a Teacher, Admin or Safeguarding Officer role from a leaver is refused: the row is the
 /// record of their staff history, already gives them nothing, and is what keeps a staff leaver who
@@ -124,7 +126,7 @@ public sealed class RoleAssignmentService
     }
 
     /// <summary>
-    /// An account waiting for an Admin to approve it: no roles yet, not a leaver.
+    /// An account waiting for an Admin to approve it as a parent.
     /// <paramref name="FromGuardianInvite"/> is true when the account was created by accepting a
     /// guardian invite; <paramref name="LinkedStudentNames"/> are the students its
     /// <see cref="ParentGuardian"/> record is linked to (empty for a self-registered account).
@@ -135,7 +137,7 @@ public sealed class RoleAssignmentService
 
     /// <summary>
     /// STATE.md "Waiting-for-approval list on the role-assignment page", per chapter since FR-021:
-    /// every account that hasn't been marked as having left, accepted one of this chapter's guardian
+    /// every account (stepped-down staff included, FR-017) that accepted one of this chapter's guardian
     /// invites, and does not yet hold <see cref="Role.Parent"/> in this chapter, ordered by display
     /// name. Admin-only. Per Philip's decision (functional.md FR-004, 11/10/2026), accepting a
     /// guardian invite grants no role; this is how the Admin sees who is waiting for that approval.
@@ -156,7 +158,7 @@ public sealed class RoleAssignmentService
         var parents = _db.UserRoles.Where(r => r.Role == Role.Parent && r.ChapterId == chapterId).Select(r => r.UserId);
 
         var waiting = await _db.AppUsers
-            .Where(u => !u.HasLeft && inviteAccepters.Contains(u.Id) && !parents.Contains(u.Id))
+            .Where(u => inviteAccepters.Contains(u.Id) && !parents.Contains(u.Id))
             .OrderBy(u => u.DisplayName)
             .ToListAsync(ct);
 
@@ -213,10 +215,13 @@ public sealed class RoleAssignmentService
         var user = await _db.AppUsers.SingleOrDefaultAsync(u => u.Id == userId, ct)
             ?? throw new InvalidOperationException($"AppUser {userId} does not exist.");
 
-        if (user.HasLeft)
+        // FR-017 (amended 27/10/2026): someone who stepped down can be approved as a parent at any
+        // time; nothing else is granted, so their kept staff roles are exactly what reinstatement
+        // restores (LeavingService.ReinstateAsync).
+        if (user.HasLeft && role != Role.Parent)
         {
             throw new InvalidOperationException(
-                $"{user.DisplayName} has been marked as having left — roles cannot be granted to a leaver.");
+                $"{user.DisplayName} has stepped down: only Parent can be granted. Reinstate them to restore their staff roles.");
         }
 
         // FR-011, adr/0007: Student is granted only when a linked parent creates a student sign-in
