@@ -85,13 +85,15 @@ Recorded as deferred. When designed:
 2. **Attendance (FR-020)**, after chapters: registers per chapter per meeting date, combined with Record completions; the student's attendance on the student record and the parent dashboard; anonymous national figures.
 3. The redesign carries on side by side on branch `redesign`, and is merged after chapters so that its later pages can show chapter names.
 
-## 7. Attendance as built (24/10/2026): assumptions for Philip to confirm
+## 7. Attendance as built (24/10/2026): assumptions, confirmed by Philip 27/10/2026
 
-Built to sections 3 and 5. Where neither said, the build assumed:
+Built to sections 3 and 5. Where neither said, the build assumed the following. Philip confirmed 1 and 4 to 7 as built and amended 2 and 3 (27/10/2026; the amendments are a build item in `STATE.md`):
 
 1. **At-risk:** two absences in a row is added alongside the existing 8-week no-completion rule, not instead of it (the draft said "whichever comes first"; section 5 named only the new rule). The report shows which rule flagged each student.
 2. **Who:** Teachers take, read and correct registers; Admins read them (each meeting day's registers and total on `/calendar/events/{id}` and `/attendance`, and each student's attendance on the student record); Safeguarding Officers and Approvers neither (Safeguarding Officers get the consent alert). *Updated 24/10/2026 for FR-022: one register per class per meeting day; any Teacher takes any class's.*
+   - **Amended (Philip, 27/10/2026):** Safeguarding Officers also read attendance, per student and per register (persistent absence is a welfare warning sign), but do not take or correct registers. Approvers still see none.
 3. **Consent alert:** emailed to the chapter's Safeguarding Officers, sent with the retrying safeguarding-critical priority, naming the children and the date and nothing else; sent once per child per register, not again when the register is corrected.
+   - **Amended (Philip, 27/10/2026):** a correction alerts for any child newly marked present without valid consent; an alert already sent for that child and register is never repeated.
 4. **Corrections:** saving a register again overwrites its marks and records who saved it last; earlier versions are not kept.
 5. **Dates:** a register is taken on or after its event's day, never before (FR-022: only days in the calendar have registers). A student who joins later is simply not on earlier registers.
 6. **The student's own page** does not show attendance (only staff and parents were named).
