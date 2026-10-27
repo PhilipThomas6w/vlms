@@ -1,6 +1,6 @@
 # Scripture to supply from the Orthodox Study Bible
 
-Each NKJV quotation in a lesson ends with "NKJV." The Orthodox Study Bible's copyright page allows this short notice in Sunday School lessons and similar religious instruction, in place of the full credit line (Philip, 27/10/2026).
+Each NKJV quotation in a lesson ends with "NKJV." and each Septuagint quotation with "SAAS." The Orthodox Study Bible's copyright page allows these short notices in Sunday School lessons and similar religious instruction, in place of the full credit line (Philip, 27/10/2026).
 
 Total: 388 verses across 46 passages (232 NT, 156 OT). The NKJV free-use limit is 500 verses, with no whole book.
 
