@@ -41,11 +41,11 @@ Lesson suggestions, review and history (FR-007, `adr/0013`, built 26/10/2026; re
 
 | # | Step | Status | Evidence / gap |
 |---|---|---|---|
-| 1 | See the changes waiting for review | Built | `/curriculum/review` ("Changes to review" in the menu). |
+| 1 | Hear of a submitted change, and see the changes waiting for review | Built | An email to every Approver on submission; `/curriculum/review` ("Changes to review" in the menu, with a count of those awaiting them, built 27/10/2026). |
 | 2 | Open one as tracked changes, or as it would read, with the reason | Built | `/curriculum/review/{Id}`; a lesson replaced in full is shown side by side. |
-| 3 | Approve it (including their own), or send it back with a comment | Built | Approval adds the next version and puts it live. |
+| 3 | Approve it (including their own), send it back with a comment, or refer it to committee | Built | Approval adds the next version and puts it live. A referred change goes live on the third different Approver's approval, the author's counting; any Approver may send it back (`adr/0013` decision 8, built 27/10/2026). |
 | 4 | Publish a change at once, or replace a whole lesson, while direct publishing is allowed | Built | "Publish now" in the editor; the National Administrator's setting on `/administration/chapters`. |
-| 5 | Read a lesson's history: who suggested each version, why, who approved it, and what changed | Built | `/lessons/{Code}/history` (Approvers and Admins). |
+| 5 | Read a lesson's history: who suggested each version, why, who approved it (or referred it and which Approvers approved it), and what changed | Built | `/lessons/{Code}/history` (Approvers and Admins). |
 
 ## J4. Student: learn and track progress
 
