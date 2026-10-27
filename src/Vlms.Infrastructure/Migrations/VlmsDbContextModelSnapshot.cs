@@ -251,7 +251,7 @@ namespace Vlms.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("taken_at");
 
-                    b.Property<int>("TakenByUserId")
+                    b.Property<int?>("TakenByUserId")
                         .HasColumnType("integer")
                         .HasColumnName("taken_by_user_id");
 
@@ -417,7 +417,7 @@ namespace Vlms.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
-                    b.Property<int>("CreatedByUserId")
+                    b.Property<int?>("CreatedByUserId")
                         .HasColumnType("integer")
                         .HasColumnName("created_by_user_id");
 
@@ -733,7 +733,7 @@ namespace Vlms.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
-                    b.Property<int>("CreatedByUserId")
+                    b.Property<int?>("CreatedByUserId")
                         .HasColumnType("integer")
                         .HasColumnName("created_by_user_id");
 
@@ -881,7 +881,7 @@ namespace Vlms.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("changed_at");
 
-                    b.Property<int>("ChangedByUserId")
+                    b.Property<int?>("ChangedByUserId")
                         .HasColumnType("integer")
                         .HasColumnName("changed_by_user_id");
 
@@ -902,7 +902,7 @@ namespace Vlms.Infrastructure.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("id");
 
-                    b.Property<int>("AuthorUserId")
+                    b.Property<int?>("AuthorUserId")
                         .HasColumnType("integer")
                         .HasColumnName("author_user_id");
 
@@ -1016,7 +1016,7 @@ namespace Vlms.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("approved_at");
 
-                    b.Property<int>("ApproverUserId")
+                    b.Property<int?>("ApproverUserId")
                         .HasColumnType("integer")
                         .HasColumnName("approver_user_id");
 
@@ -1145,6 +1145,10 @@ namespace Vlms.Infrastructure.Migrations
                     b.Property<int?>("PublishedByUserId")
                         .HasColumnType("integer")
                         .HasColumnName("published_by_user_id");
+
+                    b.Property<bool>("PublishedDirectly")
+                        .HasColumnType("boolean")
+                        .HasColumnName("published_directly");
 
                     b.Property<string>("Reason")
                         .HasColumnType("text")
@@ -1436,6 +1440,10 @@ namespace Vlms.Infrastructure.Migrations
                     b.Property<int>("ChapterId")
                         .HasColumnType("integer")
                         .HasColumnName("chapter_id");
+
+                    b.Property<bool>("RecordedBeforeHistory")
+                        .HasColumnType("boolean")
+                        .HasColumnName("recorded_before_history");
 
                     b.Property<DateTime?>("ReinstatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -1739,7 +1747,7 @@ namespace Vlms.Infrastructure.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("chapter_id");
 
-                    b.Property<int>("CreatedByUserId")
+                    b.Property<int?>("CreatedByUserId")
                         .HasColumnType("integer")
                         .HasColumnName("created_by_user_id");
 
@@ -1772,7 +1780,7 @@ namespace Vlms.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("completed_at");
 
-                    b.Property<int>("CompletedByUserId")
+                    b.Property<int?>("CompletedByUserId")
                         .HasColumnType("integer")
                         .HasColumnName("completed_by_user_id");
 
@@ -2099,8 +2107,7 @@ namespace Vlms.Infrastructure.Migrations
                     b.HasOne("Vlms.Domain.AppUser", "TakenByUser")
                         .WithMany()
                         .HasForeignKey("TakenByUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("ChapterEvent");
 
@@ -2161,8 +2168,7 @@ namespace Vlms.Infrastructure.Migrations
                     b.HasOne("Vlms.Domain.AppUser", null)
                         .WithMany()
                         .HasForeignKey("CreatedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.SetNull);
                 });
 
             modelBuilder.Entity("Vlms.Domain.ClassTeacher", b =>
@@ -2195,7 +2201,7 @@ namespace Vlms.Infrastructure.Migrations
                     b.HasOne("Vlms.Domain.AppUser", "ApprovedByUser")
                         .WithMany()
                         .HasForeignKey("ApprovedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("Vlms.Domain.Chapter", null)
                         .WithMany()
@@ -2218,7 +2224,7 @@ namespace Vlms.Infrastructure.Migrations
                     b.HasOne("Vlms.Domain.AppUser", "SubmittedByUser")
                         .WithMany()
                         .HasForeignKey("SubmittedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("ApprovedByUser");
 
@@ -2274,13 +2280,12 @@ namespace Vlms.Infrastructure.Migrations
                     b.HasOne("Vlms.Domain.AppUser", "ConsumedByAppUser")
                         .WithMany()
                         .HasForeignKey("ConsumedByAppUserId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("Vlms.Domain.AppUser", "CreatedByUser")
                         .WithMany()
                         .HasForeignKey("CreatedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("Vlms.Domain.ParentGuardian", "ParentGuardian")
                         .WithMany()
@@ -2341,8 +2346,7 @@ namespace Vlms.Infrastructure.Migrations
                     b.HasOne("Vlms.Domain.AppUser", "ChangedByUser")
                         .WithMany()
                         .HasForeignKey("ChangedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("ChangedByUser");
                 });
@@ -2352,13 +2356,12 @@ namespace Vlms.Infrastructure.Migrations
                     b.HasOne("Vlms.Domain.AppUser", "AuthorUser")
                         .WithMany()
                         .HasForeignKey("AuthorUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("Vlms.Domain.AppUser", "DecidedByUser")
                         .WithMany()
                         .HasForeignKey("DecidedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("Vlms.Domain.Lesson", "Lesson")
                         .WithMany("Suggestions")
@@ -2374,7 +2377,7 @@ namespace Vlms.Infrastructure.Migrations
                     b.HasOne("Vlms.Domain.AppUser", null)
                         .WithMany()
                         .HasForeignKey("ReferredByUserId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("Vlms.Domain.LessonSuggestion", null)
                         .WithMany()
@@ -2393,8 +2396,7 @@ namespace Vlms.Infrastructure.Migrations
                     b.HasOne("Vlms.Domain.AppUser", "ApproverUser")
                         .WithMany()
                         .HasForeignKey("ApproverUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("Vlms.Domain.LessonSuggestion", "LessonSuggestion")
                         .WithMany("CommitteeApprovals")
@@ -2443,7 +2445,7 @@ namespace Vlms.Infrastructure.Migrations
                     b.HasOne("Vlms.Domain.AppUser", null)
                         .WithMany()
                         .HasForeignKey("ApprovedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("Vlms.Domain.Lesson", "Lesson")
                         .WithMany("Versions")
@@ -2454,12 +2456,12 @@ namespace Vlms.Infrastructure.Migrations
                     b.HasOne("Vlms.Domain.AppUser", null)
                         .WithMany()
                         .HasForeignKey("PublishedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("Vlms.Domain.AppUser", null)
                         .WithMany()
                         .HasForeignKey("SuggestedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("Vlms.Domain.LessonSuggestion", "Suggestion")
                         .WithMany()
@@ -2538,12 +2540,12 @@ namespace Vlms.Infrastructure.Migrations
                     b.HasOne("Vlms.Domain.AppUser", null)
                         .WithMany()
                         .HasForeignKey("ReinstatedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("Vlms.Domain.AppUser", null)
                         .WithMany()
                         .HasForeignKey("SteppedDownByUserId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("Vlms.Domain.AppUser", null)
                         .WithMany()
@@ -2562,7 +2564,7 @@ namespace Vlms.Infrastructure.Migrations
                     b.HasOne("Vlms.Domain.AppUser", "AssignedTeacherUser")
                         .WithMany()
                         .HasForeignKey("AssignedTeacherUserId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("Vlms.Domain.Chapter", null)
                         .WithMany()
@@ -2588,7 +2590,7 @@ namespace Vlms.Infrastructure.Migrations
                     b.HasOne("Vlms.Domain.AppUser", "AdminDecidedByUser")
                         .WithMany()
                         .HasForeignKey("AdminDecidedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("Vlms.Domain.AppUser", "ApplicantUser")
                         .WithMany()
@@ -2610,7 +2612,7 @@ namespace Vlms.Infrastructure.Migrations
                     b.HasOne("Vlms.Domain.AppUser", "SafeguardingReviewedByUser")
                         .WithMany()
                         .HasForeignKey("SafeguardingReviewedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("Vlms.Domain.Student", "Student")
                         .WithMany()
@@ -2681,8 +2683,7 @@ namespace Vlms.Infrastructure.Migrations
                     b.HasOne("Vlms.Domain.AppUser", "CreatedByUser")
                         .WithMany()
                         .HasForeignKey("CreatedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("Vlms.Domain.ParentGuardian", "ParentGuardian")
                         .WithMany("StudentLinks")
@@ -2714,8 +2715,7 @@ namespace Vlms.Infrastructure.Migrations
                     b.HasOne("Vlms.Domain.AppUser", "CompletedByUser")
                         .WithMany()
                         .HasForeignKey("CompletedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("Vlms.Domain.Lesson", "Lesson")
                         .WithMany("Completions")

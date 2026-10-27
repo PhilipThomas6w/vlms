@@ -104,6 +104,39 @@ public sealed class StaffSteppingDownPageTests : BunitContext, IDisposable
         Assert.Empty(cut.FindAll("button[aria-label='Confirm: reinstate Tom Teacher']"));
     }
 
+    [Fact]
+    public void TheHistory_ShowsADeletedAdminAsAFormerMemberOfStaff_ButNamesNobodyForAStepDownRecordedBeforeTheHistory()
+    {
+        var legacyAt = new DateTime(2020, 3, 1, 9, 0, 0, DateTimeKind.Utc);
+        var legacyBack = new DateTime(2021, 3, 1, 9, 0, 0, DateTimeKind.Utc);
+        var clearedAt = new DateTime(2022, 3, 1, 9, 0, 0, DateTimeKind.Utc);
+        var clearedBack = new DateTime(2023, 3, 1, 9, 0, 0, DateTimeKind.Utc);
+        using (var db = Db())
+        {
+            // A step-down copied in before the history existed names nobody; one whose Admins' accounts were
+            // deleted under the retention rules (docs/adr/0014) has its references cleared.
+            db.StaffStepDowns.Add(new StaffStepDown
+            {
+                UserId = 10, ChapterId = Chapter.ShrewsburyId, SteppedDownAt = legacyAt, RecordedBeforeHistory = true,
+                ReinstatedAt = legacyBack, ReinstatedByUserId = 1
+            });
+            db.StaffStepDowns.Add(new StaffStepDown
+            {
+                UserId = 10, ChapterId = Chapter.ShrewsburyId, SteppedDownAt = clearedAt, SteppedDownByUserId = null,
+                ReinstatedAt = clearedBack, ReinstatedByUserId = null
+            });
+            db.SaveChanges();
+        }
+
+        var cut = Render<MarkAsLeft>();
+        cut.WaitForState(() => cut.FindAll("button[aria-label='Step down Tom Teacher']").Count == 1);
+
+        Assert.Contains($"Stepped down {legacyAt:d MMMM yyyy}; reinstated {legacyBack:d MMMM yyyy} by Admin One", cut.Markup);
+        Assert.Contains(
+            $"Stepped down {clearedAt:d MMMM yyyy} by a former member of staff; reinstated {clearedBack:d MMMM yyyy} by a former member of staff",
+            cut.Markup);
+    }
+
     private VlmsDbContext Db() => new(
         new DbContextOptionsBuilder<VlmsDbContext>().UseSqlite(_connectionString).Options, TestSeedUserContext.Instance);
 

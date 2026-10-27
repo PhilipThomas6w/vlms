@@ -55,6 +55,14 @@ public sealed class LessonVersion
     /// <summary>The Approver who published it directly with "Publish now"; null otherwise.</summary>
     public int? PublishedByUserId { get; init; }
 
+    /// <summary>
+    /// True when it was published directly with "Publish now" rather than approved. The approving
+    /// or publishing Approver's id is cleared when their account is deleted under the retention
+    /// rules (docs/adr/0014); this keeps which of the two it was, so the history still says
+    /// "Approved by" or "Published directly by" a former member of staff.
+    /// </summary>
+    public bool PublishedDirectly { get; init; }
+
     public string? Reason { get; init; }
 
     /// <summary>When it became the live lesson.</summary>

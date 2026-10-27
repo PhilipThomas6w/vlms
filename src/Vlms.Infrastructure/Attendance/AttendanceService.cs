@@ -201,7 +201,7 @@ public sealed class AttendanceService
 
         var register = await _db.AttendanceRegisters.AsNoTracking()
             .Where(r => r.ChapterEventId == eventId && r.RankId == rankId)
-            .Select(r => new { r.Id, r.TakenAt, TakenBy = r.TakenByUser!.DisplayName })
+            .Select(r => new { r.Id, r.TakenAt, TakenBy = r.TakenByUser != null ? r.TakenByUser.DisplayName : FormerStaff.Name })
             .SingleOrDefaultAsync(ct);
         var marks = register is null
             ? new Dictionary<int, bool>()

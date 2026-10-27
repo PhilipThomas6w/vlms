@@ -305,7 +305,11 @@ public sealed class LeavingService
                 u.Id, u.DisplayName, u.Email, u.HasLeft,
                 rolesByUser[u.Id].Order().ToList(),
                 periodsByUser[u.Id]
-                    .Select(p => new StepDownPeriod(p.SteppedDownAt, NameOf(p.SteppedDownByUserId), p.ReinstatedAt, NameOf(p.ReinstatedByUserId)))
+                    // An Admin whose account was deleted under the retention rules reads as a former member of
+                    // staff; a step-down copied in before this history existed names nobody (docs/adr/0014).
+                    .Select(p => new StepDownPeriod(
+                        p.SteppedDownAt, FormerStaff.Or(NameOf(p.SteppedDownByUserId), !p.RecordedBeforeHistory),
+                        p.ReinstatedAt, FormerStaff.Or(NameOf(p.ReinstatedByUserId), p.ReinstatedAt is not null)))
                     .ToList()))
             .ToList();
     }

@@ -407,15 +407,17 @@ public sealed class RetentionDeletionServiceTests : IDisposable
         Assert.Equal(1, Count(db => db.AppUsers.Where(u => u.Id == TeacherId)));
     }
 
-    [Fact]
-    public async Task AStaffLeaver_NamedByAKeptRecord_IsKept()
+    [Theory]
+    [InlineData(Role.Approver)]
+    [InlineData(Role.NationalAdministrator)]
+    public async Task AStaffLeaver_WithAnApproverOrNationalRole_IsKept(Role role)
     {
-        // Teacher Ten took a register that the chapter keeps: deleting the account would break it.
         MarkLeft(TeacherId, _now.AddYears(-7));
+        RemoveTeacherHistory();
         AddDbsCheck(1, TeacherId, _now.AddYears(-4));
         using (var seed = CreateContext(TestSeedUserContext.Instance))
         {
-            seed.Context.StudentLessonCompletions.RemoveRange(seed.Context.StudentLessonCompletions);
+            seed.Context.UserRoles.Add(new UserRole { UserId = TeacherId, Role = role, ChapterId = null });
             seed.Context.SaveChanges();
         }
 
@@ -425,6 +427,135 @@ public sealed class RetentionDeletionServiceTests : IDisposable
         Assert.True(result.Deleted);
         Assert.Contains(TeacherId, result.AccountsKept);
         Assert.Equal(1, Count(db => db.AppUsers.Where(u => u.Id == TeacherId)));
+    }
+
+    // ---- records naming a deleted account (docs/adr/0014, settled after build 27/10/2026) --------
+
+    /// <summary>Every foreign key to an account that names the person only as the one who acted: "Entity.Property".</summary>
+    private static readonly string[] ActorReferenceNames =
+    [
+        "AddedSaint.AddedByUserId",
+        "AttendanceRegister.TakenByUserId",
+        "ChapterEvent.CreatedByUserId",
+        "ConsentRecord.ApprovedByUserId",
+        "ConsentRecord.SubmittedByUserId",
+        "GuardianInvite.ConsumedByAppUserId",
+        "GuardianInvite.CreatedByUserId",
+        "LessonPublishingSettingChange.ChangedByUserId",
+        "LessonSuggestion.AuthorUserId",
+        "LessonSuggestion.DecidedByUserId",
+        "LessonSuggestion.ReferredByUserId",
+        "LessonSuggestionApproval.ApproverUserId",
+        "LessonVersion.ApprovedByUserId",
+        "LessonVersion.PublishedByUserId",
+        "LessonVersion.SuggestedByUserId",
+        "StaffStepDown.ReinstatedByUserId",
+        "StaffStepDown.SteppedDownByUserId",
+        "Student.AssignedTeacherUserId",
+        "StudentApplication.AdminDecidedByUserId",
+        "StudentApplication.SafeguardingReviewedByUserId",
+        "StudentGuardianLink.CreatedByUserId",
+        "StudentLessonCompletion.CompletedByUserId",
+    ];
+
+    public static TheoryData<string> ActorReferences() => new(ActorReferenceNames);
+
+    /// <summary>The foreign keys to an account that are about the person, and so are deleted with them or keep them.</summary>
+    private static readonly string[] AboutThePersonReferences =
+    [
+        "ActiveChapterChoice.UserId", "CalendarFeedToken.UserId", "CalendarViewChoice.UserId", "ClassTeacher.TeacherUserId",
+        "DbsCheck.TeacherUserId", "ParentGuardian.AppUserId", "StaffStepDown.UserId", "Student.AppUserId",
+        "StudentApplication.ApplicantUserId", "UserRole.UserId"
+    ];
+
+    [Fact]
+    public void EveryForeignKeyToAnAccount_IsEitherAboutThePerson_OrClearedWhenTheAccountIsDeleted()
+    {
+        using var ctx = CreateContext(Admin());
+        var foreignKeys = ctx.Context.Model.FindEntityType(typeof(AppUser))!.GetReferencingForeignKeys()
+            .Select(fk => (Name: $"{fk.DeclaringEntityType.ClrType.Name}.{fk.Properties.Single().Name}", fk.DeleteBehavior, fk.IsRequired))
+            .ToList();
+
+        var actorReferences = ActorReferenceNames.ToList();
+        Assert.Equal(actorReferences.Concat(AboutThePersonReferences).Order(), foreignKeys.Select(fk => fk.Name).Order());
+        Assert.All(foreignKeys.Where(fk => actorReferences.Contains(fk.Name)), fk =>
+        {
+            Assert.Equal(DeleteBehavior.SetNull, fk.DeleteBehavior);
+            Assert.False(fk.IsRequired);
+        });
+        // The only references the database would refuse to delete past are the keep-rules' own.
+        Assert.Equal(
+            ["DbsCheck.TeacherUserId", "ParentGuardian.AppUserId", "Student.AppUserId", "StudentApplication.ApplicantUserId"],
+            foreignKeys.Where(fk => fk.DeleteBehavior is DeleteBehavior.Restrict or DeleteBehavior.NoAction or DeleteBehavior.ClientSetNull)
+                .Select(fk => fk.Name).Order());
+    }
+
+    [Theory]
+    [MemberData(nameof(ActorReferences))]
+    public async Task AStaffLeaver_NamedByAKeptRecord_IsDeleted_AndTheRecordKeepsItsContent(string reference)
+    {
+        MarkLeft(TeacherId, _now.AddYears(-7));
+        AddDbsCheck(1, TeacherId, _now.AddYears(-4));
+        AddRecordNaming(reference, TeacherId);
+        var (entity, property) = (reference.Split('.')[0], reference.Split('.')[1]);
+        var rowsBefore = Rows(entity);
+        Assert.Contains(rowsBefore, row => Equals(row[property], TeacherId));
+
+        using (var ctx = CreateContext(Admin()))
+        {
+            var result = await Service(ctx).DeleteAsync(new RetentionDeletionRequest(RetentionRecordKind.DbsCheck, 1, "Teacher Ten"));
+            Assert.True(result.Deleted);
+            Assert.Contains(TeacherId, result.AccountsDeleted);
+        }
+
+        Assert.Equal(0, Count(db => db.AppUsers.Where(u => u.Id == TeacherId)));
+        Assert.Equal(0, Count(db => db.Users.Where(u => u.Id == TeacherId)));
+        // Every row is still there with every other value unchanged; only the link to the person is cleared.
+        var rowsAfter = Rows(entity);
+        Assert.Equal(rowsBefore.Count, rowsAfter.Count);
+        var expected = rowsBefore.Select(row => row.ToDictionary(
+            kv => kv.Key, kv => kv.Key == property && Equals(kv.Value, TeacherId) ? null : kv.Value)).ToList();
+        Assert.Equal(expected, rowsAfter);
+        Assert.Equal(1, Count(db => db.DeletionLog.Where(e => e.RecordType == DeletionLogEntry.RecordTypes.Account && e.RecordId == TeacherId)));
+    }
+
+    [Fact]
+    public async Task AStaffLeaver_NamedByEveryKindOfKeptRecordAtOnce_IsDeleted()
+    {
+        MarkLeft(TeacherId, _now.AddYears(-7));
+        AddDbsCheck(1, TeacherId, _now.AddYears(-4));
+        foreach (var reference in ActorReferenceNames)
+        {
+            AddRecordNaming(reference, TeacherId);
+        }
+
+        using var ctx = CreateContext(Admin());
+        var result = await Service(ctx).DeleteAsync(new RetentionDeletionRequest(RetentionRecordKind.DbsCheck, 1, "Teacher Ten"));
+
+        Assert.Contains(TeacherId, result.AccountsDeleted);
+        Assert.Equal(0, Count(db => db.AppUsers.Where(u => u.Id == TeacherId)));
+        Assert.Equal(1, Count(db => db.AttendanceRegisters.Where(r => r.Id == 1 && r.TakenByUserId == null)));
+    }
+
+    [Fact]
+    public async Task AParent_NamedByAKeptRecord_IsDeletedWithTheirLastChild()
+    {
+        // Pat entered a consent form for a child they are no longer linked to: it no longer keeps their account.
+        using (var seed = CreateContext(TestSeedUserContext.Instance))
+        {
+            seed.Context.ParentGuardians.Add(new ParentGuardian { Id = 202, Name = "Other Parent", ContactInfo = "o@example.com", IsPrimary = true });
+            seed.Context.SaveChanges();
+            var consent = NewConsent(502, ActiveStudentId, 202);
+            seed.Context.ConsentRecords.Add(consent);
+            seed.Context.Entry(consent).Property(c => c.SubmittedByUserId).CurrentValue = ParentAccountId;
+            seed.Context.SaveChanges();
+        }
+
+        using var ctx = CreateContext(Admin());
+        var result = await Service(ctx).DeleteAsync(StudentRequest());
+
+        Assert.Contains(ParentAccountId, result.AccountsDeleted);
+        Assert.Equal(1, Count(db => db.ConsentRecords.Where(c => c.Id == 502 && c.SubmittedByUserId == null)));
     }
 
     [Fact]
@@ -632,6 +763,138 @@ public sealed class RetentionDeletionServiceTests : IDisposable
         seed.Context.AttendanceRegisters.RemoveRange(seed.Context.AttendanceRegisters);
         seed.Context.SaveChanges();
     }
+
+    /// <summary>
+    /// Adds one record whose <paramref name="reference"/> ("Entity.Property") names <paramref name="userId"/> as the
+    /// one who acted. The register and the completion naming Teacher Ten are already in the seed data.
+    /// </summary>
+    private void AddRecordNaming(string reference, int userId)
+    {
+        if (reference.StartsWith("StudentApplication.", StringComparison.Ordinal))
+        {
+            var id = reference.EndsWith("AdminDecidedByUserId", StringComparison.Ordinal) ? 700 : 701;
+            AddApplication(id, ActiveStudentId, _now.AddDays(-30));
+            using var update = CreateContext(TestSeedUserContext.Instance);
+            var application = update.Context.StudentApplications.Single(a => a.Id == id);
+            update.Context.Entry(application).Property(reference.Split('.')[1]).CurrentValue = userId;
+            update.Context.SaveChanges();
+            return;
+        }
+
+        using var seed = CreateContext(TestSeedUserContext.Instance);
+        var db = seed.Context;
+        var at = _now.AddYears(-5);
+        LessonSuggestion Suggestion(int id, LessonSuggestionStatus status) => new()
+        {
+            Id = id, RankId = 1, Kind = LessonChangeKind.NewLesson, Status = status, AuthorUserId = AdminId,
+            Title = $"Suggestion {id}", Order = 9, Body = "Text", CreatedAt = at, UpdatedAt = at
+        };
+        LessonVersion Version(int number) => new()
+        {
+            Id = number, LessonId = 1, Number = number, Kind = LessonVersionKind.ApprovedSuggestion, Title = "Knots", Order = 1,
+            IsActive = true, Body = $"Version {number}", PublishedAt = at
+        };
+
+        switch (reference)
+        {
+            case "AttendanceRegister.TakenByUserId":
+            case "StudentLessonCompletion.CompletedByUserId":
+                return;
+            case "AddedSaint.AddedByUserId":
+                db.AddedSaints.Add(new AddedSaint { Id = 1, Month = 1, Day = 2, Name = "St Sylvester", AddedByUserId = userId, AddedAt = at });
+                break;
+            case "ChapterEvent.CreatedByUserId":
+                db.ChapterEvents.Add(new ChapterEvent { Id = 2, Date = DateOnly.FromDateTime(at.AddDays(7)), Title = "Outing", CreatedByUserId = userId, CreatedAt = at });
+                break;
+            case "ConsentRecord.ApprovedByUserId":
+                AddWithValue(db, NewConsent(501, ActiveStudentId, GuardianId), nameof(ConsentRecord.ApprovedByUserId), userId);
+                break;
+            case "ConsentRecord.SubmittedByUserId":
+                AddWithValue(db, NewConsent(503, ActiveStudentId, GuardianId), nameof(ConsentRecord.SubmittedByUserId), userId);
+                break;
+            case "GuardianInvite.CreatedByUserId":
+                db.GuardianInvites.Add(new GuardianInvite
+                {
+                    Id = 2, StudentId = ActiveStudentId, ParentGuardianId = GuardianId, CreatedByUserId = userId,
+                    CreatedAt = DateTimeOffset.UtcNow.AddYears(-5), ExpiresAt = DateTimeOffset.UtcNow.AddYears(-5).AddDays(7)
+                });
+                break;
+            case "GuardianInvite.ConsumedByAppUserId":
+                db.GuardianInvites.Add(new GuardianInvite
+                {
+                    Id = 3, StudentId = ActiveStudentId, ParentGuardianId = GuardianId, CreatedByUserId = AdminId,
+                    CreatedAt = DateTimeOffset.UtcNow.AddYears(-5), ExpiresAt = DateTimeOffset.UtcNow.AddYears(-5).AddDays(7),
+                    ConsumedAt = DateTimeOffset.UtcNow.AddYears(-5).AddDays(1), ConsumedByAppUserId = userId
+                });
+                break;
+            case "LessonPublishingSettingChange.ChangedByUserId":
+                db.LessonPublishingSettingChanges.Add(new LessonPublishingSettingChange { Id = 1, DirectPublishingAllowed = false, ChangedByUserId = userId, ChangedAt = at });
+                break;
+            case "LessonSuggestion.AuthorUserId":
+                AddWithValue(db, Suggestion(1, LessonSuggestionStatus.Submitted), nameof(LessonSuggestion.AuthorUserId), userId);
+                break;
+            case "LessonSuggestion.DecidedByUserId":
+                AddWithValue(db, Suggestion(2, LessonSuggestionStatus.SentBack), nameof(LessonSuggestion.DecidedByUserId), userId);
+                break;
+            case "LessonSuggestion.ReferredByUserId":
+                AddWithValue(db, Suggestion(3, LessonSuggestionStatus.SentBack), nameof(LessonSuggestion.ReferredByUserId), userId);
+                break;
+            case "LessonSuggestionApproval.ApproverUserId":
+                db.LessonSuggestions.Add(Suggestion(4, LessonSuggestionStatus.SentBack));
+                db.LessonSuggestionApprovals.Add(new LessonSuggestionApproval { Id = 1, LessonSuggestionId = 4, ApproverUserId = userId, Position = 1, ApprovedAt = at });
+                break;
+            case "LessonVersion.SuggestedByUserId":
+                AddWithValue(db, Version(1), nameof(LessonVersion.SuggestedByUserId), userId);
+                break;
+            case "LessonVersion.ApprovedByUserId":
+                AddWithValue(db, Version(2), nameof(LessonVersion.ApprovedByUserId), userId);
+                break;
+            case "LessonVersion.PublishedByUserId":
+                AddWithValue(db, Version(3), nameof(LessonVersion.PublishedByUserId), userId);
+                break;
+            case "StaffStepDown.SteppedDownByUserId":
+                db.StaffStepDowns.Add(new StaffStepDown { UserId = AdminId, ChapterId = Shrewsbury, SteppedDownAt = at, SteppedDownByUserId = userId, ReinstatedAt = at.AddDays(1), ReinstatedByUserId = AdminId });
+                break;
+            case "StaffStepDown.ReinstatedByUserId":
+                db.StaffStepDowns.Add(new StaffStepDown { UserId = AdminId, ChapterId = Shrewsbury, SteppedDownAt = at.AddDays(2), ReinstatedAt = at.AddDays(3), ReinstatedByUserId = userId });
+                break;
+            case "Student.AssignedTeacherUserId":
+                var student = db.Students.Single(s => s.Id == ActiveStudentId);
+                db.Entry(student).Property(s => s.AssignedTeacherUserId).CurrentValue = userId;
+                break;
+            case "StudentGuardianLink.CreatedByUserId":
+                db.StudentGuardianLinks.Add(new StudentGuardianLink { StudentId = ActiveStudentId, ParentGuardianId = GuardianId, CreatedByUserId = userId });
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(reference), reference, "No record seeded for this reference.");
+        }
+
+        db.SaveChanges();
+    }
+
+    private static void AddWithValue<T>(VlmsDbContext db, T entity, string property, int value) where T : class
+    {
+        db.Add(entity);
+        db.Entry(entity).Property(property).CurrentValue = value;
+    }
+
+    /// <summary>Every row of the entity named, each as its column values, read past the query filters.</summary>
+    private List<Dictionary<string, object?>> Rows(string entityName)
+    {
+        using var check = CreateContext(SystemAdmin());
+        var entityType = check.Context.Model.GetEntityTypes().Single(t => t.ClrType.Name == entityName);
+        var method = typeof(RetentionDeletionServiceTests)
+            .GetMethod(nameof(RowsOf), System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!
+            .MakeGenericMethod(entityType.ClrType);
+        return (List<Dictionary<string, object?>>)method.Invoke(null, [check.Context, entityType])!;
+    }
+
+    private static List<Dictionary<string, object?>> RowsOf<T>(VlmsDbContext db, Microsoft.EntityFrameworkCore.Metadata.IEntityType entityType) where T : class =>
+        db.Set<T>().IgnoreQueryFilters().AsNoTracking().AsEnumerable()
+            .Select(row => entityType.GetProperties().Where(p => p.PropertyInfo is not null)
+                .ToDictionary(p => p.Name, p => p.PropertyInfo!.GetValue(row)))
+            .OrderBy(row => string.Join("|", entityType.FindPrimaryKey()!.Properties.Select(p => row[p.Name])))
+            .ToList();
 
     private void LinkGuardianTo(int studentId)
     {

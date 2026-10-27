@@ -436,6 +436,30 @@ public sealed class StudentApplicationServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task AReviewerWhoseAccountWasDeleted_ReadsAFormerMemberOfStaff_AndAnUnreviewedApplicationNamesNobody()
+    {
+        var reviewed = await SubmitAsync();
+        using (var so = Caller(SafeguardingId, Role.SafeguardingOfficer))
+        {
+            await so.Service.SafeguardingApproveAsync(reviewed);
+        }
+
+        using (var system = Caller(AdminId, Role.Admin))
+        {
+            // As the retention purge deletes an account (docs/adr/0014): the database clears the reference.
+            system.Db.AppUsers.Remove(system.Db.AppUsers.Single(u => u.Id == SafeguardingId));
+            await system.Db.SaveChangesAsync();
+        }
+
+        Assert.Null(Load(reviewed).SafeguardingReviewedByUserId);
+        using var admin = Caller(AdminId, Role.Admin);
+        var view = Assert.Single(await admin.Service.ListForAdminAsync(), a => a.Id == reviewed);
+        Assert.Equal(FormerStaff.Name, view.SafeguardingReviewerName);
+        Assert.NotNull(view.SafeguardingReviewedAt);
+        Assert.Null(view.AdminDeciderName);
+    }
+
+    [Fact]
     public async Task Submission_EmailsEveryActiveSafeguardingOfficer_AndNoOneElse()
     {
         _notifications.SentRequests.Clear();

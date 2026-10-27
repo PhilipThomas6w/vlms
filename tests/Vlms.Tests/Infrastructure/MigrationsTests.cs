@@ -211,6 +211,55 @@ public class MigrationsTests
         Assert.True(force > revoke);
     }
 
+    // ---- ADR-0014 settled after build: references to a deleted account (ClearDeletedAccountReferences) --------
+
+    [Theory]
+    [InlineData("attendance_registers", "taken_by_user_id")]
+    [InlineData("lesson_versions", "suggested_by_user_id")]
+    [InlineData("lesson_suggestions", "author_user_id")]
+    [InlineData("staff_step_downs", "stepped_down_by_user_id")]
+    [InlineData("student_lesson_completions", "completed_by_user_id")]
+    public void MigrationScript_ClearsAnActorReference_WhenItsAccountIsDeleted(string table, string column)
+    {
+        // The earlier migrations create these keys inside CREATE TABLE as ON DELETE RESTRICT; only this one re-adds them.
+        var script = GenerateFullMigrationScript();
+        var dropped = script.IndexOf($"ALTER TABLE {table} DROP CONSTRAINT \"FK_{table}_app_users_{column}", StringComparison.Ordinal);
+        var readded = System.Text.RegularExpressions.Regex.Match(script,
+            $@"ALTER TABLE {table} ADD CONSTRAINT ""FK_{table}_app_users_{column}[^""]*"" FOREIGN KEY \({column}\) REFERENCES app_users \(id\) ON DELETE SET NULL;");
+        Assert.True(dropped >= 0);
+        Assert.True(readded.Success && readded.Index > dropped);
+        if (table is "lesson_versions" or "staff_step_downs")
+        {
+            return;   // already nullable
+        }
+        Assert.Contains($"ALTER TABLE {table} ALTER COLUMN {column} DROP NOT NULL;", script, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void MigrationScript_RecordsLegitimatelyEmptyReferences_BeforeAnyCanBeCleared()
+    {
+        var script = GenerateFullMigrationScript();
+
+        var addFlag = script.IndexOf("ALTER TABLE staff_step_downs ADD recorded_before_history", StringComparison.Ordinal);
+        var backfill = script.IndexOf(
+            "UPDATE staff_step_downs SET recorded_before_history = TRUE WHERE stepped_down_by_user_id IS NULL;", StringComparison.Ordinal);
+        var setNull = script.IndexOf("FOREIGN KEY (stepped_down_by_user_id) REFERENCES app_users (id) ON DELETE SET NULL", StringComparison.Ordinal);
+        Assert.True(addFlag >= 0);
+        Assert.True(backfill > addFlag);
+        Assert.True(setNull > backfill);
+        Assert.Contains("UPDATE lesson_versions SET published_directly = TRUE WHERE published_by_user_id IS NOT NULL;", script);
+    }
+
+    [Fact]
+    public void MigrationScript_KeepsTheAppendOnlyLogsFreeOfForeignKeysToAccounts()
+    {
+        // Clearing a reference is an UPDATE their row-level security forbids, so they hold the account id as a plain value.
+        var script = GenerateFullMigrationScript();
+
+        Assert.DoesNotMatch(@"ALTER TABLE (deletion_log|sensitive_data_access_logs) ADD CONSTRAINT ""[^""]+"" FOREIGN KEY", script);
+        Assert.DoesNotMatch(@"CREATE TABLE (deletion_log|sensitive_data_access_logs) \([^;]*REFERENCES app_users", script);
+    }
+
     [Fact]
     public void MigrationScript_GrantsNoRoleBypassRls()
     {

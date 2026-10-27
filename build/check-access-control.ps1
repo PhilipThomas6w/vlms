@@ -161,8 +161,10 @@ $expectedMinimums = @{
     "LessonSuggestionServiceTests.cs"   = 25
     # adr/0014 retention purge: Admin-only, active chapter, still-due recheck, typed name, what a
     # deletion removes, the parent and staff account rules, the deletion log; the reminder and the
-    # audit-log purge (system principal only, rows older than 6 years only).
-    "RetentionDeletionServiceTests.cs"  = 30
+    # audit-log purge (system principal only, rows older than 6 years only). Raised 27/10/2026 for
+    # adr/0014 settled after build: an account named only as the one who acted is deleted and the
+    # reference cleared; every foreign key to an account is accounted for; the other keep-rules hold.
+    "RetentionDeletionServiceTests.cs"  = 34
     "RetentionJobsTests.cs"             = 7
 }
 

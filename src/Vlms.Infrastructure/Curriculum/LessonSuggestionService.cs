@@ -360,7 +360,7 @@ public sealed class LessonSuggestionService
             .Where(s => s.Status == LessonSuggestionStatus.Submitted)
             .Select(s => new
             {
-                s.Id, s.Title, s.Kind, s.Reason, s.SubmittedAt, Author = s.AuthorUser!.DisplayName,
+                s.Id, s.Title, s.Kind, s.Reason, s.SubmittedAt, Author = s.AuthorUser != null ? s.AuthorUser.DisplayName : FormerStaff.Name,
                 LessonTitle = s.Lesson != null ? s.Lesson.Title : null, s.RankId,
                 Referred = s.ReferredAt != null,
                 Approvals = s.CommitteeApprovals.Count(),
@@ -416,14 +416,14 @@ public sealed class LessonSuggestionService
 
         return new SuggestionReview(
             suggestion.Id, suggestion.Kind, suggestion.Status, lesson?.Code, lesson?.Title ?? suggestion.Title, rankName,
-            suggestion.AuthorUser!.DisplayName, suggestion.SubmittedAt ?? suggestion.UpdatedAt, suggestion.Reason,
+            suggestion.AuthorUser?.DisplayName ?? FormerStaff.Name, suggestion.SubmittedAt ?? suggestion.UpdatedAt, suggestion.Reason,
             suggestion.BaseVersionNumber, currentNumber,
             IsStale: suggestion.LessonId is not null && suggestion.BaseVersionNumber != currentNumber,
             TrackedHtml: isRetire ? "" : LessonDiff.Tracked(before, after),
             FinalHtml: isRetire ? "" : LessonDiff.Render(after),
             BeforeHtml: LessonDiff.Render(before),
             SettingChanges: SettingChanges(current, suggestion.Title, suggestion.Order, suggestion.Tags.Select(t => t.Tag), rankName),
-            suggestion.DecidedByUser?.DisplayName, suggestion.DecidedAt, suggestion.SentBackComment,
+            FormerStaff.Or(suggestion.DecidedByUser?.DisplayName, suggestion.DecidedAt is not null), suggestion.DecidedAt, suggestion.SentBackComment,
             committee.Referral, committee.Approvals, committee.ApproverIds.Contains(userId));
     }
 
@@ -614,8 +614,13 @@ public sealed class LessonSuggestionService
             }
 
             var committee = version.SuggestionId is int sid ? await CommitteeAsync(sid, ct) : Committee.None;
+            // Every version but a converted one came from a suggestion, so it names who suggested it and who approved or
+            // published it; a missing name there is an account deleted under the retention rules (docs/adr/0014).
+            var suggested = version.Kind != LessonVersionKind.Converted;
             entries.Add(new HistoryVersion(version.Number, i == versions.Count - 1, version.Kind, version.IsActive,
-                Name(version.SuggestedByUserId), version.SuggestedAt, Name(version.ApprovedByUserId), Name(version.PublishedByUserId),
+                FormerStaff.Or(Name(version.SuggestedByUserId), suggested), version.SuggestedAt,
+                FormerStaff.Or(Name(version.ApprovedByUserId), suggested && !version.PublishedDirectly),
+                FormerStaff.Or(Name(version.PublishedByUserId), suggested && version.PublishedDirectly),
                 version.Reason, version.PublishedAt, changes, beforeHtml, afterHtml, settings, committee.Referral, committee.Approvals));
         }
         entries.Reverse();
@@ -625,8 +630,8 @@ public sealed class LessonSuggestionService
             .OrderByDescending(s => s.DecidedAt)
             .Select(s => new
             {
-                s.Id, Author = s.AuthorUser!.DisplayName, At = s.SubmittedAt ?? s.UpdatedAt, s.Reason,
-                DecidedBy = s.DecidedByUser!.DisplayName, DecidedAt = s.DecidedAt ?? s.UpdatedAt, Comment = s.SentBackComment ?? ""
+                s.Id, Author = s.AuthorUser != null ? s.AuthorUser.DisplayName : FormerStaff.Name, At = s.SubmittedAt ?? s.UpdatedAt, s.Reason,
+                DecidedBy = s.DecidedByUser != null ? s.DecidedByUser.DisplayName : FormerStaff.Name, DecidedAt = s.DecidedAt ?? s.UpdatedAt, Comment = s.SentBackComment ?? ""
             })
             .ToListAsync(ct);
         var sentBack = new List<SentBackSuggestion>();
@@ -652,7 +657,7 @@ public sealed class LessonSuggestionService
     {
         RequireRole(Role.NationalAdministrator);
         var changes = await _db.LessonPublishingSettingChanges.AsNoTracking().OrderByDescending(c => c.Id)
-            .Select(c => new PublishingSettingChange(c.DirectPublishingAllowed, c.ChangedByUser!.DisplayName, c.ChangedAt))
+            .Select(c => new PublishingSettingChange(c.DirectPublishingAllowed, c.ChangedByUser != null ? c.ChangedByUser.DisplayName : FormerStaff.Name, c.ChangedAt))
             .ToListAsync(ct);
         return new PublishingSetting(changes.Count == 0 || changes[0].DirectPublishingAllowed, changes);
     }
@@ -698,16 +703,16 @@ public sealed class LessonSuggestionService
         }
 
         var referredBy = await _db.AppUsers.AsNoTracking().Where(u => u.Id == referral.ReferredByUserId)
-            .Select(u => u.DisplayName).SingleOrDefaultAsync(ct) ?? "";
+            .Select(u => u.DisplayName).SingleOrDefaultAsync(ct) ?? FormerStaff.Name;
         var approvals = await _db.LessonSuggestionApprovals.AsNoTracking()
             .Where(a => a.LessonSuggestionId == suggestionId)
             .OrderBy(a => a.Position)
-            .Select(a => new { a.ApproverUserId, Name = a.ApproverUser!.DisplayName, a.ApprovedAt })
+            .Select(a => new { a.ApproverUserId, Name = a.ApproverUser != null ? a.ApproverUser.DisplayName : FormerStaff.Name, a.ApprovedAt })
             .ToListAsync(ct);
         return new Committee(
             new Referral(referredBy, referral.ReferredAt!.Value, referral.ReferralReason),
             approvals.Select(a => new CommitteeApproval(a.Name, a.ApprovedAt)).ToList(),
-            approvals.Select(a => a.ApproverUserId).ToHashSet());
+            approvals.Select(a => a.ApproverUserId).OfType<int>().ToHashSet());
     }
 
     private async Task<bool> CanPublishNowAsync(CancellationToken ct) =>
@@ -725,7 +730,7 @@ public sealed class LessonSuggestionService
         var userId = _currentUser.UserId;
         var open = await _db.LessonSuggestions.AsNoTracking()
             .Where(s => s.LessonId == lessonId && (s.Status == LessonSuggestionStatus.Draft || s.Status == LessonSuggestionStatus.Submitted))
-            .Select(s => new { s.Id, s.Status, s.AuthorUserId, Author = s.AuthorUser!.DisplayName, s.CreatedAt, s.SubmittedAt })
+            .Select(s => new { s.Id, s.Status, s.AuthorUserId, Author = s.AuthorUser != null ? s.AuthorUser.DisplayName : FormerStaff.Name, s.CreatedAt, s.SubmittedAt })
             .FirstOrDefaultAsync(ct);
         return open is null
             ? null
@@ -739,7 +744,7 @@ public sealed class LessonSuggestionService
         suggestionId is null
             ? null
             : await _db.LessonSuggestions.AsNoTracking().Where(s => s.Id == suggestionId)
-                .Select(s => new SentBackInfo(s.DecidedByUser!.DisplayName, s.DecidedAt ?? s.UpdatedAt, s.SentBackComment ?? ""))
+                .Select(s => new SentBackInfo(s.DecidedByUser != null ? s.DecidedByUser.DisplayName : FormerStaff.Name, s.DecidedAt ?? s.UpdatedAt, s.SentBackComment ?? ""))
                 .SingleOrDefaultAsync(ct);
 
     private static SuggestionDraftView ToDraftView(LessonSuggestion s) =>
@@ -1081,6 +1086,7 @@ public sealed class LessonSuggestionService
             SuggestedAt = suggestion.SubmittedAt is DateTime submitted ? DateTime.SpecifyKind(submitted, DateTimeKind.Utc) : now,
             ApprovedByUserId = direct ? null : deciderId,
             PublishedByUserId = direct ? deciderId : null,
+            PublishedDirectly = direct,
             Reason = suggestion.Reason,
             PublishedAt = now,
             SuggestionId = suggestion.Id

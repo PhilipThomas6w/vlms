@@ -47,7 +47,7 @@
                 <td data-label="Student">@link.Student?.Name</td>
                 <td data-label="Guardian">@link.ParentGuardian?.Name</td>
                 <td data-label="Primary">@(link.ParentGuardian?.IsPrimary == true ? "Yes" : "No")</td>
-                <td data-label="Created by">@link.CreatedByUser?.DisplayName</td>
+                <td data-label="Created by">@(link.CreatedByUser?.DisplayName ?? FormerStaff.Name)</td>
                 <td data-label="Account">
                     @if (link.ParentGuardian?.AppUserId is null && link.ParentGuardian is not null)
                     {

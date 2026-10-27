@@ -51,7 +51,8 @@ public sealed class ChapterEvent : IChapterOwned
 
     /// <summary>The id of the series' first event, for every event created as part of a repeating series; null for a one-off event.</summary>
     public int? SeriesId { get; init; }
-    public required int CreatedByUserId { get; init; }
+    /// <summary>Null once that person's account has been deleted under the retention rules (docs/adr/0014).</summary>
+    public required int? CreatedByUserId { get; init; }
     public required DateTime CreatedAt { get; init; }
 
     public ICollection<AttendanceRegister> Registers { get; init; } = new List<AttendanceRegister>();

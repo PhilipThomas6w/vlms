@@ -19,7 +19,8 @@ public sealed class AttendanceRegister : IChapterOwned
 
     /// <summary>The event's date, copied so history and totals need not join the event.</summary>
     public required DateOnly MeetingDate { get; init; }
-    public required int TakenByUserId { get; set; }
+    /// <summary>Null once that person's account has been deleted under the retention rules (docs/adr/0014).</summary>
+    public required int? TakenByUserId { get; set; }
     public required DateTime TakenAt { get; set; }
 
     public ChapterEvent? ChapterEvent { get; init; }

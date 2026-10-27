@@ -41,6 +41,16 @@ internal static class TestIdentityServices
         Action<IServiceCollection>? configure = null)
     {
         var services = new ServiceCollection();
+        AddTo(services, connectionString, currentUser, publicBaseUrl);
+        configure?.Invoke(services);
+
+        return services.BuildServiceProvider();
+    }
+
+    /// <summary>The same registrations, into an existing collection (a bUnit test context's services).</summary>
+    public static void AddTo(
+        IServiceCollection services, string connectionString, ICurrentUserContext currentUser, string? publicBaseUrl = "https://test.example")
+    {
         services.AddLogging();
         services.AddSingleton<ICurrentUserContext>(currentUser);
         services.AddDbContext<VlmsDbContext>(options => options.UseSqlite(connectionString));
@@ -64,8 +74,5 @@ internal static class TestIdentityServices
         services.AddScoped<GuardianLinkService>();
         services.AddScoped<AccountEmailService>();
         services.AddScoped<StudentAccountService>();
-        configure?.Invoke(services);
-
-        return services.BuildServiceProvider();
     }
 }
