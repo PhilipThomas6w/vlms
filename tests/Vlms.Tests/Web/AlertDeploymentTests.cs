@@ -37,6 +37,7 @@ public sealed class AlertDeploymentTests
     [Theory]
     [InlineData("deploy", "systemd", "vlms-web.service")]
     [InlineData("deploy", "systemd", "vlms-jobs.service")]
+    [InlineData("deploy", "systemd", "vlms-retention.service")]
     [InlineData("deploy", "backup", "vlms-backup.service")]
     [InlineData("deploy", "backup", "vlms-files-backup.service")]
     public void EveryServiceUnit_StartsTheAlertOnFailure(params string[] path)

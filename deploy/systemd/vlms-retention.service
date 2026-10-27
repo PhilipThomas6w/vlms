@@ -1,0 +1,26 @@
+# vlms-retention.service — runs `Vlms.Jobs retention-monthly` to completion
+# (docs/adr/0014-retention-purge.md decisions 5 and 6): the monthly email to each chapter's Admins
+# while any of its records are due for deletion, then the purge of read-audit log rows older than
+# 6 years.
+#
+# Same layout and conventions as vlms-jobs.service (see that file and README.md in this directory):
+# triggered only by vlms-retention.timer, Type=oneshot, the unprivileged "vlms" user, the same
+# published output and the same /etc/vlms/jobs.env. The purge connects with
+# ConnectionStrings__AuditLogPurge (the vlms_retention database role, deploy/README.md step 3b),
+# which is set in /etc/vlms/jobs.env only, never in the web app's environment file.
+
+[Unit]
+Description=VLMS monthly retention run (records-due reminder and audit-log purge)
+After=network-online.target postgresql.service
+Wants=network-online.target
+# A failed run starts the alert digest at once (vlms-alert.service; docs/operations/monitoring.md §3).
+OnFailure=vlms-alert.service
+
+[Service]
+Type=oneshot
+User=vlms
+Group=vlms
+WorkingDirectory=/opt/vlms/jobs
+EnvironmentFile=-/etc/vlms/jobs.env
+ExecStart=/usr/bin/dotnet /opt/vlms/jobs/Vlms.Jobs.dll retention-monthly
+TimeoutStartSec=300

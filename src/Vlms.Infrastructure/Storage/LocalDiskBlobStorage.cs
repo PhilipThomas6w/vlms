@@ -64,6 +64,14 @@ public sealed class LocalDiskBlobStorage : IBlobStorage
     public Task<bool> ExistsAsync(string blobKey, CancellationToken ct = default) =>
         Task.FromResult(File.Exists(ResolvePath(blobKey)));
 
+    public Task DeleteAsync(string blobKey, CancellationToken ct = default)
+    {
+        // Same ResolvePath validation, so a key can never delete outside the root. File.Delete does
+        // nothing when the file does not exist.
+        File.Delete(ResolvePath(blobKey));
+        return Task.CompletedTask;
+    }
+
     /// <summary>
     /// Maps a blob key onto a real filesystem path under <see cref="_rootPath"/>, rejecting any key
     /// that could otherwise escape it. <see cref="IBlobStorage.UploadAsync"/>'s contract accepts any

@@ -168,10 +168,53 @@ public class MigrationsTests
         // default-denied for every role (including the table owner, under FORCE) once RLS is
         // enabled. Proving the negative directly, not just that a search for "FOR UPDATE"/"FOR
         // DELETE" against this table turns up nothing incidentally.
+        // Since ADR-0014 (AddDeletionLog) exactly one DELETE policy exists: the audit-log purge's,
+        // limited to the vlms_retention role and to rows older than 6 years — never a permissive one.
         var script = GenerateFullMigrationScript();
 
         Assert.DoesNotContain("ON sensitive_data_access_logs FOR UPDATE", script);
-        Assert.DoesNotContain("ON sensitive_data_access_logs FOR DELETE", script);
+        Assert.Single(System.Text.RegularExpressions.Regex.Matches(script, "ON sensitive_data_access_logs FOR DELETE"));
+        Assert.Contains(
+            "CREATE POLICY sensitive_data_access_logs_retention_delete ON sensitive_data_access_logs FOR DELETE " +
+            "USING (current_user = 'vlms_retention' AND accessed_at < (now() - interval '6 years'));",
+            script);
+    }
+
+    // ---- ADR-0014: the deletion log and the audit-log purge (AddDeletionLog) ----------------------
+
+    [Fact]
+    public void MigrationScript_MakesTheDeletionLogAppendOnly()
+    {
+        var script = GenerateFullMigrationScript();
+
+        Assert.Contains("REVOKE UPDATE, DELETE ON deletion_log FROM PUBLIC;", script);
+        Assert.Contains("REVOKE UPDATE, DELETE ON deletion_log FROM vlms_app;", script);
+        Assert.Contains("ALTER TABLE deletion_log ENABLE ROW LEVEL SECURITY;", script);
+        Assert.Contains("ALTER TABLE deletion_log FORCE ROW LEVEL SECURITY;", script);
+        Assert.Contains("CREATE POLICY deletion_log_allow_select ON deletion_log FOR SELECT USING (true);", script);
+        Assert.Contains("CREATE POLICY deletion_log_allow_insert ON deletion_log FOR INSERT WITH CHECK (true);", script);
+        Assert.DoesNotContain("ON deletion_log FOR UPDATE", script);
+        Assert.DoesNotContain("ON deletion_log FOR DELETE", script);
+        Assert.DoesNotContain("ON deletion_log FOR ALL", script);
+    }
+
+    [Fact]
+    public void MigrationScript_DeletionLogProtection_FollowsItsTable()
+    {
+        var script = GenerateFullMigrationScript();
+
+        var create = script.IndexOf("CREATE TABLE deletion_log", StringComparison.Ordinal);
+        var revoke = script.IndexOf("REVOKE UPDATE, DELETE ON deletion_log FROM PUBLIC;", StringComparison.Ordinal);
+        var force = script.IndexOf("ALTER TABLE deletion_log FORCE ROW LEVEL SECURITY;", StringComparison.Ordinal);
+        Assert.True(create >= 0);
+        Assert.True(revoke > create);
+        Assert.True(force > revoke);
+    }
+
+    [Fact]
+    public void MigrationScript_GrantsNoRoleBypassRls()
+    {
+        Assert.DoesNotContain("BYPASSRLS", GenerateFullMigrationScript(), StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

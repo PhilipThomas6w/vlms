@@ -159,6 +159,11 @@ $expectedMinimums = @{
     # adr/0013 lesson suggestions: who may suggest, review, publish now, read history and change the
     # setting; one open suggestion; self-approval; the stale-base guard; pictures to the author only.
     "LessonSuggestionServiceTests.cs"   = 25
+    # adr/0014 retention purge: Admin-only, active chapter, still-due recheck, typed name, what a
+    # deletion removes, the parent and staff account rules, the deletion log; the reminder and the
+    # audit-log purge (system principal only, rows older than 6 years only).
+    "RetentionDeletionServiceTests.cs"  = 30
+    "RetentionJobsTests.cs"             = 7
 }
 
 foreach ($testFileName in $expectedMinimums.Keys) {
@@ -242,6 +247,8 @@ $hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Web/LessonPageEndpoint.c
 # adr/0013 lesson suggestions: the service's role checks and the picture upload and picture endpoints.
 $hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Infrastructure/Curriculum/LessonSuggestionService.cs")
 $hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Web/LessonSuggestionEndpoints.cs")
+# adr/0014 retention purge: the deletions, the reminder, the audit-log purge and the leaving service.
+$hashedFiles += Get-ChildItem (Join-Path $repoRoot "src/Vlms.Infrastructure/Retention") -Filter "*.cs"
 $hashedFiles += $pageFiles
 
 if ($PrintHash) {

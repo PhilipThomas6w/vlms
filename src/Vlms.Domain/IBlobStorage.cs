@@ -27,4 +27,11 @@ public interface IBlobStorage
     /// as <see cref="ReadAsync"/>.
     /// </summary>
     Task<bool> ExistsAsync(string blobKey, CancellationToken ct = default);
+
+    /// <summary>
+    /// Deletes the blob at <paramref name="blobKey"/> if it exists (a missing blob is not an error).
+    /// Same key validation as <see cref="ReadAsync"/>. Used by the retention purge
+    /// (docs/adr/0014-retention-purge.md) to remove a deleted student's certificate PDFs.
+    /// </summary>
+    Task DeleteAsync(string blobKey, CancellationToken ct = default);
 }

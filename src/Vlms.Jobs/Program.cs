@@ -39,6 +39,7 @@ using Vlms.Infrastructure.Engagement;
 using Vlms.Infrastructure.Identity;
 using Vlms.Infrastructure.Monitoring;
 using Vlms.Infrastructure.Notifications;
+using Vlms.Infrastructure.Retention;
 using Vlms.Infrastructure.Safeguarding;
 using Vlms.Infrastructure.Security;
 using Vlms.Infrastructure.Storage;
@@ -66,13 +67,18 @@ var seedCurriculumArgs = args is ["seed-curriculum", ..] ? SeedCurriculumArgs.Pa
 // run (it is also part of every daily run, below).
 var importCalendarOnly = args is ["import-calendar"];
 
+// `Vlms.Jobs retention-monthly` — the monthly retention run (docs/adr/0014-retention-purge.md
+// decisions 5 and 6), started by deploy/systemd/vlms-retention.timer: the reminder to each chapter's
+// Admins while records are due, then the audit-log purge as the vlms_retention database role.
+var retentionMonthly = args is ["retention-monthly"];
+
 // `Vlms.Jobs alert-digest` — emails the journal's ESCALATION: lines and newly failed vlms-* units since
 // the last successful run to Alerts:Recipient (docs/operations/monitoring.md §3). Started by
 // vlms-alert.timer each morning and by OnFailure= on every vlms-* unit (deploy/systemd/vlms-alert.service).
 var alertDigestOnly = args is ["alert-digest"];
 
 var isCommand = bootstrapEmail is not null || bootstrapNationalEmail is not null || seedDevPassword is not null
-    || seedCurriculumArgs is not null || importCalendarOnly || alertDigestOnly;
+    || seedCurriculumArgs is not null || importCalendarOnly || retentionMonthly || alertDigestOnly;
 var builder = Host.CreateApplicationBuilder(isCommand ? [] : args);
 
 builder.Services.AddDbContext<VlmsDbContext>(options =>
@@ -283,6 +289,48 @@ if (alertDigestOnly)
 if (importCalendarOnly)
 {
     await ImportCalendarAsync(scope.ServiceProvider);
+    return;
+}
+
+if (retentionMonthly)
+{
+    var retentionLogger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    try
+    {
+        var reminders = await new RetentionReminderService(
+            scope.ServiceProvider.GetRequiredService<VlmsDbContext>(), SystemCurrentUserContext.Instance,
+            scope.ServiceProvider.GetRequiredService<INotificationService>(), builder.Configuration["App:PublicBaseUrl"]).SendAsync();
+        retentionLogger.LogInformation("Retention reminder sent {ReminderCount} email(s).", reminders.Count);
+    }
+    catch (Exception ex)
+    {
+        retentionLogger.LogCritical(ex, "Retention reminder failed.");
+        Environment.ExitCode = 1;
+    }
+
+    // The purge connects as vlms_retention (ConnectionStrings:AuditLogPurge, in /etc/vlms/jobs.env
+    // only), never as vlms_app, which cannot delete audit rows at all.
+    var purgeConnection = builder.Configuration.GetConnectionString(AuditLogPurgeService.ConnectionStringName);
+    if (string.IsNullOrWhiteSpace(purgeConnection))
+    {
+        retentionLogger.LogCritical("Audit-log purge not run: ConnectionStrings:{Name} is not configured.", AuditLogPurgeService.ConnectionStringName);
+        Environment.ExitCode = 1;
+        return;
+    }
+
+    try
+    {
+        await using var purgeDb = new VlmsDbContext(
+            new DbContextOptionsBuilder<VlmsDbContext>().UseNpgsql(purgeConnection).Options, SystemCurrentUserContext.Instance);
+        var purged = await new AuditLogPurgeService(purgeDb, SystemCurrentUserContext.Instance).PurgeAsync(DateTime.UtcNow);
+        retentionLogger.LogInformation("Audit-log purge deleted {RowCount} row(s) older than {Years} years.", purged, AuditLogPurgeService.RetentionYears);
+    }
+    catch (Exception ex)
+    {
+        retentionLogger.LogCritical(ex, "Audit-log purge failed.");
+        Environment.ExitCode = 1;
+    }
+
     return;
 }
 

@@ -673,6 +673,44 @@ namespace Vlms.Infrastructure.Migrations
                     b.ToTable("dbs_checks");
                 });
 
+            modelBuilder.Entity("Vlms.Domain.DeletionLogEntry", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ChapterId")
+                        .HasColumnType("integer")
+                        .HasColumnName("chapter_id");
+
+                    b.Property<DateTime>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<int>("DeletedByUserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("deleted_by_user_id");
+
+                    b.Property<int>("RecordId")
+                        .HasColumnType("integer")
+                        .HasColumnName("record_id");
+
+                    b.Property<string>("RecordType")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("record_type");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChapterId", "DeletedAt");
+
+                    b.ToTable("deletion_log", (string)null);
+                });
+
             modelBuilder.Entity("Vlms.Domain.GuardianInvite", b =>
                 {
                     b.Property<int>("Id")

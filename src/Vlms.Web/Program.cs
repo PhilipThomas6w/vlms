@@ -197,6 +197,8 @@ builder.Services.AddScoped<ProgressReportingService>();
 // ProgressReportingService above (see RecordsDueForDeletionService's own doc comment). Reuses the
 // RetentionFlagging helper ConsentExpiryJob's daily sweep also now calls.
 builder.Services.AddScoped<RecordsDueForDeletionService>();
+// Deleting those records (docs/adr/0014-retention-purge.md): Admin-only, every rule in the service.
+builder.Services.AddScoped<RetentionDeletionService>();
 
 // --- Manual "leaving" flag for students and teachers (STATE.md "Manual 'leaving' flag..."),
 // feeding RetentionFlagging above — Admin-only, no self-service path (see LeavingService's own doc

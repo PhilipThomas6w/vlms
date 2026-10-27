@@ -1,0 +1,17 @@
+# vlms-retention.timer — starts vlms-retention.service on the 1st of each month at 04:00 UTC
+# (docs/adr/0014-retention-purge.md decisions 5 and 6), an hour after the daily vlms-jobs run.
+#
+# "*-*-01 04:00:00 UTC": every year, every month, day 1, 04:00:00, in UTC whatever the VPS's own
+# time zone (systemd.time(7)). Check with `systemd-analyze calendar '*-*-01 04:00:00 UTC'`.
+# Persistent=true runs a missed month once the VPS is back up, as for vlms-jobs.timer.
+
+[Unit]
+Description=Monthly timer for vlms-retention.service (VLMS retention reminder and audit-log purge)
+
+[Timer]
+OnCalendar=*-*-01 04:00:00 UTC
+Persistent=true
+Unit=vlms-retention.service
+
+[Install]
+WantedBy=timers.target

@@ -68,6 +68,19 @@ BEGIN
 END
 $$;
 
+-- vlms_retention (docs/adr/0014-retention-purge.md decision 6): the monthly audit-log purge's own
+-- login, used only by `Vlms.Jobs retention-monthly` (ConnectionStrings__AuditLogPurge in
+-- /etc/vlms/jobs.env). NOBYPASSRLS (the default, never granted): its only way to delete audit rows is
+-- the AddDeletionLog migration's DELETE policy, which admits rows older than 6 years only.
+-- 10-grant-app-privileges.sql grants it SELECT and DELETE on sensitive_data_access_logs and nothing else.
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'vlms_retention') THEN
+        CREATE ROLE vlms_retention WITH LOGIN PASSWORD 'PLACEHOLDER_CHANGE_ME_RETENTION' NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION;
+    END IF;
+END
+$$;
+
 -- CREATE DATABASE cannot run inside a DO block/transaction (postgresql.org/docs/current/sql-createdatabase.html
 -- — it must be its own statement) — guarded instead with the standard psql-script idiom of just
 -- checking pg_database directly; \gexec is a psql meta-command so this file must be run via psql

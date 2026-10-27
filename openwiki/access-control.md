@@ -134,8 +134,12 @@ this can't be exercised against a live PostgreSQL server from this test suite. I
 disclosed-as-partial statement is present — not that it achieves `DENY`'s override semantics, which
 it verifiably doesn't (above).
 
-The 6-year retention period itself (a purge/retention job for `SensitiveDataAccessLog`) is a separate,
-not-yet-built concern.
+The 6-year retention purge is built (adr/0014, 27/10/2026): `Retention/AuditLogPurgeService`, run
+monthly by `Vlms.Jobs retention-monthly` over its own connection string (`ConnectionStrings:AuditLogPurge`,
+role `vlms_retention`). Migration `AddDeletionLog` adds the one DELETE policy on this table,
+`USING (current_user = 'vlms_retention' AND accessed_at < now() - interval '6 years')`; `vlms_app`
+still has no DELETE privilege. The same migration makes `deletion_log` append-only the same way
+(REVOKE plus FORCEd RLS, SELECT/INSERT policies only). See [admin-reporting.md](admin-reporting.md).
 
 ## Row-Level Security (pass 8, `EnforceRowLevelSecurityOnSensitiveDataAccessLog`) — the actual DENY-equivalent, now built
 

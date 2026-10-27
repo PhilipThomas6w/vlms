@@ -69,6 +69,7 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
     public DbSet<StudentApplication> StudentApplications => Set<StudentApplication>();
     public DbSet<StudentApplicationSensitiveDetails> StudentApplicationSensitiveDetails => Set<StudentApplicationSensitiveDetails>();
     public DbSet<SensitiveDataAccessLog> SensitiveDataAccessLogs => Set<SensitiveDataAccessLog>();
+    public DbSet<DeletionLogEntry> DeletionLog => Set<DeletionLogEntry>();
     public DbSet<Chapter> Chapters => Set<Chapter>();
     public DbSet<ActiveChapterChoice> ActiveChapterChoices => Set<ActiveChapterChoice>();
     public DbSet<AttendanceRegister> AttendanceRegisters => Set<AttendanceRegister>();
@@ -562,6 +563,18 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
         {
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedOnAdd();
+        });
+
+        // The retention deletion log (docs/adr/0014-retention-purge.md decision 4): national, no
+        // query filter, no foreign keys (it outlives the accounts and records it names), append-only
+        // at the database level (migration AddDeletionLog).
+        modelBuilder.Entity<DeletionLogEntry>(e =>
+        {
+            e.ToTable("DeletionLog");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedOnAdd();
+            e.Property(x => x.RecordType).HasMaxLength(DeletionLogEntry.MaxRecordTypeLength);
+            e.HasIndex(x => new { x.ChapterId, x.DeletedAt });
         });
 
         // Guardian invite tokens (STATE.md "Identity" item 5, replacing the Microsoft Graph
