@@ -179,6 +179,19 @@ public sealed class VlmsWebFactory : WebApplicationFactory<Vlms.Web.Components.A
         return await scope.ServiceProvider.GetRequiredService<LeavingService>().StepDownAsync(userId);
     }
 
+    /// <summary>Runs the real <see cref="LeavingService.ReinstateAsync"/> as the Admin <paramref name="adminUserId"/>.</summary>
+    public async Task<AppUser> ReinstateAsync(int adminUserId, int userId)
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddSingleton<ICurrentUserContext>(new FakeCurrentUserContext(adminUserId, Role.Admin));
+        services.AddDbContext<VlmsDbContext>(o => o.UseSqlite(_connectionString));
+        services.AddIdentityCore<VlmsIdentityUser>().AddEntityFrameworkStores<VlmsDbContext>();
+        services.AddScoped<LeavingService>();
+        await using var provider = services.BuildServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+        return await scope.ServiceProvider.GetRequiredService<LeavingService>().ReinstateAsync(userId);
+    }
     protected override void Dispose(bool disposing)
     {
         base.Dispose(disposing);

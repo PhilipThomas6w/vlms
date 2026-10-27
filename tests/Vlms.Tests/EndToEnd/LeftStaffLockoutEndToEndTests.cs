@@ -250,6 +250,21 @@ public sealed class LeftStaffLockoutEndToEndTests : IDisposable
     }
 
     [Fact]
+    public async Task Reinstated_staff_member_signs_in_with_their_authenticator_and_has_staff_access_again()
+    {
+        // FR-017 amended 27/10/2026: reinstatement restores their roles; MFA still works.
+        var boss = await _factory.SeedUserAsync("boss@test.example", withTotp: true, Role.Admin);
+        var returner = await _factory.SeedUserAsync("returner@test.example", withTotp: true, Role.Teacher);
+        await _factory.StepDownAsync(boss.Id, returner.Id);
+        var refused = await Browser.PostLoginAsync(_factory.CreateBrowser(), returner.Email, VlmsWebFactory.Password);
+        Assert.Contains(GenericFailure, await refused.Content.ReadAsStringAsync());
+
+        await _factory.ReinstateAsync(boss.Id, returner.Id);
+        var client = await Browser.SignInAsync(_factory, returner);
+
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/students")).StatusCode);
+    }
+    [Fact]
     public async Task Parent_who_has_left_can_still_sign_in()
     {
         var parent = await _factory.SeedUserAsync("left-parent@test.example", withTotp: false, Role.Parent);

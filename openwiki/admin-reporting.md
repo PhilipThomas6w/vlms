@@ -54,7 +54,8 @@ itself (no self-service path for a Student/Teacher to mark themselves inactive/l
   the Admin explicitly enables", not a date-entry form; flagged as revisitable if backdating is ever
   wanted. Throws if the student is not currently Active (an already-Inactive or Graduated student has
   no "leaving" transition to make).
-- **`StepDownAsync(userId, ct)`** (was `MarkTeacherLeftAsync` until FR-017 was amended,
+- **`ReinstateAsync(userId, ct)`** and **`ListStaffAsync()`** (27/10/2026, FR-017 amended: staff "step down" and are "reinstated") — reinstating clears `HasLeft`/`LeftAt` (stopping the retention clock: `RetentionFlagging` and `RetentionDeletionService` read only the current step-down date) and closes the `StaffStepDown` row; the page lists Staff and Stepped down with each period and who acted, with in-page confirmation. Migration `AddStaffStepDowns`.
+- **`StepDownAsync(userId, ct)`** (was `MarkStaffLeftAsync` until 27/10/2026, and `MarkTeacherLeftAsync` until FR-017 was amended,
   22/10/2026) — sets `AppUser.HasLeft = true`/`AppUser.LeftAt = DateTime.UtcNow` on the target
   `AppUser` (same auto-captured-timestamp reasoning) and rotates the security stamp. Validates the
   target holds Teacher, Admin or Safeguarding Officer; refuses the caller themselves and the last
