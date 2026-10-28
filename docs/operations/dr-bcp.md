@@ -23,6 +23,8 @@ A 24-hour RPO means completions, consent records or DBS checks entered during th
 | DataProtection keys | **deliberately not backed up** | n/a | losing them signs everyone out and voids open invite links (`deploy/README.md` §1) |
 | Caddy certificates | not backed up | reissued automatically | n/a |
 
+R2 does not support object versioning. Database dumps use timestamped keys; file objects expire 35 days after upload and are re-uploaded by the next nightly sync if still present locally, so there may be a short gap in the off-site file copy. The local files remain on the Droplet (Philip, 28/10/2026).
+
 Backup retention and data retention interact: a deleted student remains in older dumps until those dumps expire. The R2 lifecycle period should therefore be short and written into the privacy notice: 35 days (Philip, 27/10/2026).
 
 Database backup is from the same night as the file backup, so a restore of both is consistent to within 30 minutes.

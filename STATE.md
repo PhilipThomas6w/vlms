@@ -155,6 +155,7 @@ Delegation (Philip, 22/10/2026): each item runs as a subagent in its own worktre
 
 
 ## After go-live (Philip's answers 27/10/2026; parked to get the MVP deployed)
+- **Backups: copies of earlier versions of files** (Philip, 28/10/2026): R2 has no object versioning, so a changed file's previous version is lost at the next sync; add dated snapshots of `files/` (`operations/dr-bcp.md`).
 - **"Stepped down" becomes "Inactive", per chapter:** a person can be a member of several chapters and inactive in one while active in another. An inactive person can still sign in, sees a message that their account is inactive, and can apply for a role. Reactivating them is the only route back, with no new invite.
 - **DBS alerts:** suspended while a person is inactive; an expired check is flagged when they are reactivated.
 - **Deletion report reason:** reads "Inactive for N years".
