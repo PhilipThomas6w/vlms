@@ -77,7 +77,7 @@ done
 mkdir -p "$BACKUP_DIR"
 
 echo "pg-backup.sh: starting pg_dump (PGDATABASE=${PGDATABASE:-<unset, relies on libpq default>}) to ${DUMP_FILE}"
-pg_dump -Fc -f "$DUMP_FILE"
+pg_dump --enable-row-security --inserts -Fc -f "$DUMP_FILE"
 
 echo "pg-backup.sh: dump written ($(du -h "$DUMP_FILE" | cut -f1)) — uploading to s3://${BACKUP_S3_BUCKET}/postgres/$(basename "$DUMP_FILE")"
 aws s3 cp "$DUMP_FILE" "s3://${BACKUP_S3_BUCKET}/postgres/$(basename "$DUMP_FILE")" \
