@@ -142,6 +142,7 @@ Full narrative for Done/Log items to 12/08/2026: `docs/harness/STATE-archive.md`
 ## In progress
 
 ## Next
+- **Separate safeguarding notifications from operational service alerts** (Philip, 29/10/2026; not started). (1) Safeguarding notifications stay chapter-scoped: each chapter's consent/DBS alerts go to every account holding Admin or Safeguarding Officer in that chapter, one copy per person even when they hold both roles. (2) `alerts@varangians.co.uk` is reserved for operational service health: failed VLMS services, backup failures, uptime or Droplet-monitoring alerts. (3) The operational digest (`Vlms.Jobs alert-digest`) must not include raw safeguarding `ESCALATION:` log lines or any student consent or teacher DBS detail; it reports operational failures only. Context: the role-based safeguarding email already reaches the right inbox; the defect is the digest copying `ESCALATION:` lines to `alerts@`. Out of scope: the mailbox forwarding and Outlook folder rule (delivery only, not app routing). Acceptance: tests for recipient set and de-duplication and for a digest free of safeguarding content; `operations/monitoring.md` updated; gate exits 0.
 Fit-for-purpose build plan (Philip, 22/10/2026; `docs/delivery-plan.md` phase 2, `docs/governance/raid.md` I-001). Acceptance for every item below: tests, gate exits 0, **and** the matching steps in `docs/requirements/user-journeys.md` work in the running app for each named role (checked by running it, not inferred from service tests), with their status updated there.
 
 
