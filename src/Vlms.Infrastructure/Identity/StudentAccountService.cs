@@ -273,12 +273,6 @@ public sealed class StudentAccountService
             throw new UnauthorizedAccessException("Only a parent linked to the student can manage their sign-in.");
         }
 
-        // A staff leaver who is also a parent keeps parent access (FR-017, LeftStaffPolicy).
-        if (await _db.AppUsers.AnyAsync(u => u.Id == userId && u.HasLeft && !u.Roles.Any(r => r.Role == Role.Teacher || r.Role == Role.Admin || r.Role == Role.SafeguardingOfficer), ct))
-        {
-            throw new UnauthorizedAccessException("Your account has been marked as having left, so you can't manage sign-ins.");
-        }
-
         return userId;
     }
 

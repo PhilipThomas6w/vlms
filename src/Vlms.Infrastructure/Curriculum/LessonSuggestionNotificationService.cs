@@ -62,7 +62,7 @@ public sealed class LessonSuggestionNotificationService
                 + "\n\nVarangians";
 
             var approvers = await _db.AppUsers.AsNoTracking()
-                .Where(u => !u.HasLeft && u.Roles.Any(r => r.Role == Role.Approver))
+                .Where(u => u.Roles.Any(r => r.Role == Role.Approver))
                 .OrderBy(u => u.Id)
                 .Select(u => new { u.Email, u.DisplayName })
                 .ToListAsync(ct);

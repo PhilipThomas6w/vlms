@@ -473,9 +473,8 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
                     && StudentGuardianLinks.Any(link =>
                         link.StudentId == x.ConsentRecord!.StudentId
                         && link.ParentGuardian!.AppUserId == _currentUser.UserId
-                        // A staff leaver who is also a parent keeps parent access (FR-017, LeftStaffPolicy).
-                        && (!link.ParentGuardian.AppUser!.HasLeft
-                            || link.ParentGuardian.AppUser.Roles.Any(r => r.Role == Role.Teacher || r.Role == Role.Admin || r.Role == Role.SafeguardingOfficer)))));
+                        && !StaffStepDowns.Any(s => s.UserId == link.ParentGuardian.AppUserId
+                            && s.ChapterId == x.ConsentRecord!.ChapterId && s.ReinstatedAt == null))));
         });
 
         modelBuilder.Entity<DbsCheck>(e =>

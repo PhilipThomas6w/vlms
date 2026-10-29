@@ -34,7 +34,8 @@ public enum DbsCheckDeletionReason
     /// this check's own <see cref="DbsCheck.ExpiryDate"/> — "the teacher leaving" can only ever bring
     /// the retention anchor forward, never push it back (see this file's class doc comment).
     /// </summary>
-    TeacherLeft
+    Inactive,
+    TeacherLeft = Inactive
 }
 
 /// <summary>
@@ -226,8 +227,14 @@ public static class RetentionFlagging
         var teacherIds = allChecks.Select(d => d.TeacherUserId).Distinct().ToList();
         var teacherInfo = await db.AppUsers
             .Where(u => teacherIds.Contains(u.Id))
-            .Select(u => new { u.Id, u.DisplayName, u.HasLeft, u.LeftAt })
+            .Select(u => new { u.Id, u.DisplayName })
             .ToDictionaryAsync(x => x.Id, ct);
+
+        var inactivePeriods = await db.StaffStepDowns
+            .Where(s => teacherIds.Contains(s.UserId) && s.ReinstatedAt == null)
+            .Select(s => new { s.UserId, s.ChapterId, s.SteppedDownAt })
+            .ToListAsync(ct);
+        var inactiveAtByTeacherChapter = inactivePeriods.ToDictionary(p => (p.UserId, p.ChapterId), p => p.SteppedDownAt);
 
         var flags = new List<DbsCheckDueForDeletion>();
         foreach (var check in allChecks.OrderBy(d => d.ExpiryDate))
@@ -240,13 +247,13 @@ public static class RetentionFlagging
             {
                 teacherName = teacher.DisplayName;
 
-                if (teacher.HasLeft && teacher.LeftAt is { } leftAt)
+                if (inactiveAtByTeacherChapter.TryGetValue((check.TeacherUserId, check.ChapterId), out var inactiveAt))
                 {
-                    var leftDate = DateOnly.FromDateTime(leftAt);
-                    if (leftDate < anchor)
+                    var inactiveDate = DateOnly.FromDateTime(inactiveAt);
+                    if (inactiveDate < anchor)
                     {
-                        anchor = leftDate;
-                        reason = DbsCheckDeletionReason.TeacherLeft;
+                        anchor = inactiveDate;
+                        reason = DbsCheckDeletionReason.Inactive;
                     }
                 }
             }

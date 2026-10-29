@@ -216,7 +216,8 @@ public sealed class ConsentExpiryJob
         // A teacher is a (person, chapter) pair: each chapter keeps its own teachers' DBS checks
         // (docs/adr/0010-chapters.md), so a teacher at two chapters needs a clear check in each.
         var teacherRoles = await _db.UserRoles
-            .Where(r => r.Role == Role.Teacher && r.ChapterId != null)
+            .Where(r => r.Role == Role.Teacher && r.ChapterId != null
+                && !_db.StaffStepDowns.Any(s => s.UserId == r.UserId && s.ChapterId == r.ChapterId && s.ReinstatedAt == null))
             .Select(r => new { r.UserId, ChapterId = r.ChapterId!.Value })
             .Distinct()
             .ToListAsync(ct);

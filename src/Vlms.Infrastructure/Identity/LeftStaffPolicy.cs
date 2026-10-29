@@ -51,7 +51,7 @@ public static class LeftStaffPolicy
     public static bool StaffRoleCounts(VlmsDbContext db, int userId)
     {
         ArgumentNullException.ThrowIfNull(db);
-        return !db.AppUsers.Any(u => u.Id == userId && u.HasLeft);
+        return !db.StaffStepDowns.Any(s => s.UserId == userId && s.ReinstatedAt == null);
     }
 
     /// <summary>
@@ -62,7 +62,7 @@ public static class LeftStaffPolicy
     public static bool HoldsCountingStaffRoleInAnyChapter(VlmsDbContext db, int userId)
     {
         ArgumentNullException.ThrowIfNull(db);
-        return db.AppUsers.Any(u => u.Id == userId && !u.HasLeft
+        return db.AppUsers.Any(u => u.Id == userId
             && u.Roles.Any(r => r.Role == Role.Teacher || r.Role == Role.Admin || r.Role == Role.SafeguardingOfficer));
     }
 
@@ -74,15 +74,13 @@ public static class LeftStaffPolicy
     public static bool IsLockedOut(VlmsDbContext db, int userId)
     {
         ArgumentNullException.ThrowIfNull(db);
-        return db.AppUsers.Any(u => u.Id == userId && u.HasLeft
-            && !u.Roles.Any(r => r.Role != Role.Teacher && r.Role != Role.Admin && r.Role != Role.SafeguardingOfficer));
+        return false;
     }
 
     /// <summary>Async form of <see cref="IsLockedOut"/>.</summary>
     public static Task<bool> IsLockedOutAsync(VlmsDbContext db, int userId, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(db);
-        return db.AppUsers.AnyAsync(u => u.Id == userId && u.HasLeft
-            && !u.Roles.Any(r => r.Role != Role.Teacher && r.Role != Role.Admin && r.Role != Role.SafeguardingOfficer), ct);
+        return Task.FromResult(false);
     }
 }

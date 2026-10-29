@@ -316,9 +316,13 @@ public sealed class RetentionDeletionService
 
         if (roles.Any(r => LeftStaffPolicy.IsStaffRole(r.Role)))
         {
-            // Staff roles count as current unless the person was marked as left; a leaver's account
-            // goes only after the DBS retention period from their leaving.
-            if (!user.HasLeft || user.LeftAt is not { } leftAt || leftAt > now.AddYears(-RetentionFlagging.DbsCheckRetentionYears))
+            // An account with only staff roles in this chapter can be removed after six years
+            // continuously Inactive there. Reactivation closes the period and resets this clock.
+            var inactiveAt = await _db.StaffStepDowns
+                .Where(s => s.UserId == userId && s.ChapterId == chapterId && s.ReinstatedAt == null)
+                .Select(s => (DateTime?)s.SteppedDownAt)
+                .SingleOrDefaultAsync(ct);
+            if (inactiveAt is not { } leftAt || leftAt > now.AddYears(-RetentionFlagging.DbsCheckRetentionYears))
             {
                 return false;
             }

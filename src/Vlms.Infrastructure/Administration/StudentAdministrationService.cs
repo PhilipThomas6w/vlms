@@ -86,8 +86,9 @@ public sealed class StudentAdministrationService
             .Select(r => r.UserId)
             .ToListAsync(ct);
 
+        var chapterId = _currentUser.ActiveChapterId;
         return await _db.AppUsers
-            .Where(u => teacherIds.Contains(u.Id) && !u.HasLeft)
+            .Where(u => teacherIds.Contains(u.Id) && !_db.StaffStepDowns.Any(s => s.UserId == u.Id && s.ChapterId == chapterId && s.ReinstatedAt == null))
             .OrderBy(u => u.DisplayName)
             .Select(u => new AssignableTeacher(u.Id, u.DisplayName))
             .ToListAsync(ct);
@@ -117,10 +118,10 @@ public sealed class StudentAdministrationService
                     $"AppUser {teacherId} does not hold the Teacher role — only a Teacher can be assigned to a student.");
             }
 
-            if (teacher.HasLeft)
+            if (await _db.StaffStepDowns.AnyAsync(s => s.UserId == teacherId && s.ChapterId == student.ChapterId && s.ReinstatedAt == null, ct))
             {
                 throw new InvalidOperationException(
-                    $"AppUser {teacherId} has been marked as having left and cannot be assigned to a student.");
+                    $"AppUser {teacherId} is Inactive in this chapter and cannot be assigned to a student.");
             }
         }
 

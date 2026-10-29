@@ -17,10 +17,9 @@ public static class ChapterMembership
     public static List<int> ChapterIds(VlmsDbContext db, int userId)
     {
         ArgumentNullException.ThrowIfNull(db);
-        var hasLeft = db.AppUsers.Any(u => u.Id == userId && u.HasLeft);
         return db.UserRoles
             .Where(r => r.UserId == userId && r.ChapterId != null
-                && (!hasLeft || (r.Role != Role.Teacher && r.Role != Role.Admin && r.Role != Role.SafeguardingOfficer)))
+                && !db.StaffStepDowns.Any(s => s.UserId == userId && s.ChapterId == r.ChapterId && s.ReinstatedAt == null))
             .Select(r => r.ChapterId!.Value)
             .Distinct()
             .OrderBy(id => id)
@@ -48,15 +47,19 @@ public static class ChapterMembership
 
     /// <summary>
     /// The people who hold one of <paramref name="roles"/> in <paramref name="chapterId"/> and have
-    /// not left, for staff notifications: an email about one chapter's child goes to that chapter's
+    /// currently active, for staff notifications: an email about one chapter's child goes to that chapter's
     /// staff only (docs/adr/0010-chapters.md).
     /// </summary>
     public static IQueryable<AppUser> StaffIn(VlmsDbContext db, int chapterId, params Role[] roles)
     {
         ArgumentNullException.ThrowIfNull(db);
-        return db.AppUsers.Where(u => !u.HasLeft
-            && u.Roles.Any(r => r.ChapterId == chapterId && roles.Contains(r.Role)));
+        return db.AppUsers.Where(u => u.Roles.Any(r => r.ChapterId == chapterId && roles.Contains(r.Role))
+            && !db.StaffStepDowns.Any(s => s.UserId == u.Id && s.ChapterId == chapterId && s.ReinstatedAt == null));
     }
+
+    /// <summary>Whether a user is inactive in one chapter.</summary>
+    public static bool IsInactiveInChapter(VlmsDbContext db, int userId, int chapterId) =>
+        db.StaffStepDowns.Any(s => s.UserId == userId && s.ChapterId == chapterId && s.ReinstatedAt == null);
 
     /// <summary>The ids of the people holding <paramref name="role"/> in <paramref name="chapterId"/>.</summary>
     public static IQueryable<int> HoldersIn(VlmsDbContext db, int chapterId, Role role)
