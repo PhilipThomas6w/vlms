@@ -1,54 +1,15 @@
-# Privacy notice (draft)
+# Privacy notice — withdrawn pending correction
 
-Status: **draft for Philip's review**, 13/10/2026. Content follows the UK GDPR Article 13 checklist ([ICO: what privacy information should we provide?](https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/individual-rights/the-right-to-be-informed/what-privacy-information-should-we-provide/)). Every `[TBC – Philip]` must be resolved, and the lawful bases confirmed in `governance/dpia.md` §3, before this is published. Wording is for parents and volunteers; a shorter version for older students: `[TBC – Philip]`.
+Status: **withdrawn from publication on 29/10/2026**. The former draft and the version displayed by the app contained inaccurate information. Do not publish, distribute, link to, or rely on that text. The previous text remains recoverable from Git history for audit purposes.
 
----
+## Confirmed organisational wording
 
-## How Varangians uses your and your child's information
+**Shrewsbury Orthodox Church operates a chapter of Varangians. Varangians is not merely the youth club of Shrewsbury Orthodox Church.**
 
-**Who we are.** Varangians is the youth club of Shrewsbury Orthodox Church. The church is the data controller for the information in the Varangians app. Shrewsbury Orthodox Church is a charitable incorporated organisation (charity no. 1166735), registered address Greek Orthodox Church, Dove Close, Shrewsbury SY2 6FB. Contact us about your data at admin@varangians.co.uk.
+This wording describes the chapter relationship only. It does not, by itself, determine or confirm the identity of the data controller.
 
-**What we hold and why.**
+## Publication gate
 
-- **About your child:** name, date of birth, when they joined, the lessons they have completed, their rank, badges and certificates. We use this to run the programme and to show you their progress.
-- **Your annual consent form:** whether your child may be photographed, go on trips, and whether their information may be shared. We use this to know what your child may take part in. If the consent form has expired, a teacher cannot record new lessons for your child until it is renewed.
-- **Health and emergency information:** emergency medical information, dietary or special educational needs, and an emergency contact. We use this only to keep your child safe at sessions and trips. Only the club's Admin and Safeguarding Officer, your child's teachers (to read) and you can see it, and every time it is opened, this is recorded.
-- **About you:** your name, contact details, the email address you sign in with, and which child you are linked to.
-- **Volunteers:** your name, email, role, and your DBS check (date, expiry, certificate number, and whether it is clear or flagged, never what the certificate says). Only the Admin and Safeguarding Officer can see DBS records.
-- **When anyone uses the app:** sign-in details (your password is stored only in scrambled form), two-factor authentication settings, and a security log of who opened health or DBS records.
+Prepare and review a complete replacement notice against the app's current data collection, access, purposes, recipients, retention and rights before publishing it. Do not infer missing legal or organisational facts from the withdrawn draft. Obtain Philip's confirmation of unresolved facts before presenting a replacement as approved.
 
-**Our legal basis.** Running the club is in our legitimate interests; photos and trips rely on your consent, which you can withdraw at any time; health information, and the fact that your child belongs to a church youth club, are processed as part of the church's not-for-profit activities with its members and the people in regular contact with it, and are not shared outside the church without your consent. For volunteers, we record only that a DBS check has been done, its certificate number and its dates, never what it contains.
-
-**Who else handles it.** We do not sell or share your information for marketing. It is stored and processed for us by:
-
-- DigitalOcean (our server, in London);
-- Cloudflare (encrypted backup copies, stored in the EU);
-- Microsoft (sending emails from the club's address, data held in the UK).
-
-Each acts only on our instructions. We share information with others only where the law requires it, or to protect a child (for example, telling emergency services about a medical condition). Personal information is not shared outside the chapter, unless it concerns a safeguarding issue, when it may be shared with the relevant legal authorities.
-
-**Transfers outside the UK.** Our backup copies are stored in the European Union, which UK law recognises as protecting personal data adequately. We make no other transfers outside the UK.
-
-**How long we keep it.**
-
-- Your child's records, including consent and health information: 3 years after they leave the club, then deleted.
-- DBS records: 6 years after the check expires or the volunteer leaves.
-- The security log of who viewed health or DBS records: 6 years.
-- Information we delete stays in our backup copies until they expire, up to 35 days later, and is then overwritten.
-
-**Your rights.** You can ask to see the information we hold, to correct it, or for it to be deleted or restricted, and you can object to how we use it. Where we rely on your consent you can withdraw it at any time. For your child, a parent can usually exercise these rights; older children may be able to do so themselves. Contact admin@varangians.co.uk. We will reply within one month.
-
-**Automated decisions.** The app promotes a student automatically when every lesson in their rank is complete, and it stops new lessons being recorded while consent has expired. These are fixed club rules applied to the records, not profiling, and a teacher or the Admin can correct them.
-
-**Do you have to give us this information?** We need the consent form and emergency information before your child can take part in sessions.
-
-**Complaints.** Please contact us first. You can also complain to the Information Commissioner's Office: [ico.org.uk/make-a-complaint](https://ico.org.uk/make-a-complaint/), 0303 123 1113.
-
-**Changes.** Last updated 27/10/2026.
-
----
-
-## Publication notes (not part of the notice)
-
-- Where it appears: the app's `/privacy` page, linked from the sign-in page and footer (built 27/10/2026), given on paper with the consent form, and in the guardian invite email.
-- Play Store listing (`STATE.md` Next) needs a public privacy policy URL; this notice can serve once published.
+The app's /privacy page is restricted to signed-in accounts and currently states that the full notice is under review. Registration and child-application forms provide a short, factual description of the information they collect while the full notice is being corrected.
