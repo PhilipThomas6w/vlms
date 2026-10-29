@@ -1,6 +1,8 @@
-﻿@page "/"
+@page "/"
 @rendermode InteractiveServer
+@using Microsoft.EntityFrameworkCore
 @inject Vlms.Domain.ICurrentUserContext CurrentUser
+@inject Vlms.Infrastructure.VlmsDbContext Db
 
 <PageTitle>Home</PageTitle>
 
@@ -22,6 +24,14 @@
     </NotAuthorized>
     <Authorized>
         <PageHeader Title="Home" />
+        @if (_inactiveChapters.Count > 0)
+        {
+            <Notice Kind="warning" Role="status">
+                <p><strong>Your account is Inactive in @string.Join(", ", _inactiveChapters).</strong> You can still sign in and use any other chapters where you are active.</p>
+                <p>To return to an inactive chapter, ask one of its Admins to reactivate you. Your existing roles will be restored; you do not need a new invitation.</p>
+                <p>You can still request Parent access by <a href="/registration/apply">applying to register a child</a>.</p>
+            </Notice>
+        }
         @* Every staff page needs two-factor sign-in (MfaRequirementHandler); until it is set up the staff
            menus are hidden, so say why rather than show an empty page. *@
         @if (NeedsTwoFactor)
@@ -98,7 +108,7 @@
                     <li><a href="/guardianship/links"><Icon Name="link" />Guardian links</a></li>
                     <li><a href="/reporting"><Icon Name="chart" />Reporting</a></li>
                     <li><a href="/reporting/records-due-for-deletion"><Icon Name="clock" />Records due for deletion</a></li>
-                    <li><a href="/retention/mark-as-left"><Icon Name="user-minus" />Leaving and stepping down</a></li>
+                    <li><a href="/retention/mark-as-left"><Icon Name="user-minus" />Inactive status and student retention</a></li>
                     <li><a href="/safeguarding/consent"><Icon Name="clipboard" />Consent records</a></li>
                     <li><a href="/safeguarding/dbs"><Icon Name="id-card" />DBS checks</a></li>
                     <li><a href="/lessons"><Icon Name="book" />Lesson library</a></li>
@@ -135,6 +145,22 @@
 </AuthorizeView>
 
 @code {
+    private List<string> _inactiveChapters = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (CurrentUser.UserId is not int userId)
+        {
+            return;
+        }
+
+        _inactiveChapters = await (from period in Db.StaffStepDowns
+            join chapter in Db.Chapters on period.ChapterId equals chapter.Id
+            where period.UserId == userId && period.ReinstatedAt == null
+            orderby chapter.Name
+            select chapter.Name).Distinct().ToListAsync();
+    }
+
     private bool NeedsTwoFactor => !CurrentUser.HasMfaEnabled
         && (CurrentUser.HoldsStaffRoleInAnyChapter || CurrentUser.HasRole(Vlms.Domain.Role.NationalAdministrator));
 }

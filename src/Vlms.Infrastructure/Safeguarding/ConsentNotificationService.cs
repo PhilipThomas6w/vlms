@@ -127,8 +127,8 @@ public sealed class ConsentNotificationService
         var parent = await _db.ParentGuardians
             .Where(p => p.Id == row.SubmittedByParentId && p.AppUserId != null)
             .Select(p => p.AppUser!)
-            // A staff leaver who is also a parent is still a parent (FR-017, LeftStaffPolicy).
-            .Where(u => (!u.HasLeft || u.Roles.Any(r => r.Role == Role.Teacher || r.Role == Role.Admin || r.Role == Role.SafeguardingOfficer)) && u.Roles.Any(r => r.Role == Role.Parent && r.ChapterId == row.ChapterId))
+            .Where(u => u.Roles.Any(r => r.Role == Role.Parent && r.ChapterId == row.ChapterId)
+                && !_db.StaffStepDowns.Any(s => s.UserId == u.Id && s.ChapterId == row.ChapterId && s.ReinstatedAt == null))
             .Select(u => new Recipient(u.Email, u.DisplayName))
             .FirstOrDefaultAsync(ct);
 

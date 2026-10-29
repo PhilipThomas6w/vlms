@@ -9,22 +9,19 @@
 @inject LeavingService LeavingService
 @inject ICurrentUserContext CurrentUser
 
-<PageTitle>Leaving and stepping down</PageTitle>
+<PageTitle>Inactivity and student retention</PageTitle>
 
-<PageHeader Title="Leaving and stepping down" />
+<PageHeader Title="Inactivity and student retention" />
 
 <p class="intro">
     A manual action for Admins only. It is not inferred from disengagement or activity. Marking a Student as having left, or
-    stepping down a staff member, records the date automatically (the moment you click the button, not a backdated date you choose)
+    marking a staff member inactive in this chapter, records the date automatically (the moment you click the button, not a backdated date you choose)
     and feeds the <a href="/reporting/records-due-for-deletion">records due for deletion</a> retention report.
     This does not delete anything and does not affect promotions, badges, or certificates.
 </p>
 <p>
-    Students, parents and Approvers who leave keep their sign-in. A Teacher, Admin or Safeguarding Officer
-    who steps down loses all staff access at once. If they are also a parent they can still sign in, but
-    only as a parent of their own children; otherwise they can no longer sign in at all. Their staff
-    roles are kept, and reinstating them restores those roles. You can't step down or reinstate yourself,
-    or step down the last Admin.
+    A staff member marked Inactive loses access to this chapter but can still sign in. Their access to other chapters is unchanged.
+    Reactivating restores the roles they held here. You can't mark yourself Inactive or reactivate yourself, or mark the last active Admin Inactive.
 </p>
 
 @if (_errorMessage is not null)
@@ -67,7 +64,7 @@ else
 <h2>Staff</h2>
 @if (_currentStaff.Count == 0)
 {
-    <p>No Teachers, Admins or Safeguarding Officers who have not stepped down.</p>
+    <p>No active Teachers, Admins or Safeguarding Officers.</p>
 }
 else
 {
@@ -92,13 +89,13 @@ else
                     <td>
                         @if (_confirming == (member.UserId, ConfirmKind.StepDown))
                         {
-                            <p role="alert">Step down @member.DisplayName? They lose all staff access at once.</p>
-                            <button class="btn--danger" aria-label="@($"Confirm: step down {member.DisplayName}")" @onclick="() => StepDownAsync(member.UserId)">Step down</button>
-                            <button aria-label="@($"Cancel stepping down {member.DisplayName}")" @onclick="CancelConfirm" class="btn--secondary">Cancel</button>
+                            <p role="alert">Mark @member.DisplayName Inactive in this chapter?</p>
+                            <button class="btn--danger" aria-label="@($"Confirm: mark {member.DisplayName} Inactive")" @onclick="() => MarkInactiveAsync(member.UserId)">Mark Inactive</button>
+                            <button aria-label="@($"Cancel marking {member.DisplayName} Inactive")" @onclick="CancelConfirm" class="btn--secondary">Cancel</button>
                         }
                         else
                         {
-                            <button class="btn--secondary" aria-label="@($"Step down {member.DisplayName}")" @onclick="() => AskToConfirm(member.UserId, ConfirmKind.StepDown)">Step down</button>
+                            <button class="btn--secondary" aria-label="@($"Mark {member.DisplayName} Inactive")" @onclick="() => AskToConfirm(member.UserId, ConfirmKind.StepDown)">Mark Inactive</button>
                         }
                     </td>
                 </tr>
@@ -107,10 +104,10 @@ else
     </table>
 }
 
-<h2>Stepped down</h2>
+<h2>Inactive in this chapter</h2>
 @if (_steppedDown.Count == 0)
 {
-    <p>Nobody in this chapter has stepped down.</p>
+    <p>Nobody is currently Inactive in this chapter.</p>
 }
 else
 {
@@ -135,17 +132,17 @@ else
                     <td>
                         @if (member.UserId == CurrentUser.UserId)
                         {
-                            // Nobody reinstates themselves (LeavingService.ReinstateAsync refuses it too).
+                            // Nobody reactivates themselves (LeavingService.ReactivateAsync refuses it too).
                         }
                         else if (_confirming == (member.UserId, ConfirmKind.Reinstate))
                         {
-                            <p role="alert">Reinstate @member.DisplayName as @RolesText(member)?</p>
-                            <button aria-label="@($"Confirm: reinstate {member.DisplayName}")" @onclick="() => ReinstateAsync(member.UserId)">Reinstate</button>
-                            <button aria-label="@($"Cancel reinstating {member.DisplayName}")" @onclick="CancelConfirm" class="btn--secondary">Cancel</button>
+                            <p role="alert">Reactivate @member.DisplayName in this chapter with @RolesText(member)?</p>
+                            <button aria-label="@($"Confirm: reactivate {member.DisplayName}")" @onclick="() => ReactivateAsync(member.UserId)">Reactivate</button>
+                            <button aria-label="@($"Cancel reactivating {member.DisplayName}")" @onclick="CancelConfirm" class="btn--secondary">Cancel</button>
                         }
                         else
                         {
-                            <button class="btn--secondary" aria-label="@($"Reinstate {member.DisplayName}")" @onclick="() => AskToConfirm(member.UserId, ConfirmKind.Reinstate)">Reinstate</button>
+                            <button class="btn--secondary" aria-label="@($"Reactivate {member.DisplayName}")" @onclick="() => AskToConfirm(member.UserId, ConfirmKind.Reinstate)">Reactivate</button>
                         }
                     </td>
                 </tr>
@@ -170,8 +167,8 @@ else
 
     private static IEnumerable<string> History(LeavingService.StaffMember member) =>
         member.History.Select(p =>
-            $"Stepped down {p.SteppedDownAt:d MMMM yyyy}" + (p.SteppedDownBy is { } by ? $" by {by}" : "")
-            + (p.ReinstatedAt is { } back ? $"; reinstated {back:d MMMM yyyy}" + (p.ReinstatedBy is { } who ? $" by {who}" : "") : ""));
+            $"Marked Inactive {p.SteppedDownAt:d MMMM yyyy}" + (p.SteppedDownBy is { } by ? $" by {by}" : "")
+            + (p.ReinstatedAt is { } back ? $"; reactivated {back:d MMMM yyyy}" + (p.ReinstatedBy is { } who ? $" by {who}" : "") : ""));
     private void AskToConfirm(int userId, ConfirmKind kind)
     {
         _errorMessage = null;
@@ -195,8 +192,8 @@ else
         var staff = await LeavingService.ListStaffAsync();
 
         _activeStudents = students;
-        _currentStaff = staff.Where(m => !m.SteppedDown).ToList();
-        _steppedDown = staff.Where(m => m.SteppedDown).ToList();
+        _currentStaff = staff.Where(m => !m.IsInactive).ToList();
+        _steppedDown = staff.Where(m => m.IsInactive).ToList();
     }
 
     private async Task MarkStudentInactiveAsync(int studentId)
@@ -216,7 +213,7 @@ else
         }
     }
 
-    private async Task StepDownAsync(int userId)
+    private async Task MarkInactiveAsync(int userId)
     {
         _confirming = null;
         _errorMessage = null;
@@ -224,8 +221,8 @@ else
 
         try
         {
-            var member = await LeavingService.StepDownAsync(userId);
-            _statusMessage = $"{member.DisplayName} stepped down. Their staff access has ended.";
+            var member = await LeavingService.MarkInactiveAsync(userId);
+            _statusMessage = $"{member.DisplayName} is now Inactive in this chapter.";
             await LoadAsync();
         }
         catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException)
@@ -234,7 +231,7 @@ else
         }
     }
 
-    private async Task ReinstateAsync(int userId)
+    private async Task ReactivateAsync(int userId)
     {
         _confirming = null;
         _errorMessage = null;
@@ -242,8 +239,8 @@ else
 
         try
         {
-            var member = await LeavingService.ReinstateAsync(userId);
-            _statusMessage = $"{member.DisplayName} reinstated.";
+            var member = await LeavingService.ReactivateAsync(userId);
+            _statusMessage = $"{member.DisplayName} is active in this chapter again.";
             await LoadAsync();
         }
         catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException)

@@ -67,11 +67,6 @@ public sealed class FirstAdminBootstrapService
                 $"The account for '{email}' hasn't confirmed its email address yet — use the link in the confirmation email first.");
         }
 
-        if (user.HasLeft)
-        {
-            throw new InvalidOperationException($"{user.DisplayName} has been marked as having left and cannot be made Admin.");
-        }
-
         // The first chapter (FR-021, docs/adr/0010-chapters.md): before chapters there was only one.
         _db.UserRoles.Add(new UserRole { UserId = user.Id, Role = Role.Admin, ChapterId = Chapter.ShrewsburyId });
         await _db.SaveChangesAsync(ct);
@@ -105,11 +100,6 @@ public sealed class FirstAdminBootstrapService
         {
             throw new InvalidOperationException(
                 $"The account for '{email}' hasn't confirmed its email address yet — use the link in the confirmation email first.");
-        }
-
-        if (user.HasLeft)
-        {
-            throw new InvalidOperationException($"{user.DisplayName} has been marked as having left and cannot be made National Administrator.");
         }
 
         _db.UserRoles.Add(new UserRole { UserId = user.Id, Role = Role.NationalAdministrator });

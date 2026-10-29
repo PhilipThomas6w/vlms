@@ -72,7 +72,10 @@ public sealed class RoleAssignmentService
     }
 
     /// <summary>One user and the roles they currently hold in the Admin's chapter, for the role-assignment page.</summary>
-    public sealed record UserWithRoles(int UserId, string DisplayName, string Email, bool HasLeft, IReadOnlyList<Role> Roles);
+    public sealed record UserWithRoles(int UserId, string DisplayName, string Email, bool IsInactive, IReadOnlyList<Role> Roles)
+    {
+        public bool HasLeft => IsInactive;
+    }
 
     /// <summary>
     /// Every <see cref="AppUser"/> holding a role in the Admin's active chapter, with those roles,
@@ -93,7 +96,8 @@ public sealed class RoleAssignmentService
 
         return users
             .Select(u => new UserWithRoles(
-                u.Id, u.DisplayName, u.Email, u.HasLeft,
+                u.Id, u.DisplayName, u.Email,
+                _db.StaffStepDowns.Any(s => s.UserId == u.Id && s.ChapterId == chapterId && s.ReinstatedAt == null),
                 rolesByUser[u.Id].OrderBy(r => r).ToList()))
             .ToList();
     }
@@ -122,7 +126,8 @@ public sealed class RoleAssignmentService
             .Where(r => r.UserId == user.Id && r.ChapterId == chapterId)
             .Select(r => r.Role)
             .ToListAsync(ct);
-        return new UserWithRoles(user.Id, user.DisplayName, user.Email, user.HasLeft, roles.Order().ToList());
+        var inactive = await _db.StaffStepDowns.AnyAsync(s => s.UserId == user.Id && s.ChapterId == chapterId && s.ReinstatedAt == null, ct);
+        return new UserWithRoles(user.Id, user.DisplayName, user.Email, inactive, roles.Order().ToList());
     }
 
     /// <summary>
@@ -218,12 +223,6 @@ public sealed class RoleAssignmentService
         // FR-017 (amended 27/10/2026): someone who stepped down can be approved as a parent at any
         // time; nothing else is granted, so their kept staff roles are exactly what reinstatement
         // restores (LeavingService.ReinstateAsync).
-        if (user.HasLeft && role != Role.Parent)
-        {
-            throw new InvalidOperationException(
-                $"{user.DisplayName} has stepped down: only Parent can be granted. Reinstate them to restore their staff roles.");
-        }
-
         // FR-011, adr/0007: Student is granted only when a linked parent creates a student sign-in
         // (StudentAccountService), never here; and a student sign-in gets no other role.
         if (role == Role.Student)
@@ -270,21 +269,22 @@ public sealed class RoleAssignmentService
         var userRole = await _db.UserRoles.SingleOrDefaultAsync(r => r.UserId == userId && r.Role == role && r.ChapterId == chapterId, ct)
             ?? throw new InvalidOperationException($"AppUser {userId} does not hold the {role} role.");
 
-        var hasLeft = await _db.AppUsers.AnyAsync(u => u.Id == userId && u.HasLeft, ct);
+        var inactive = await _db.StaffStepDowns.AnyAsync(s => s.UserId == userId && s.ChapterId == chapterId && s.ReinstatedAt == null, ct);
 
         // FR-017 (LeftStaffPolicy): a leaver's staff rows are kept as the record, count as not held,
         // and are what keep a staff leaver who is also a parent treated as a parent who hasn't left.
-        if (hasLeft && LeftStaffPolicy.IsStaffRole(role))
+        if (inactive && LeftStaffPolicy.IsStaffRole(role))
         {
             throw new InvalidOperationException(
-                $"AppUser {userId} has left: their {role} role is kept as a record and already gives them nothing.");
+                $"AppUser {userId} is inactive in this chapter: their {role} role is retained until reactivation.");
         }
 
         // Only this chapter's Admins who haven't left count towards the last-Admin guard.
         if (role == Role.Admin)
         {
             var otherWorkingAdmin = await _db.AppUsers.AnyAsync(
-                u => u.Id != userId && !u.HasLeft && u.Roles.Any(r => r.Role == Role.Admin && r.ChapterId == chapterId), ct);
+                u => u.Id != userId && u.Roles.Any(r => r.Role == Role.Admin && r.ChapterId == chapterId)
+                    && !_db.StaffStepDowns.Any(s => s.UserId == u.Id && s.ChapterId == chapterId && s.ReinstatedAt == null), ct);
             if (!otherWorkingAdmin)
             {
                 throw new InvalidOperationException(

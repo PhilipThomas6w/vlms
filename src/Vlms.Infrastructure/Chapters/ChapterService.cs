@@ -10,7 +10,10 @@ namespace Vlms.Infrastructure.Chapters;
 public sealed record ChapterSummary(int Id, string Name, string Place, bool IsActive, DateTime CreatedAt);
 
 /// <summary>A person holding a role, as listed on the national administration page (no chapter data).</summary>
-public sealed record RoleHolder(int UserId, string DisplayName, string Email, bool HasLeft);
+public sealed record RoleHolder(int UserId, string DisplayName, string Email, bool IsInactive)
+{
+    public bool HasLeft => IsInactive;
+}
 
 /// <summary>
 /// Chapters (functional.md FR-021, docs/adr/0010-chapters.md): the chapter switcher for anyone who
@@ -161,7 +164,8 @@ public sealed class ChapterService
         return await _db.AppUsers
             .Where(u => u.Roles.Any(r => r.Role == Role.Admin && r.ChapterId == chapterId))
             .OrderBy(u => u.DisplayName)
-            .Select(u => new RoleHolder(u.Id, u.DisplayName, u.Email, u.HasLeft))
+            .Select(u => new RoleHolder(u.Id, u.DisplayName, u.Email,
+                _db.StaffStepDowns.Any(s => s.UserId == u.Id && s.ChapterId == chapterId && s.ReinstatedAt == null)))
             .ToListAsync(ct);
     }
 
@@ -198,13 +202,14 @@ public sealed class ChapterService
         var role = await _db.UserRoles.SingleOrDefaultAsync(r => r.UserId == userId && r.Role == Role.Admin && r.ChapterId == chapterId, ct)
             ?? throw new InvalidOperationException("That person is not an Admin of this chapter.");
 
-        if (await _db.AppUsers.AnyAsync(u => u.Id == userId && u.HasLeft, ct))
+        if (await _db.StaffStepDowns.AnyAsync(s => s.UserId == userId && s.ChapterId == chapterId && s.ReinstatedAt == null, ct))
         {
-            throw new InvalidOperationException("This person has stepped down: their Admin role is kept for reinstatement and gives them nothing meanwhile.");
+            throw new InvalidOperationException("This person is inactive in this chapter. Reactivate them before removing their retained Admin role.");
         }
 
-        if (!await _db.AppUsers.AnyAsync(u => u.Id != userId && !u.HasLeft
-                && u.Roles.Any(r => r.Role == Role.Admin && r.ChapterId == chapterId), ct))
+        if (!await _db.AppUsers.AnyAsync(u => u.Id != userId
+                && u.Roles.Any(r => r.Role == Role.Admin && r.ChapterId == chapterId)
+                && !_db.StaffStepDowns.Any(s => s.UserId == u.Id && s.ChapterId == chapterId && s.ReinstatedAt == null), ct))
         {
             throw new InvalidOperationException("This is the chapter's last Admin. Appoint another Admin first.");
         }
@@ -222,7 +227,7 @@ public sealed class ChapterService
         return await _db.AppUsers
             .Where(u => u.Roles.Any(r => r.Role == role && r.ChapterId == null))
             .OrderBy(u => u.DisplayName)
-            .Select(u => new RoleHolder(u.Id, u.DisplayName, u.Email, u.HasLeft))
+            .Select(u => new RoleHolder(u.Id, u.DisplayName, u.Email, false))
             .ToListAsync(ct);
     }
 
@@ -276,11 +281,6 @@ public sealed class ChapterService
         if (!await _db.Users.AnyAsync(u => u.Id == user.Id && u.EmailConfirmed, ct))
         {
             throw new InvalidOperationException($"{user.DisplayName} has not confirmed their email address yet.");
-        }
-
-        if (user.HasLeft)
-        {
-            throw new InvalidOperationException($"{user.DisplayName} has stepped down.");
         }
 
         return user;

@@ -210,11 +210,12 @@ public sealed class GuardianNotificationService
         int studentId, IReadOnlyList<(string Subject, string Body)> messages, NotificationPriority priority, CancellationToken ct,
         string? consentPath = null)
     {
+        var studentChapterId = await _db.Students.Where(s => s.Id == studentId).Select(s => s.ChapterId).SingleAsync(ct);
         var recipients = await _db.StudentGuardianLinks
             .Where(l => l.StudentId == studentId && l.ParentGuardian!.AppUserId != null)
             .Select(l => l.ParentGuardian!.AppUser!)
-            // A staff leaver who is also a parent is still a parent (FR-017, LeftStaffPolicy).
-            .Where(u => (!u.HasLeft || u.Roles.Any(r => r.Role == Role.Teacher || r.Role == Role.Admin || r.Role == Role.SafeguardingOfficer)) && u.Roles.Any(r => r.Role == Role.Parent))
+            .Where(u => u.Roles.Any(r => r.Role == Role.Parent)
+                && !_db.StaffStepDowns.Any(s => s.UserId == u.Id && s.ChapterId == studentChapterId && s.ReinstatedAt == null))
             .Select(u => new { u.Email, u.DisplayName })
             .Distinct()
             .ToListAsync(ct);

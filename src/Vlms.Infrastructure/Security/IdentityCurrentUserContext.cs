@@ -148,7 +148,7 @@ public sealed class IdentityCurrentUserContext : ICurrentUserContext
         }
 
         return db.UserRoles.Any(r => r.UserId == userId && r.Role == role && r.ChapterId == chapterId)
-            && (!LeftStaffPolicy.IsStaffRole(role) || LeftStaffPolicy.StaffRoleCounts(db, userId));
+            && !ChapterMembership.IsInactiveInChapter(db, userId, chapterId);
     }
 
     /// <summary>
