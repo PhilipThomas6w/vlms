@@ -44,7 +44,7 @@ The curriculum (ranks, lessons, files, tags), lesson suggestions, their review a
 
 - **"Varangians"** is the national name and brand. A chapter is "Varangians of [parish]", for example "Varangians of the Holy Fathers, Shrewsbury".
 - **Signed-in users see their chapter's name;** public pages say "Varangians" without a parish.
-- **Fix already needed:** the redesign prototypes currently say "the youth club of Shrewsbury Orthodox Church" in the footer and welcome. That text becomes national.
+- **Correct wording:** Shrewsbury Orthodox Church operates a chapter of Varangians. Do not describe Varangians as merely the church's youth club. Use chapter-specific wording for Shrewsbury where appropriate.
 
 ### 2.7 Reporting
 
