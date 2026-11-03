@@ -19,8 +19,8 @@ namespace Vlms.Tests.Authorization;
 /// <summary>
 /// The account-wide MFA rule (docs/adr/0010-chapters.md assumption 9, amended by Philip 27/10/2026;
 /// test-plan.md TC-047a): an account holding Teacher, Admin or Safeguarding Officer in any chapter
-/// needs MFA whatever its active chapter, including one where it is only a Parent. A staff leaver's
-/// staff rows do not count (FR-017). Real <see cref="IdentityCurrentUserContext"/> over SQLite in
+/// needs MFA whatever its active chapter, including one where it is only a Parent. Staff roles of a
+/// chapter where they are Inactive still count (FR-017; assumption 9 amended 03/11/2026). Real <see cref="IdentityCurrentUserContext"/> over SQLite in
 /// memory, with the real <see cref="MfaRequirementHandler"/> and <see cref="ChapterService.SwitchToAsync"/>.
 /// </summary>
 public sealed class CrossChapterMfaTests : IDisposable
@@ -29,7 +29,7 @@ public sealed class CrossChapterMfaTests : IDisposable
 
     private const int StaffInAParentInB = 1;   // Teacher in Shrewsbury, Parent in Coventry, no MFA
     private const int ParentOnly = 2;          // Parent in Coventry, no MFA
-    private const int LeaverParent = 3;        // Teacher in Shrewsbury (left), Parent in Coventry, no MFA
+    private const int LeaverParent = 3;        // Teacher in Shrewsbury (Inactive there), Parent in Coventry, no MFA
 
     private readonly SqliteConnection _anchor;
     private readonly string _connectionString;
@@ -43,9 +43,9 @@ public sealed class CrossChapterMfaTests : IDisposable
         using var db = new VlmsDbContext(Options(), TestSeedUserContext.Instance);
         db.Database.EnsureCreated();
         db.Chapters.Add(new Chapter { Id = Coventry, Name = "Coventry", Place = "Coventry", CreatedAt = DateTime.UtcNow, IsActive = true });
-        AddUser(db, StaffInAParentInB, hasLeft: false, (Role.Teacher, Chapter.ShrewsburyId), (Role.Parent, Coventry));
-        AddUser(db, ParentOnly, hasLeft: false, (Role.Parent, Coventry));
-        AddUser(db, LeaverParent, hasLeft: true, (Role.Teacher, Chapter.ShrewsburyId), (Role.Parent, Coventry));
+        AddUser(db, StaffInAParentInB, inactiveInShrewsbury: false, (Role.Teacher, Chapter.ShrewsburyId), (Role.Parent, Coventry));
+        AddUser(db, ParentOnly, inactiveInShrewsbury: false, (Role.Parent, Coventry));
+        AddUser(db, LeaverParent, inactiveInShrewsbury: true, (Role.Teacher, Chapter.ShrewsburyId), (Role.Parent, Coventry));
         db.SaveChanges();
     }
 
@@ -54,7 +54,7 @@ public sealed class CrossChapterMfaTests : IDisposable
     private DbContextOptions<VlmsDbContext> Options() =>
         new DbContextOptionsBuilder<VlmsDbContext>().UseSqlite(_connectionString).Options;
 
-    private static void AddUser(VlmsDbContext db, int id, bool hasLeft, params (Role Role, int Chapter)[] roles)
+    private static void AddUser(VlmsDbContext db, int id, bool inactiveInShrewsbury, params (Role Role, int Chapter)[] roles)
     {
         var email = $"user{id}@example.com";
         db.Users.Add(new VlmsIdentityUser
@@ -63,7 +63,12 @@ public sealed class CrossChapterMfaTests : IDisposable
             NormalizedEmail = email.ToUpperInvariant(), EmailConfirmed = true, TwoFactorEnabled = false,
             SecurityStamp = Guid.NewGuid().ToString("N")
         });
-        db.AppUsers.Add(new AppUser { Id = id, DisplayName = $"User {id}", Email = email, HasLeft = hasLeft });
+        db.AppUsers.Add(new AppUser { Id = id, DisplayName = $"User {id}", Email = email });
+        if (inactiveInShrewsbury)
+        {
+            TestInactivity.MarkInactive(db, id);
+        }
+
         foreach (var (role, chapter) in roles)
         {
             db.UserRoles.Add(new UserRole { UserId = id, Role = role, ChapterId = chapter });
@@ -121,13 +126,17 @@ public sealed class CrossChapterMfaTests : IDisposable
     }
 
     [Fact]
-    public async Task AStaffLeaverWhoIsAParent_KeepsParentAccessWithoutMfa()
+    public async Task AStaffMemberInactiveWhereTheyAreStaff_WhoIsAParentElsewhere_StillNeedsMfa()
     {
+        // adr/0010 assumption 9 (amended 03/11/2026): kept staff roles count for MFA while Inactive.
         var current = ContextFor(LeaverParent);
 
         Assert.Equal(Coventry, current.ActiveChapterId);
         Assert.True(current.HasRole(Role.Parent));
-        Assert.False(current.HoldsStaffRoleInAnyChapter);
+        Assert.True(current.HoldsStaffRoleInAnyChapter);
+        Assert.False(await MfaRequirementMet(current));
+
+        EnableMfa(LeaverParent);
         Assert.True(await MfaRequirementMet(current));
     }
 

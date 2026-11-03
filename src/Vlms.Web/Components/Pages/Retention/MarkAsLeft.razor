@@ -90,12 +90,12 @@ else
                         @if (_confirming == (member.UserId, ConfirmKind.StepDown))
                         {
                             <p role="alert">Mark @member.DisplayName Inactive in this chapter?</p>
-                            <button class="btn--danger" aria-label="@($"Confirm: mark {member.DisplayName} Inactive")" @onclick="() => MarkInactiveAsync(member.UserId)">Mark Inactive</button>
+                            <button class="btn--danger" aria-label="@($"Confirm: Mark Inactive for {member.DisplayName}")" @onclick="() => MarkInactiveAsync(member.UserId)">Mark Inactive</button>
                             <button aria-label="@($"Cancel marking {member.DisplayName} Inactive")" @onclick="CancelConfirm" class="btn--secondary">Cancel</button>
                         }
                         else
                         {
-                            <button class="btn--secondary" aria-label="@($"Mark {member.DisplayName} Inactive")" @onclick="() => AskToConfirm(member.UserId, ConfirmKind.StepDown)">Mark Inactive</button>
+                            <button class="btn--secondary" aria-label="@($"Mark Inactive: {member.DisplayName}")" @onclick="() => AskToConfirm(member.UserId, ConfirmKind.StepDown)">Mark Inactive</button>
                         }
                     </td>
                 </tr>

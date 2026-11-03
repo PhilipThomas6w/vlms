@@ -443,22 +443,6 @@ public sealed class SensitiveDataAccessControlTests : IDisposable
     }
 
     [Fact]
-    public void ParentWhoHasLeft_ReadsNothing()
-    {
-        SeedTwoFamilies();
-        using (var admin = CreateContext(Role.Admin))
-        {
-            var parentOne = admin.Context.AppUsers.Single(u => u.Id == 1);
-            admin.Context.Entry(parentOne).CurrentValues[nameof(AppUser.HasLeft)] = true;
-            admin.Context.SaveChanges();
-        }
-
-        using var leftParent = CreateContextForUser(1, Role.Parent);
-
-        Assert.Empty(leftParent.Context.ConsentSensitiveDetails.ToList());
-    }
-
-    [Fact]
     public void UnlinkedParent_ReadsNothing()
     {
         SeedTwoFamilies();
@@ -568,9 +552,9 @@ public sealed class SensitiveDataAccessControlTests : IDisposable
         Assert.Equal(2, logEntry.EntityId);
     }
 
-    // --- FR-017 (clarified 23/10/2026): a staff leaver's staff roles stop counting, through the
-    // real IdentityCurrentUserContext the app uses, so the Teacher/Admin/SO routes of the
-    // query filters refuse them; a staff leaver who is also a parent keeps the parent route. ---
+    // --- FR-017 (per chapter, 27/10/2026; amended 03/11/2026): Inactive in a chapter suspends every
+    // role held there, Parent included, through the real IdentityCurrentUserContext the app uses,
+    // so no route of the query filters admits them for that chapter's records. ---
 
     /// <summary>A caller resolved by the real <see cref="IdentityCurrentUserContext"/> from a principal.</summary>
     private CallerContext CreateRealContextForUser(int userId)
@@ -602,12 +586,10 @@ public sealed class SensitiveDataAccessControlTests : IDisposable
         admin.Context.SaveChanges();
     }
 
-    private void MarkLeft(int userId)
+    private void MarkInactive(int userId)
     {
         using var admin = CreateContext(Role.Admin);
-        var user = admin.Context.AppUsers.Single(u => u.Id == userId);
-        admin.Context.Entry(user).CurrentValues[nameof(AppUser.HasLeft)] = true;
-        admin.Context.Entry(user).CurrentValues[nameof(AppUser.LeftAt)] = DateTime.UtcNow;
+        TestInactivity.MarkInactive(admin.Context, userId);
         admin.Context.SaveChanges();
     }
 
@@ -623,20 +605,19 @@ public sealed class SensitiveDataAccessControlTests : IDisposable
     }
 
     [Fact]
-    public void StaffParentWhoHasLeft_ReadsOnlyTheirOwnChildsDetails_AndNoDbs()
+    public void StaffParentInactiveInTheChapter_ReadsNoDetails_NotEvenTheirOwnChilds_AndNoDbs()
     {
         SeedStaffParent();
-        MarkLeft(1);
+        MarkInactive(1);
 
         using var caller = CreateRealContextForUser(1);
 
-        var details = caller.Context.ConsentSensitiveDetails.ToList();
-        Assert.Equal("Family One", Assert.Single(details).EmergencyContact);
+        Assert.Empty(caller.Context.ConsentSensitiveDetails.ToList());
         Assert.Empty(caller.Context.DbsChecks.ToList());
     }
 
     [Fact]
-    public void TeacherWhoHasLeft_ReadsNoConsentDetails_ThroughTheTeacherRoute()
+    public void TeacherInactiveInTheChapter_ReadsNoConsentDetails_ThroughTheTeacherRoute()
     {
         SeedStaffParent();
         using (var before = CreateRealContextForUser(10))
@@ -644,28 +625,27 @@ public sealed class SensitiveDataAccessControlTests : IDisposable
             Assert.Equal(2, before.Context.ConsentSensitiveDetails.Count());
         }
 
-        MarkLeft(10);
+        MarkInactive(10);
 
         using var caller = CreateRealContextForUser(10);
         Assert.Empty(caller.Context.ConsentSensitiveDetails.ToList());
     }
 
     [Fact]
-    public void StaffParentWhoHasLeft_HoldsParentButNoStaffRole()
+    public void StaffParentInactiveInTheChapter_HoldsNoRoleThere_ButIsNotLockedOut()
     {
         SeedStaffParent();
-        MarkLeft(1);
+        MarkInactive(1);
         var options = new DbContextOptionsBuilder<VlmsDbContext>().UseSqlite(_connectionString).Options;
         var principal = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, "1")], "TestAuth"));
 
         var sut = new IdentityCurrentUserContext(principal, options);
 
-        Assert.True(sut.HasRole(Role.Parent));
+        Assert.False(sut.HasRole(Role.Parent));
         Assert.False(sut.HasRole(Role.Teacher));
         Assert.False(sut.HasRole(Role.Admin));
         Assert.False(sut.HasRole(Role.SafeguardingOfficer));
         using var db = new VlmsDbContext(options, NullCurrentUserContext.Instance);
         Assert.False(LeftStaffPolicy.IsLockedOut(db, 1));
-        Assert.False(LeftStaffPolicy.StaffRoleCounts(db, 1));
     }
 }

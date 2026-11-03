@@ -90,7 +90,12 @@ public sealed class StudentApplicationServiceTests : IDisposable
         db.Ranks.Add(new Rank { Id = 2, Order = 2, Code = "R2", Name = "Reader" });
         void User(int id, string name, bool left = false, params Role[] roles)
         {
-            db.AppUsers.Add(new AppUser { Id = id, DisplayName = name, Email = $"user{id}@example.com", HasLeft = left, LeftAt = left ? DateTime.UtcNow.AddDays(-1) : null });
+            db.AppUsers.Add(new AppUser { Id = id, DisplayName = name, Email = $"user{id}@example.com" });
+            if (left)
+            {
+                TestInactivity.MarkInactive(db, id, at: DateTime.UtcNow.AddDays(-1));
+            }
+
             foreach (var role in roles)
             {
                 db.UserRoles.Add(new UserRole { UserId = id, Role = role });
@@ -298,16 +303,11 @@ public sealed class StudentApplicationServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task Submit_ByStudentSignIn_Leaver_OrUnresolvedCaller_IsRefused()
+    public async Task Submit_ByStudentSignIn_OrUnresolvedCaller_IsRefused()
     {
         using (var student = Caller(StudentSignInId, Role.Student))
         {
             await Assert.ThrowsAsync<UnauthorizedAccessException>(() => student.Service.SubmitAsync(Chapter.ShrewsburyId, Parent(), [Child()]));
-        }
-
-        using (var leaver = Caller(LeaverId))
-        {
-            await Assert.ThrowsAsync<UnauthorizedAccessException>(() => leaver.Service.SubmitAsync(Chapter.ShrewsburyId, Parent(), [Child()]));
         }
 
         using (var nobody = Caller((int?)null))
@@ -316,6 +316,18 @@ public sealed class StudentApplicationServiceTests : IDisposable
         }
 
         Assert.Empty(Caller(AdminId, Role.Admin).Db.StudentApplications);
+    }
+
+    [Fact]
+    public async Task Submit_BySomeoneInactiveInTheChapter_IsAccepted()
+    {
+        // FR-017 (27/10/2026): an Inactive person may apply to request Parent access.
+        using (var leaver = Caller(LeaverId))
+        {
+            await leaver.Service.SubmitAsync(Chapter.ShrewsburyId, Parent(), [Child()]);
+        }
+
+        Assert.Single(Caller(AdminId, Role.Admin).Db.StudentApplications, a => a.ApplicantUserId == LeaverId);
     }
 
     // ------------------------------------------------------------------ restricted details

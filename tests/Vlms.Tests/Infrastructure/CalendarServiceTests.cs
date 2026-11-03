@@ -63,9 +63,14 @@ public sealed class CalendarServiceTests : IDisposable
     private VlmsDbContext CreateDb(ICurrentUserContext user) =>
         new(new DbContextOptionsBuilder<VlmsDbContext>().UseSqlite(_connectionString).Options, user);
 
-    private static void AddUser(VlmsDbContext db, int id, string name, bool hasLeft, params (Role Role, int Chapter)[] roles)
+    private static void AddUser(VlmsDbContext db, int id, string name, bool inactive, params (Role Role, int Chapter)[] roles)
     {
-        db.AppUsers.Add(new AppUser { Id = id, DisplayName = name, Email = $"user{id}@example.com", HasLeft = hasLeft });
+        db.AppUsers.Add(new AppUser { Id = id, DisplayName = name, Email = $"user{id}@example.com" });
+        if (inactive)
+        {
+            TestInactivity.MarkInactive(db, id);
+        }
+
         foreach (var (role, chapter) in roles)
         {
             db.UserRoles.Add(new UserRole { UserId = id, Role = role, ChapterId = chapter });

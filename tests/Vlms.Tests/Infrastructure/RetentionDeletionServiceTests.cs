@@ -498,7 +498,10 @@ public sealed class RetentionDeletionServiceTests : IDisposable
         AddDbsCheck(1, TeacherId, _now.AddYears(-4));
         AddRecordNaming(reference, TeacherId);
         var (entity, property) = (reference.Split('.')[0], reference.Split('.')[1]);
-        var rowsBefore = Rows(entity);
+        // The leaver's own Inactive period (StaffStepDown.UserId) goes with their account; only rows
+        // naming them as the Admin who acted are kept records here.
+        bool OwnPeriod(Dictionary<string, object?> row) => entity == nameof(StaffStepDown) && Equals(row[nameof(StaffStepDown.UserId)], TeacherId);
+        var rowsBefore = Rows(entity).Where(row => !OwnPeriod(row)).ToList();
         Assert.Contains(rowsBefore, row => Equals(row[property], TeacherId));
 
         using (var ctx = CreateContext(Admin()))
@@ -512,6 +515,7 @@ public sealed class RetentionDeletionServiceTests : IDisposable
         Assert.Equal(0, Count(db => db.Users.Where(u => u.Id == TeacherId)));
         // Every row is still there with every other value unchanged; only the link to the person is cleared.
         var rowsAfter = Rows(entity);
+        Assert.DoesNotContain(rowsAfter, OwnPeriod);
         Assert.Equal(rowsBefore.Count, rowsAfter.Count);
         var expected = rowsBefore.Select(row => row.ToDictionary(
             kv => kv.Key, kv => kv.Key == property && Equals(kv.Value, TeacherId) ? null : kv.Value)).ToList();
@@ -746,12 +750,11 @@ public sealed class RetentionDeletionServiceTests : IDisposable
         seed.Context.SaveChanges();
     }
 
+    /// <summary>Marks a staff member Inactive in Shrewsbury since <paramref name="leftAt"/> (FR-017: an open StaffStepDown).</summary>
     private void MarkLeft(int userId, DateTime leftAt)
     {
         using var seed = CreateContext(TestSeedUserContext.Instance);
-        var user = seed.Context.AppUsers.Single(u => u.Id == userId);
-        seed.Context.Entry(user).Property(u => u.HasLeft).CurrentValue = true;
-        seed.Context.Entry(user).Property(u => u.LeftAt).CurrentValue = leftAt;
+        TestInactivity.MarkInactive(seed.Context, userId, Shrewsbury, leftAt);
         seed.Context.SaveChanges();
     }
 

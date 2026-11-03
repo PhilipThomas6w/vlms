@@ -220,9 +220,8 @@ public sealed class RoleAssignmentService
         var user = await _db.AppUsers.SingleOrDefaultAsync(u => u.Id == userId, ct)
             ?? throw new InvalidOperationException($"AppUser {userId} does not exist.");
 
-        // FR-017 (amended 27/10/2026): someone who stepped down can be approved as a parent at any
-        // time; nothing else is granted, so their kept staff roles are exactly what reinstatement
-        // restores (LeavingService.ReinstateAsync).
+        // FR-017 (amended 27/10/2026): roles may be granted to someone Inactive in this chapter, but
+        // none counts until they are reactivated there (IdentityCurrentUserContext.HasRole).
         // FR-011, adr/0007: Student is granted only when a linked parent creates a student sign-in
         // (StudentAccountService), never here; and a student sign-in gets no other role.
         if (role == Role.Student)

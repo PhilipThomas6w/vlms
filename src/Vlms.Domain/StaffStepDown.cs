@@ -1,13 +1,12 @@
 namespace Vlms.Domain;
 
 /// <summary>
-/// One period of a Teacher, Admin or Safeguarding Officer stepping down and, once reinstated,
-/// returning (functional.md FR-017 as amended 27/10/2026). Written by
-/// <c>Retention.LeavingService</c> only: a row is opened when they step down and closed
-/// (<see cref="ReinstatedAt"/>, <see cref="ReinstatedByUserId"/>) when an Admin reinstates them.
-/// At most one row per person is open, and it is open exactly while <see cref="AppUser.HasLeft"/>
-/// is true. <see cref="AppUser.LeftAt"/> stays the current step-down date, which the retention
-/// rules read.
+/// One period of a Teacher, Admin or Safeguarding Officer being Inactive in one chapter and, once
+/// reactivated, returning (functional.md FR-017 as amended 27/10/2026). Written by
+/// <c>Retention.LeavingService</c> only: a row is opened when they are marked Inactive and closed
+/// (<see cref="ReinstatedAt"/>, <see cref="ReinstatedByUserId"/>) when an Admin reactivates them.
+/// At most one row per person and chapter is open; an open row is the only record that they are
+/// Inactive there, and its <see cref="SteppedDownAt"/> starts the retention clock.
 ///
 /// National table, like <see cref="UserRole"/>: <see cref="ChapterId"/> records the chapter whose
 /// Admin acted (the chapter holding their staff roles) and the service reads rows of the active

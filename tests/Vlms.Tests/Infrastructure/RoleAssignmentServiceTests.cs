@@ -35,10 +35,8 @@ public sealed class RoleAssignmentServiceTests : IDisposable
         schema.Context.AppUsers.Add(new AppUser { Id = 10, DisplayName = "New User", Email = "new@example.com" });
         schema.Context.AppUsers.Add(new AppUser { Id = 20, DisplayName = "Teacher One", Email = "teacher@example.com" });
         schema.Context.UserRoles.Add(new UserRole { UserId = 20, Role = Role.Teacher });
-        schema.Context.AppUsers.Add(new AppUser
-        {
-            Id = 30, DisplayName = "Left Teacher", Email = "left@example.com", HasLeft = true, LeftAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
-        });
+        schema.Context.AppUsers.Add(new AppUser { Id = 30, DisplayName = "Left Teacher", Email = "left@example.com" });
+        TestInactivity.MarkInactive(schema.Context, 30, at: new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc));
         schema.Context.UserRoles.Add(new UserRole { UserId = 30, Role = Role.Teacher });
         schema.Context.SaveChanges();
     }
@@ -237,7 +235,7 @@ public sealed class RoleAssignmentServiceTests : IDisposable
         Assert.Equal(["Admin One", "Left Teacher", "Teacher One"], users.Select(u => u.DisplayName));
         Assert.DoesNotContain(users, u => u.UserId == 10);
         Assert.Equal([Role.Teacher], users.Single(u => u.UserId == 20).Roles);
-        Assert.True(users.Single(u => u.UserId == 30).HasLeft);
+        Assert.True(users.Single(u => u.UserId == 30).IsInactive);
     }
 
     /// <summary>
@@ -255,10 +253,7 @@ public sealed class RoleAssignmentServiceTests : IDisposable
             Status = StudentStatus.Active, EnrolmentDate = new DateOnly(2025, 9, 1)
         });
         db.AppUsers.Add(new AppUser { Id = 40, DisplayName = "Guardian Gail", Email = "gail@example.com" });
-        db.AppUsers.Add(new AppUser
-        {
-            Id = 50, DisplayName = "Roleless Leaver", Email = "gone@example.com", HasLeft = true, LeftAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
-        });
+        db.AppUsers.Add(new AppUser { Id = 50, DisplayName = "Roleless Leaver", Email = "gone@example.com" });
         db.ParentGuardians.Add(new ParentGuardian { Id = 200, Name = "Guardian Gail", ContactInfo = "gail@example.com", IsPrimary = true, AppUserId = 40 });
         db.StudentGuardianLinks.Add(new StudentGuardianLink { StudentId = 100, ParentGuardianId = 200, CreatedByUserId = 20 });
         db.GuardianInvites.Add(new GuardianInvite

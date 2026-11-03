@@ -90,7 +90,8 @@ public sealed class StudentAdministrationServiceTests : IDisposable
         context.AppUsers.Add(new AppUser { Id = 1, DisplayName = "Admin One", Email = "admin@example.com" });
         context.AppUsers.Add(new AppUser { Id = 10, DisplayName = "Teacher One", Email = "teacher1@example.com" });
         context.UserRoles.Add(new UserRole { UserId = 10, Role = Role.Teacher });
-        context.AppUsers.Add(new AppUser { Id = 11, DisplayName = "Teacher Left", Email = "teacher2@example.com", HasLeft = true, LeftAt = DateTime.UtcNow });
+        context.AppUsers.Add(new AppUser { Id = 11, DisplayName = "Teacher Left", Email = "teacher2@example.com" });
+        TestInactivity.MarkInactive(context, 11);
         context.UserRoles.Add(new UserRole { UserId = 11, Role = Role.Teacher });
         context.AppUsers.Add(new AppUser { Id = 20, DisplayName = "Approver One", Email = "approver1@example.com" });
         context.UserRoles.Add(new UserRole { UserId = 20, Role = Role.Approver });

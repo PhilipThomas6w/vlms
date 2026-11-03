@@ -114,7 +114,7 @@ public sealed class CalendarFeedServiceTests : IDisposable
         await using (var db = new VlmsDbContext(_options, TestSeedUserContext.Instance))
         {
             db.UserRoles.RemoveRange(db.UserRoles.Where(r => r.UserId == Parent));
-            db.Entry(db.AppUsers.Single(u => u.Id == Teacher)).Property(u => u.HasLeft).CurrentValue = true;
+            TestInactivity.MarkInactive(db, Teacher);
             db.SaveChanges();
         }
 

@@ -44,7 +44,7 @@ public sealed class FirstAdminBootstrapService
     /// <summary>
     /// Grants <see cref="Role.Admin"/> to the existing <see cref="AppUser"/> whose email matches
     /// <paramref name="email"/> (case-insensitive). Throws if an Admin already exists, if no account
-    /// has that email, if its email isn't confirmed, or if the account has been marked as having left.
+    /// has that email, if its email isn't confirmed, or if the account is Inactive in Shrewsbury (FR-017).
     /// </summary>
     public async Task<AppUser> BootstrapAsync(string email, CancellationToken ct = default)
     {
@@ -67,6 +67,13 @@ public sealed class FirstAdminBootstrapService
                 $"The account for '{email}' hasn't confirmed its email address yet — use the link in the confirmation email first.");
         }
 
+        // FR-017: an Admin row for someone Inactive in Shrewsbury would give them nothing yet make
+        // bootstrap inert, leaving no working Admin.
+        if (await _db.StaffStepDowns.AnyAsync(s => s.UserId == user.Id && s.ChapterId == Chapter.ShrewsburyId && s.ReinstatedAt == null, ct))
+        {
+            throw new InvalidOperationException($"{user.DisplayName} is Inactive in Shrewsbury and cannot be made its Admin.");
+        }
+
         // The first chapter (FR-021, docs/adr/0010-chapters.md): before chapters there was only one.
         _db.UserRoles.Add(new UserRole { UserId = user.Id, Role = Role.Admin, ChapterId = Chapter.ShrewsburyId });
         await _db.SaveChangesAsync(ct);
@@ -77,7 +84,7 @@ public sealed class FirstAdminBootstrapService
     /// Grants <see cref="Role.NationalAdministrator"/> (FR-021, docs/adr/0010-chapters.md) to the
     /// existing account with this email, on the same terms as <see cref="BootstrapAsync"/>: only
     /// while no National Administrator exists (inert afterwards; later ones are granted on the
-    /// chapters page), only to a confirmed account that has not left, and only from the
+    /// chapters page), only to a confirmed account, and only from the
     /// <c>Vlms.Jobs</c> console (<c>bootstrap-national-admin &lt;email&gt;</c>). The role opens no
     /// chapter's records; it needs TOTP MFA before its pages open.
     /// </summary>

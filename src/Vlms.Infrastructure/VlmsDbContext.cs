@@ -437,12 +437,13 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
         //      22/10/2026 (Philip; adr/0006 amendment), matching MfaRequirementHandler, which now
         //      also gates Teacher; and
         //   3. a Parent whose own AppUser is the ParentGuardian.AppUserId on a StudentGuardianLink to
-        //      the row's student, and who has not left — their own linked children only.
+        //      the row's student, and who is not Inactive in the record's chapter (FR-017, an open
+        //      StaffStepDown there) — their own linked children only.
         // The UserId != null conjunct guards a Parent-role caller with no resolved UserId: EF Core's
         // C# null semantics would otherwise turn AppUserId == UserId into "AppUserId IS NULL" and
-        // match every guardian not yet linked to an account. The !HasLeft conjunct also excludes
-        // that case on its own (no joined AppUser, so it is not true); the tests showed each alone is
-        // enough, and both are kept so neither is a single point of failure. The Approver role
+        // match every guardian not yet linked to an account. The AppUserId != null conjunct excludes
+        // that case on its own too (it replaced the retired !HasLeft conjunct, 03/11/2026); each alone
+        // is enough, and both are kept so neither is a single point of failure. The Approver role
         // matches no arm. Parents are deliberately NOT MFA-gated (MFA is offered to them, never
         // required; not requested by Philip). Writes are not governed by a query filter at
         // all: Teacher has no write path, and a Parent's write is checked against the same link in
@@ -473,6 +474,7 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
                     && StudentGuardianLinks.Any(link =>
                         link.StudentId == x.ConsentRecord!.StudentId
                         && link.ParentGuardian!.AppUserId == _currentUser.UserId
+                        && link.ParentGuardian.AppUserId != null
                         && !StaffStepDowns.Any(s => s.UserId == link.ParentGuardian.AppUserId
                             && s.ChapterId == x.ConsentRecord!.ChapterId && s.ReinstatedAt == null))));
         });

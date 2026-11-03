@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Vlms.Domain;
 using Vlms.Infrastructure;
+using Vlms.Infrastructure.Chapters;
 using Vlms.Infrastructure.Identity;
 using Vlms.Infrastructure.Reporting;
 using Vlms.Infrastructure.Retention;
@@ -12,11 +13,12 @@ using Xunit;
 namespace Vlms.Tests.Infrastructure;
 
 /// <summary>
-/// functional.md FR-017 as amended 27/10/2026: staff step down and are reinstated
-/// (<see cref="LeavingService.StepDownAsync"/>, <see cref="LeavingService.ReinstateAsync"/>).
-/// Admin only, own chapter, not self; roles restored exactly and only those held; the lockout while
-/// stepped down and its lifting; the MFA rule; the retention clock; parent approval while stepped
-/// down; and the history rows. Same SQLite-in-memory-via-DI pattern as <see cref="LeavingServiceTests"/>.
+/// functional.md FR-017 as amended 27/10/2026 and 03/11/2026: staff are marked Inactive in one
+/// chapter and reactivated there (<see cref="LeavingService.StepDownAsync"/>,
+/// <see cref="LeavingService.ReinstateAsync"/>). Admin only, own chapter, not self; roles restored
+/// exactly; no effect on another chapter; roles granted while Inactive give nothing until
+/// reactivation; the MFA rule still applies while Inactive; the retention clock; parent approval
+/// while Inactive; and the history rows. Same SQLite-in-memory-via-DI pattern as <see cref="LeavingServiceTests"/>.
 /// </summary>
 public sealed class StaffReinstatementTests : IDisposable
 {
@@ -109,10 +111,10 @@ public sealed class StaffReinstatementTests : IDisposable
             .Select(r => new { r.Role, r.ChapterId }).AsEnumerable().Select(r => (r.Role, r.ChapterId)).ToList();
     }
 
-    private AppUser User(int userId)
+    private bool IsInactive(int userId, int chapterId = Chapter.ShrewsburyId)
     {
         using var verify = Caller(AdminOne, Role.Admin);
-        return verify.Db.AppUsers.AsNoTracking().Single(u => u.Id == userId);
+        return ChapterMembership.IsInactiveInChapter(verify.Db, userId, chapterId);
     }
 
     private List<StaffStepDown> HistoryOf(int userId)
@@ -154,33 +156,26 @@ public sealed class StaffReinstatementTests : IDisposable
         var rolesBefore = RolesOf(userId);
         await StepDownAsync(userId);
         var stampWhileSteppedDown = (await IdentityOf(userId)).SecurityStamp;
-        using (var check = Caller(AdminOne, Role.Admin))
-        {
-            Assert.False(LeftStaffPolicy.StaffRoleCounts(check.Db, userId));
-            Assert.Equal(userId != TeacherParent, await LeftStaffPolicy.IsLockedOutAsync(check.Db, userId));
-        }
+        Assert.True(IsInactive(userId));
 
         var reinstater = userId == AdminTwo ? AdminOne : AdminTwo;
         await ReinstateAsync(userId, by: reinstater);
 
         Assert.Equal(rolesBefore, RolesOf(userId));
-        var user = User(userId);
-        Assert.False(user.HasLeft);
-        Assert.Null(user.LeftAt);
+        Assert.False(IsInactive(userId));
+        Assert.NotNull(Assert.Single(HistoryOf(userId)).ReinstatedAt);
         Assert.NotEqual(stampWhileSteppedDown, (await IdentityOf(userId)).SecurityStamp);
-        using var verify = Caller(AdminOne, Role.Admin);
-        Assert.True(LeftStaffPolicy.StaffRoleCounts(verify.Db, userId));
-        Assert.False(await LeftStaffPolicy.IsLockedOutAsync(verify.Db, userId));
     }
 
     [Fact]
-    public async Task Reinstate_KeepsTheAuthenticator_AndTheMfaRuleAppliesAgain()
+    public async Task Reinstate_KeepsTheAuthenticator_AndTheMfaRuleAppliesThroughout()
     {
+        // adr/0010 assumption 9 (amended 03/11/2026): kept staff roles still count for MFA while Inactive.
         var before = await SignInFor(Teacher);
         await StepDownAsync(Teacher);
         using (var check = Caller(AdminOne, Role.Admin))
         {
-            Assert.False(LeftStaffPolicy.HoldsCountingStaffRoleInAnyChapter(check.Db, Teacher));
+            Assert.True(LeftStaffPolicy.HoldsCountingStaffRoleInAnyChapter(check.Db, Teacher));
         }
 
         await ReinstateAsync(Teacher);
@@ -215,7 +210,7 @@ public sealed class StaffReinstatementTests : IDisposable
             await Assert.ThrowsAsync<UnauthorizedAccessException>(() => caller.Leaving.ReinstateAsync(Teacher));
         }
 
-        Assert.True(User(Teacher).HasLeft);
+        Assert.True(IsInactive(Teacher));
         Assert.Null(Assert.Single(HistoryOf(Teacher)).ReinstatedAt);
     }
 
@@ -230,7 +225,7 @@ public sealed class StaffReinstatementTests : IDisposable
             Assert.Contains("yourself", ex.Message);
         }
 
-        Assert.True(User(AdminTwo).HasLeft);
+        Assert.True(IsInactive(AdminTwo));
     }
 
     [Fact]
@@ -243,24 +238,39 @@ public sealed class StaffReinstatementTests : IDisposable
             await Assert.ThrowsAsync<InvalidOperationException>(() => coventry.Leaving.ReinstateAsync(Teacher));
         }
 
-        Assert.True(User(Teacher).HasLeft);
+        Assert.True(IsInactive(Teacher));
     }
 
     [Fact]
-    public async Task Reinstate_WithStaffRolesInTwoChapters_IsRefused()
+    public async Task StaffOfTwoChapters_InactiveInOne_StayActiveInTheOther_AndAreReactivatedThereOnly()
     {
-        // Not reachable through the app (stepping down refuses staff of two chapters); set directly.
+        // FR-017 (27/10/2026): inactivity does not affect membership or access in another chapter.
         using (var seed = Caller(new FakeCurrentUserContext(null) { SeesAllChapters = true, ActiveChapterId = null }))
         {
             seed.Db.UserRoles.Add(new UserRole { UserId = Teacher, Role = Role.Teacher, ChapterId = Coventry });
-            var user = seed.Db.AppUsers.Single(u => u.Id == Teacher);
-            seed.Db.Entry(user).CurrentValues[nameof(AppUser.HasLeft)] = true;
-            seed.Db.Entry(user).CurrentValues[nameof(AppUser.LeftAt)] = DateTime.UtcNow;
             await seed.Db.SaveChangesAsync();
         }
 
-        using var admin = Caller(AdminOne, Role.Admin);
-        await Assert.ThrowsAsync<InvalidOperationException>(() => admin.Leaving.ReinstateAsync(Teacher));
+        await StepDownAsync(Teacher);
+
+        Assert.True(IsInactive(Teacher));
+        Assert.False(IsInactive(Teacher, Coventry));
+        using (var check = Caller(AdminOne, Role.Admin))
+        {
+            Assert.Equal([Coventry], ChapterMembership.ChapterIds(check.Db, Teacher));
+            Assert.DoesNotContain(Teacher, ChapterMembership.StaffIn(check.Db, Chapter.ShrewsburyId, Role.Teacher).Select(u => u.Id).ToList());
+            Assert.Contains(Teacher, ChapterMembership.StaffIn(check.Db, Coventry, Role.Teacher).Select(u => u.Id).ToList());
+        }
+
+        using (var coventry = Caller(new FakeCurrentUserContext(AdminTwo, Role.Admin) { ActiveChapterId = Coventry }))
+        {
+            await Assert.ThrowsAsync<InvalidOperationException>(() => coventry.Leaving.ReinstateAsync(Teacher));
+        }
+
+        await ReinstateAsync(Teacher);
+        Assert.False(IsInactive(Teacher));
+        using var verify = Caller(AdminOne, Role.Admin);
+        Assert.Equal([Chapter.ShrewsburyId, Coventry], ChapterMembership.ChapterIds(verify.Db, Teacher));
     }
 
     [Fact]
@@ -269,8 +279,8 @@ public sealed class StaffReinstatementTests : IDisposable
         using var admin = Caller(AdminOne, Role.Admin);
         await Assert.ThrowsAsync<InvalidOperationException>(() => admin.Leaving.ReinstateAsync(Teacher));
 
-        // A parent who left (flag set directly; no service does this) is not staff to reinstate.
-        admin.Db.AppUsers.Add(new AppUser { Id = 60, DisplayName = "Parent Left", Email = "p60@example.com", HasLeft = true, LeftAt = DateTime.UtcNow });
+        // A parent is not staff to reinstate.
+        admin.Db.AppUsers.Add(new AppUser { Id = 60, DisplayName = "Parent Only", Email = "p60@example.com" });
         admin.Db.UserRoles.Add(new UserRole { UserId = 60, Role = Role.Parent });
         await admin.Db.SaveChangesAsync();
         await Assert.ThrowsAsync<InvalidOperationException>(() => admin.Leaving.ReinstateAsync(60));
@@ -281,21 +291,34 @@ public sealed class StaffReinstatementTests : IDisposable
     [InlineData(Role.Teacher)]
     [InlineData(Role.Admin)]
     [InlineData(Role.SafeguardingOfficer)]
-    public async Task WhileSteppedDown_NoStaffRoleCanBeAdded_SoReinstatementRestoresOnlyThoseHeld(Role role)
+    public async Task WhileInactive_AStaffRoleCanBeGranted_ButGivesNothingUntilReactivation(Role role)
     {
+        // FR-017 (27/10/2026): an Admin may change their roles, but no grant restores chapter access
+        // while they are Inactive there.
         await StepDownAsync(Safeguarding);
 
         using (var admin = Caller(AdminOne, Role.Admin))
         {
-            await Assert.ThrowsAsync<InvalidOperationException>(() => admin.Roles.GrantAsync(Safeguarding, role));
+            if (role == Role.SafeguardingOfficer)
+            {
+                await Assert.ThrowsAsync<InvalidOperationException>(() => admin.Roles.GrantAsync(Safeguarding, role));
+            }
+            else
+            {
+                await admin.Roles.GrantAsync(Safeguarding, role);
+            }
         }
 
+        Assert.True(IsInactive(Safeguarding));
         await ReinstateAsync(Safeguarding);
-        Assert.Equal([(Role.SafeguardingOfficer, (int?)Chapter.ShrewsburyId)], RolesOf(Safeguarding));
+        Assert.False(IsInactive(Safeguarding));
+        Assert.Equal(
+            new[] { Role.SafeguardingOfficer, role }.Distinct().Order().Select(r => (r, (int?)Chapter.ShrewsburyId)).ToList(),
+            RolesOf(Safeguarding));
     }
 
     [Fact]
-    public async Task WhileSteppedDown_ParentCanBeGranted_TheyCanSignInAsAParent_AndStaffRolesStayOff()
+    public async Task WhileInactive_ParentCanBeGranted_ButCountsOnlyOnReactivation_AndMfaStillApplies()
     {
         await SignInFor(Teacher, withAuthenticator: false);
         await StepDownAsync(Teacher);
@@ -308,8 +331,8 @@ public sealed class StaffReinstatementTests : IDisposable
         using (var check = Caller(AdminOne, Role.Admin))
         {
             Assert.False(await LeftStaffPolicy.IsLockedOutAsync(check.Db, Teacher));
-            Assert.False(LeftStaffPolicy.StaffRoleCounts(check.Db, Teacher));
-            Assert.False(LeftStaffPolicy.HoldsCountingStaffRoleInAnyChapter(check.Db, Teacher));
+            Assert.True(ChapterMembership.IsInactiveInChapter(check.Db, Teacher, Chapter.ShrewsburyId));
+            Assert.True(LeftStaffPolicy.HoldsCountingStaffRoleInAnyChapter(check.Db, Teacher));
         }
 
         await ReinstateAsync(Teacher);
@@ -345,7 +368,7 @@ public sealed class StaffReinstatementTests : IDisposable
         await admin.Roles.ApproveGuardianAsParentAsync(Teacher);
 
         Assert.Contains((Role.Parent, (int?)Chapter.ShrewsburyId), RolesOf(Teacher));
-        Assert.True(User(Teacher).HasLeft);
+        Assert.True(IsInactive(Teacher));
     }
 
     [Fact]
@@ -385,32 +408,11 @@ public sealed class StaffReinstatementTests : IDisposable
         var row = Assert.Single(HistoryOf(Teacher));
         Assert.Equal(AdminOne, row.SteppedDownByUserId);
         Assert.Null(row.ReinstatedAt);
-        Assert.Equal(User(Teacher).LeftAt, row.SteppedDownAt);
 
         using var admin = Caller(AdminOne, Role.Admin);
         var member = Assert.Single(await admin.Leaving.ListStaffAsync(), m => m.UserId == Teacher);
         Assert.True(member.SteppedDown);
         Assert.Equal([Role.Teacher], member.Roles);
-    }
-
-    [Fact]
-    public async Task Reinstate_SomeoneSteppedDownBeforeTheHistoryExisted_RecordsTheirPeriod()
-    {
-        var leftAt = DateTime.UtcNow.AddYears(-1);
-        using (var seed = Caller(AdminOne, Role.Admin))
-        {
-            var user = seed.Db.AppUsers.Single(u => u.Id == Teacher);
-            seed.Db.Entry(user).CurrentValues[nameof(AppUser.HasLeft)] = true;
-            seed.Db.Entry(user).CurrentValues[nameof(AppUser.LeftAt)] = leftAt;
-            await seed.Db.SaveChangesAsync();
-        }
-
-        await ReinstateAsync(Teacher);
-
-        var row = Assert.Single(HistoryOf(Teacher));
-        Assert.Equal(leftAt, row.SteppedDownAt);
-        Assert.Null(row.SteppedDownByUserId);
-        Assert.Equal(AdminTwo, row.ReinstatedByUserId);
     }
 
     [Fact]
@@ -438,11 +440,11 @@ public sealed class StaffReinstatementTests : IDisposable
         await seed.Db.SaveChangesAsync();
     }
 
-    private async Task BackdateStepDownAsync(int userId, DateTime leftAt)
+    private async Task BackdateStepDownAsync(int userId, DateTime inactiveAt)
     {
         using var seed = Caller(AdminOne, Role.Admin);
-        var user = seed.Db.AppUsers.Single(u => u.Id == userId);
-        seed.Db.Entry(user).CurrentValues[nameof(AppUser.LeftAt)] = leftAt;
+        var open = seed.Db.StaffStepDowns.Single(s => s.UserId == userId && s.ReinstatedAt == null);
+        seed.Db.Entry(open).CurrentValues[nameof(StaffStepDown.SteppedDownAt)] = inactiveAt;
         await seed.Db.SaveChangesAsync();
     }
 
@@ -459,14 +461,14 @@ public sealed class StaffReinstatementTests : IDisposable
         await AddDbsCheckAsync(Teacher, today.AddYears(-1));
         await StepDownAsync(Teacher);
         await BackdateStepDownAsync(Teacher, DateTime.UtcNow.AddYears(-7));
-        Assert.Equal(DbsCheckDeletionReason.TeacherLeft, Assert.Single(await DbsDueAsync()).Reason);
+        Assert.Equal(DbsCheckDeletionReason.Inactive, Assert.Single(await DbsDueAsync()).Reason);
 
         await ReinstateAsync(Teacher);
         Assert.Empty(await DbsDueAsync());
 
         await StepDownAsync(Teacher);
         Assert.Empty(await DbsDueAsync());   // the clock runs from the current step-down, today
-        Assert.InRange(User(Teacher).LeftAt!.Value, DateTime.UtcNow.AddMinutes(-5), DateTime.UtcNow);
+        Assert.InRange(HistoryOf(Teacher).Single(h => h.ReinstatedAt == null).SteppedDownAt, DateTime.UtcNow.AddMinutes(-5), DateTime.UtcNow);
     }
 
     [Fact]
@@ -478,7 +480,7 @@ public sealed class StaffReinstatementTests : IDisposable
 
         await ReinstateAsync(Teacher);
 
-        Assert.False(User(Teacher).HasLeft);
+        Assert.False(IsInactive(Teacher));
         using var job = Caller(Vlms.Infrastructure.Security.SystemCurrentUserContext.Instance);
         var result = await new Vlms.Infrastructure.Safeguarding.ConsentExpiryJob(
             job.Db, Vlms.Infrastructure.Security.SystemCurrentUserContext.Instance,

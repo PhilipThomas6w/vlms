@@ -85,7 +85,9 @@ public sealed class GuardianNotificationServiceTests : IDisposable
         context.AppUsers.Add(new AppUser { Id = 10, DisplayName = "Teacher One", Email = "teacher1@example.com" });
         context.AppUsers.Add(new AppUser { Id = 20, DisplayName = "Approved Parent", Email = "approved@example.com" });
         context.AppUsers.Add(new AppUser { Id = 21, DisplayName = "Waiting Parent", Email = "waiting@example.com" });
-        context.AppUsers.Add(new AppUser { Id = 22, DisplayName = "Left Parent", Email = "left@example.com", HasLeft = true, LeftAt = DateTime.UtcNow.AddDays(-1) });
+        // Inactive in the student's chapter (FR-017): every role there is suspended, Parent included.
+        context.AppUsers.Add(new AppUser { Id = 22, DisplayName = "Left Parent", Email = "left@example.com" });
+        TestInactivity.MarkInactive(context, 22, at: DateTime.UtcNow.AddDays(-1));
         context.AppUsers.Add(new AppUser { Id = 23, DisplayName = "Other Parent", Email = "other@example.com" });
         context.UserRoles.Add(new UserRole { UserId = 1, Role = Role.Admin });
         context.UserRoles.Add(new UserRole { UserId = 10, Role = Role.Teacher });

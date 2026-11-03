@@ -997,8 +997,8 @@ public sealed class StudentApplicationService
             throw new UnauthorizedAccessException("A student sign-in cannot apply to register a child. Please ask your parent.");
         }
 
-        // Someone who stepped down as staff may apply (FR-017, amended 27/10/2026): if they can sign
-        // in at all they hold a non-staff role (LeftStaffPolicy.IsLockedOut).
+        // Someone Inactive as staff may apply (FR-017, amended 27/10/2026); nobody is locked out
+        // (LeftStaffPolicy.IsLockedOut).
         if (!await _db.AppUsers.AnyAsync(u => u.Id == userId, ct) || await LeftStaffPolicy.IsLockedOutAsync(_db, userId, ct))
         {
             throw new UnauthorizedAccessException("Caller's account is not an active user.");

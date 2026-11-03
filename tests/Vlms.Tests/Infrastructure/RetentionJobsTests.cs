@@ -33,7 +33,7 @@ public sealed class RetentionJobsTests : IDisposable
         AddUser(db, 1, "Shrewsbury Admin", Role.Admin, Chapter.ShrewsburyId);
         AddUser(db, 2, "Second Shrewsbury Admin", Role.Admin, Chapter.ShrewsburyId);
         AddUser(db, 3, "Shrewsbury Safeguarding", Role.SafeguardingOfficer, Chapter.ShrewsburyId);
-        AddUser(db, 4, "Former Admin", Role.Admin, Chapter.ShrewsburyId, hasLeft: true);
+        AddUser(db, 4, "Former Admin", Role.Admin, Chapter.ShrewsburyId, inactive: true);
         AddUser(db, 5, "Coventry Admin", Role.Admin, Coventry);
 
         // Shrewsbury: two students past retention. Coventry: none.
@@ -174,9 +174,14 @@ public sealed class RetentionJobsTests : IDisposable
         LeftAt = leftAt
     };
 
-    private static void AddUser(VlmsDbContext db, int id, string name, Role role, int chapterId, bool hasLeft = false)
+    private static void AddUser(VlmsDbContext db, int id, string name, Role role, int chapterId, bool inactive = false)
     {
-        db.AppUsers.Add(new AppUser { Id = id, DisplayName = name, Email = $"user{id}@example.com", HasLeft = hasLeft, LeftAt = hasLeft ? DateTime.UtcNow.AddYears(-1) : null });
+        db.AppUsers.Add(new AppUser { Id = id, DisplayName = name, Email = $"user{id}@example.com" });
+        if (inactive)
+        {
+            TestInactivity.MarkInactive(db, id, chapterId, DateTime.UtcNow.AddYears(-1));
+        }
+
         db.UserRoles.Add(new UserRole { UserId = id, Role = role, ChapterId = chapterId });
     }
 }

@@ -13,8 +13,8 @@ namespace Vlms.Tests.Infrastructure;
 /// <summary>
 /// Verifies <see cref="LeavingService"/> (STATE.md "Manual 'leaving' flag for students and
 /// teachers, feeding the retention report"): the Admin-only action that sets
-/// <see cref="Student.Status"/>/<see cref="Student.LeftAt"/> and
-/// <see cref="AppUser.HasLeft"/>/<see cref="AppUser.LeftAt"/> — no self-service path for anyone to
+/// <see cref="Student.Status"/>/<see cref="Student.LeftAt"/>, and marks staff Inactive in the
+/// Admin's chapter with an open <see cref="StaffStepDown"/> (FR-017 as amended 27/10/2026) — no self-service path for anyone to
 /// mark themselves inactive/left, and no cascading effect on anything else (promotions, badges,
 /// certificates, existing <see cref="DbsCheck"/> rows).
 ///
@@ -187,23 +187,26 @@ public sealed class LeavingServiceTests : IDisposable
             () => admin.Service.MarkStudentInactiveAsync(9999, CancellationToken.None));
     }
 
+    private async Task<StaffStepDown?> OpenPeriodAsync(int userId)
+    {
+        using var verify = CreateContext(1, Role.Admin);
+        return await verify.Context.StaffStepDowns.AsNoTracking()
+            .SingleOrDefaultAsync(s => s.UserId == userId && s.ChapterId == Chapter.ShrewsburyId && s.ReinstatedAt == null);
+    }
+
     [Fact]
-    public async Task StepDownAsync_ByAdmin_SetsHasLeftAndCapturesLeftAtAutomatically()
+    public async Task StepDownAsync_ByAdmin_OpensAnInactivePeriodInThisChapter_WithTheTimeCapturedAutomatically()
     {
         using var admin = CreateContext(1, Role.Admin);
         var before = DateTime.UtcNow;
 
-        var teacher = await admin.Service.StepDownAsync(10, CancellationToken.None);
+        await admin.Service.StepDownAsync(10, CancellationToken.None);
 
         var after = DateTime.UtcNow;
-        Assert.True(teacher.HasLeft);
-        Assert.NotNull(teacher.LeftAt);
-        Assert.InRange(teacher.LeftAt!.Value, before, after);
-
-        using var verify = CreateContext(1, Role.Admin);
-        var persisted = await verify.Context.AppUsers.SingleAsync(u => u.Id == 10);
-        Assert.True(persisted.HasLeft);
-        Assert.Equal(teacher.LeftAt, persisted.LeftAt);
+        var period = await OpenPeriodAsync(10);
+        Assert.NotNull(period);
+        Assert.InRange(period!.SteppedDownAt, before, after);
+        Assert.Equal(1, period.SteppedDownByUserId);
     }
 
     [Theory]
@@ -219,10 +222,7 @@ public sealed class LeavingServiceTests : IDisposable
         await Assert.ThrowsAsync<UnauthorizedAccessException>(
             () => caller.Service.StepDownAsync(10, CancellationToken.None));
 
-        using var verify = CreateContext(1, Role.Admin);
-        var stillThere = await verify.Context.AppUsers.SingleAsync(u => u.Id == 10);
-        Assert.False(stillThere.HasLeft);
-        Assert.Null(stillThere.LeftAt);
+        Assert.Null(await OpenPeriodAsync(10));
     }
 
     [Fact]
@@ -245,7 +245,7 @@ public sealed class LeavingServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task StepDownAsync_AlreadyLeft_Throws()
+    public async Task StepDownAsync_AlreadyInactive_Throws()
     {
         using (var admin = CreateContext(1, Role.Admin))
         {
@@ -257,13 +257,13 @@ public sealed class LeavingServiceTests : IDisposable
             () => secondAttempt.Service.StepDownAsync(10, CancellationToken.None));
     }
 
-    // --- FR-017 (amended 22/10/2026): staff who leave are locked out entirely. ---
+    // --- FR-017 (amended 27/10/2026): Inactive suspends the chapter's roles; sign-in still works. ---
 
     [Theory]
     [InlineData(30)] // Admin
     [InlineData(40)] // Safeguarding Officer
     [InlineData(50)] // Teacher who is also a Parent
-    public async Task StepDownAsync_AnyStaffRole_SetsHasLeft_RotatesStamp_KeepsRoles(int userId)
+    public async Task StepDownAsync_AnyStaffRole_OpensAPeriod_RotatesStamp_KeepsRoles_AndDoesNotLockOut(int userId)
     {
         var stampBefore = await CreateSignInAsync(userId);
         var rolesBefore = await RolesOfAsync(userId);
@@ -273,14 +273,12 @@ public sealed class LeavingServiceTests : IDisposable
             await admin.Service.StepDownAsync(userId, CancellationToken.None);
         }
 
+        Assert.NotNull(await OpenPeriodAsync(userId));
         using var verify = CreateContext(1, Role.Admin);
-        Assert.True((await verify.Context.AppUsers.SingleAsync(u => u.Id == userId)).HasLeft);
         var identity = await verify.Context.Users.AsNoTracking().SingleAsync(u => u.Id == userId);
         Assert.NotEqual(stampBefore, identity.SecurityStamp);
         Assert.Equal(rolesBefore, await RolesOfAsync(userId));
-        Assert.False(LeftStaffPolicy.StaffRoleCounts(verify.Context, userId));
-        // Locked out of sign-in only with no other role: the Teacher who is also a Parent (50) keeps it.
-        Assert.Equal(userId != 50, await LeftStaffPolicy.IsLockedOutAsync(verify.Context, userId));
+        Assert.False(await LeftStaffPolicy.IsLockedOutAsync(verify.Context, userId));
     }
 
     [Fact]
@@ -293,15 +291,14 @@ public sealed class LeavingServiceTests : IDisposable
             Assert.Contains("yourself", ex.Message);
         }
 
-        using var verify = CreateContext(1, Role.Admin);
-        Assert.False((await verify.Context.AppUsers.SingleAsync(u => u.Id == 1)).HasLeft);
+        Assert.Null(await OpenPeriodAsync(1));
     }
 
     [Fact]
-    public async Task StepDownAsync_LastAdminWhoHasNotLeft_Throws()
+    public async Task StepDownAsync_LastActiveAdmin_Throws()
     {
-        // Admin Two leaves first (allowed: Admin One remains). Then a caller other than Admin One
-        // (context user id 99) can't mark Admin One, the last working Admin, as left.
+        // Admin Two is marked Inactive first (allowed: Admin One remains). Then a caller other than
+        // Admin One (context user id 99) can't mark Admin One, the last active Admin, Inactive.
         using (var admin = CreateContext(1, Role.Admin))
         {
             await admin.Service.StepDownAsync(30, CancellationToken.None);
@@ -311,69 +308,21 @@ public sealed class LeavingServiceTests : IDisposable
         {
             var ex = await Assert.ThrowsAsync<InvalidOperationException>(
                 () => other.Service.StepDownAsync(1, CancellationToken.None));
-            Assert.Contains("last Admin", ex.Message);
+            Assert.Contains("last active Admin", ex.Message);
         }
 
-        using var verify = CreateContext(1, Role.Admin);
-        Assert.False((await verify.Context.AppUsers.SingleAsync(u => u.Id == 1)).HasLeft);
+        Assert.Null(await OpenPeriodAsync(1));
     }
 
     [Fact]
-    public async Task StepDownAsync_AdminWhenAnotherWorkingAdminExists_Succeeds()
-    {
-        using var admin = CreateContext(1, Role.Admin);
-
-        var left = await admin.Service.StepDownAsync(30, CancellationToken.None);
-
-        Assert.True(left.HasLeft);
-    }
-
-    [Fact]
-    public async Task LockOut_HoldsEvenAfterTheLeaversRolesAreRemoved()
-    {
-        await CreateSignInAsync(10);
-        using (var admin = CreateContext(1, Role.Admin))
-        {
-            await admin.Service.StepDownAsync(10, CancellationToken.None);
-            admin.Context.UserRoles.RemoveRange(admin.Context.UserRoles.Where(r => r.UserId == 10));
-            await admin.Context.SaveChangesAsync();
-        }
-
-        using var verify = CreateContext(1, Role.Admin);
-        Assert.True(await LeftStaffPolicy.IsLockedOutAsync(verify.Context, 10));
-    }
-
-    [Fact]
-    public async Task LockOut_AppliesToAStaffLeaverWhoseFlagWasSetDirectly()
-    {
-        await CreateSignInAsync(10);
-        using (var admin = CreateContext(1, Role.Admin))
-        {
-            var user = await admin.Context.AppUsers.SingleAsync(u => u.Id == 10);
-            admin.Context.Entry(user).CurrentValues[nameof(AppUser.HasLeft)] = true;
-            await admin.Context.SaveChangesAsync();
-        }
-
-        using var verify = CreateContext(1, Role.Admin);
-        Assert.True(await LeftStaffPolicy.IsLockedOutAsync(verify.Context, 10));
-        Assert.False(await LeftStaffPolicy.IsLockedOutAsync(verify.Context, 20));
-    }
-
-    [Fact]
-    public async Task LockOut_DoesNotApplyToAParentOrApproverWhoHasLeft()
+    public async Task StepDownAsync_AdminWhenAnotherActiveAdminExists_Succeeds()
     {
         using (var admin = CreateContext(1, Role.Admin))
         {
-            admin.Context.AppUsers.Add(new AppUser { Id = 60, DisplayName = "Parent Left", Email = "p60@example.com", HasLeft = true, LeftAt = DateTime.UtcNow });
-            admin.Context.UserRoles.Add(new UserRole { UserId = 60, Role = Role.Parent });
-            var approver = await admin.Context.AppUsers.SingleAsync(u => u.Id == 20);
-            admin.Context.Entry(approver).CurrentValues[nameof(AppUser.HasLeft)] = true;
-            await admin.Context.SaveChangesAsync();
+            await admin.Service.StepDownAsync(30, CancellationToken.None);
         }
 
-        using var verify = CreateContext(1, Role.Admin);
-        Assert.False(await LeftStaffPolicy.IsLockedOutAsync(verify.Context, 60));
-        Assert.False(await LeftStaffPolicy.IsLockedOutAsync(verify.Context, 20));
+        Assert.NotNull(await OpenPeriodAsync(30));
     }
 
     /// <summary>Creates the Identity sign-in paired with an existing AppUser; returns its security stamp.</summary>

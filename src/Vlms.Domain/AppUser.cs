@@ -77,13 +77,15 @@ public sealed class AppUser
     /// Students and parents who leave keep access (FR-017); no write path sets this field on a
     /// parent-only or student account.
     ///
-    /// Amended 27/10/2026 (FR-017): for staff this is <b>stepped down</b>. An Admin's
-    /// <c>LeavingService.ReinstateAsync</c> clears it and <see cref="LeftAt"/> again, restoring their kept
-    /// staff roles; each period is kept in <see cref="StaffStepDown"/>.
+    /// Amended 27/10/2026 (FR-017): for staff this meant <b>stepped down</b>.
+    ///
+    /// <b>Retired 03/11/2026 (Philip):</b> staff inactivity is per chapter and recorded only as an open
+    /// <see cref="StaffStepDown"/>. Nothing sets or reads this field or <see cref="LeftAt"/> any more;
+    /// both are to be dropped by a later migration (STATE.md).
     /// </summary>
     public bool HasLeft { get; init; }
 
-    /// <summary>See <see cref="HasLeft"/>. Null unless <see cref="HasLeft"/> is true: the current step-down date, which starts the retention clock.</summary>
+    /// <summary>Retired with <see cref="HasLeft"/> (03/11/2026); the retention clock reads <see cref="StaffStepDown.SteppedDownAt"/>.</summary>
     public DateTime? LeftAt { get; init; }
 
     public ICollection<UserRole> Roles { get; init; } = new List<UserRole>();

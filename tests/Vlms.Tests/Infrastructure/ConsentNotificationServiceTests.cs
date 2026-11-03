@@ -74,7 +74,8 @@ public sealed class ConsentNotificationServiceTests : IDisposable
         context.Ranks.Add(new Rank { Id = 1, Order = 1, Code = "R1", Name = "Recruit" });
         context.AppUsers.Add(new AppUser { Id = 1, DisplayName = "Admin One", Email = "admin@example.com" });
         context.AppUsers.Add(new AppUser { Id = 2, DisplayName = "Safeguarding One", Email = "sg@example.com" });
-        context.AppUsers.Add(new AppUser { Id = 3, DisplayName = "Admin Left", Email = "adminleft@example.com", HasLeft = true, LeftAt = DateTime.UtcNow.AddDays(-1) });
+        context.AppUsers.Add(new AppUser { Id = 3, DisplayName = "Admin Left", Email = "adminleft@example.com" });
+        TestInactivity.MarkInactive(context, 3, at: DateTime.UtcNow.AddDays(-1));
         context.AppUsers.Add(new AppUser { Id = 10, DisplayName = "Teacher One", Email = "teacher@example.com" });
         context.AppUsers.Add(new AppUser { Id = 30, DisplayName = "Jane Parent", Email = "jane@example.com" });
         context.AppUsers.Add(new AppUser { Id = 31, DisplayName = "Pat Parent", Email = "pat@example.com" });

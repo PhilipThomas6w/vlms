@@ -19,7 +19,6 @@ public sealed class CertificateAccessServiceTests : IDisposable
     private const int OtherStudentUser = 21;
     private const int LinkedParentUser = 30;
     private const int UnlinkedParentUser = 31;
-    private const int LeftParentUser = 32;
     private static readonly byte[] Pdf = [37, 80, 68, 70];
 
     private readonly SqliteConnection _anchor;
@@ -37,22 +36,20 @@ public sealed class CertificateAccessServiceTests : IDisposable
 
         db.Ranks.Add(new Rank { Id = 1, Order = 1, Code = "R1", Name = "Recruit" });
         db.Lessons.Add(new Lesson { Id = 1, RankId = 1, Code = "L1", Title = "Knots", Order = 1, IsActive = true });
-        foreach (var (id, name, left) in new[]
+        foreach (var (id, name) in new[]
         {
-            (1, "Teacher", false), (OwnStudentUser, "Own student", false), (OtherStudentUser, "Other student", false),
-            (LinkedParentUser, "Linked parent", false), (UnlinkedParentUser, "Unlinked parent", false), (LeftParentUser, "Left parent", true)
+            (1, "Teacher"), (OwnStudentUser, "Own student"), (OtherStudentUser, "Other student"),
+            (LinkedParentUser, "Linked parent"), (UnlinkedParentUser, "Unlinked parent")
         })
         {
-            db.AppUsers.Add(new AppUser { Id = id, DisplayName = name, Email = $"u{id}@example.com", HasLeft = left, LeftAt = left ? DateTime.UtcNow : null });
+            db.AppUsers.Add(new AppUser { Id = id, DisplayName = name, Email = $"u{id}@example.com" });
         }
 
         db.Students.Add(NewStudent(100, OwnStudentUser));
         db.Students.Add(NewStudent(101, OtherStudentUser));
         db.ParentGuardians.Add(new ParentGuardian { Id = 1, Name = "Linked", ContactInfo = "x", IsPrimary = true, AppUserId = LinkedParentUser });
         db.ParentGuardians.Add(new ParentGuardian { Id = 2, Name = "Unlinked", ContactInfo = "x", IsPrimary = false, AppUserId = UnlinkedParentUser });
-        db.ParentGuardians.Add(new ParentGuardian { Id = 3, Name = "Left", ContactInfo = "x", IsPrimary = false, AppUserId = LeftParentUser });
         db.StudentGuardianLinks.Add(new StudentGuardianLink { StudentId = 100, ParentGuardianId = 1, CreatedByUserId = 1 });
-        db.StudentGuardianLinks.Add(new StudentGuardianLink { StudentId = 100, ParentGuardianId = 3, CreatedByUserId = 1 });
 
         db.StudentLessonCompletions.Add(new StudentLessonCompletion { Id = 1, StudentId = 100, LessonId = 1, CompletedByUserId = 1, CompletedAt = DateTime.UtcNow, IsReversed = false });
         db.StudentLessonCompletions.Add(new StudentLessonCompletion { Id = 2, StudentId = 100, LessonId = 1, CompletedByUserId = 1, CompletedAt = DateTime.UtcNow, IsReversed = true });
@@ -97,7 +94,6 @@ public sealed class CertificateAccessServiceTests : IDisposable
 
     [Theory]
     [InlineData(UnlinkedParentUser, Role.Parent)]
-    [InlineData(LeftParentUser, Role.Parent)]
     [InlineData(OtherStudentUser, Role.Student)]
     [InlineData(OwnStudentUser, Role.Approver)]
     [InlineData(LinkedParentUser, Role.SafeguardingOfficer)]

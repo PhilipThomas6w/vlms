@@ -31,10 +31,8 @@ public sealed class FirstAdminBootstrapServiceTests : IDisposable
 
         db.AppUsers.Add(new AppUser { Id = 1, DisplayName = "Operator", Email = "Operator@Example.com" });
         db.AppUsers.Add(new AppUser { Id = 2, DisplayName = "Someone Else", Email = "someone@example.com" });
-        db.AppUsers.Add(new AppUser
-        {
-            Id = 3, DisplayName = "Leaver", Email = "leaver@example.com", HasLeft = true, LeftAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
-        });
+        db.AppUsers.Add(new AppUser { Id = 3, DisplayName = "Leaver", Email = "leaver@example.com" });
+        TestInactivity.MarkInactive(db, 3, at: new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc));
         db.AppUsers.Add(new AppUser { Id = 4, DisplayName = "Unconfirmed", Email = "unconfirmed@example.com" });
         foreach (var (id, email, confirmed) in new[]
                  {
@@ -113,7 +111,7 @@ public sealed class FirstAdminBootstrapServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task BootstrapAsync_Leaver_Throws()
+    public async Task BootstrapAsync_InactiveInShrewsbury_Throws()
     {
         using var db = CreateContext();
 

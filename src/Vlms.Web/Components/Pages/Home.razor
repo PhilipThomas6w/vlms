@@ -29,7 +29,9 @@
             <Notice Kind="warning" Role="status">
                 <p><strong>Your account is Inactive in @string.Join(", ", _inactiveChapters).</strong> You can still sign in and use any other chapters where you are active.</p>
                 <p>To return to an inactive chapter, ask one of its Admins to reactivate you. Your existing roles will be restored; you do not need a new invitation.</p>
-                <p>You can still request Parent access by <a href="/registration/apply">applying to register a child</a>.</p>
+                <AuthorizeView Policy="RequireSignedIn" Context="inactiveApplyContext">
+                    <p>You can still request Parent access by <a href="/registration/apply">applying to register a child</a>.</p>
+                </AuthorizeView>
             </Notice>
         }
         @* Every staff page needs two-factor sign-in (MfaRequirementHandler); until it is set up the staff

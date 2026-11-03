@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Vlms.Domain;
 using Vlms.Infrastructure;
+using Vlms.Infrastructure.Chapters;
 using Vlms.Infrastructure.Identity;
 using Vlms.Infrastructure.Retention;
 using Vlms.Tests.Infrastructure;
@@ -13,8 +14,8 @@ using Xunit;
 namespace Vlms.Tests.Web;
 
 /// <summary>
-/// The leaving and stepping-down page (functional.md FR-017 as amended 27/10/2026): stepping down
-/// and reinstating are each confirmed in the page, and the history shows who acted. The real page,
+/// The Inactive status page (functional.md FR-017 as amended 27/10/2026): marking a staff member
+/// Inactive and reactivating them are each confirmed in the page, and the history shows who acted. The real page,
 /// service and SQLite database are used.
 /// </summary>
 public sealed class StaffSteppingDownPageTests : BunitContext, IDisposable
@@ -61,47 +62,45 @@ public sealed class StaffSteppingDownPageTests : BunitContext, IDisposable
     }
 
     [Fact]
-    public async Task StepDown_ThenReinstate_EachConfirmedInThePage_AndTheHistoryShowsWhoActed()
+    public async Task MarkInactive_ThenReactivate_EachConfirmedInThePage_AndTheHistoryShowsWhoActed()
     {
         var cut = Render<MarkAsLeft>();
-        cut.WaitForState(() => cut.FindAll("button[aria-label='Step down Tom Teacher']").Count == 1);
+        cut.WaitForState(() => cut.FindAll("button[aria-label='Mark Inactive: Tom Teacher']").Count == 1);
 
-        await cut.Find("button[aria-label='Step down Tom Teacher']").ClickAsync(new());
-        Assert.False(SteppedDown());
-        await cut.Find("button[aria-label='Confirm: step down Tom Teacher']").ClickAsync(new());
+        await cut.Find("button[aria-label='Mark Inactive: Tom Teacher']").ClickAsync(new());
+        Assert.False(Inactive());
+        await cut.Find("button[aria-label='Confirm: Mark Inactive for Tom Teacher']").ClickAsync(new());
 
-        cut.WaitForAssertion(() => Assert.Contains("Tom Teacher stepped down.", cut.Find("[role=status]").TextContent));
-        Assert.True(SteppedDown());
+        cut.WaitForAssertion(() => Assert.Contains("Tom Teacher is now Inactive in this chapter.", cut.Find("[role=status]").TextContent));
+        Assert.True(Inactive());
         Assert.Contains("by Admin One", cut.Markup);
 
-        await cut.Find("button[aria-label='Reinstate Tom Teacher']").ClickAsync(new());
-        Assert.Contains("Reinstate Tom Teacher as Teacher?", cut.Find("p[role=alert]").TextContent);
-        await cut.Find("button[aria-label='Confirm: reinstate Tom Teacher']").ClickAsync(new());
+        await cut.Find("button[aria-label='Reactivate Tom Teacher']").ClickAsync(new());
+        Assert.Contains("Reactivate Tom Teacher in this chapter with Teacher?", cut.Find("p[role=alert]").TextContent);
+        await cut.Find("button[aria-label='Confirm: reactivate Tom Teacher']").ClickAsync(new());
 
-        cut.WaitForAssertion(() => Assert.Contains("Tom Teacher reinstated.", cut.Find("[role=status]").TextContent));
-        Assert.False(SteppedDown());
-        Assert.Contains("reinstated", cut.Markup);
-        Assert.Single(cut.FindAll("button[aria-label='Step down Tom Teacher']"));
+        cut.WaitForAssertion(() => Assert.Contains("Tom Teacher is active in this chapter again.", cut.Find("[role=status]").TextContent));
+        Assert.False(Inactive());
+        Assert.Contains("reactivated", cut.Markup);
+        Assert.Single(cut.FindAll("button[aria-label='Mark Inactive: Tom Teacher']"));
     }
 
     [Fact]
-    public async Task CancelReinstate_ChangesNothing()
+    public async Task CancelReactivate_ChangesNothing()
     {
         using (var db = Db())
         {
-            var user = db.AppUsers.Single(u => u.Id == 10);
-            db.Entry(user).CurrentValues[nameof(AppUser.HasLeft)] = true;
-            db.Entry(user).CurrentValues[nameof(AppUser.LeftAt)] = DateTime.UtcNow;
+            TestInactivity.MarkInactive(db, 10, byUserId: 1);
             db.SaveChanges();
         }
 
         var cut = Render<MarkAsLeft>();
-        cut.WaitForState(() => cut.FindAll("button[aria-label='Reinstate Tom Teacher']").Count == 1);
-        await cut.Find("button[aria-label='Reinstate Tom Teacher']").ClickAsync(new());
-        await cut.Find("button[aria-label='Cancel reinstating Tom Teacher']").ClickAsync(new());
+        cut.WaitForState(() => cut.FindAll("button[aria-label='Reactivate Tom Teacher']").Count == 1);
+        await cut.Find("button[aria-label='Reactivate Tom Teacher']").ClickAsync(new());
+        await cut.Find("button[aria-label='Cancel reactivating Tom Teacher']").ClickAsync(new());
 
-        Assert.True(SteppedDown());
-        Assert.Empty(cut.FindAll("button[aria-label='Confirm: reinstate Tom Teacher']"));
+        Assert.True(Inactive());
+        Assert.Empty(cut.FindAll("button[aria-label='Confirm: reactivate Tom Teacher']"));
     }
 
     [Fact]
@@ -129,20 +128,20 @@ public sealed class StaffSteppingDownPageTests : BunitContext, IDisposable
         }
 
         var cut = Render<MarkAsLeft>();
-        cut.WaitForState(() => cut.FindAll("button[aria-label='Step down Tom Teacher']").Count == 1);
+        cut.WaitForState(() => cut.FindAll("button[aria-label='Mark Inactive: Tom Teacher']").Count == 1);
 
-        Assert.Contains($"Stepped down {legacyAt:d MMMM yyyy}; reinstated {legacyBack:d MMMM yyyy} by Admin One", cut.Markup);
+        Assert.Contains($"Marked Inactive {legacyAt:d MMMM yyyy}; reactivated {legacyBack:d MMMM yyyy} by Admin One", cut.Markup);
         Assert.Contains(
-            $"Stepped down {clearedAt:d MMMM yyyy} by a former member of staff; reinstated {clearedBack:d MMMM yyyy} by a former member of staff",
+            $"Marked Inactive {clearedAt:d MMMM yyyy} by a former member of staff; reactivated {clearedBack:d MMMM yyyy} by a former member of staff",
             cut.Markup);
     }
 
     private VlmsDbContext Db() => new(
         new DbContextOptionsBuilder<VlmsDbContext>().UseSqlite(_connectionString).Options, TestSeedUserContext.Instance);
 
-    private bool SteppedDown()
+    private bool Inactive()
     {
         using var db = Db();
-        return db.AppUsers.Single(u => u.Id == 10).HasLeft;
+        return ChapterMembership.IsInactiveInChapter(db, 10, Chapter.ShrewsburyId);
     }
 }

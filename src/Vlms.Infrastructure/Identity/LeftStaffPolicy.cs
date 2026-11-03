@@ -4,60 +4,41 @@ using Vlms.Domain;
 namespace Vlms.Infrastructure.Identity;
 
 /// <summary>
-/// The one rule for staff who leave (functional.md FR-017, Philip 22/10/2026, clarified 23/10/2026):
+/// The rules for staff marked Inactive (functional.md FR-017 as amended 27/10/2026 and 03/11/2026):
 /// <list type="number">
-/// <item>A Teacher, Admin or Safeguarding Officer who has been marked as having left
-/// (<see cref="AppUser.HasLeft"/>) loses everything their staff roles gave them, at once and
-/// including open sessions: for an account that has left, the staff roles count as not held
-/// (<see cref="StaffRoleCounts"/>, applied by <c>Security.IdentityCurrentUserContext.HasRole</c>,
-/// which every policy, staff service and sensitive-data query filter reads).</item>
-/// <item>If they hold no other role, they cannot sign in at all (<see cref="IsLockedOut"/>, applied
-/// by <see cref="VlmsUserConfirmation"/>, the Web project's <c>VlmsSignInManager</c> on every sign-in
-/// step and security-stamp validation, and <see cref="AccountEmailService"/>, which sends them no
-/// reset link).</item>
-/// <item>If they are also a Parent, they keep Parent access to their own children: their sign-in
-/// still works, but only as a parent. Parent-side checks therefore treat a staff leaver as a parent
-/// who has <i>not</i> left: their <see cref="AppUser.HasLeft"/> records leaving the staff, not the
-/// programme. Each parent-side EF query spells this out (expressions over navigations don't compose
-/// simply) as "<c>!u.HasLeft || u.Roles.Any(staff role)</c>", citing this class: the consent-details
-/// query filter, <c>ParentConsentService</c>, <c>StudentAccountService</c>,
-/// <c>CertificateAccessService</c>, <c>GuardianNotificationService</c> and
-/// <c>ConsentNotificationService</c>.</item>
+/// <item>A chapter Admin marks a Teacher, Admin or Safeguarding Officer Inactive in that chapter
+/// (<c>Retention.LeavingService.MarkInactiveAsync</c>), which opens a <see cref="StaffStepDown"/>
+/// period. Every role they hold in that chapter, Parent included, stops counting at once, open
+/// sessions included: <c>Security.IdentityCurrentUserContext.HasRole</c> and
+/// <c>Chapters.ChapterMembership</c> read the open period, and every policy, chapter service and
+/// sensitive-data query filter reads those. Other chapters are unaffected.</item>
+/// <item>Nobody is locked out of signing in: an Inactive person can still sign in, sees which chapters
+/// they are Inactive in, and may apply to register a child. <see cref="IsLockedOut"/> therefore
+/// always answers false; it stays as the one hook the sign-in, confirmation and reset paths call.</item>
+/// <item>Their staff roles still count for the account-wide MFA rule
+/// (<see cref="HoldsCountingStaffRoleInAnyChapter"/>; docs/adr/0010-chapters.md assumption 9, amended
+/// 03/11/2026).</item>
 /// </list>
-/// An Approver, Parent or Student who leaves keeps access (an Admin can remove an Approver's role).
+/// <b>Role rows are kept, not revoked.</b> They are the history and what reactivation
+/// (<c>LeavingService.ReactivateAsync</c>) restores. <see cref="RoleAssignmentService.RevokeAsync"/>
+/// refuses to remove a staff role while the person is Inactive in that chapter; a role granted
+/// while Inactive counts only from reactivation.
 ///
-/// <b>Stepped down and reinstated (FR-017 amended 27/10/2026).</b> For staff, <see cref="AppUser.HasLeft"/>
-/// means <i>stepped down</i>. <c>Retention.LeavingService.ReinstateAsync</c> clears it, so the kept staff rows
-/// count again, exactly as they were, the lockout lifts and the MFA rule applies again. Parent may be
-/// granted while stepped down (<see cref="RoleAssignmentService.GrantAsync"/>); no staff role may.
-///
-/// <b>Role rows are kept, not revoked.</b> They are the history (who taught, who held Admin, whose
-/// DBS checks these are) and what tells a staff leaver apart from a parent who left. To keep that
-/// stable, <see cref="RoleAssignmentService.RevokeAsync"/> refuses to remove a staff role from a
-/// leaver; it does nothing for them in any case, because those roles already count as not held.
+/// <see cref="AppUser.HasLeft"/>/<see cref="AppUser.LeftAt"/> are retired (03/11/2026): nothing sets
+/// or reads them.
 /// </summary>
 public static class LeftStaffPolicy
 {
-    /// <summary>The roles that stop counting when their holder leaves.</summary>
+    /// <summary>The roles an Admin can mark someone Inactive for.</summary>
     public static readonly IReadOnlyList<Role> StaffRoles = [Role.Teacher, Role.Admin, Role.SafeguardingOfficer];
 
     /// <summary>True for <see cref="Role.Teacher"/>, <see cref="Role.Admin"/> and <see cref="Role.SafeguardingOfficer"/>.</summary>
     public static bool IsStaffRole(Role role) => role is Role.Teacher or Role.Admin or Role.SafeguardingOfficer;
 
     /// <summary>
-    /// Whether a role row the user holds counts: always for a non-staff role, and for a staff role
-    /// only while the user has not left.
-    /// </summary>
-    public static bool StaffRoleCounts(VlmsDbContext db, int userId)
-    {
-        ArgumentNullException.ThrowIfNull(db);
-        return !db.StaffStepDowns.Any(s => s.UserId == userId && s.ReinstatedAt == null);
-    }
-
-    /// <summary>
-    /// Whether <paramref name="userId"/> holds a Teacher, Admin or Safeguarding Officer role that
-    /// still counts, in any chapter: they hold one and have not left. Used for the account-wide MFA
-    /// rule (docs/adr/0010-chapters.md assumption 9, amended 27/10/2026).
+    /// Whether <paramref name="userId"/> holds a Teacher, Admin or Safeguarding Officer role in any
+    /// chapter, Inactive there or not. Used for the account-wide MFA rule (docs/adr/0010-chapters.md
+    /// assumption 9, amended 27/10/2026 and 03/11/2026).
     /// </summary>
     public static bool HoldsCountingStaffRoleInAnyChapter(VlmsDbContext db, int userId)
     {
@@ -67,9 +48,8 @@ public static class LeftStaffPolicy
     }
 
     /// <summary>
-    /// Whether <paramref name="userId"/> may not sign in at all: they have left and hold no role
-    /// that still counts (no Parent, Approver or Student role). A parent, Approver or student who
-    /// left keeps theirs, so only staff leavers with nothing else are caught.
+    /// Whether <paramref name="userId"/> may not sign in at all. Always false since FR-017 was
+    /// amended on 27/10/2026: an Inactive person can still sign in.
     /// </summary>
     public static bool IsLockedOut(VlmsDbContext db, int userId)
     {

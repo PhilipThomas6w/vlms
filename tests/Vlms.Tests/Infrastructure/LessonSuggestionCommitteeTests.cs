@@ -19,7 +19,7 @@ namespace Vlms.Tests.Infrastructure;
 /// </summary>
 public sealed class LessonSuggestionCommitteeTests : IDisposable
 {
-    private const int Admin = 1, Teacher = 10, ApproverA = 20, ApproverB = 21, ApproverC = 22, ApproverD = 23, LeftApprover = 24;
+    private const int Admin = 1, Teacher = 10, ApproverA = 20, ApproverB = 21, ApproverC = 22, ApproverD = 23;
     private const int LessonId = 1;
     private const string LessonCode = "R1-01";
     private const string OriginalBody = "## Questions\n\n- Why are these two saints so well known?\n";
@@ -47,8 +47,7 @@ public sealed class LessonSuggestionCommitteeTests : IDisposable
         {
             db.AppUsers.Add(new AppUser { Id = id, DisplayName = name, Email = $"user{id}@example.com" });
         }
-        db.AppUsers.Add(new AppUser { Id = LeftApprover, DisplayName = "Approver Left", Email = "left@example.com", HasLeft = true, LeftAt = DateTime.UtcNow });
-        foreach (var id in new[] { ApproverA, ApproverB, ApproverC, ApproverD, LeftApprover })
+        foreach (var id in new[] { ApproverA, ApproverB, ApproverC, ApproverD })
         {
             db.UserRoles.Add(new UserRole { UserId = id, Role = Role.Approver });
         }
@@ -409,7 +408,7 @@ public sealed class LessonSuggestionCommitteeTests : IDisposable
     // --- Alerts ----------------------------------------------------------------------------------------------------
 
     [Fact]
-    public async Task Submitting_EmailsEveryApproverWhoHasNotLeft()
+    public async Task Submitting_EmailsEveryApprover()
     {
         await As(Teacher, TeacherRoles, s => s.SaveDraftAsync(Edit()));
         Assert.Empty(_emails.SentRequests);

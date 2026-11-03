@@ -32,7 +32,6 @@ public sealed class StudentAccountServiceTests : IDisposable
     private const int TeacherUser = 9008;
     private const int ParentA = 9001;      // linked to Alex (100)
     private const int ParentB = 9002;      // linked to Sam (200)
-    private const int LeftParent = 9003;   // linked to Alex (100), has left
     private const int ParentC = 9004;      // linked to Ivy, Jo and Kim (301-303)
     private const int Alex = 100;
     private const int Sam = 200;
@@ -57,19 +56,12 @@ public sealed class StudentAccountServiceTests : IDisposable
         db.AppUsers.Add(new AppUser { Id = TeacherUser, DisplayName = "Teacher", Email = "teacher@example.com" });
         db.AppUsers.Add(new AppUser { Id = ParentA, DisplayName = "Parent A", Email = "a@example.com" });
         db.AppUsers.Add(new AppUser { Id = ParentB, DisplayName = "Parent B", Email = "b@example.com" });
-        db.AppUsers.Add(new AppUser
-        {
-            Id = LeftParent, DisplayName = "Left Parent", Email = "left@example.com",
-            HasLeft = true, LeftAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
-        });
         db.ParentGuardians.Add(new ParentGuardian { Id = 1, Name = "Parent A", ContactInfo = "a@example.com", IsPrimary = true, AppUserId = ParentA });
         db.ParentGuardians.Add(new ParentGuardian { Id = 2, Name = "Parent B", ContactInfo = "b@example.com", IsPrimary = true, AppUserId = ParentB });
-        db.ParentGuardians.Add(new ParentGuardian { Id = 3, Name = "Left Parent", ContactInfo = "left@example.com", IsPrimary = false, AppUserId = LeftParent });
         db.Students.Add(NewStudent(Alex, "Alex"));
         db.Students.Add(NewStudent(Sam, "Sam"));
         db.StudentGuardianLinks.Add(new StudentGuardianLink { StudentId = Alex, ParentGuardianId = 1, CreatedByUserId = TeacherUser });
         db.StudentGuardianLinks.Add(new StudentGuardianLink { StudentId = Sam, ParentGuardianId = 2, CreatedByUserId = TeacherUser });
-        db.StudentGuardianLinks.Add(new StudentGuardianLink { StudentId = Alex, ParentGuardianId = 3, CreatedByUserId = TeacherUser });
         db.AppUsers.Add(new AppUser { Id = ParentC, DisplayName = "Parent C", Email = "c@example.com" });
         db.ParentGuardians.Add(new ParentGuardian { Id = 4, Name = "Parent C", ContactInfo = "c@example.com", IsPrimary = true, AppUserId = ParentC });
         foreach (var (id, name) in new[] { (Ivy, "Ivy"), (Jo, "Jo"), (Kim, "Kim") })
@@ -191,17 +183,6 @@ public sealed class StudentAccountServiceTests : IDisposable
 
         Assert.Equal(0, IdentityUserCount());
         Assert.Null(AppUserIdOf(Alex));
-    }
-
-    [Fact]
-    public async Task ParentWhoHasLeft_IsRefused_EvenThoughLinked()
-    {
-        using var leaver = As(LeftParent, Role.Parent);
-
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => leaver.Service.CreateSignInAsync(Alex, "alex", Password));
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => leaver.Service.ListForParentAsync());
-
-        Assert.Equal(0, IdentityUserCount());
     }
 
     [Theory]
@@ -335,7 +316,6 @@ public sealed class StudentAccountServiceTests : IDisposable
 
     [Theory]
     [InlineData(ParentB, Role.Parent)]
-    [InlineData(LeftParent, Role.Parent)]
     [InlineData(TeacherUser, Role.Teacher)]
     [InlineData(TeacherUser, Role.SafeguardingOfficer)]
     [InlineData(TeacherUser, Role.Approver)]

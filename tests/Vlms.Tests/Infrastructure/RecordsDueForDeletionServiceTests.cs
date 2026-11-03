@@ -18,8 +18,8 @@ namespace Vlms.Tests.Infrastructure;
 /// <see cref="StudentRankProgress.CompletedAt"/>) and Inactive students with a recorded
 /// <see cref="Student.LeftAt"/> (STATE.md "Manual 'leaving' flag..." item, set by
 /// <see cref="Retention.LeavingService"/>) can both be flagged; DBS checks past their own expiry, or
-/// whose teacher has left earlier than that expiry (<see cref="AppUser.HasLeft"/>/
-/// <see cref="AppUser.LeftAt"/>), can both be flagged too.
+/// whose teacher has been Inactive in its chapter since earlier than that expiry (an open
+/// <see cref="StaffStepDown"/>), can both be flagged too.
 ///
 /// Same SQLite-in-memory-via-DI pattern as <see cref="ProgressReportingServiceTests"/>/
 /// <see cref="ConsentExpiryJobTests"/> — this service legitimately reads <see cref="DbsCheck"/> (a
@@ -82,13 +82,11 @@ public sealed class RecordsDueForDeletionServiceTests : IDisposable
         LeftAt = leftAt
     };
 
-    private static AppUser NewTeacher(int id, string name, bool hasLeft = false, DateTime? leftAt = null) => new()
+    private static AppUser NewTeacher(int id, string name) => new()
     {
         Id = id,
         DisplayName = name,
-        Email = $"t{id}@example.com",
-        HasLeft = hasLeft,
-        LeftAt = leftAt
+        Email = $"t{id}@example.com"
     };
 
     private static DbsCheck NewDbsCheck(int id, int teacherUserId, DateOnly expiryDate, DbsCheckStatus status = DbsCheckStatus.Clear) => new()
@@ -149,11 +147,13 @@ public sealed class RecordsDueForDeletionServiceTests : IDisposable
 
         // ExpiryDate (-3y) is comfortably within its own 6-year window — only this teacher's leaving
         // (-7y) brings it due.
-        db.AppUsers.Add(NewTeacher(13, "Teacher Left Long Ago", hasLeft: true, leftAt: now.AddYears(-7)));
+        db.AppUsers.Add(NewTeacher(13, "Teacher Left Long Ago"));
+        TestInactivity.MarkInactive(db, 13, at: now.AddYears(-7));
         db.UserRoles.Add(new UserRole { UserId = 13, Role = Role.Teacher });
         db.DbsChecks.Add(NewDbsCheck(5, 13, DateOnly.FromDateTime(now.AddYears(-3))));
 
-        db.AppUsers.Add(NewTeacher(14, "Teacher Recently Left", hasLeft: true, leftAt: now.AddYears(-2)));
+        db.AppUsers.Add(NewTeacher(14, "Teacher Recently Left"));
+        TestInactivity.MarkInactive(db, 14, at: now.AddYears(-2));
         db.UserRoles.Add(new UserRole { UserId = 14, Role = Role.Teacher });
         db.DbsChecks.Add(NewDbsCheck(6, 14, DateOnly.FromDateTime(now.AddYears(-1))));
 

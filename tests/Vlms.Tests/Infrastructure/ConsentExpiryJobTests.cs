@@ -500,11 +500,13 @@ public sealed class ConsentExpiryJobTests : IDisposable
 
             // ExpiryDate is comfortably within its own 6-year retention window — only the teacher's
             // leaving (4 years before ExpiryDate, so >6 years before "now") brings this row due.
-            seed.Context.AppUsers.Add(new AppUser { Id = 64, DisplayName = "Teacher Left Long Ago", Email = "t64@example.com", HasLeft = true, LeftAt = now.AddYears(-7) });
+            seed.Context.AppUsers.Add(new AppUser { Id = 64, DisplayName = "Teacher Left Long Ago", Email = "t64@example.com" });
+            TestInactivity.MarkInactive(seed.Context, 64, at: now.AddYears(-7));
             seed.Context.UserRoles.Add(new UserRole { UserId = 64, Role = Role.Teacher });
             seed.Context.DbsChecks.Add(NewDbsCheck(65, 64, DateOnly.FromDateTime(now.AddYears(-3))));
 
-            seed.Context.AppUsers.Add(new AppUser { Id = 66, DisplayName = "Teacher Recently Left", Email = "t66@example.com", HasLeft = true, LeftAt = now.AddYears(-2) });
+            seed.Context.AppUsers.Add(new AppUser { Id = 66, DisplayName = "Teacher Recently Left", Email = "t66@example.com" });
+            TestInactivity.MarkInactive(seed.Context, 66, at: now.AddYears(-2));
             seed.Context.UserRoles.Add(new UserRole { UserId = 66, Role = Role.Teacher });
             seed.Context.DbsChecks.Add(NewDbsCheck(67, 66, DateOnly.FromDateTime(now.AddYears(-1))));
 

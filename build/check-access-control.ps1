@@ -136,7 +136,10 @@ $expectedMinimums = @{
     # and the student page's own-record scoping. Raised RoleAssignmentServiceTests for its two new guards.
     # Raised 22/10/2026 for the sign-in rules (adr/0007 decisions 9-13): password rules, lockout
     # clearing, disable/restore, persistent student cookie, parent of several children.
-    "StudentAccountServiceTests.cs"     = 42
+    # Lowered to 41 on 03/11/2026: ParentWhoHasLeft_IsRefused_EvenThoughLinked tested AppUser.HasLeft,
+    # retired by Philip (FR-017); an Inactive parent's refusal is HasRole's, tested with the real
+    # IdentityCurrentUserContext in SensitiveDataAccessControlTests.
+    "StudentAccountServiceTests.cs"     = 41
     "StudentPageServiceTests.cs"        = 4
     # FR-016 role changes take effect immediately: multi-role unions, mid-scope grant/revoke/MFA
     # change, security-stamp rotation.
