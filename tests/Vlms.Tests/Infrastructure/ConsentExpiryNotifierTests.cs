@@ -141,6 +141,54 @@ public sealed class ConsentExpiryNotifierTests : IDisposable
     }
 
     [Fact]
+    public async Task NotifyAsync_SomeoneHoldingAdminAndSafeguardingOfficer_GetsOneCopy()
+    {
+        // Philip, 29/10/2026: every Admin or Safeguarding Officer in the chapter, one copy per person.
+        using (var seed = CreateContext(TestSeedUserContext.Instance))
+        {
+            seed.Context.AppUsers.Add(new AppUser { Id = 4, DisplayName = "Both Roles", Email = "both@example.com" });
+            seed.Context.UserRoles.Add(new UserRole { UserId = 4, Role = Role.Admin });
+            seed.Context.UserRoles.Add(new UserRole { UserId = 4, Role = Role.SafeguardingOfficer });
+            seed.Context.SaveChanges();
+        }
+
+        using var run = CreateContext(SystemCurrentUserContext.Instance);
+        var notificationService = new FakeNotificationService();
+        var sut = new ConsentExpiryNotifier(run.Context, SystemCurrentUserContext.Instance, notificationService);
+
+        await sut.NotifyAsync(ExpiredConsentAndDbs());
+
+        Assert.Equal(["admin1@example.com", "both@example.com", "sgo1@example.com"],
+            notificationService.SentRequests.Select(r => r.RecipientEmail).Order());
+    }
+
+    [Fact]
+    public async Task NotifyAsync_SkipsAnAdminWhoIsInactiveInTheChapter()
+    {
+        using (var seed = CreateContext(TestSeedUserContext.Instance))
+        {
+            TestInactivity.MarkInactive(seed.Context, userId: 1);
+            seed.Context.SaveChanges();
+        }
+
+        using var run = CreateContext(SystemCurrentUserContext.Instance);
+        var notificationService = new FakeNotificationService();
+        var sut = new ConsentExpiryNotifier(run.Context, SystemCurrentUserContext.Instance, notificationService);
+
+        await sut.NotifyAsync(ExpiredConsentAndDbs());
+
+        var only = Assert.Single(notificationService.SentRequests);
+        Assert.Equal("sgo1@example.com", only.RecipientEmail);
+    }
+
+    private static ConsentExpiryJobResult ExpiredConsentAndDbs() => new(
+        ConsentFlags: [new ConsentExpiryFlag(100, "Expired Student", 1, DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-5)), IsExpired: true, Chapter.ShrewsburyId)],
+        DbsFlags: [new DbsExpiryFlag(3, "Teacher One", 1, DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-5)), IsExpired: true, Chapter.ShrewsburyId)],
+        AtRiskStudents: [],
+        StudentsDueForDeletion: [],
+        DbsChecksDueForDeletion: []);
+
+    [Fact]
     public async Task NotifyAsync_ByCallerWithoutAdminOrSafeguardingOfficerRole_Throws()
     {
         var noRoleCaller = new FakeCurrentUserContext(userId: null);

@@ -31,20 +31,43 @@ public sealed class AlertDigestServiceTests
     }
 
     [Fact]
-    public async Task EscalationFound_SendsOneEmailToTheAlertAddress_WithTheLinesAsTheyAre()
+    public async Task ServiceAlertFound_SendsOneEmailToTheAlertAddress_WithTheLinesAsTheyAre()
     {
-        _source.Lines.Add("2026-10-27T09:00:00+0000 vps vlms-web[1]: ESCALATION: safeguarding-critical notification to a@b.org failed after 3 attempt(s) — subject: x.");
-        _source.Lines.Add("2026-10-28T03:00:00+0000 vps vlms-jobs[2]: ESCALATION: student 4 (Ann Smith) has no valid consent");
+        _source.Lines.Add("2026-10-27T09:00:00+0000 vps vlms-web[1]: SERVICE-ALERT: a safeguarding-critical email could not be sent after 3 attempt(s).");
+        _source.Lines.Add("2026-10-28T03:00:00+0000 vps vlms-jobs[2]: SERVICE-ALERT: a safeguarding-critical email could not be sent after 3 attempt(s).");
 
         var outcome = await Build().RunAsync(Now);
 
         Assert.Equal(AlertDigestOutcome.Sent, outcome);
         var sent = Assert.Single(_email.SentEmails);
         Assert.Equal("alerts@varangians.co.uk", sent.RecipientEmail);
-        Assert.Contains("2 escalations", sent.Subject);
+        Assert.Contains("2 service alerts", sent.Subject);
         foreach (var line in _source.Lines)
         {
             Assert.Contains(line, sent.Body);
+        }
+    }
+
+    [Fact]
+    public async Task SafeguardingEscalationLines_AreNeverSent_EvenIfTheSourceReturnsThem()
+    {
+        // Philip, 29/10/2026: alerts@ is for operational health only; consent and DBS detail goes to each
+        // chapter's Admins and Safeguarding Officers. Lines in the shape ConsentExpiryJob writes.
+        _source.Lines.Add("2026-10-28T03:00:00+0000 vps vlms-jobs[2]: ESCALATION: student 4 (Ann Smith) has no valid consent (ConsentRecordId=7, ExpiryDate=2026-10-01) — lesson completion is blocked until renewed.");
+        _source.Lines.Add("2026-10-28T03:00:00+0000 vps vlms-jobs[2]: ESCALATION: teacher 9 (Bob Jones) has no valid DBS clearance (DbsCheckId=3, ExpiryDate=2026-09-30).");
+        _source.Lines.Add("2026-10-28T03:00:01+0000 vps vlms-jobs[2]: SERVICE-ALERT: ESCALATION: student 5 (Cat Brown) has no valid consent");
+
+        Assert.Equal(AlertDigestOutcome.NothingToReport, await Build().RunAsync(Now));
+        Assert.Empty(_email.SentEmails);
+
+        // With an operational failure to report, the email goes, still without any of them.
+        _source.Failed.Add("vlms-backup.service");
+        Assert.Equal(AlertDigestOutcome.Sent, await Build().RunAsync(Now.AddDays(1)));
+        var sent = Assert.Single(_email.SentEmails);
+        Assert.Equal("VLMS alert: 1 failed unit", sent.Subject);
+        foreach (var leaked in new[] { "ESCALATION", "Ann Smith", "Bob Jones", "Cat Brown", "consent", "DBS" })
+        {
+            Assert.DoesNotContain(leaked, sent.Body, StringComparison.OrdinalIgnoreCase);
         }
     }
 
@@ -71,7 +94,7 @@ public sealed class AlertDigestServiceTests
     [Fact]
     public async Task EmailFailure_IsLoggedAsAnError_AndTheLastRunIsNotAdvanced()
     {
-        _source.Lines.Add("ESCALATION: x");
+        _source.Lines.Add("SERVICE-ALERT: x");
         _email.FailuresBeforeSuccess = int.MaxValue;
 
         var outcome = await Build().RunAsync(Now);
@@ -116,14 +139,14 @@ public sealed class AlertDigestServiceTests
     {
         for (var i = 0; i < 50; i++)
         {
-            _source.Lines.Add($"ESCALATION: line {i}");
+            _source.Lines.Add($"SERVICE-ALERT: line {i}");
         }
 
         await Build(maxLines: 10).RunAsync(Now);
 
         var body = Assert.Single(_email.SentEmails).Body;
-        Assert.Contains("ESCALATION: line 9", body);
-        Assert.DoesNotContain("ESCALATION: line 10\n", body);
+        Assert.Contains("SERVICE-ALERT: line 9", body);
+        Assert.DoesNotContain("SERVICE-ALERT: line 10\n", body);
         Assert.Contains("40 more line(s) not shown", body);
     }
 
@@ -155,7 +178,7 @@ public sealed class AlertDigestServiceTests
         public DateTimeOffset? LastSince { get; private set; }
         public bool Throw { get; set; }
 
-        public Task<IReadOnlyList<string>> ReadEscalationLinesAsync(DateTimeOffset sinceUtc, CancellationToken ct = default)
+        public Task<IReadOnlyList<string>> ReadServiceAlertLinesAsync(DateTimeOffset sinceUtc, CancellationToken ct = default)
         {
             LastSince = sinceUtc;
             return Throw ? throw new InvalidOperationException("journalctl exited with code 2") : Task.FromResult<IReadOnlyList<string>>(Lines.ToList());
@@ -181,22 +204,33 @@ public sealed class SystemdStatusSourceTests
     [Fact]
     public async Task Journal_AsksForBothUnitsAndTheMarker_SinceTheGivenTimeInUtc()
     {
-        var runner = new FakeRunner(new ProcessResult(0, "a ESCALATION: one\nb ESCALATION: two\n", ""));
+        var runner = new FakeRunner(new ProcessResult(0, "a SERVICE-ALERT: one\nb SERVICE-ALERT: two\n", ""));
 
-        var lines = await new SystemdStatusSource(runner).ReadEscalationLinesAsync(Since);
+        var lines = await new SystemdStatusSource(runner).ReadServiceAlertLinesAsync(Since);
 
         Assert.Equal(2, lines.Count);
         Assert.Equal("journalctl", runner.FileName);
         Assert.Contains("--unit=vlms-web.service", runner.Arguments);
         Assert.Contains("--unit=vlms-jobs.service", runner.Arguments);
-        Assert.Contains("--grep=ESCALATION:", runner.Arguments);
+        Assert.Contains("--grep=SERVICE-ALERT:", runner.Arguments);
+        Assert.DoesNotContain(runner.Arguments, a => a.Contains("ESCALATION", StringComparison.Ordinal));
         Assert.Contains("--since=2026-10-27 07:00:00 UTC", runner.Arguments);
+    }
+
+    [Fact]
+    public async Task Journal_DropsAnyLineCarryingTheSafeguardingMarker()
+    {
+        var output = "a SERVICE-ALERT: email failed\nb SERVICE-ALERT: ESCALATION: student 4 (Ann Smith) has no valid consent\n";
+
+        var lines = await new SystemdStatusSource(new FakeRunner(new ProcessResult(0, output, ""))).ReadServiceAlertLinesAsync(Since);
+
+        Assert.Equal(["a SERVICE-ALERT: email failed"], lines);
     }
 
     [Fact]
     public async Task Journal_ExitOneWithNoOutput_IsNothingFound()
     {
-        var lines = await new SystemdStatusSource(new FakeRunner(new ProcessResult(1, "", ""))).ReadEscalationLinesAsync(Since);
+        var lines = await new SystemdStatusSource(new FakeRunner(new ProcessResult(1, "", ""))).ReadServiceAlertLinesAsync(Since);
 
         Assert.Empty(lines);
     }
@@ -206,7 +240,7 @@ public sealed class SystemdStatusSourceTests
     {
         var source = new SystemdStatusSource(new FakeRunner(new ProcessResult(1, "", "Failed to open journal: Permission denied")));
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => source.ReadEscalationLinesAsync(Since));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => source.ReadServiceAlertLinesAsync(Since));
     }
 
     [Fact]

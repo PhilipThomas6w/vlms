@@ -72,7 +72,7 @@ var importCalendarOnly = args is ["import-calendar"];
 // Admins while records are due, then the audit-log purge as the vlms_retention database role.
 var retentionMonthly = args is ["retention-monthly"];
 
-// `Vlms.Jobs alert-digest` — emails the journal's ESCALATION: lines and newly failed vlms-* units since
+// `Vlms.Jobs alert-digest` — emails the journal's SERVICE-ALERT: lines and newly failed vlms-* units since
 // the last successful run to Alerts:Recipient (docs/operations/monitoring.md §3). Started by
 // vlms-alert.timer each morning and by OnFailure= on every vlms-* unit (deploy/systemd/vlms-alert.service).
 var alertDigestOnly = args is ["alert-digest"];

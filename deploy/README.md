@@ -295,7 +295,7 @@ backup and the consent/DBS sweep).
 
 ## 5a. Alerts and the uptime check (`docs/operations/monitoring.md` §3 and §5)
 
-`vlms-alert.service` runs `Vlms.Jobs alert-digest`: it emails the journal's `ESCALATION:` lines and any
+`vlms-alert.service` runs `Vlms.Jobs alert-digest`: it emails the journal's `SERVICE-ALERT:` lines and any
 newly failed `vlms-*` unit to `alerts@varangians.co.uk` (nothing found, nothing sent). The timer runs it at
 07:30 UTC daily; `vlms-web`, `vlms-jobs`, `vlms-backup` and `vlms-files-backup` each start it with
 `OnFailure=` the moment they fail. Prerequisites and checks:

@@ -9,10 +9,11 @@ namespace Vlms.Infrastructure.Monitoring;
 public interface ISystemStatusSource
 {
     /// <summary>
-    /// Journal lines containing <c>ESCALATION:</c> written by <c>vlms-web.service</c> and
+    /// Journal lines containing <c>SERVICE-ALERT:</c> written by <c>vlms-web.service</c> and
     /// <c>vlms-jobs.service</c> since <paramref name="sinceUtc"/>, oldest first, as the journal prints them.
+    /// Never a line containing the safeguarding <c>ESCALATION:</c> marker.
     /// </summary>
-    Task<IReadOnlyList<string>> ReadEscalationLinesAsync(DateTimeOffset sinceUtc, CancellationToken ct = default);
+    Task<IReadOnlyList<string>> ReadServiceAlertLinesAsync(DateTimeOffset sinceUtc, CancellationToken ct = default);
 
     /// <summary>The names of the <c>vlms-*</c> systemd units currently in the failed state.</summary>
     Task<IReadOnlyList<string>> ListFailedUnitsAsync(CancellationToken ct = default);

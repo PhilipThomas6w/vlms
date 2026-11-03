@@ -36,21 +36,25 @@ Caddy access log: rotated by Caddy itself (default 100 MiB per file, keeps 10 fi
 
 | Signal | Meaning | Find it |
 |---|---|---|
-| `ESCALATION: safeguarding-critical notification ... failed` (Error) | A consent/DBS email could not be sent after all retries | `journalctl -u vlms-web.service -u vlms-jobs.service -g ESCALATION --since -7d` |
-| `ESCALATION: student ... has no valid consent` / `teacher ... has no valid DBS` | Expiry sweep found a lapsed record | same search |
+| `SERVICE-ALERT: a safeguarding-critical email could not be sent ...` (Error) | A safeguarding email could not be sent after all retries; the recipient and subject are in the warning line just before it | `journalctl -u vlms-web.service -u vlms-jobs.service -g SERVICE-ALERT --since -7d` |
+| `ESCALATION: student ... has no valid consent` / `teacher ... has no valid DBS` | Expiry sweep found a lapsed record. Safeguarding, not operational: emailed to that chapter's Admins and Safeguarding Officers, never to the alert address | `journalctl -u vlms-jobs.service -g ESCALATION --since -7d` |
 | `ConsentExpiryJob run failed.` (Critical), non-zero exit | Nightly sweep did not run | `systemctl status vlms-jobs.service` |
 | Unit in `failed` state | Any job or backup failed | `systemctl --failed` |
 | `vlms-web.service` restart loop | App crashing at start (often config) | `journalctl -u vlms-web.service -b` |
 | Graph `401`/`invalid_client` | Email secret expired or wrong | `journalctl -u vlms-web.service -g Graph` |
 | Disk over 80% | Risk to PostgreSQL and backups | `df -h /` |
 
-These escalations are written to the log only, so the alert route below carries them to a person.
+- **Safeguarding notifications and service alerts are separate (Philip, 29/10/2026; built 03/11/2026):**
+  1. Safeguarding notifications stay chapter-scoped. Each chapter's consent and DBS escalations go by email to every account holding Admin or Safeguarding Officer in that chapter and not Inactive there, one copy per person even when they hold both roles (`ConsentExpiryNotifier`, `ChapterMembership.StaffIn`).
+  2. `alerts@varangians.co.uk` is reserved for operational service health: failed VLMS services, backup failures, email delivery failures, uptime and Droplet-monitoring alerts.
+  3. The operational digest never carries safeguarding content. It reads only `SERVICE-ALERT:` lines, and drops any line containing `ESCALATION:` even if one matches. `SERVICE-ALERT:` lines are written without recipients, subjects or student and teacher detail.
+  4. Out of scope: the mailbox forwarding and Outlook folder rules (delivery only).
 
 - **Alert route — decided (Philip, 27/10/2026), built 27/10/2026:**
-  1. `Vlms.Jobs alert-digest` (`AlertDigestService`) searches the journal of `vlms-web.service` and `vlms-jobs.service` for `ESCALATION:` lines, and lists failed `vlms-*` units, since its last successful run. If it finds anything it sends one email through the app's Graph mailer to `Alerts:Recipient` (default `alerts@varangians.co.uk`, set as `Alerts__Recipient` in `/etc/vlms/jobs.env` to change). Nothing found, nothing sent. `vlms-alert.timer` runs it at 07:30 UTC daily; every `vlms-*` service unit has `OnFailure=vlms-alert.service`, so a failed job or backup is reported at once. Details and behaviour:
+  1. `Vlms.Jobs alert-digest` (`AlertDigestService`) searches the journal of `vlms-web.service` and `vlms-jobs.service` for `SERVICE-ALERT:` lines, and lists failed `vlms-*` units, since its last successful run. If it finds anything it sends one email through the app's Graph mailer to `Alerts:Recipient` (default `alerts@varangians.co.uk`, set as `Alerts__Recipient` in `/etc/vlms/jobs.env` to change). Nothing found, nothing sent. `vlms-alert.timer` runs it at 07:30 UTC daily; every `vlms-*` service unit has `OnFailure=vlms-alert.service`, so a failed job or backup is reported at once. Details and behaviour:
      - The time of the last successful run, and the failed units already reported, are kept in `alert-state.json` under `/var/lib/vlms-alert`. They move forward only after the email was accepted, so a failed run covers the same period next time. The first run looks back 24 hours.
      - A unit that stays failed is reported once, not daily; run `systemctl reset-failed <unit>` after fixing it. A unit that fails again while still in the failed state is not re-reported (the weekly look is the backstop).
-     - The email carries the journal lines as they are (names and recipient addresses already in the journal), capped at 200 lines and 60,000 characters, with a note of what was left out.
+     - The email carries the `SERVICE-ALERT:` lines as they are, capped at 200 lines and 60,000 characters, with a note of what was left out. No `ESCALATION:` line is ever included.
      - If the host cannot be read or the email cannot be sent, the command logs an error and exits non-zero, so `vlms-alert.service` shows in `systemctl --failed`. It is never reported as "nothing found".
      - The unit has `systemd-journal` for itself only, so `journalctl` can read the web and jobs entries; the web process does not get it.
      - Install and test: `deploy/README.md` §5a.

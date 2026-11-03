@@ -57,7 +57,7 @@ an ad hoc one-off run, via `systemctl start vlms-jobs.service`).
 
 ## Alert digest
 
-`vlms-alert.service` and `vlms-alert.timer` run `Vlms.Jobs alert-digest` (journal `ESCALATION:` lines and
+`vlms-alert.service` and `vlms-alert.timer` run `Vlms.Jobs alert-digest` (journal `SERVICE-ALERT:` lines and
 failed `vlms-*` units, emailed to `alerts@varangians.co.uk`); every `vlms-*` service has `OnFailure=vlms-alert.service`.
 Install them with the others (`sudo cp deploy/systemd/vlms-alert.* /etc/systemd/system/`, then
 `sudo systemctl enable --now vlms-alert.timer`) and see `deploy/README.md` §5a.

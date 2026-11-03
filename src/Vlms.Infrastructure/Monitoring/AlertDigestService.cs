@@ -93,8 +93,11 @@ public enum AlertDigestOutcome
 
 /// <summary>
 /// The alert route decided 27/10/2026 (docs/operations/monitoring.md §3): collects, since the last
-/// successful run, the journal's <c>ESCALATION:</c> lines and any <c>vlms-*</c> unit that has newly failed,
-/// and emails them in one message to the alert address through the app's email sender. Nothing found,
+/// successful run, the journal's <c>SERVICE-ALERT:</c> lines and any <c>vlms-*</c> unit that has newly failed,
+/// and emails them in one message to the alert address through the app's email sender. Operational
+/// failures only (Philip, 29/10/2026): a line carrying the safeguarding <c>ESCALATION:</c> marker is
+/// dropped even if the source returns it, so no student consent or teacher DBS detail reaches the alert
+/// address; those go to each chapter's Admins and Safeguarding Officers instead. Nothing found,
 /// nothing sent. The last-run time moves forward only after the email was accepted (or there was nothing to
 /// send), so a failed run is retried over the same window. Never silent: every failure is logged as an error
 /// and the outcome is <see cref="AlertDigestOutcome.Failed"/> (the host exits non-zero, which makes the
@@ -104,9 +107,8 @@ public enum AlertDigestOutcome
 /// fails a second time while it is still sitting in the failed state is therefore not re-reported (the
 /// weekly look at <c>systemctl --failed</c> is the backstop).
 ///
-/// The journal lines are sent as they are: they hold at most the names and email addresses the application
-/// already logs, to a mailbox inside the same tenant. The size is capped (lines and characters) with a note
-/// of what was left out.
+/// The service-alert lines are sent as they are; they are written to carry no personal detail. The size is
+/// capped (lines and characters) with a note of what was left out.
 /// </summary>
 public sealed class AlertDigestService(
     ISystemStatusSource source, IAlertStateStore state, IEmailSender email, AlertDigestOptions options,
@@ -121,7 +123,9 @@ public sealed class AlertDigestService(
             var previous = await state.LoadAsync(ct);
             var since = previous?.LastRunUtc ?? nowUtc - options.FirstRunLookback;
 
-            var lines = await source.ReadEscalationLinesAsync(since, ct);
+            var lines = (await source.ReadServiceAlertLinesAsync(since, ct))
+                .Where(line => !line.Contains(SystemdStatusSource.SafeguardingEscalationMarker, StringComparison.Ordinal))
+                .ToList();
             var failedUnits = await source.ListFailedUnitsAsync(ct);
             var alreadyReported = previous?.ReportedFailedUnits ?? [];
             var newlyFailed = failedUnits.Where(unit => !alreadyReported.Contains(unit, StringComparer.Ordinal)).ToList();
@@ -157,7 +161,7 @@ public sealed class AlertDigestService(
         var parts = new List<string>();
         if (lineCount > 0)
         {
-            parts.Add(lineCount == 1 ? "1 escalation" : $"{lineCount} escalations");
+            parts.Add(lineCount == 1 ? "1 service alert" : $"{lineCount} service alerts");
         }
         if (unitCount > 0)
         {
@@ -183,7 +187,7 @@ public sealed class AlertDigestService(
 
         if (lines.Count > 0)
         {
-            body.Append("\nEscalation lines from vlms-web.service and vlms-jobs.service:\n");
+            body.Append("\nService alerts from vlms-web.service and vlms-jobs.service:\n");
             var shown = 0;
             foreach (var line in lines.Take(options.MaxLines))
             {
@@ -199,7 +203,7 @@ public sealed class AlertDigestService(
 
             if (shown < lines.Count)
             {
-                body.Append($"\n[{lines.Count - shown} more line(s) not shown. Read them on the server: journalctl -u vlms-web.service -u vlms-jobs.service -g ESCALATION --since \"{Stamp(since)} UTC\"]\n");
+                body.Append($"\n[{lines.Count - shown} more line(s) not shown. Read them on the server: journalctl -u vlms-web.service -u vlms-jobs.service -g SERVICE-ALERT --since \"{Stamp(since)} UTC\"]\n");
             }
         }
 

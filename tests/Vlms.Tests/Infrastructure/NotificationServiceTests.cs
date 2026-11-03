@@ -76,7 +76,31 @@ public sealed class NotificationServiceTests
 
         Assert.Equal(NotificationOutcome.FailedAndEscalated, outcome);
         Assert.Empty(sender.SentEmails);
-        Assert.Contains(logger.Entries, e => e.Level == Microsoft.Extensions.Logging.LogLevel.Error && e.Message.Contains("ESCALATION"));
+        var alert = Assert.Single(logger.Entries, e => e.Level == Microsoft.Extensions.Logging.LogLevel.Error);
+        Assert.Contains("SERVICE-ALERT:", alert.Message);
+    }
+
+    [Fact]
+    public async Task SendAsync_SafeguardingCritical_AllAttemptsFail_ServiceAlertLineCarriesNoRecipientOrSubject()
+    {
+        // The SERVICE-ALERT line is what the operational digest emails to the alert address (monitoring.md
+        // §3, Philip 29/10/2026); the recipient and subject stay in the journal's warning line only.
+        var sender = new FakeEmailSender { FailuresBeforeSuccess = int.MaxValue };
+        var logger = new ListLogger<NotificationService>();
+        var sut = new NotificationService(sender, logger, delay: NoOpDelay);
+
+        await sut.SendAsync(new NotificationRequest(
+            "admin@example.com", "Admin Name", "VLMS safeguarding escalation: 1 issue(s) require attention",
+            "- Consent: Ann Smith (student #4) has no valid consent on record.", NotificationPriority.SafeguardingCritical));
+
+        var alert = Assert.Single(logger.Entries, e => e.Message.Contains("SERVICE-ALERT:"));
+        Assert.DoesNotContain("admin@example.com", alert.Message);
+        Assert.DoesNotContain("Admin Name", alert.Message);
+        Assert.DoesNotContain("safeguarding escalation", alert.Message);
+        Assert.DoesNotContain("Ann Smith", alert.Message);
+        Assert.DoesNotContain("ESCALATION:", alert.Message);
+        Assert.Contains(logger.Entries, e => e.Level == Microsoft.Extensions.Logging.LogLevel.Warning
+            && e.Message.Contains("admin@example.com") && !e.Message.Contains("SERVICE-ALERT:"));
     }
 
     [Fact]
@@ -91,8 +115,8 @@ public sealed class NotificationServiceTests
         var warningCount = logger.Entries.Count(e => e.Level == Microsoft.Extensions.Logging.LogLevel.Warning);
         var errorCount = logger.Entries.Count(e => e.Level == Microsoft.Extensions.Logging.LogLevel.Error);
 
-        Assert.Equal(2, warningCount); // attempts 1 and 2 retry-log at Warning
-        Assert.Equal(1, errorCount); // attempt 3 (final) escalates at Error
+        Assert.Equal(3, warningCount); // attempts 1 and 2 retry-log at Warning; then the final failure's detail line
+        Assert.Equal(1, errorCount); // attempt 3 (final): the SERVICE-ALERT line at Error
     }
 
     [Theory]

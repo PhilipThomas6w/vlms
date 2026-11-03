@@ -85,10 +85,17 @@ public sealed class NotificationService : INotificationService
             }
             catch (Exception ex) when (request.Priority == NotificationPriority.SafeguardingCritical)
             {
-                _logger.LogError(
+                // Two lines. The detail (recipient, subject, exception) stays in the journal for whoever
+                // investigates. The SERVICE-ALERT line is what the operational digest emails to the alert
+                // address, so it says only that delivery failed: no recipient, no subject, no safeguarding
+                // detail (Philip, 29/10/2026; monitoring.md §3).
+                _logger.LogWarning(
                     ex,
-                    "ESCALATION: safeguarding-critical notification to {RecipientEmail} failed after {MaxAttempts} attempt(s) — subject: {Subject}.",
+                    "Safeguarding-critical notification to {RecipientEmail} failed after {MaxAttempts} attempt(s) — subject: {Subject}.",
                     request.RecipientEmail, maxAttempts, request.Subject);
+                _logger.LogError(
+                    "SERVICE-ALERT: a safeguarding-critical email could not be sent after {MaxAttempts} attempt(s). Check email delivery; the recipient is in the warning before this line.",
+                    maxAttempts);
                 return NotificationOutcome.FailedAndEscalated;
             }
             catch (Exception ex)

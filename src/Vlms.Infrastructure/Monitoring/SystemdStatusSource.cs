@@ -3,23 +3,31 @@ using System.Globalization;
 namespace Vlms.Infrastructure.Monitoring;
 
 /// <summary>
-/// The real <see cref="ISystemStatusSource"/>: <c>journalctl</c> for the escalation lines and
+/// The real <see cref="ISystemStatusSource"/>: <c>journalctl</c> for the service-alert lines and
 /// <c>systemctl list-units</c> for failed units. The process must be allowed to read the system journal
 /// (the <c>vlms</c> user needs the <c>systemd-journal</c> group; <c>deploy/systemd/vlms-alert.service</c>
 /// sets it).
 /// </summary>
 public sealed class SystemdStatusSource(IProcessRunner runner) : ISystemStatusSource
 {
-    public const string EscalationMarker = "ESCALATION:";
+    /// <summary>Marks a journal line as an operational failure for the alert digest (monitoring.md §3).</summary>
+    public const string ServiceAlertMarker = "SERVICE-ALERT:";
 
-    public async Task<IReadOnlyList<string>> ReadEscalationLinesAsync(DateTimeOffset sinceUtc, CancellationToken ct = default)
+    /// <summary>
+    /// Marks a safeguarding escalation (a named student without consent, a named teacher without DBS). Those
+    /// lines stay in the journal and go to each chapter's Admins and Safeguarding Officers by email; the
+    /// operational digest never carries them (Philip, 29/10/2026).
+    /// </summary>
+    public const string SafeguardingEscalationMarker = "ESCALATION:";
+
+    public async Task<IReadOnlyList<string>> ReadServiceAlertLinesAsync(DateTimeOffset sinceUtc, CancellationToken ct = default)
     {
         var result = await runner.RunAsync("journalctl",
         [
             "--no-pager", "--quiet", "--output=short-iso",
             "--unit=vlms-web.service", "--unit=vlms-jobs.service",
             "--since=" + sinceUtc.UtcDateTime.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture) + " UTC",
-            "--grep=" + EscalationMarker,
+            "--grep=" + ServiceAlertMarker,
         ], ct);
 
         // journalctl --grep exits 1 when nothing matches; that is "found nothing" only if it also said nothing.
@@ -31,7 +39,8 @@ public sealed class SystemdStatusSource(IProcessRunner runner) : ISystemStatusSo
         }
 
         return SplitLines(result.StandardOutput)
-            .Where(line => line.Contains(EscalationMarker, StringComparison.Ordinal))
+            .Where(line => line.Contains(ServiceAlertMarker, StringComparison.Ordinal)
+                && !line.Contains(SafeguardingEscalationMarker, StringComparison.Ordinal))
             .ToList();
     }
 

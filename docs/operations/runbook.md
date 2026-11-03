@@ -28,7 +28,7 @@ All times in this pack are **UTC** (see `README.md`).
 | Frequency | Task | How |
 |---|---|---|
 | Daily (automatic) | Database and file backups, expiry sweep | Timers; check with `systemctl list-timers 'vlms-*'` |
-| Weekly | Check for failed units and escalations | `systemctl --failed`; `journalctl -p err --since -7d` and the `ESCALATION:` search in `monitoring.md` §3 |
+| Weekly | Check for failed units and escalations | `systemctl --failed`; `journalctl -p err --since -7d` and the `SERVICE-ALERT:` and `ESCALATION:` searches in `monitoring.md` §3 |
 | Weekly | Confirm last night's backups reached R2 | `monitoring.md` §4 |
 | Monthly | Disk space and journal size | `df -h /`, `journalctl --disk-usage` |
 | Monthly | Pending OS updates and reboot-required flag | `host-hardening.md` §3 |

@@ -1,4 +1,4 @@
-# vlms-alert.service — runs `Vlms.Jobs alert-digest` to completion: emails the journal's ESCALATION:
+# vlms-alert.service — runs `Vlms.Jobs alert-digest` to completion: emails the journal's SERVICE-ALERT:
 # lines and any newly failed vlms-* unit to Alerts:Recipient (alerts@varangians.co.uk), through the
 # app's Graph mailer. Nothing found, nothing sent (docs/operations/monitoring.md §3, decided 27/10/2026).
 #
@@ -22,7 +22,7 @@
 # Optional there: Alerts__Recipient=... (default alerts@varangians.co.uk).
 
 [Unit]
-Description=VLMS alert digest (journal ESCALATION lines and failed vlms-* units, emailed to the alert address)
+Description=VLMS alert digest (journal SERVICE-ALERT lines and failed vlms-* units, emailed to the alert address)
 After=network-online.target
 Wants=network-online.target
 
