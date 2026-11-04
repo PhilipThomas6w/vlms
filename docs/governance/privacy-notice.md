@@ -1,13 +1,13 @@
 # Privacy information
 
-Status: **public notice dated 04/11/2026 prepared for release** (branch `feat/play-store-app-side`). The published text is `src/Vlms.Web/Components/Pages/Privacy.razor`; the copy at the end of this file must be kept identical to it (change both together). Before release: Philip confirms the publisher name "Philip Thomas" matches his Play developer name, creates `admin@varangians.co.uk`, and defines who the "data sharing" consent covers.
+Status: **public notice dated 04/11/2026 prepared for release** (branch `feat/play-store-app-side`). The published text is `src/Vlms.Web/Components/Pages/Privacy.razor`; the copy at the end of this file must be kept identical to it (change both together). Before release: Philip confirms the publisher name "Philip Thomas" matches his Play developer name, defines who the "data sharing" consent covers.
 
 The notice describes the data collected, purposes, lawful bases, access, service providers, locations, retention, rights, cookies, account deletion, complaints and contact details. It uses the confirmed organisational description: **Shrewsbury Orthodox Church operates a chapter of Varangians.** It is public (decision of 04/11/2026 below, reversing the sign-in restriction of 29/10/2026) and linked from the footer of every page, Sign in, Register and the child application.
 
 ## Decisions 04/11/2026 (Philip)
 
 - **The notice is public again.** Reverses the 29/10/2026 decision to restrict it to signed-in users. Reasons: Google Play requires a privacy policy at a public, non-geofenced URL linked from the listing and the app (https://support.google.com/googleplay/android-developer/answer/10144311), and UK GDPR Art 13 requires the information at the point of collection, which includes the public Register page. The notice describes categories of data and how access is controlled, not the data itself.
-- **Contact address:** `admin@varangians.co.uk`, a Microsoft 365 shared mailbox (replaces `info@shrewsburyorthodox.com` in the notice). Created as a user with `varangians.co.uk` as its domain, then converted to shared and unlicensed, as `alerts@` was. The admin centre's "Add a shared mailbox" was not used, because it adds an alias on the church domain (Philip, 04/11/2026).
+- **Contact address:** `admin@varangians.co.uk`, a Microsoft 365 shared mailbox (replaces `info@shrewsburyorthodox.com` in the notice). Created as a user with `varangians.co.uk` as its domain, then converted to shared and unlicensed, as `alerts@` was; created 04/11/2026. The admin centre's "Add a shared mailbox" was not used, because it adds an alias on the church domain (Philip, 04/11/2026).
 - **Play developer account:** personal (Philip), publishing for the church; the notice says so.
 - **Account deletion:** requested by the user, confirmed by an Admin through the retention deletion and its keep-rules.
 - **Play target audience:** includes children under 13 (Google Play Families policy).
