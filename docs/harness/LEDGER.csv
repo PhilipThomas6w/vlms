@@ -275,3 +275,5 @@ date_utc,session,actor,model,head,head_advanced,input,cache_write,cache_read,out
 2026-11-03T21:00:52Z,00aca512-e2c8-49f1-bf23-32cd2de7dec1,main,claude-opus-5-5,2fbb6d6,false,18,6412,928453,4366,0.3244,pass
 2026-11-03T21:04:55Z,00aca512-e2c8-49f1-bf23-32cd2de7dec1,main,claude-opus-5-5,2fbb6d6,false,10,3106,485137,1057,0.1431,pass
 2026-11-03T21:22:32Z,00aca512-e2c8-49f1-bf23-32cd2de7dec1,main,claude-opus-5-5,2fbb6d6,false,66,77358,5324285,35049,2.3850,pass
+2026-11-03T21:43:40Z,00aca512-e2c8-49f1-bf23-32cd2de7dec1,main,claude-opus-5-5,d9dd94e,true,10,1964,811580,2420,0.2265,skipped
+2026-11-04T01:43:50Z,00aca512-e2c8-49f1-bf23-32cd2de7dec1,main,claude-opus-5-5,d9dd94e,false,36,62772,1422406,8340,0.9536,pass
