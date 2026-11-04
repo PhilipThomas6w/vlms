@@ -45,7 +45,19 @@ public sealed class AccessEndToEndTests : IDisposable
 
         Assert.Contains("href=\"/privacy\"", await client.GetStringAsync("/"));
         Assert.Contains("href=\"privacy\"", await client.GetStringAsync("/Account/Login"));
-        Assert.Contains("href=\"privacy\"", await client.GetStringAsync("/Account/Register"));
+        var register = await client.GetStringAsync("/Account/Register");
+        Assert.Contains("href=\"privacy\"", register);
+
+        // Responsibility model (Philip, 04/11/2026; governance/privacy-notice.md): Varangians is a club, each
+        // chapter's parish is responsible for its own chapter, and the notice is channel-neutral. No single
+        // parish charity, charity number or store developer name belongs in the platform-wide wording.
+        foreach (var page in new[] { body, register })
+        {
+            Assert.DoesNotContain("Shrewsbury", page);
+            Assert.DoesNotContain("1166735", page);
+            Assert.DoesNotContain("SixWings", page);
+        }
+        Assert.Contains("data protection policies", body);
     }
 
     [Theory]

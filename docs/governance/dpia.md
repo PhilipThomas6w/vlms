@@ -35,6 +35,8 @@ The processing is small in scale (tens of people per role) and is not profiling,
 
 ## 2. The processing
 
+**Superseded 04/11/2026 (Philip):** Varangians is a club, not a legal entity; each chapter's parish (a registered charity) is responsible for its own chapter's data, and Philip Luke Thomas, as system administrator, for the platform, which is provided to the parishes free of charge. Full model: `governance/privacy-notice.md` "Responsibility model". The statement below is kept as approved on 27/10/2026 and is no longer current.
+
 **Controller:** Shrewsbury Orthodox Church, a charitable incorporated organisation (CIO) registered with the Charity Commission for England and Wales, charity no. 1166735 (Safeguarding Policy v4, adopted 14/10/2026). A CIO has its own legal personality, so the CIO is the controller and its trustees act for it ([ICO: what are controllers and processors](https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/controllers-and-processors/controllers-and-processors/what-are-controllers-and-processors/)). Philip Thomas (Secretary and Safeguarding Trustee, web administrator, and a Teacher) is responsible for data protection on the trustees' behalf (Philip, 23/10/2026; Philip stated "I am the data controller", wording to confirm against the CIO position above). Shrewsbury Orthodox Church operates a chapter of Varangians. Varangians is not merely the church's youth club.
 
 **Purpose:** run the youth programme: track lesson completions and rank progression, issue certificates and badges, manage the curriculum, hold annual parental consent and volunteers' DBS checks, keep parents informed, and report on progress and disengagement.

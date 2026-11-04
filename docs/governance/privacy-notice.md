@@ -1,26 +1,35 @@
 # Privacy information
 
-Status: **public notice dated 04/11/2026 prepared for release** (branch `feat/play-store-app-side`). The published text is `src/Vlms.Web/Components/Pages/Privacy.razor`; the copy at the end of this file must be kept identical to it (change both together). All pre-release confirmations given 04/11/2026; ready to release.
+Status: **corrected 04/11/2026** after release `vlms-2026.11.04` named the wrong controller. The published text is `src/Vlms.Web/Components/Pages/Privacy.razor`; the copy at the end of this file must be kept identical to it (change both together).
 
-The notice describes the data collected, purposes, lawful bases, access, service providers, locations, retention, rights, cookies, account deletion, complaints and contact details. It uses the confirmed organisational description: **Shrewsbury Orthodox Church operates a chapter of Varangians.** It is public (decision of 04/11/2026 below, reversing the sign-in restriction of 29/10/2026) and linked from the footer of every page, Sign in, Register and the child application.
+The notice describes the data collected, purposes, lawful bases, access, service providers, locations, retention, rights, cookies, account deletion, complaints and contact details. Who is responsible: see "Responsibility model" below.
 
 ## Decisions 04/11/2026 (Philip)
 
 - **The notice is public again.** Reverses the 29/10/2026 decision to restrict it to signed-in users. Reasons: Google Play requires a privacy policy at a public, non-geofenced URL linked from the listing and the app (https://support.google.com/googleplay/android-developer/answer/10144311), and UK GDPR Art 13 requires the information at the point of collection, which includes the public Register page. The notice describes categories of data and how access is controlled, not the data itself.
-- **Publisher name:** the personal Play Console account (account ID 6107156708614739384) has the developer name **SixWings**, which is what the store listing shows. The notice names both, "under the developer name SixWings by Philip Luke Thomas", so a reader can connect the listing to the church (Philip, 04/11/2026).
 - **Contact address:** `admin@varangians.co.uk`, a Microsoft 365 shared mailbox (replaces `info@shrewsburyorthodox.com` in the notice). Created as a user with `varangians.co.uk` as its domain, then converted to shared and unlicensed, as `alerts@` was; created 04/11/2026. The admin centre's "Add a shared mailbox" was not used, because it adds an alias on the church domain (Philip, 04/11/2026).
-- **Play developer account:** personal (Philip), publishing for the church; the notice says so.
+- **Play developer account:** personal (Philip; developer name SixWings, account ID 6107156708614739384). The notice is channel-neutral (website and apps, Android now and iPhone later) and does not name the store developer.
 - **Account deletion:** requested by the user, confirmed by an Admin through the retention deletion and its keep-rules.
 - **Play target audience:** includes children under 13 (Google Play Families policy).
 - **Complaints:** the Data (Use and Access) Act 2025 duty to handle data protection complaints is in force from 19/06/2026 (https://ico.org.uk/about-the-ico/media-centre/news-and-blogs/2026/06/new-data-protection-complaints-law-now-in-force/); the notice asks people to complain to the church first, with the ICO as the next step.
 - **Data-sharing consent (Philip, 04/11/2026):** covers sharing a child's name, rank and progress with the office of the Archdiocese of Thyateira and Great Britain, for national statistics. Use within the child's chapter (teachers, Admins, Safeguarding Officers) is ordinary running of the chapter under legitimate interests and is not part of this consent. The consent checkbox now names the recipient and the data. Sharing with the Archdiocese happens outside the app; whoever prepares it includes only children whose current consent record says yes. Counts that identify no one need no consent.
 - **National administrator access:** Philip said National Admins can see all data. As built (`adr/0010` §4), the National Administrator role sees counts only, with no child records unless it also holds a chapter role, and the notice says that. If full national access is wanted, that is a design change to `adr/0010` and the notice must change with it.
 
+## Responsibility model (Philip, 04/11/2026)
+
+Supersedes every earlier statement, in this file and elsewhere, that Shrewsbury Orthodox Church CIO (charity 1166735) is responsible for the platform's data.
+
+- **Varangians** is a national Orthodox youth club with chapters in parishes. It is not a legal entity, a registered charity or a company; it is the name of the club.
+- **Each chapter is run by its parish, which is a registered charity.** The platform is a service provided to those parishes free of charge. Each parish is responsible for the information its chapter's staff collect from families and record in the platform; its staff follow this notice and their parish's own safeguarding and data protection policies. Shrewsbury Orthodox Church is one such parish, responsible for its own chapter only.
+- **The platform:** Philip Luke Thomas, as sole system administrator, is responsible for the platform handling personal information lawfully and securely. In the app he sees children's records only in a chapter where he holds a role (Shrewsbury). He holds server and database access for maintenance, backup and security only; the notice says that access is not used to view chapter records.
+- **Contact:** `admin@varangians.co.uk`; chapter questions may also go to the chapter administrator. No postal address; no Data Protection Officer.
+- **ICO fee (Philip, 04/11/2026):** not paid. Philip's reasons: Varangians is not a business, charges nothing for any service, and the platform is a free service to parish charities. Claude flagged that the not-for-profit exemption is narrow and pointed to the ICO self-assessment; decision stands with Philip.
+- **Open (not blocking):** with parishes responsible for their chapters and Philip providing the platform to them, UK GDPR Art 28 expects a short written agreement between each parish and the platform provider. To draft when a second chapter goes live.
+
 ## Review record
 
-- Controller identity and contact: Shrewsbury Orthodox Church CIO, charity number 1166735; `info@shrewsburyorthodox.com`; Greek Orthodox Church, Dove Close, Shrewsbury, SY2 6FB.
 - Data and purposes: checked against the registration, child application, consent, programme, staff and safeguarding workflows.
-- Lawful bases and special-category conditions: follow the positions recorded in `governance/dpia.md`, approved by Philip Thomas on 27/10/2026.
+- Lawful bases and special-category conditions: follow the positions recorded in `governance/dpia.md`, approved by Philip Thomas on 27/10/2026 (its controller statement is superseded by the responsibility model above).
 - Retention and backups: checked against `governance/security-compliance.md`, `operations/monitoring.md` and `operations/dr-bcp.md`; R2 lifecycle retention is 35 days.
 - Review at least annually and whenever data collection, access, providers or retention changes. The DPIA's outstanding review of parent self-service applications and teachers' read access to sensitive details must also be completed and signed off; do not treat publication of this notice as that DPIA review.
 
@@ -30,11 +39,18 @@ The notice is intended to be understandable to adult users and older children. T
 
 **Last updated: 4 November 2026**
 
-Shrewsbury Orthodox Church operates a chapter of Varangians. Shrewsbury Orthodox Church is a charitable incorporated organisation (charity number 1166735) and is responsible for the personal information described here. This notice covers the Varangians website and the Varangians app on Google Play, which is published under the developer name SixWings by Philip Luke Thomas, the church's volunteer system administrator, on the church's behalf.
+### Who we are
+
+Varangians is a national Orthodox youth club with chapters in parishes across Great Britain. It is not itself a registered charity or company. Each chapter is run by its parish, which is a registered charity, and the platform is provided to those parishes free of charge. This notice covers the Varangians website and the Varangians apps.
+
+### Who is responsible for your information
+
+- **The platform:** Philip Luke Thomas, the Varangians system administrator, runs the website and apps and is responsible for making sure the platform handles personal information lawfully and securely.
+- **Each chapter:** a chapter is run by staff of its parish. The parish is responsible for the information its staff collect from families and record in the platform. Its staff follow this notice and their parish's own safeguarding and data protection policies.
 
 ### Who to contact
 
-For questions about your information, to exercise your data protection rights or to make a complaint, contact Shrewsbury Orthodox Church at [admin@varangians.co.uk](mailto:admin@varangians.co.uk), or write to Greek Orthodox Church, Dove Close, Shrewsbury, SY2 6FB. The church has not appointed a Data Protection Officer.
+For questions about your information, to exercise your data protection rights or to make a complaint, email [admin@varangians.co.uk](mailto:admin@varangians.co.uk). Questions about a chapter's records can also go to your chapter administrator. Varangians has not appointed a Data Protection Officer.
 
 ### What information we use and why
 
@@ -45,7 +61,7 @@ For questions about your information, to exercise your data protection rights or
 - **Staff and volunteers:** names, email addresses, chapter roles and staff status. Authorised administrators and safeguarding officers record DBS check status, check and expiry dates and certificate number. The app does not store a copy of a DBS certificate.
 - **Security and service records:** records of who accessed sensitive safeguarding information and when, plus technical logs such as IP address, browser details, requests made to the site and email delivery records. We use these to protect accounts and information, investigate incidents and keep the service working.
 
-Because Varangians is a programme of the Orthodox Church, taking part may indicate a person's religious belief. We treat that as sensitive information in the same way as health information.
+Because Varangians is an Orthodox youth club, taking part may indicate a person's religious belief. We treat that as sensitive information in the same way as health information.
 
 We receive account details from the person registering, child and family details from parents or guardians and authorised staff, and programme records from authorised staff or from activity within the app. An authorised safeguarding officer or administrator records DBS details after checking the certificate.
 
@@ -53,9 +69,9 @@ You do not have to give us information, but we cannot create an account without 
 
 ### Who can see information
 
-Access is limited by role and chapter. Parents and guardians can see information about children linked to them. Students can see their own programme information. Teachers can see the programme information needed to run their chapter and, when they have set up two-factor authentication, can read children's emergency, medical, dietary and special educational needs details. Chapter administrators and safeguarding officers can review applications and access the sensitive information needed for their responsibilities; two-factor authentication is required. DBS records are restricted to administrators and safeguarding officers. The national administrator, who sets up chapters and their administrators, sees only counts of students by chapter and rank, not individual records, unless they also hold a role in that chapter. Access to sensitive information is recorded. The church's system administrator can access the server and database to maintain and back up the service.
+Access is limited by role and chapter. Parents and guardians can see information about children linked to them. Students can see their own programme information. Teachers can see the programme information needed to run their chapter and, when they have set up two-factor authentication, can read children's emergency, medical, dietary and special educational needs details. Chapter administrators and safeguarding officers can review applications and access the sensitive information needed for their responsibilities; two-factor authentication is required. DBS records are restricted to administrators and safeguarding officers. The national administrator, who sets up chapters and their administrators, sees only counts of students by chapter and rank, not individual records, unless they also hold a role in that chapter. Access to sensitive information is recorded. The system administrator can access the server and database only to maintain, back up and secure the service; this access is not used to view chapter records.
 
-Information is processed for Shrewsbury Orthodox Church by DigitalOcean (the application and database hosted in London), Cloudflare (off-site backup storage in the European Union) and Microsoft (email sent through the church's Microsoft 365 service). Hostinger provides domain name services. These providers process information under their service and data-protection terms. The UK recognises the European Union as giving adequate protection to personal information; where a provider handles information in another country, it does so under the safeguards in its data-protection terms.
+The platform uses DigitalOcean (the application and database hosted in London), Cloudflare (off-site backup storage in the European Union) and Microsoft (sending email). Hostinger provides domain name services. These providers process information under their service and data-protection terms. The UK recognises the European Union as giving adequate protection to personal information; where a provider handles information in another country, it does so under the safeguards in its data-protection terms.
 
 If a parent ticks the data-sharing consent, we may share the child's name, rank and progress with the office of the Archdiocese of Thyateira and Great Britain, for statistics about the programme. Without it, we share only counts that do not identify anyone. We may share information with the police, children's services or emergency services where the law requires it or where it is needed to protect a child from harm. We do not sell personal information, and we do not use it for advertising. The website and app contain no advertising, analytics or tracking.
 
@@ -63,7 +79,7 @@ If a parent ticks the data-sharing consent, we may share the child's name, rank 
 
 For ordinary account, family, programme, staff and security records, we rely on our legitimate interests in operating Varangians chapters, keeping children safe and administering the programme. We have considered the effect on individuals and limit access and use to those purposes. We rely on consent for activities where a parent is asked to choose, such as photographs and media, transport, off-site trips and data sharing. You can change or withdraw those choices by contacting your chapter administrator; this does not affect earlier use made while consent was in place.
 
-Health, religious belief and other sensitive information is used only where needed for the care and safety of members of the church's religious community, under the applicable data-protection conditions for not-for-profit bodies with a religious aim. DBS information is used for safeguarding and volunteer checks under the applicable conditions for not-for-profit bodies and safeguarding children. We do not publish these details or include them in ordinary email notifications.
+Health, religious belief and other sensitive information is used only where needed for the care and safety of members of each parish's religious community, under the applicable data-protection conditions for not-for-profit bodies with a religious aim. DBS information is used for safeguarding and volunteer checks under the applicable conditions for not-for-profit bodies and safeguarding children. We do not publish these details or include them in ordinary email notifications.
 
 ### Cookies and storage on your device
 
@@ -89,7 +105,7 @@ To ask for your Varangians account and its information to be deleted, email [adm
 
 ### Your choices and rights
 
-You can ask for a copy of your personal information, ask us to correct it, or ask us to erase it, restrict its use or provide it in a portable form where the law gives you that right. You can object to use based on our legitimate interests; we will stop unless we have compelling grounds to continue or need the information for legal claims. Some rights depend on the reason we use the information and may be limited where safeguarding or another legal obligation applies. Contact the church using the details above.
+You can ask for a copy of your personal information, ask us to correct it, or ask us to erase it, restrict its use or provide it in a portable form where the law gives you that right. You can object to use based on our legitimate interests; we will stop unless we have compelling grounds to continue or need the information for legal claims. Some rights depend on the reason we use the information and may be limited where safeguarding or another legal obligation applies. Contact Varangians using the details above.
 
 **You can withdraw consent at any time** for an activity choice, by contacting your chapter administrator. This will not affect processing that took place before you withdrew it.
 

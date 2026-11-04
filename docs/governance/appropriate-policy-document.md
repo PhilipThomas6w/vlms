@@ -2,6 +2,8 @@
 
 Status: **adopted by Philip Thomas (Secretary and Safeguarding Trustee), 27/10/2026**. Review: annually with the DPIA (`governance/dpia.md`), next 27/10/2027.
 
+**Superseded 04/11/2026 (Philip):** Varangians is a club, not a legal entity; each chapter's parish (a registered charity) is responsible for its own chapter's data, and Philip Luke Thomas, as system administrator, for the platform, which is provided to the parishes free of charge. Full model: `governance/privacy-notice.md` "Responsibility model". The statement below is kept as approved on 27/10/2026 and is no longer current.
+
 This document is required by the Data Protection Act 2018 Schedule 1 Part 4 where a Schedule 1 condition needs one. It covers the Varangians app run by Shrewsbury Orthodox Church (a CIO, charity no. 1166735), the controller. Its content follows the ICO's guidance: the conditions relied on, how each principle is met, and retention and deletion ([ICO: appropriate policy document](https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/lawful-basis/special-category-data/what-are-the-rules-on-special-category-data/)).
 
 ## 1. Data and conditions
