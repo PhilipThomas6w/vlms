@@ -23,6 +23,15 @@ Copy to the server's home directory: `scp -r artifacts/web artifacts/jobs [artif
 
 ## 3. Deploy (on the server)
 
+**Code-only release (no migrations): use the script.** From PowerShell on the development machine, with no pasting into the SSH session (04/11/2026: a multi-line paste left the shell at a `>` continuation prompt and nothing ran, and files copied from Windows arrive with modes such as `drwx---rwx`; the script sets dirs 0750 and files 0640):
+
+```powershell
+scp deploy/release.sh vlms-prod:~/release/
+ssh -t vlms-prod "sudo bash ~/release/release.sh"
+```
+
+**Release with migrations:** by hand, as below.
+
 ```sh
 # 1. Fresh backup, so a bad migration can be undone by restore
 sudo systemctl start vlms-backup.service && journalctl -u vlms-backup.service -n 5 --no-pager
@@ -38,8 +47,8 @@ sudo install -o root -g root -m 0700 ~/release/efbundle /opt/vlms-migrations/efb
 sudo /opt/vlms-migrations/migrate.sh
 
 # 4. Swap in the new build and start
-sudo rsync -a --delete ~/release/web/  /opt/vlms/web/
-sudo rsync -a --delete ~/release/jobs/ /opt/vlms/jobs/
+sudo rsync -a --delete --chmod=Du=rwx,Dg=rx,Do=,Fu=rw,Fg=r,Fo= ~/release/web/  /opt/vlms/web/
+sudo rsync -a --delete --chmod=Du=rwx,Dg=rx,Do=,Fu=rw,Fg=r,Fo= ~/release/jobs/ /opt/vlms/jobs/
 sudo chown -R vlms:vlms /opt/vlms/web /opt/vlms/jobs
 sudo systemctl start vlms-web.service
 ```
