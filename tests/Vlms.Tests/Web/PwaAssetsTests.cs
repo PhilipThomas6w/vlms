@@ -51,6 +51,42 @@ public class PwaAssetsTests
         }
     }
 
+    /// <summary>
+    /// The Play Store app (Trusted Web Activity, adr/0011) is packaged from this manifest: it needs a stable
+    /// <c>id</c>, PNG icons at 192 and 512 px, and a maskable icon for Android's launcher shapes. Each PNG's
+    /// real pixel size must match the size it is declared at.
+    /// </summary>
+    [Fact]
+    public void Manifest_HasAnId_AndPngIconsForTheAndroidApp_AtTheirDeclaredSizes()
+    {
+        var wwwroot = WwwrootPath();
+        using var document = JsonDocument.Parse(File.ReadAllText(Path.Combine(wwwroot, "manifest.json")));
+        var root = document.RootElement;
+
+        Assert.Equal("/", root.GetProperty("id").GetString());
+
+        var pngs = root.GetProperty("icons").EnumerateArray()
+            .Where(icon => icon.GetProperty("type").GetString() == "image/png")
+            .Select(icon => (
+                Src: icon.GetProperty("src").GetString()!,
+                Sizes: icon.GetProperty("sizes").GetString()!,
+                Purpose: icon.GetProperty("purpose").GetString()!))
+            .ToList();
+
+        Assert.Contains(pngs, icon => icon.Sizes == "192x192" && icon.Purpose == "any");
+        Assert.Contains(pngs, icon => icon.Sizes == "512x512" && icon.Purpose == "any");
+        Assert.Contains(pngs, icon => icon.Sizes == "512x512" && icon.Purpose == "maskable");
+
+        foreach (var icon in pngs)
+        {
+            var bytes = File.ReadAllBytes(Path.Combine(wwwroot, icon.Src.Replace('/', Path.DirectorySeparatorChar)));
+            Assert.True(bytes.Length > 24 && bytes[1] == (byte)'P' && bytes[2] == (byte)'N' && bytes[3] == (byte)'G', $"{icon.Src} is not a PNG");
+            var width = System.Buffers.Binary.BinaryPrimitives.ReadInt32BigEndian(bytes.AsSpan(16, 4));
+            var height = System.Buffers.Binary.BinaryPrimitives.ReadInt32BigEndian(bytes.AsSpan(20, 4));
+            Assert.Equal(icon.Sizes, $"{width}x{height}");
+        }
+    }
+
     [Fact]
     public void ServiceWorker_FileExists_AndIsNotEmpty()
     {
