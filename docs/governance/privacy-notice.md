@@ -7,7 +7,7 @@ The notice describes the data collected, purposes, lawful bases, access, service
 ## Decisions 04/11/2026 (Philip)
 
 - **The notice is public again.** Reverses the 29/10/2026 decision to restrict it to signed-in users. Reasons: Google Play requires a privacy policy at a public, non-geofenced URL linked from the listing and the app (https://support.google.com/googleplay/android-developer/answer/10144311), and UK GDPR Art 13 requires the information at the point of collection, which includes the public Register page. The notice describes categories of data and how access is controlled, not the data itself.
-- **Contact address:** `admin@varangians.co.uk`, a Microsoft 365 shared mailbox (replaces `info@shrewsburyorthodox.com` in the notice).
+- **Contact address:** `admin@varangians.co.uk`, a Microsoft 365 shared mailbox (replaces `info@shrewsburyorthodox.com` in the notice). Created as a user with `varangians.co.uk` as its domain, then converted to shared and unlicensed, as `alerts@` was. The admin centre's "Add a shared mailbox" was not used, because it adds an alias on the church domain (Philip, 04/11/2026).
 - **Play developer account:** personal (Philip), publishing for the church; the notice says so.
 - **Account deletion:** requested by the user, confirmed by an Admin through the retention deletion and its keep-rules.
 - **Play target audience:** includes children under 13 (Google Play Families policy).
