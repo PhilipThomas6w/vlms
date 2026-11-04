@@ -7,7 +7,7 @@ The notice describes the data collected, purposes, lawful bases, access, service
 ## Decisions 04/11/2026 (Philip)
 
 - **The notice is public again.** Reverses the 29/10/2026 decision to restrict it to signed-in users. Reasons: Google Play requires a privacy policy at a public, non-geofenced URL linked from the listing and the app (https://support.google.com/googleplay/android-developer/answer/10144311), and UK GDPR Art 13 requires the information at the point of collection, which includes the public Register page. The notice describes categories of data and how access is controlled, not the data itself.
-- **Publisher name:** "Philip Luke Thomas", his legal name, which is also the developer name for the personal Play Console account (Philip, 04/11/2026).
+- **Publisher name:** the personal Play Console account (account ID 6107156708614739384) has the developer name **SixWings**, which is what the store listing shows. The notice names both, "under the developer name SixWings by Philip Luke Thomas", so a reader can connect the listing to the church (Philip, 04/11/2026).
 - **Contact address:** `admin@varangians.co.uk`, a Microsoft 365 shared mailbox (replaces `info@shrewsburyorthodox.com` in the notice). Created as a user with `varangians.co.uk` as its domain, then converted to shared and unlicensed, as `alerts@` was; created 04/11/2026. The admin centre's "Add a shared mailbox" was not used, because it adds an alias on the church domain (Philip, 04/11/2026).
 - **Play developer account:** personal (Philip), publishing for the church; the notice says so.
 - **Account deletion:** requested by the user, confirmed by an Admin through the retention deletion and its keep-rules.
@@ -29,7 +29,7 @@ The notice is intended to be understandable to adult users and older children. T
 
 **Last updated: 4 November 2026**
 
-Shrewsbury Orthodox Church operates a chapter of Varangians. Shrewsbury Orthodox Church is a charitable incorporated organisation (charity number 1166735) and is responsible for the personal information described here. This notice covers the Varangians website and the Varangians app on Google Play, which is published by Philip Luke Thomas, the church's volunteer system administrator, on the church's behalf.
+Shrewsbury Orthodox Church operates a chapter of Varangians. Shrewsbury Orthodox Church is a charitable incorporated organisation (charity number 1166735) and is responsible for the personal information described here. This notice covers the Varangians website and the Varangians app on Google Play, which is published under the developer name SixWings by Philip Luke Thomas, the church's volunteer system administrator, on the church's behalf.
 
 ### Who to contact
 
