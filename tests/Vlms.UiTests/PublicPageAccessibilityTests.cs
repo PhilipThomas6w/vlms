@@ -29,6 +29,7 @@ public sealed class PublicPageAccessibilityTests(BrowserFixture fixture)
         "/Account/ResendEmailConfirmation",
         "/Account/ResetPassword?code=ui-test",
         "/not-found",
+        "/privacy",
     ];
 
     private static readonly Lazy<KnownViolations> KnownBaseline = new(KnownViolations.Load);
