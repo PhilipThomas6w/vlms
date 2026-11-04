@@ -1,6 +1,6 @@
 # Privacy information
 
-Status: **public notice dated 04/11/2026 prepared for release** (branch `feat/play-store-app-side`). The published text is `src/Vlms.Web/Components/Pages/Privacy.razor`; the copy at the end of this file must be kept identical to it (change both together). Before release: defines who the "data sharing" consent covers.
+Status: **public notice dated 04/11/2026 prepared for release** (branch `feat/play-store-app-side`). The published text is `src/Vlms.Web/Components/Pages/Privacy.razor`; the copy at the end of this file must be kept identical to it (change both together). All pre-release confirmations given 04/11/2026; ready to release.
 
 The notice describes the data collected, purposes, lawful bases, access, service providers, locations, retention, rights, cookies, account deletion, complaints and contact details. It uses the confirmed organisational description: **Shrewsbury Orthodox Church operates a chapter of Varangians.** It is public (decision of 04/11/2026 below, reversing the sign-in restriction of 29/10/2026) and linked from the footer of every page, Sign in, Register and the child application.
 
@@ -13,7 +13,8 @@ The notice describes the data collected, purposes, lawful bases, access, service
 - **Account deletion:** requested by the user, confirmed by an Admin through the retention deletion and its keep-rules.
 - **Play target audience:** includes children under 13 (Google Play Families policy).
 - **Complaints:** the Data (Use and Access) Act 2025 duty to handle data protection complaints is in force from 19/06/2026 (https://ico.org.uk/about-the-ico/media-centre/news-and-blogs/2026/06/new-data-protection-complaints-law-now-in-force/); the notice asks people to complain to the church first, with the ICO as the next step.
-- **Open:** who the "data sharing" consent covers is not defined anywhere in the requirements or the app (Art 13(1)(e) recipients); Philip to define.
+- **Data-sharing consent (Philip, 04/11/2026):** covers sharing a child's name, rank and progress with the office of the Archdiocese of Thyateira and Great Britain, for national statistics. Use within the child's chapter (teachers, Admins, Safeguarding Officers) is ordinary running of the chapter under legitimate interests and is not part of this consent. The consent checkbox now names the recipient and the data. Sharing with the Archdiocese happens outside the app; whoever prepares it includes only children whose current consent record says yes. Counts that identify no one need no consent.
+- **National administrator access:** Philip said National Admins can see all data. As built (`adr/0010` §4), the National Administrator role sees counts only, with no child records unless it also holds a chapter role, and the notice says that. If full national access is wanted, that is a design change to `adr/0010` and the notice must change with it.
 
 ## Review record
 
@@ -52,11 +53,11 @@ You do not have to give us information, but we cannot create an account without 
 
 ### Who can see information
 
-Access is limited by role and chapter. Parents and guardians can see information about children linked to them. Students can see their own programme information. Teachers can see the programme information needed to run their chapter and, when they have set up two-factor authentication, can read children's emergency, medical, dietary and special educational needs details. Chapter administrators and safeguarding officers can review applications and access the sensitive information needed for their responsibilities; two-factor authentication is required. DBS records are restricted to administrators and safeguarding officers. Access to sensitive information is recorded. The church's system administrator can access the server and database to maintain and back up the service.
+Access is limited by role and chapter. Parents and guardians can see information about children linked to them. Students can see their own programme information. Teachers can see the programme information needed to run their chapter and, when they have set up two-factor authentication, can read children's emergency, medical, dietary and special educational needs details. Chapter administrators and safeguarding officers can review applications and access the sensitive information needed for their responsibilities; two-factor authentication is required. DBS records are restricted to administrators and safeguarding officers. The national administrator, who sets up chapters and their administrators, sees only counts of students by chapter and rank, not individual records, unless they also hold a role in that chapter. Access to sensitive information is recorded. The church's system administrator can access the server and database to maintain and back up the service.
 
 Information is processed for Shrewsbury Orthodox Church by DigitalOcean (the application and database hosted in London), Cloudflare (off-site backup storage in the European Union) and Microsoft (email sent through the church's Microsoft 365 service). Hostinger provides domain name services. These providers process information under their service and data-protection terms. The UK recognises the European Union as giving adequate protection to personal information; where a provider handles information in another country, it does so under the safeguards in its data-protection terms.
 
-We may share information with the police, children's services or emergency services where the law requires it or where it is needed to protect a child from harm. We do not sell personal information, and we do not use it for advertising. The website and app contain no advertising, analytics or tracking.
+If a parent ticks the data-sharing consent, we may share the child's name, rank and progress with the office of the Archdiocese of Thyateira and Great Britain, for statistics about the programme. Without it, we share only counts that do not identify anyone. We may share information with the police, children's services or emergency services where the law requires it or where it is needed to protect a child from harm. We do not sell personal information, and we do not use it for advertising. The website and app contain no advertising, analytics or tracking.
 
 ### Our reasons for using information
 
