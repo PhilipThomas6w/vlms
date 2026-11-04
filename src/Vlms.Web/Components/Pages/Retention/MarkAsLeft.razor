@@ -54,7 +54,7 @@ else
                 <tr>
                     <td data-label="Student">@student.Name</td>
                     <td data-label="Enrolment date">@student.EnrolmentDate.ToString("d MMMM yyyy")</td>
-                    <td><button class="btn--secondary" aria-label="@($"Mark {student.Name} as left")" @onclick="() => MarkStudentInactiveAsync(student.Id)">Mark as left</button></td>
+                    <td><button class="btn--secondary" aria-label="@($"Mark as left: {student.Name}")" @onclick="() => MarkStudentInactiveAsync(student.Id)">Mark as left</button></td>
                 </tr>
             }
         </tbody>

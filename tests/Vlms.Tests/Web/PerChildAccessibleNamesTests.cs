@@ -76,7 +76,8 @@ public class PerChildAccessibleNamesTests
     {
         var content = ReadPage("Retention", "MarkAsLeft.razor");
 
-        Assert.Contains("aria-label=\"@($\"Mark {student.Name} as left\")\"", content);
+        Assert.Contains("aria-label=\"@($\"Mark as left: {student.Name}\")\"", content);
+        Assert.DoesNotContain("Mark {student.Name} as left", content);
         Assert.Contains("aria-label=\"@($\"Mark Inactive: {member.DisplayName}\")\"", content);
         Assert.Contains("aria-label=\"@($\"Reactivate {member.DisplayName}\")\"", content);
     }
