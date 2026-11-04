@@ -24,6 +24,8 @@
                         {
                             <a href="/Account/Manage/TwoFactorAuthentication"><Icon Name="lock" /> Two-factor authentication</a>
                             <a href="/Account/Manage/ChangePassword"><Icon Name="key" /> Change password</a>
+                            @* Google Play account deletion policy: a prominent in-app path, here linking to the web request (adr/0011, governance/privacy-notice.md). *@
+                            <a href="/privacy#delete-account"><Icon Name="user-minus" /> Delete account</a>
                         }
                         <form action="/Account/Logout" method="post">
                             <AntiforgeryToken />

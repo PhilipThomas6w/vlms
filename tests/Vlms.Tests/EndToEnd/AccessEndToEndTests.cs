@@ -1,3 +1,4 @@
+using System.IO;
 using System.Net;
 using Vlms.Domain;
 using Vlms.Infrastructure.Storage;
@@ -58,6 +59,21 @@ public sealed class AccessEndToEndTests : IDisposable
             Assert.DoesNotContain("SixWings", page);
         }
         Assert.Contains("data protection policies", body);
+
+        // Google Play: the account menu links every email account to the deletion request (in-app path).
+        var layout = File.ReadAllText(Path.Combine(RepoRootForSource(), "src", "Vlms.Web", "Components", "Layout", "MainLayout.razor"));
+        Assert.Contains("<a href=\"/privacy#delete-account\"><Icon Name=\"user-minus\" /> Delete account</a>", layout);
+    }
+
+    private static string RepoRootForSource()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Vlms.slnx")))
+        {
+            directory = directory.Parent;
+        }
+        Assert.NotNull(directory);
+        return directory!.FullName;
     }
 
     [Theory]
