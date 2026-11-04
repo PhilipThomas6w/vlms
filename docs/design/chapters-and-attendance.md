@@ -17,7 +17,7 @@ Each parish is a separate charity with its own safeguarding policy and its own S
 - **A. Each parish is the controller for its own chapter's members; whoever runs the platform is a processor** for them, under a written data processing agreement with each parish. This matches how safeguarding is already organised (per parish), and keeps each parish answerable for its own children's data.
 - **B. A national Varangians body is the controller for everyone.** Simpler on paper, but it needs a legal entity that doesn't exist yet, and it would sit awkwardly with parish safeguarding policies.
 
-**Draft: A.** Today the platform is funded by Shrewsbury Orthodox Church, so Shrewsbury would be both a controller (for its own chapter) and the platform's operator (processor for the others). Whether that suits the trustees, or whether a separate national body should run the platform later, is a question for them. The DPIA and privacy notice change either way.
+**Draft: A.** The platform is provided free of charge to the parishes and is not funded by any parish (Philip, 04/11/2026; the earlier wording here, that Shrewsbury Orthodox Church funds it, was wrong). Whether that suits the trustees, or whether a separate national body should run the platform later, is a question for them. The DPIA and privacy notice change either way.
 
 ### 2.2 How chapters are kept apart
 
