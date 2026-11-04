@@ -55,10 +55,13 @@ $componentsRoot = Join-Path $repoRoot "src/Vlms.Web/Components"
 # (STATE.md "Password reset + Identity hardening"): reached by someone who can't sign in yet. Each
 # answers identically for unknown emails, and the reset/confirm pages act only on a single-use,
 # expiring code that was emailed to the account's confirmed address (AccountEmailService).
+# Privacy.razor (Philip, 04/11/2026, docs/governance/privacy-notice.md): the privacy notice must be public
+# for Google Play and UK GDPR Art 13. Static text only: no injected services, no parameters, no data.
 $allowListedPages = @(
     "Home.razor", "Error.razor", "NotFound.razor",
     "Login.razor", "Register.razor", "LoginWith2fa.razor", "LoginWithRecoveryCode.razor", "AcceptInvite.razor",
-    "ForgotPassword.razor", "ResetPassword.razor", "ConfirmEmail.razor", "ResendEmailConfirmation.razor"
+    "ForgotPassword.razor", "ResetPassword.razor", "ConfirmEmail.razor", "ResendEmailConfirmation.razor",
+    "Privacy.razor"
 )
 $pageFiles = Get-ChildItem -Path $componentsRoot -Recurse -Filter "*.razor"
 
@@ -244,6 +247,8 @@ $hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Web/ChapterSwitchEndpoin
 $hashedFiles += Get-ChildItem (Join-Path $repoRoot "src/Vlms.Infrastructure/Calendar") -Filter "*.cs"
 $hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Web/CalendarFeedEndpoint.cs")
 $hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Web/HealthEndpoint.cs")
+# Play Store app (adr/0011): the anonymous Digital Asset Links statement, built from configuration only.
+$hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Web/AssetLinksEndpoint.cs")
 # FR-006/FR-024 lesson library and app-hosted lessons (adr/0012): the library role check, the
 # staff-only Teacher's Information, and the file, picture and offline-page endpoints.
 $hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Infrastructure/Curriculum/LessonLibraryService.cs")

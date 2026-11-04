@@ -25,6 +25,29 @@ public sealed class AccessEndToEndTests : IDisposable
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
+    /// <summary>
+    /// The privacy notice is public (Philip, 04/11/2026): Google Play needs a public policy URL and UK GDPR
+    /// Art 13 needs it where information is collected. It carries the contact address and the account
+    /// deletion section the Play listing links to, and the anonymous pages link to it.
+    /// </summary>
+    [Fact]
+    public async Task Anonymous_privacy_notice_is_200_with_contact_and_deletion_section_and_is_linked()
+    {
+        var client = _factory.CreateBrowser();
+
+        var response = await client.GetAsync("/privacy");
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("mailto:admin@varangians.co.uk", body);
+        Assert.Contains("id=\"delete-account\"", body);
+        Assert.DoesNotContain("info@shrewsburyorthodox.com", body);
+
+        Assert.Contains("href=\"/privacy\"", await client.GetStringAsync("/"));
+        Assert.Contains("href=\"privacy\"", await client.GetStringAsync("/Account/Login"));
+        Assert.Contains("href=\"privacy\"", await client.GetStringAsync("/Account/Register"));
+    }
+
     [Theory]
     [InlineData("/lessons")]
     [InlineData("/students")]

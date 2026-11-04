@@ -1,18 +1,21 @@
 @page "/privacy"
-@attribute [Authorize(Policy = "RequireSignedIn")]
 @layout MainLayout
+
+@* Public by decision (Philip, 04/11/2026; docs/governance/privacy-notice.md): Google Play needs a public
+   privacy policy URL, and UK GDPR Art 13 needs the notice at the point of collection (the public Register
+   page). Static text only: no injected services, no parameters, nothing read or written. *@
 
 <PageTitle>Privacy information – Varangians</PageTitle>
 
 <PageHeader Title="Privacy information" />
 
 <section class="prose">
-    <p><strong>Last updated: 30 October 2026</strong></p>
+    <p><strong>Last updated: 4 November 2026</strong></p>
 
-    <p>Shrewsbury Orthodox Church operates a chapter of Varangians. Shrewsbury Orthodox Church is a charitable incorporated organisation (charity number 1166735) and is responsible for the personal information described here.</p>
+    <p>Shrewsbury Orthodox Church operates a chapter of Varangians. Shrewsbury Orthodox Church is a charitable incorporated organisation (charity number 1166735) and is responsible for the personal information described here. This notice covers the Varangians website and the Varangians app on Google Play, which is published under the developer name SixWings by Philip Luke Thomas, the church's volunteer system administrator, on the church's behalf.</p>
 
     <h2>Who to contact</h2>
-    <p>For questions about your information or to exercise your data protection rights, contact Shrewsbury Orthodox Church at <a href="mailto:info@shrewsburyorthodox.com">info@shrewsburyorthodox.com</a>, or write to Greek Orthodox Church, Dove Close, Shrewsbury, SY2 6FB. The church has not appointed a Data Protection Officer.</p>
+    <p>For questions about your information, to exercise your data protection rights or to make a complaint, contact Shrewsbury Orthodox Church at <a href="mailto:admin@varangians.co.uk">admin@varangians.co.uk</a>, or write to Greek Orthodox Church, Dove Close, Shrewsbury, SY2 6FB. The church has not appointed a Data Protection Officer.</p>
 
     <h2>What information we use and why</h2>
     <ul>
@@ -21,33 +24,46 @@
         <li><strong>Programme records:</strong> lesson progress, rank, attendance, badges and certificates. We use these to support children's participation and record their progress.</li>
         <li><strong>Consent and safety:</strong> parent choices about photographs and media, transport, off-site activities and data sharing; consent status and expiry; emergency contact details; and any emergency medical, dietary or special educational needs information provided. We use these to plan activities, respond to emergencies and safeguard children. The app records photo and media choices; it does not store photographs.</li>
         <li><strong>Staff and volunteers:</strong> names, email addresses, chapter roles and staff status. Authorised administrators and safeguarding officers record DBS check status, check and expiry dates and certificate number. The app does not store a copy of a DBS certificate.</li>
-        <li><strong>Security and service records:</strong> records of who accessed sensitive safeguarding information and when, plus technical logs such as IP address, browser details and requests made to the site. We use these to protect accounts and information, investigate incidents and keep the service working.</li>
+        <li><strong>Security and service records:</strong> records of who accessed sensitive safeguarding information and when, plus technical logs such as IP address, browser details, requests made to the site and email delivery records. We use these to protect accounts and information, investigate incidents and keep the service working.</li>
     </ul>
+    <p>Because Varangians is a programme of the Orthodox Church, taking part may indicate a person's religious belief. We treat that as sensitive information in the same way as health information.</p>
     <p>We receive account details from the person registering, child and family details from parents or guardians and authorised staff, and programme records from authorised staff or from activity within the app. An authorised safeguarding officer or administrator records DBS details after checking the certificate.</p>
+    <p>You do not have to give us information, but we cannot create an account without a name, email address and password, or consider an application without the child's name, date of birth and parent or guardian contact details. Medical, dietary and special educational needs details are optional, but without them we may not be able to care for your child safely.</p>
 
     <h2>Who can see information</h2>
-    <p>Access is limited by role and chapter. Parents and guardians can see information about children linked to them. Students can see their own programme information. Teachers can see the programme information needed to run their chapter and, when they have set up two-factor authentication, can read children's emergency, medical, dietary and special educational needs details. Chapter administrators and safeguarding officers can review applications and access the sensitive information needed for their responsibilities; two-factor authentication is required. DBS records are restricted to administrators and safeguarding officers. Access to sensitive information is recorded.</p>
-    <p>Information is processed for Shrewsbury Orthodox Church by DigitalOcean (the application and database hosted in London), Cloudflare (off-site backup storage in the European Union) and Microsoft (email sent through the church's Microsoft 365 service). Hostinger provides domain name services. These providers process information under their service and data-protection terms. We do not sell personal information or use it for advertising.</p>
+    <p>Access is limited by role and chapter. Parents and guardians can see information about children linked to them. Students can see their own programme information. Teachers can see the programme information needed to run their chapter and, when they have set up two-factor authentication, can read children's emergency, medical, dietary and special educational needs details. Chapter administrators and safeguarding officers can review applications and access the sensitive information needed for their responsibilities; two-factor authentication is required. DBS records are restricted to administrators and safeguarding officers. The national administrator, who sets up chapters and their administrators, sees only counts of students by chapter and rank, not individual records, unless they also hold a role in that chapter. Access to sensitive information is recorded. The church's system administrator can access the server and database to maintain and back up the service.</p>
+    <p>Information is processed for Shrewsbury Orthodox Church by DigitalOcean (the application and database hosted in London), Cloudflare (off-site backup storage in the European Union) and Microsoft (email sent through the church's Microsoft 365 service). Hostinger provides domain name services. These providers process information under their service and data-protection terms. The UK recognises the European Union as giving adequate protection to personal information; where a provider handles information in another country, it does so under the safeguards in its data-protection terms.</p>
+    <p>If a parent ticks the data-sharing consent, we may share the child's name, rank and progress with the office of the Archdiocese of Thyateira and Great Britain, for statistics about the programme. Without it, we share only counts that do not identify anyone. We may share information with the police, children's services or emergency services where the law requires it or where it is needed to protect a child from harm. We do not sell personal information, and we do not use it for advertising. The website and app contain no advertising, analytics or tracking.</p>
 
     <h2>Our reasons for using information</h2>
     <p>For ordinary account, family, programme, staff and security records, we rely on our legitimate interests in operating Varangians chapters, keeping children safe and administering the programme. We have considered the effect on individuals and limit access and use to those purposes. We rely on consent for activities where a parent is asked to choose, such as photographs and media, transport, off-site trips and data sharing. You can change or withdraw those choices by contacting your chapter administrator; this does not affect earlier use made while consent was in place.</p>
-    <p>Health and other sensitive information is used only where needed for the care and safety of members of the church's religious community, under the applicable data-protection conditions for not-for-profit bodies with a religious aim. DBS information is used for safeguarding and volunteer checks under the applicable conditions for not-for-profit bodies and safeguarding children. We do not publish these details or include them in ordinary email notifications.</p>
+    <p>Health, religious belief and other sensitive information is used only where needed for the care and safety of members of the church's religious community, under the applicable data-protection conditions for not-for-profit bodies with a religious aim. DBS information is used for safeguarding and volunteer checks under the applicable conditions for not-for-profit bodies and safeguarding children. We do not publish these details or include them in ordinary email notifications.</p>
+
+    <h2>Cookies and storage on your device</h2>
+    <p>We use only the cookies needed to sign you in, keep your session secure and protect forms from misuse. If you choose "Remember me", a sign-in cookie stays on your device for up to 14 days; a student account stays signed in on its device for up to 90 days after it was last used. If you save lessons for offline use, a copy of those lessons is stored on your device until you remove them. There are no analytics or advertising cookies.</p>
+
+    <h2>How we protect information</h2>
+    <p>The website and app are only available over encrypted connections. Access is limited by role and chapter, staff with access to sensitive information must use two-factor authentication, and access to sensitive information is recorded.</p>
 
     <h2>How long we keep information</h2>
     <ul>
-        <li>Child records, including consent and health-related details, are kept while a child takes part and for up to three years after they leave or graduate. They are then flagged for an administrator to delete.</li>
+        <li>Child records, including consent and health-related details, are kept while a child takes part and for three years after they leave or graduate. Administrators are then prompted each month to delete them.</li>
         <li>Applications, including unsuccessful applications, are kept for up to one year after a decision and then flagged for deletion.</li>
         <li>DBS records are kept until six years after the check expires or the staff member leaves, whichever comes first, and are then flagged for deletion.</li>
         <li>Records of access to sensitive information are kept for six years. Technical server logs are kept for up to 90 days.</li>
-        <li>Account information is kept while the account is needed to provide access or maintain programme records. Contact the church if you believe an account is no longer needed.</li>
+        <li>A parent's account is deleted with their last child's record, unless they hold another role. A former volunteer's account is deleted six years after they stop volunteering, once no other role or record needs it. You can ask for your account to be deleted at any time (see below).</li>
     </ul>
-    <p>Deletion from the live system is carried out by an administrator after the record becomes due. Encrypted off-site database backups are kept for up to 35 days, so a deleted record may remain in a backup until that backup expires. Off-site copies of stored files also expire after 35 days; files still needed by the service are copied again during the next nightly backup. Backups are used only for recovery.</p>
+    <p>Deletion from the live system is carried out by an administrator after the record becomes due. Off-site database backups are sent over encrypted connections and stored encrypted, and are kept for up to 35 days; a copy is also kept on the server for 7 days. A deleted record may therefore remain in a backup until that backup expires. Off-site copies of stored files also expire after 35 days; files still needed by the service are copied again during the next nightly backup. Backups are used only for recovery.</p>
+
+    <h2 id="delete-account">Deleting your account</h2>
+    <p>To ask for your Varangians account and its information to be deleted, email <a href="mailto:admin@varangians.co.uk">admin@varangians.co.uk</a> from the email address on your account. An administrator will confirm your request and tell you the outcome. Some records must be kept after an account is deleted: DBS records and records of access to sensitive information are kept until the end of the periods above, for safeguarding and legal reasons. If you are a parent and also want your child's record deleted, say so in your request.</p>
 
     <h2>Your choices and rights</h2>
     <p>You can ask for a copy of your personal information, ask us to correct it, or ask us to erase it, restrict its use or provide it in a portable form where the law gives you that right. You can object to use based on our legitimate interests; we will stop unless we have compelling grounds to continue or need the information for legal claims. Some rights depend on the reason we use the information and may be limited where safeguarding or another legal obligation applies. Contact the church using the details above.</p>
     <p><strong>You can withdraw consent at any time</strong> for an activity choice, by contacting your chapter administrator. This will not affect processing that took place before you withdrew it.</p>
-    <p>You can also complain to the Information Commissioner's Office (ICO) at <a href="https://ico.org.uk/make-a-complaint/">ico.org.uk/make-a-complaint</a> or call 0303 123 1113.</p>
+    <p>If you are unhappy with how we have used your information, please tell us first at <a href="mailto:admin@varangians.co.uk">admin@varangians.co.uk</a>. We will acknowledge your complaint within 30 days, look into it and tell you the outcome. You can also complain to the Information Commissioner's Office (ICO) at <a href="https://ico.org.uk/make-a-complaint/">ico.org.uk/make-a-complaint</a> or call 0303 123 1113.</p>
 
     <h2>Children and automated decisions</h2>
-    <p>We use children's information to run the programme and keep them safe. We explain collection on the relevant forms, and parents or guardians provide application and consent information. Children can speak with their parent or guardian or a trusted chapter adult if they have questions. We do not make decisions about people solely by automated processing where those decisions have a legal or similarly significant effect. Some programme rules are applied automatically to records, but staff remain responsible for decisions about membership, safeguarding and applications.</p>
+    <p>We use children's information to run the programme and keep them safe. We explain collection on the relevant forms, and parents or guardians provide application and consent information. We do not make decisions about people solely by automated processing where those decisions have a legal or similarly significant effect. Some programme rules are applied automatically to records, but staff remain responsible for decisions about membership, safeguarding and applications.</p>
+    <p><strong>If you are a young person:</strong> we keep your name, your age, your progress through the ranks and the information your parents give us to keep you safe. Only your parents and the adults who run Varangians can see it. If you have a question about it, ask your parent or a chapter leader you trust.</p>
 </section>

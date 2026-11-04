@@ -428,6 +428,7 @@ app.UseAntiforgery();
 
 app.MapStaticAssets();
 app.MapVlmsHealth();
+app.MapAssetLinksEndpoint();
 app.MapLessonFileEndpoint();
 app.MapSavedLessonsEndpoint();
 app.MapLessonPageEndpoints();
