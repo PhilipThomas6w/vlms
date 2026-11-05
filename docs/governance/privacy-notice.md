@@ -15,6 +15,10 @@ The notice describes the data collected, purposes, lawful bases, access, service
 - **Data-sharing consent (Philip, 04/11/2026):** covers sharing a child's name, rank and progress with the office of the Archdiocese of Thyateira and Great Britain, for national statistics. Use within the child's chapter (teachers, Admins, Safeguarding Officers) is ordinary running of the chapter under legitimate interests and is not part of this consent. The consent checkbox now names the recipient and the data. Sharing with the Archdiocese happens outside the app; whoever prepares it includes only children whose current consent record says yes. Counts that identify no one need no consent.
 - **National administrator access:** Philip said National Admins can see all data. As built (`adr/0010` §4), the National Administrator role sees counts only, with no child records unless it also holds a chapter role, and the notice says that. If full national access is wanted, that is a design change to `adr/0010` and the notice must change with it.
 
+## Collection notices on forms (Philip, 05/11/2026)
+
+Register and Apply carry one short line saying what the details are for, plus the link to `/privacy` (a layered notice). The full Art 13 detail (providers, lawful basis, rights, complaints) lives in the notice only; the long form paragraphs added on 30/10/2026 were removed.
+
 ## Responsibility model (Philip, 04/11/2026)
 
 Supersedes every earlier statement, in this file and elsewhere, that Shrewsbury Orthodox Church CIO (charity 1166735) is responsible for the platform's data.

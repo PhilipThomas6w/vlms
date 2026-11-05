@@ -545,5 +545,6 @@ The current pages (`src/Vlms.Web/Components/Pages/`): `Home.razor`,
 | Claude (Opus, main session) | 04/11/2026 | Re-reviewed after the privacy wording correction. **`Pages/Privacy.razor`:** two new `h2` sections ("Who we are", "Who is responsible for your information") before "Who to contact", so headings stay in order under the single `h1` (1.3.1, 2.4.6); the new list is a plain `ul` (1.3.1). **`Register.razor`, `Apply.razor`:** text only. No other change. |
 | Claude (Opus, main session) | 04/11/2026 | Re-reviewed after the "Delete account" link in the account menu (`Layout/MainLayout.razor`): same markup as its sibling links (decorative `aria-hidden` icon, visible text as the accessible name, 2.4.4, 2.5.3), in the same keyboard order inside the menu. No other change. |
 | Claude (Opus, main session) | 05/11/2026 | Re-reviewed after `.prose { max-width: var(--measure); }` in `app.css`: the privacy notice's lists and headings now share the paragraphs' reading width (Philip reported uneven column widths). Supports 1.4.8-style line length (AAA, not required) and 1.4.10 reflow (width is a maximum, so narrow screens are unchanged). No other change. |
+| Claude (Opus, main session) | 05/11/2026 | Re-reviewed after the Register and Apply collection notices were cut to one line; the link text "Privacy information" is unchanged and descriptive (2.4.4). No other change. |
 
-Reviewed-hash: 0e53797bb98aaf901a9a17dd6d901cffe47752490541e674a776995a173230b7
+Reviewed-hash: 2ae73c2fe7d26c419f6696d93699376244f1f52972b6218e1e4f26f3d8fa4847
