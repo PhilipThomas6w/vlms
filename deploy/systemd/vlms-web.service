@@ -72,6 +72,11 @@ Environment=AllowedHosts=www.varangians.co.uk
 # rsync --delete would otherwise wipe it. Must equal FILES_ROOT in /etc/vlms/backup.env.
 # Absolute links in emails (invites, confirmation, password reset). Must match the Caddyfile site.
 Environment=App__PublicBaseUrl=https://www.varangians.co.uk
+# Google Play app (Trusted Web Activity, adr/0011): serves /.well-known/assetlinks.json so the app opens
+# without a browser bar. Public values, not secrets. Fingerprint: Play Console -> Protected with Play ->
+# Play Store protection -> Manage Play app signing -> App signing key (Philip, 05/11/2026).
+Environment=PlayStore__PackageName=uk.co.varangians.app
+Environment=PlayStore__CertificateSha256Fingerprints=76:19:7A:16:16:8C:BF:FF:6D:FA:26:9A:A9:13:03:3F:C0:53:E2:44:2D:87:7E:61:34:49:B4:DE:98:6B:7F:71
 ExecStart=/usr/bin/dotnet /opt/vlms/web/Vlms.Web.dll
 # Restart/KillSignal/RestartSec verified against Microsoft's current linux-nginx guide's own example
 # unit rather than invented — its systemd example service block uses exactly these three lines for
