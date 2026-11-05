@@ -512,6 +512,8 @@
 
     /* Narrow blocks sit at the left of the content column (main's padding sets the column). */
     main > p { max-width: var(--measure); }
+    /* Long-form text (the privacy notice): lists, headings and paragraphs share one reading width. */
+    .prose { max-width: var(--measure); }
     .person-list { list-style: none; margin: 0 0 var(--s-4); padding: 0; }
     .person-list li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s-2) var(--s-4); padding-block: var(--s-1); border-bottom: 1px solid var(--line); max-width: 40rem; }
     .panel.section h3 { margin-top: 0; }
