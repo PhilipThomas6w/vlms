@@ -13,7 +13,7 @@ Configuration loads in the standard ASP.NET Core order: `appsettings.json` → `
 | `AllowedHosts` | unit: `www.varangians.co.uk` | `*` | Production refuses to start with `*` or empty (`WebHardening`) |
 | `DataProtection:KeysPath` | unit: `/var/lib/vlms/keys` | empty | Required in Production; directory created by `StateDirectory=` |
 | `Storage:LocalRootPath` | `web.env` `/var/lib/vlms/blobs` (Philip, 27/10/2026) | `App_Data/blobs` | Must equal `FILES_ROOT` in `backup.env` |
-| `PlayStore:PackageName` | unit, once the Play app exists (draft `uk.co.varangians.app`, Philip to confirm) | empty | Android application ID of the Play Store app (Trusted Web Activity, `adr/0011`). Public, not a secret |
+| `PlayStore:PackageName` | unit, once the Play app exists (`uk.co.varangians.app`, Philip 05/11/2026) | empty | Android application ID of the Play Store app (Trusted Web Activity, `adr/0011`). Public, not a secret |
 | `PlayStore:CertificateSha256Fingerprints` | unit, from Play Console → Release → Setup → App signing | empty | Comma-separated SHA-256 certificate fingerprints (`AA:BB:…`, 32 pairs). Public, not a secret. With both keys set, `/.well-known/assetlinks.json` is served; with either unset or malformed it answers 404 and a malformed value is logged at startup |
 | `Hsts:MaxAgeDays` | default | 365 | |
 | `RateLimiting:AccountFormPostsPerMinute` | default | 20 | Per client IP and account page, POSTs only |
