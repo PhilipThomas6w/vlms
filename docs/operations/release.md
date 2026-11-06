@@ -85,3 +85,12 @@ The rule that settles which: if users have entered data since the release, fix f
 - Every change reaches production through a git commit that passed the gate. No hotfixes edited on the server.
 - Configuration changes follow `configuration.md` §4.
 - Approver for production releases: Philip (sole maintainer). No separate change board at this scale.
+
+## 7. Android app (Google Play, Trusted Web Activity, `adr/0011`)
+
+The app is a Bubblewrap project outside the repo, at `C:\dev\varangians-android` on Philip's PC (05/11/2026). It wraps the live site, so web releases (§1–4) need no app release; rebuild the app only to change its package settings, icons or version.
+
+- Package `uk.co.varangians.app`; `minSdkVersion` 24 (Android 7), because Bubblewrap 1.27.0's `androidbrowserhelper` 2.7.4 requires it (set in both `twa-manifest.json` and `app/build.gradle`).
+- Bubblewrap's JDK is Microsoft OpenJDK 17, 64-bit, through the junction `C:\dev\jdk-17` (`%USERPROFILE%\.bubblewrap\config.json`). Bubblewrap's own JDK download was 32-bit and ran out of memory, and it does not quote paths with spaces.
+- Upload key: `android.keystore`, alias `android`, in that folder, backed up off the PC; password in Philip's password manager, letters and digits only (Bubblewrap passes it to `apksigner` unescaped). Google holds the app signing key (Play App Signing); its SHA-256 is in `deploy/systemd/vlms-web.service`.
+- Build: `bubblewrap build` in that folder, then upload `app-release-bundle.aab` in Play Console. Raise the version code in `twa-manifest.json` for each new upload.
