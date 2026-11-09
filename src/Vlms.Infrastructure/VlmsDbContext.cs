@@ -71,6 +71,7 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
     public DbSet<SensitiveDataAccessLog> SensitiveDataAccessLogs => Set<SensitiveDataAccessLog>();
     public DbSet<DeletionLogEntry> DeletionLog => Set<DeletionLogEntry>();
     public DbSet<StaffStepDown> StaffStepDowns => Set<StaffStepDown>();
+    public DbSet<ChapterJoinRequest> ChapterJoinRequests => Set<ChapterJoinRequest>();
     public DbSet<Chapter> Chapters => Set<Chapter>();
     public DbSet<ActiveChapterChoice> ActiveChapterChoices => Set<ActiveChapterChoice>();
     public DbSet<AttendanceRegister> AttendanceRegisters => Set<AttendanceRegister>();
@@ -592,6 +593,21 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
             e.HasOne<AppUser>().WithMany().HasForeignKey(x => x.ReinstatedByUserId).OnDelete(DeleteBehavior.SetNull);
             e.HasOne<Chapter>().WithMany().HasForeignKey(x => x.ChapterId).OnDelete(DeleteBehavior.Restrict);
             e.HasIndex(x => new { x.UserId, x.SteppedDownAt });
+        });
+
+        // New registrations (functional.md FR-021 as amended 09/11/2026): national like
+        // StaffStepDown, no query filter; NewRegistrationService reads the active chapter's rows for
+        // Admins. A person's rows go with their account; the staff named are cleared (SetNull).
+        modelBuilder.Entity<ChapterJoinRequest>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedOnAdd();
+            e.HasOne<AppUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<AppUser>().WithMany().HasForeignKey(x => x.PlacedByUserId).OnDelete(DeleteBehavior.SetNull);
+            e.HasOne<AppUser>().WithMany().HasForeignKey(x => x.DismissedByUserId).OnDelete(DeleteBehavior.SetNull);
+            e.HasOne<Chapter>().WithMany().HasForeignKey(x => x.ChapterId).OnDelete(DeleteBehavior.Restrict);
+            e.HasIndex(x => new { x.ChapterId, x.DismissedAt });
+            e.HasIndex(x => x.UserId);
         });
 
         // Guardian invite tokens (STATE.md "Identity" item 5, replacing the Microsoft Graph

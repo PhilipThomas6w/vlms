@@ -4,9 +4,12 @@
 
 @using System.ComponentModel.DataAnnotations
 @using Microsoft.AspNetCore.Identity
+@using Vlms.Domain
+@using Vlms.Infrastructure.Chapters
 @using Vlms.Infrastructure.Identity
 
-@inject AppUserProvisioningService Provisioning
+@inject NewRegistrationService Registrations
+@inject ChapterService Chapters
 @inject AccountEmailService AccountEmails
 
 @* Static SSR, not interactive — same reasoning as Login.razor: SignInManager writes the auth
@@ -23,7 +26,11 @@
    ParentGuardian pairing and does not use this page at all.
 
    The new account can't sign in until its email is confirmed (VlmsIdentityPolicy), so this page
-   sends the confirmation link instead of signing the user in. *@
+   sends the confirmation link instead of signing the user in.
+
+   FR-021 as amended 09/11/2026: the person chooses the chapter they are joining and what they are
+   joining as. That grants nothing; it puts them on that chapter's "New registrations" list and
+   emails its Admins (NewRegistrationService). *@
 
 <PageTitle>Register</PageTitle>
 
@@ -57,6 +64,25 @@ else
         <InputText id="email" @bind-Value="Input.Email" autocomplete="username" aria-required="true" />
     </div>
     <div class="field">
+        <label for="chapter">Chapter you are joining</label>
+        <InputSelect id="chapter" @bind-Value="Input.ChapterId" aria-required="true">
+            <option value="">Choose a chapter</option>
+            @foreach (var chapter in _chapters)
+            {
+                <option value="@chapter.Id">@chapter.Name, @chapter.Place</option>
+            }
+        </InputSelect>
+    </div>
+    <div class="field">
+        <label for="joiningAs">Joining as</label>
+        <InputSelect id="joiningAs" @bind-Value="Input.JoiningAs" aria-required="true">
+            <option value="">Choose one</option>
+            <option value="@JoiningAs.Parent">Parent</option>
+            <option value="@JoiningAs.Teacher">Teacher</option>
+            <option value="@JoiningAs.Other">Other</option>
+        </InputSelect>
+    </div>
+    <div class="field">
         <label for="password">Password</label>
         <InputText id="password" type="password" @bind-Value="Input.Password" autocomplete="new-password" aria-required="true" />
     </div>
@@ -80,12 +106,18 @@ else
 
     private string? _errorMessage;
     private bool _registered;
+    private IReadOnlyList<ChapterSummary> _chapters = [];
 
-    protected override void OnInitialized() => Input ??= new();
+    protected override async Task OnInitializedAsync()
+    {
+        Input ??= new();
+        _chapters = await Chapters.ListOpenAsync();
+    }
 
     public async Task RegisterUser()
     {
-        var (result, identityUser, _) = await Provisioning.CreateAsync(Input.Email, Input.Password, Input.DisplayName);
+        var (result, identityUser) = await Registrations.RegisterAsync(
+            Input.Email, Input.Password, Input.DisplayName, Input.ChapterId!.Value, Input.JoiningAs!.Value);
 
         if (!result.Succeeded || identityUser is null)
         {
@@ -105,6 +137,12 @@ else
         [Required]
         [EmailAddress]
         public string Email { get; set; } = "";
+
+        [Required(ErrorMessage = "Choose the chapter you are joining.")]
+        public int? ChapterId { get; set; }
+
+        [Required(ErrorMessage = "Choose what you are joining as.")]
+        public JoiningAs? JoiningAs { get; set; }
 
         [Required]
         [DataType(DataType.Password)]

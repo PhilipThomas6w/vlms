@@ -144,6 +144,12 @@ builder.Services.AddScoped(sp => new RegistrationNotificationService(
     sp.GetRequiredService<ILogger<RegistrationNotificationService>>(), builder.Configuration["App:PublicBaseUrl"]));
 builder.Services.AddScoped<StudentApplicationService>();
 
+// --- New registrations visible and announced (functional.md FR-021 as amended 09/11/2026).
+builder.Services.AddScoped(sp => new NewRegistrationService(
+    sp.GetRequiredService<VlmsDbContext>(), sp.GetRequiredService<ICurrentUserContext>(),
+    sp.GetRequiredService<AppUserProvisioningService>(), sp.GetRequiredService<INotificationService>(),
+    sp.GetRequiredService<ILogger<NewRegistrationService>>(), builder.Configuration["App:PublicBaseUrl"]));
+
 // --- Consent/DBS management UI (STATE.md, functional.md FR-001/FR-002, data-design.md
 // ConsentRecord/ConsentSensitiveDetails/DbsCheck) — Admin/SafeguardingOfficer only, never the
 // Approver role (curriculum-only, CLAUDE.md Project Law).

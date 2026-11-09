@@ -437,6 +437,8 @@ public sealed class RetentionDeletionServiceTests : IDisposable
         "AddedSaint.AddedByUserId",
         "AttendanceRegister.TakenByUserId",
         "ChapterEvent.CreatedByUserId",
+        "ChapterJoinRequest.DismissedByUserId",
+        "ChapterJoinRequest.PlacedByUserId",
         "ConsentRecord.ApprovedByUserId",
         "ConsentRecord.SubmittedByUserId",
         "GuardianInvite.ConsumedByAppUserId",
@@ -463,7 +465,7 @@ public sealed class RetentionDeletionServiceTests : IDisposable
     /// <summary>The foreign keys to an account that are about the person, and so are deleted with them or keep them.</summary>
     private static readonly string[] AboutThePersonReferences =
     [
-        "ActiveChapterChoice.UserId", "CalendarFeedToken.UserId", "CalendarViewChoice.UserId", "ClassTeacher.TeacherUserId",
+        "ActiveChapterChoice.UserId", "CalendarFeedToken.UserId", "CalendarViewChoice.UserId", "ChapterJoinRequest.UserId", "ClassTeacher.TeacherUserId",
         "DbsCheck.TeacherUserId", "ParentGuardian.AppUserId", "StaffStepDown.UserId", "Student.AppUserId",
         "StudentApplication.ApplicantUserId", "UserRole.UserId"
     ];
@@ -854,6 +856,12 @@ public sealed class RetentionDeletionServiceTests : IDisposable
                 break;
             case "LessonVersion.PublishedByUserId":
                 AddWithValue(db, Version(3), nameof(LessonVersion.PublishedByUserId), userId);
+                break;
+            case "ChapterJoinRequest.DismissedByUserId":
+                db.ChapterJoinRequests.Add(new ChapterJoinRequest { UserId = AdminId, ChapterId = Shrewsbury, JoiningAs = JoiningAs.Teacher, RequestedAt = at, DismissedAt = at, DismissedByUserId = userId });
+                break;
+            case "ChapterJoinRequest.PlacedByUserId":
+                db.ChapterJoinRequests.Add(new ChapterJoinRequest { UserId = AdminId, ChapterId = Shrewsbury, RequestedAt = at, PlacedByUserId = userId });
                 break;
             case "StaffStepDown.SteppedDownByUserId":
                 db.StaffStepDowns.Add(new StaffStepDown { UserId = AdminId, ChapterId = Shrewsbury, SteppedDownAt = at, SteppedDownByUserId = userId, ReinstatedAt = at.AddDays(1), ReinstatedByUserId = AdminId });

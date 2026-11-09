@@ -467,6 +467,56 @@ namespace Vlms.Infrastructure.Migrations
                     b.ToTable("chapter_events");
                 });
 
+            modelBuilder.Entity("Vlms.Domain.ChapterJoinRequest", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ChapterId")
+                        .HasColumnType("integer")
+                        .HasColumnName("chapter_id");
+
+                    b.Property<DateTime?>("DismissedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("dismissed_at");
+
+                    b.Property<int?>("DismissedByUserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("dismissed_by_user_id");
+
+                    b.Property<int?>("JoiningAs")
+                        .HasColumnType("integer")
+                        .HasColumnName("joining_as");
+
+                    b.Property<int?>("PlacedByUserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("placed_by_user_id");
+
+                    b.Property<DateTime>("RequestedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("requested_at");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DismissedByUserId");
+
+                    b.HasIndex("PlacedByUserId");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("ChapterId", "DismissedAt");
+
+                    b.ToTable("chapter_join_requests");
+                });
+
             modelBuilder.Entity("Vlms.Domain.ClassTeacher", b =>
                 {
                     b.Property<int>("Id")
@@ -2169,6 +2219,31 @@ namespace Vlms.Infrastructure.Migrations
                         .WithMany()
                         .HasForeignKey("CreatedByUserId")
                         .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("Vlms.Domain.ChapterJoinRequest", b =>
+                {
+                    b.HasOne("Vlms.Domain.Chapter", null)
+                        .WithMany()
+                        .HasForeignKey("ChapterId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Vlms.Domain.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("DismissedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Vlms.Domain.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("PlacedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Vlms.Domain.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Vlms.Domain.ClassTeacher", b =>

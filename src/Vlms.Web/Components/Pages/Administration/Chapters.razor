@@ -3,7 +3,9 @@
 @rendermode InteractiveServer
 @using Vlms.Domain
 @using Vlms.Infrastructure.Chapters
+@using Vlms.Infrastructure.Identity
 @inject ChapterService ChapterService
+@inject NewRegistrationService NewRegistrations
 
 @* National Administrator only (FR-021, docs/adr/0010-chapters.md): chapters, each chapter's
    Admins, and the national roles. Shows names and emails of role holders only; no chapter's
@@ -25,6 +27,58 @@
     <p class="error" role="alert">@_errorMessage</p>
 }
 <p role="status">@_statusMessage</p>
+
+<section class="section" aria-labelledby="unplaced-heading">
+    <h2 id="unplaced-heading">Registrations on no chapter's list</h2>
+    @if (_unplaced.Count == 0)
+    {
+        <p>Every registration is on a chapter's list or holds a role.</p>
+    }
+    else
+    {
+        <p>
+            These people registered without choosing a chapter (before the Register page asked), or were
+            dismissed by every chapter they chose, and hold no role. Send each to the chapter they are
+            joining: they appear on its New registrations list and its Admins are emailed.
+        </p>
+        <table class="data-table data-table--wide">
+            <thead>
+                <tr>
+                    <th>User</th>
+                    <th>Email</th>
+                    <th>Send to chapter</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var account in _unplaced)
+                {
+                    var selectId = $"place-{account.UserId}";
+                    <tr>
+                        <td data-label="User">@account.DisplayName</td>
+                        <td data-label="Email">@account.Email@(account.EmailConfirmed ? "" : " (not yet confirmed)")</td>
+                        <td data-label="Send to chapter">
+                            <div class="cell-form">
+                                <div class="field">
+                                    <label for="@selectId">Chapter for @account.DisplayName</label>
+                                    <select id="@selectId" @bind="_placements[account.UserId]">
+                                        <option value="">Choose a chapter</option>
+                                        @foreach (var chapter in _chapters.Where(c => c.IsActive))
+                                        {
+                                            <option value="@chapter.Id">@chapter.Name</option>
+                                        }
+                                    </select>
+                                </div>
+                                <button type="button" aria-label="@($"Send {account.DisplayName} to the selected chapter")"
+                                        disabled="@(_placements.GetValueOrDefault(account.UserId) is null)"
+                                        @onclick="() => PlaceAsync(account)">Send</button>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</section>
 
 <h2>Add a chapter</h2>
 <form class="form" @onsubmit="CreateAsync" @onsubmit:preventDefault>
@@ -140,6 +194,8 @@
     private Dictionary<int, IReadOnlyList<RoleHolder>> _admins = new();
     private Dictionary<Role, IReadOnlyList<RoleHolder>> _holders = NationalRoles.ToDictionary(r => r, _ => (IReadOnlyList<RoleHolder>)[]);
     private readonly Dictionary<Role, string?> _nationalEmails = new() { [Role.Approver] = null, [Role.NationalAdministrator] = null };
+    private IReadOnlyList<NewRegistrationService.UnplacedAccount> _unplaced = [];
+    private Dictionary<int, int?> _placements = new();
     private string? _newName;
     private string? _newPlace;
     private string? _errorMessage;
@@ -173,8 +229,22 @@
             holders[role] = await ChapterService.ListNationalRoleHoldersAsync(role);
         }
 
-        (_chapters, _edits, _admins, _holders) = (chapters, edits, admins, holders);
+        var unplaced = await NewRegistrations.ListUnplacedAsync();
+        var placements = unplaced.ToDictionary(a => a.UserId, _ => (int?)null);
+
+        (_chapters, _edits, _admins, _holders, _unplaced, _placements) = (chapters, edits, admins, holders, unplaced, placements);
     }
+
+    private Task PlaceAsync(NewRegistrationService.UnplacedAccount account) => RunAsync(async () =>
+    {
+        if (_placements.GetValueOrDefault(account.UserId) is not int chapterId)
+        {
+            return "";
+        }
+
+        await NewRegistrations.PlaceAsync(account.UserId, chapterId);
+        return $"{account.DisplayName} sent to {_chapters.First(c => c.Id == chapterId).Name}.";
+    });
 
     private Task CreateAsync() => RunAsync(async () =>
     {

@@ -52,7 +52,10 @@ public sealed class AccessEndToEndTests : IDisposable
         // Responsibility model (Philip, 04/11/2026; governance/privacy-notice.md): Varangians is a club, each
         // chapter's parish is responsible for its own chapter, and the notice is channel-neutral. No single
         // parish charity, charity number or store developer name belongs in the platform-wide wording.
-        foreach (var page in new[] { body, register })
+        // The Register page's chapter choice lists each open chapter by name (FR-021 as amended
+        // 09/11/2026): that is data, not platform-wide wording, so the options are left out of the check.
+        var registerWording = System.Text.RegularExpressions.Regex.Replace(register, "<option[^>]*>[^<]*</option>", "");
+        foreach (var page in new[] { body, registerWording })
         {
             Assert.DoesNotContain("Shrewsbury", page);
             Assert.DoesNotContain("1166735", page);

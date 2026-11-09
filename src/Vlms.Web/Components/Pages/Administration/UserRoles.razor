@@ -5,6 +5,7 @@
 @using Vlms.Infrastructure.Attendance
 @using Vlms.Infrastructure.Identity
 @inject RoleAssignmentService RoleAssignmentService
+@inject NewRegistrationService NewRegistrations
 @inject ClassTeacherService ClassTeachers
 
 <PageTitle>User roles</PageTitle>
@@ -37,6 +38,68 @@
         </div>
     </Notice>
 }
+
+<section class="section" aria-labelledby="new-heading">
+    <h2 id="new-heading">New registrations</h2>
+    @if (_new.Count == 0)
+    {
+        <p>Nobody is waiting for a role in this chapter.</p>
+    }
+    else
+    {
+        <p>
+            These people registered for this chapter and hold no role here yet. Each chapter Admin is
+            emailed when someone registers. Granting a role takes them off this list; dismissing takes
+            them off without a role and deletes nothing.
+        </p>
+        <table class="data-table data-table--wide">
+            <thead>
+                <tr>
+                    <th>User</th>
+                    <th>Email</th>
+                    <th>Joining as</th>
+                    <th>Registered</th>
+                    <th>Grant a role</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var person in _new)
+                {
+                    var asUser = AsUser(person);
+                    var selectId = $"grant-role-new-{person.UserId}";
+                    <tr>
+                        <td data-label="User">@person.DisplayName</td>
+                        <td data-label="Email">@person.Email@(person.EmailConfirmed ? "" : " (not yet confirmed)")</td>
+                        <td data-label="Joining as">@person.JoiningAs.DisplayName()</td>
+                        <td data-label="Registered">@person.RequestedAt.ToString("dd/MM/yyyy")@(person.PlacedByNationalAdministrator ? " (sent by the National Administrator)" : "")</td>
+                        <td data-label="Grant a role">
+                            <div class="cell-form">
+                                <div class="field">
+                                    <label for="@selectId">Role for @person.DisplayName</label>
+                                    <select id="@selectId" @bind="_selectedRoles[person.UserId]">
+                                        <option value="">Choose a role</option>
+                                        @foreach (var role in RoleAssignmentService.AssignableRoles)
+                                        {
+                                            <option value="@role">@role.DisplayName()</option>
+                                        }
+                                    </select>
+                                </div>
+                                <button type="button" aria-label="@($"Grant selected role to {person.DisplayName}")"
+                                        disabled="@(!_selectedRoles.TryGetValue(person.UserId, out var chosenNew) || chosenNew is null)"
+                                        @onclick="() => AskGrant(asUser)">Grant</button>
+                            </div>
+                        </td>
+                        <td>
+                            <button type="button" class="btn--secondary" aria-label="@($"Dismiss {person.DisplayName} without a role")"
+                                    @onclick="() => AskDismiss(person)">Dismiss</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</section>
 
 <section class="section" aria-labelledby="awaiting-heading">
     <h2 id="awaiting-heading">Waiting for approval</h2>
@@ -88,8 +151,8 @@
 <section class="section" aria-labelledby="give-heading">
     <h2 id="give-heading">Give someone a role</h2>
     <p>
-        Someone new to this chapter (for example a teacher who has just registered) is found by the email
-        address they registered with.
+        Someone who registered for this chapter is listed under New registrations above. Anyone else is
+        found by the email address they registered with.
     </p>
     <form class="field-row" @onsubmit="FindAsync" @onsubmit:preventDefault>
         <div class="field">
@@ -260,6 +323,29 @@
     private readonly Dictionary<int, int?> _selectedTeachers = new();
     private IReadOnlyList<RoleAssignmentService.UserWithRoles> _users = [];
     private IReadOnlyList<RoleAssignmentService.AwaitingApproval> _awaiting = [];
+    private IReadOnlyList<NewRegistrationService.NewRegistration> _new = [];
+
+    private static RoleAssignmentService.UserWithRoles AsUser(NewRegistrationService.NewRegistration person) =>
+        new(person.UserId, person.DisplayName, person.Email, false, []);
+
+    private void AskDismiss(NewRegistrationService.NewRegistration person) =>
+        _confirm = new($"Dismiss {person.DisplayName} from new registrations without giving a role?", $"Dismiss {person.DisplayName}", true, () => DismissAsync(person));
+
+    private async Task DismissAsync(NewRegistrationService.NewRegistration person)
+    {
+        _errorMessage = null;
+        _statusMessage = null;
+        try
+        {
+            await NewRegistrations.DismissAsync(person.UserId);
+            _statusMessage = $"{person.DisplayName} dismissed from new registrations.";
+            await LoadAsync();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
     private readonly Dictionary<int, Role?> _selectedRoles = new();
     private PendingConfirm? _confirm;
 
@@ -349,6 +435,7 @@
 
     private async Task LoadAsync()
     {
+        _new = await NewRegistrations.ListAsync();
         _awaiting = await RoleAssignmentService.ListAwaitingApprovalAsync();
         _users = await RoleAssignmentService.ListUsersAsync();
 
@@ -357,6 +444,11 @@
         foreach (var user in _users)
         {
             _selectedRoles[user.UserId] = null;
+        }
+
+        foreach (var person in _new)
+        {
+            _selectedRoles[person.UserId] = null;
         }
 
         await LoadClassesAsync();
