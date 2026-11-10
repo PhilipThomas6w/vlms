@@ -1,5 +1,12 @@
 # Lesson files audit: handouts and duplicates
 
+## Owner's decisions (Philip, 10/11/2026)
+
+- **Kept as handouts (31 files):** the 10 handouts; R3-03's 14 "plague story" pages and the desert background (`plague box.png`); the "still to be added" articles R6-01 `Mnimosina_2.docx`, R6-04 Damascus Stewardship, R6-06 Text 1, Text 2 and Text 3 (until typed into the lesson through Suggest changes).
+- **Removed:** every duplicate, plus R2-01 French Pentecost icon explainer, R3-04 St Luke icon, R4-05 Davis chapter on Nicaea, R8-04 Philothea screenshot.
+- Before removal, the main session re-checks the rank 1 and 2 picture calls the audit made from file names and descriptions only.
+
+
 Date: 10/11/2026. Basis: `docs/adr/0016-lesson-handouts.md` decision 4. Scope: every original file in the git-ignored `seed/` rank folders for lessons R1-01 to R8-08 (64 lessons), compared with the converted lesson (`seed/lessons/<code>.md`, its pictures and its Teacher's Information).
 
 Classes: **handout** is a printable that goes with the lesson and is not reproduced in it; **duplicate** is content already in the lesson text or pictures; **unsure** needs the owner's decision.
