@@ -4,20 +4,38 @@
 @using Vlms.Infrastructure.Registration
 @inject StudentApplicationService Applications
 
-@* Stage 2 of a parent's registration application (adr/0008 answers 1, 4, 6): Admin only, with MFA.
-   Static SSR. Approval is the only way an application creates anything: the student (at the rank
-   the Admin chooses), or a link to an existing student with the same name and date of birth (a
-   second parent of the same child); the guardian record, link, approved consent and Parent role. *@
+@* The Admin's one Registrations page (adr/0017), at the old Approve registrations address so
+   existing links and emails keep working. Admin only, with MFA. Two parts:
+   - Waiting for a role: the chapter's registration queue, an interactive component (granting and
+     dismissing are confirmed in place, as on User roles).
+   - Children's applications: stage 2 of a parent's registration application (adr/0008 answers 1,
+     4, 6), static SSR with forms, unchanged; and, for information, those still with the
+     Safeguarding Officer. Approval is the only way an application creates anything: the student
+     (at the rank the Admin chooses), or a link to an existing student with the same name and date
+     of birth (a second parent of the same child); the guardian record, link and approved consent
+     (and Parent, only for an application made before adr/0017 by someone without it). *@
 
-<PageTitle>Approve registrations</PageTitle>
+<PageTitle>Registrations</PageTitle>
 
-<PageHeader Title="Approve registration applications" />
+<PageHeader Title="Registrations" />
 
 <p class="intro">
-    Applications that a Safeguarding Officer has approved. Choose the rank the child starts at and
-    approve, or reject with comments for the parent. If the child may already be registered (for
-    example by another parent), the matching students are listed and you can link this parent to
-    that student instead of creating a second record.
+    Everything waiting for this chapter's Admins: people who need a role, and children's
+    registration applications.
+</p>
+
+<section class="section" aria-labelledby="queue-heading">
+    <h2 id="queue-heading">Waiting for a role</h2>
+    <RegistrationQueuePanel @rendermode="InteractiveServer" />
+</section>
+
+<section class="section" aria-labelledby="applications-heading">
+<h2 id="applications-heading">Children's applications</h2>
+<p>
+    Applications that a Safeguarding Officer has approved wait here for you. Choose the rank the
+    child starts at and approve, or reject with comments for the parent. If the child may already be
+    registered (for example by another parent), the matching students are listed and you can link
+    this parent to that student instead of creating a second record.
 </p>
 
 @if (_errorMessage is not null)
@@ -33,7 +51,7 @@
 {
     var application = selected.Application;
     <section class="panel section" aria-labelledby="approveHeading">
-        <h2 id="approveHeading">Application to register @application.ChildName</h2>
+        <h3 id="approveHeading">Application to register @application.ChildName</h3>
         <ApplicationSummary Application="application" ShowApplicant="true" />
 
         @if (application.Status == StudentApplicationStatus.AwaitingAdminApproval)
@@ -105,7 +123,7 @@
     </section>
 }
 
-<h2>Waiting for final approval</h2>
+<h3>Waiting for your approval</h3>
 @if (_applications.Count == 0)
 {
     <p>No applications are waiting for final approval.</p>
@@ -130,6 +148,32 @@ else
     </table>
 }
 
+<h3>With the Safeguarding Officer</h3>
+@if (_withSafeguarding.Count == 0)
+{
+    <p>No applications are with the Safeguarding Officer.</p>
+}
+else
+{
+    <table class="data-table data-table--wide">
+        <thead>
+            <tr><th scope="col">Child</th><th scope="col">Parent</th><th scope="col">Submitted</th><th scope="col">Status</th></tr>
+        </thead>
+        <tbody>
+            @foreach (var application in _withSafeguarding)
+            {
+                <tr>
+                    <td data-label="Child">@application.ChildName</td>
+                    <td data-label="Parent">@application.ApplicantName</td>
+                    <td data-label="Submitted">@application.SubmittedAt.ToString("dd/MM/yyyy")</td>
+                    <td data-label="Status">@StatusText(application.Status)</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+</section>
+
 @code {
     [SupplyParameterFromQuery(Name = "id")]
     private int? Id { get; set; }
@@ -139,6 +183,13 @@ else
     private ApprovalInput Input { get; set; } = default!;
 
     private List<ApplicationView> _applications = new();
+    private IReadOnlyList<ApplicationView> _withSafeguarding = [];
+
+    private static string StatusText(StudentApplicationStatus status)
+    {
+        var text = StudentApplicationService.Describe(status);
+        return char.ToUpperInvariant(text[0]) + text[1..];
+    }
     private ApplicationForApproval? _selected;
     private string? _errorMessage;
     private string? _statusMessage;
@@ -155,6 +206,7 @@ else
         {
             var applications = (await Applications.ListForAdminAsync()).ToList();
             var selected = Id is int id ? await Applications.GetForApprovalAsync(id) : null;
+            _withSafeguarding = await Applications.ListWithSafeguardingOfficerAsync();
             _applications = applications;
             _selected = selected;
         }

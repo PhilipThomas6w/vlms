@@ -1,6 +1,7 @@
 @implements IDisposable
 @inject NavigationManager Navigation
 @inject Vlms.Infrastructure.Curriculum.LessonSuggestionService Suggestions
+@inject Vlms.Infrastructure.Registration.RegistrationQueueService RegistrationQueue
 
 @* Grouped by area; a group appears only for someone holding one of its roles. Every link sits in an
    AuthorizeView with exactly its page's policy (NavigationCoverageTests). Groups marked
@@ -82,7 +83,12 @@
             <div class="nav-group nav-group--staff">
                 <span class="nav-group-label" id="nav-admin">Administration</span>
                 <ul class="nav-list" aria-labelledby="nav-admin">
-                    <li><a href="/registration/approve" aria-current="@Current("/registration/approve")"><Icon Name="inbox" /> Approve registrations</a></li>
+                    <li><a href="/registration/approve" aria-current="@Current("/registration/approve")"><Icon Name="inbox" /> Registrations
+                        @if (_registrations > 0)
+                        {
+                            <span class="nav-count" aria-hidden="true">@_registrations</span><span class="visually-hidden">@($"({_registrations} waiting)")</span>
+                        }
+                    </a></li>
                     <li><a href="/registration/students" aria-current="@Current("/registration/students")"><Icon Name="user-plus" /> Register student</a></li>
                     <li><a href="/administration/students" aria-current="@Current("/administration/students")"><Icon Name="users" /> Manage students</a></li>
                     <li><a href="/guardianship/links" aria-current="@Current("/guardianship/links")"><Icon Name="link" /> Guardian links</a></li>
@@ -107,20 +113,18 @@
             </div>
         </AuthorizeView>
 
-        @* Any signed-in adult can apply to register their children (adr/0008). Not shown to a student
-           sign-in, which can't apply; the pages refuse students regardless. *@
-        <AuthorizeView Policy="RequireStudent" Context="student">
-            <NotAuthorized>
-                <div class="nav-group">
-                    <span class="nav-group-label" id="nav-register">Registration</span>
-                    <ul class="nav-list" aria-labelledby="nav-register">
-                        <AuthorizeView Policy="RequireSignedIn" Context="signedIn">
-                            <li><a href="/registration/apply" aria-current="@Current("/registration/apply")"><Icon Name="user-plus" /> Register a child</a></li>
-                            <li><a href="/registration/my-applications" aria-current="@Current("/registration/my-applications")"><Icon Name="file" /> My applications</a></li>
-                        </AuthorizeView>
-                    </ul>
-                </div>
-            </NotAuthorized>
+        @* Only a Parent registers a child (adr/0017). My applications is also shown to someone with an
+           application of their own made before that change (RequireParentOrApplicant). *@
+        <AuthorizeView Policy="RequireParentOrApplicant" Context="applicant">
+            <div class="nav-group">
+                <span class="nav-group-label" id="nav-register">Registration</span>
+                <ul class="nav-list" aria-labelledby="nav-register">
+                    <AuthorizeView Policy="RequireParent" Context="parentApply">
+                        <li><a href="/registration/apply" aria-current="@Current("/registration/apply")"><Icon Name="user-plus" /> Register a child</a></li>
+                    </AuthorizeView>
+                    <li><a href="/registration/my-applications" aria-current="@Current("/registration/my-applications")"><Icon Name="file" /> My applications</a></li>
+                </ul>
+            </div>
         </AuthorizeView>
     </div>
 </nav>
@@ -130,10 +134,15 @@
     // Suggestions awaiting this Approver's decision (adr/0013 decision 8); zero for anyone else.
     private int _toReview;
 
+    // People waiting for a role plus applications waiting for final approval (adr/0017); zero for
+    // anyone but an Admin with two-factor sign-in. Counted on its own context (see the service).
+    private int _registrations;
+
     protected override async Task OnInitializedAsync()
     {
         Navigation.LocationChanged += OnLocationChanged;
         _toReview = await Suggestions.CountAwaitingMyReviewAsync();
+        _registrations = await RegistrationQueue.CountWaitingAsync();
     }
 
     private void OnLocationChanged(object? sender, LocationChangedEventArgs e) =>

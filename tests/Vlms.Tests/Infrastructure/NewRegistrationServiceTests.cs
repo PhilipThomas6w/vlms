@@ -118,7 +118,7 @@ public sealed class NewRegistrationServiceTests : IDisposable
         Assert.Equal("admin.cov@example.com", sent.RecipientEmail);
         Assert.Contains("Mary Parent", sent.Subject);
         Assert.Contains("parent", sent.Body);
-        Assert.Contains("https://test.example/administration/user-roles", sent.Body);
+        Assert.Contains("https://test.example/registration/approve", sent.Body);
     }
 
     [Fact]

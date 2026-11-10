@@ -31,6 +31,7 @@ public sealed class StudentApplicationServiceTests : IDisposable
     private const int StudentSignInId = 33;
     private const int ExistingParentId = 34;
     private const int ExistingStudentId = 100;
+    private const int CoventryId = 2;
 
     private const string Medical = "Severe asthma (sensitive)";
     private const string Dietary = "Peanut allergy (sensitive)";
@@ -88,6 +89,7 @@ public sealed class StudentApplicationServiceTests : IDisposable
     {
         db.Ranks.Add(new Rank { Id = 1, Order = 1, Code = "R1", Name = "Recruit" });
         db.Ranks.Add(new Rank { Id = 2, Order = 2, Code = "R2", Name = "Reader" });
+        db.Chapters.Add(new Chapter { Id = CoventryId, Name = "Coventry", Place = "Coventry", CreatedAt = DateTime.UtcNow, IsActive = true });
         void User(int id, string name, bool left = false, params Role[] roles)
         {
             db.AppUsers.Add(new AppUser { Id = id, DisplayName = name, Email = $"user{id}@example.com" });
@@ -107,9 +109,10 @@ public sealed class StudentApplicationServiceTests : IDisposable
         User(BothRolesId, "Both Roles", false, Role.Admin, Role.SafeguardingOfficer);
         User(TeacherId, "Teacher One", false, Role.Teacher);
         User(ApproverId, "Approver One", false, Role.Approver);
-        User(ApplicantId, "Jane Applicant");
-        User(OtherApplicantId, "Pat Applicant");
-        User(LeaverId, "Lee Leaver", true);
+        // Only a Parent can apply (adr/0017): the applicants hold Parent in the chapter.
+        User(ApplicantId, "Jane Applicant", false, Role.Parent);
+        User(OtherApplicantId, "Pat Applicant", false, Role.Parent);
+        User(LeaverId, "Lee Leaver", true, Role.Parent);
         User(StudentSignInId, "Sam Signin", false, Role.Student);
         User(ExistingParentId, "Erin Parent", false, Role.Parent);
         User(4, "Admin Left", true, Role.Admin);
@@ -141,6 +144,24 @@ public sealed class StudentApplicationServiceTests : IDisposable
     {
         using var applicant = Caller(applicantId, roles);
         return (await applicant.Service.SubmitAsync(Chapter.ShrewsburyId, Parent(), [child ?? Child()])).Single().Id;
+    }
+
+    /// <summary>
+    /// Takes <paramref name="userId"/>'s Parent role away after they applied: the shape of an
+    /// application submitted before adr/0017 by someone who never held Parent.
+    /// </summary>
+    private void MakeLegacyApplicant(int userId)
+    {
+        using var admin = Caller(AdminId, Role.Admin);
+        admin.Db.UserRoles.RemoveRange(admin.Db.UserRoles.Where(r => r.UserId == userId && r.Role == Role.Parent));
+        admin.Db.SaveChanges();
+    }
+
+    private void Grant(int userId, Role role, int chapterId = Chapter.ShrewsburyId)
+    {
+        using var admin = Caller(AdminId, Role.Admin);
+        admin.Db.UserRoles.Add(new UserRole { UserId = userId, Role = role, ChapterId = chapterId });
+        admin.Db.SaveChanges();
     }
 
     private async Task<int> SubmitAndPassStageOneAsync(int applicantId = ApplicantId, ChildApplicationForm? child = null)
@@ -206,7 +227,7 @@ public sealed class StudentApplicationServiceTests : IDisposable
         });
         Assert.Equal(2, admin.Db.StudentApplicationSensitiveDetails.Count());
         Assert.Equal(before, Counts());
-        Assert.Empty(RolesOf(ApplicantId));
+        Assert.Equal([Role.Parent], RolesOf(ApplicantId)); // nothing granted: they were already a Parent
     }
 
     [Theory]
@@ -319,15 +340,62 @@ public sealed class StudentApplicationServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task Submit_BySomeoneInactiveInTheChapter_IsAccepted()
+    public async Task Submit_BySomeoneInactiveInTheChapter_IsRefused_TheirParentRoleIsSuspended()
     {
-        // FR-017 (27/10/2026): an Inactive person may apply to request Parent access.
+        // adr/0017 supersedes FR-017's "apply to request Parent access": an Inactive person asks an
+        // Admin, and their Parent role there counts only once they are reactivated (as HasRole).
         using (var leaver = Caller(LeaverId))
         {
-            await leaver.Service.SubmitAsync(Chapter.ShrewsburyId, Parent(), [Child()]);
+            await Assert.ThrowsAsync<UnauthorizedAccessException>(() => leaver.Service.SubmitAsync(Chapter.ShrewsburyId, Parent(), [Child()]));
+            Assert.Empty(await leaver.Service.ListChaptersICanApplyInAsync());
         }
 
-        Assert.Single(Caller(AdminId, Role.Admin).Db.StudentApplications, a => a.ApplicantUserId == LeaverId);
+        Assert.Empty(Caller(AdminId, Role.Admin).Db.StudentApplications);
+    }
+
+    [Theory]
+    [InlineData(TeacherId)]
+    [InlineData(ApproverId)]
+    [InlineData(AdminId)]
+    public async Task Submit_BySomeoneWhoIsNotAParent_IsRefused_AndNothingIsCreated(int userId)
+    {
+        // adr/0017: only a Parent can register a child, staff included.
+        using (var caller = Caller(userId))
+        {
+            var ex = await Assert.ThrowsAsync<UnauthorizedAccessException>(() => caller.Service.SubmitAsync(Chapter.ShrewsburyId, Parent(), [Child()]));
+            Assert.StartsWith("Only a Parent can register a child", ex.Message);
+        }
+
+        Assert.Empty(Caller(AdminId, Role.Admin).Db.StudentApplications);
+        Assert.Empty(Caller(AdminId, Role.Admin).Db.StudentApplicationSensitiveDetails);
+    }
+
+    [Fact]
+    public async Task Submit_WithNoRoleAtAll_IsRefused()
+    {
+        using (var admin = Caller(AdminId, Role.Admin))
+        {
+            admin.Db.AppUsers.Add(new AppUser { Id = 40, DisplayName = "Nora Newcomer", Email = "user40@example.com" });
+            admin.Db.SaveChanges();
+        }
+
+        using var newcomer = Caller(40);
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => newcomer.Service.SubmitAsync(Chapter.ShrewsburyId, Parent(), [Child()]));
+        Assert.Empty(await newcomer.Service.ListChaptersICanApplyInAsync());
+    }
+
+    [Fact]
+    public async Task Submit_InAChapterWhereTheyAreNotAParent_IsRefused_EvenIfTheyAreAParentElsewhere()
+    {
+        Grant(TeacherId, Role.Parent, CoventryId);
+
+        using var teacher = Caller(TeacherId, Role.Teacher);
+        Assert.Equal([CoventryId], await teacher.Service.ListChaptersICanApplyInAsync());
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => teacher.Service.SubmitAsync(Chapter.ShrewsburyId, Parent(), [Child()]));
+        Assert.Empty(Caller(AdminId, Role.Admin).Db.StudentApplications);
+
+        // Where they are a Parent, they can.
+        Assert.Single(await teacher.Service.SubmitAsync(CoventryId, Parent(), [Child()]));
     }
 
     // ------------------------------------------------------------------ restricted details
@@ -624,7 +692,7 @@ public sealed class StudentApplicationServiceTests : IDisposable
 
         Assert.Equal(StudentApplicationStatus.AwaitingAdminApproval, Load(id).Status);
         Assert.Equal(before, Counts());
-        Assert.Empty(RolesOf(ApplicantId));
+        Assert.Equal([Role.Parent], RolesOf(ApplicantId)); // nothing granted: they were already a Parent
     }
 
     [Fact]
@@ -640,7 +708,7 @@ public sealed class StudentApplicationServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task AdminApproval_CreatesStudentAtTheChosenRank_GuardianLinkConsentAndParentRole()
+    public async Task AdminApproval_CreatesStudentAtTheChosenRank_GuardianLinkAndConsent_KeepingTheParentRole()
     {
         var id = await SubmitAndPassStageOneAsync();
         _notifications.SentRequests.Clear();
@@ -734,9 +802,14 @@ public sealed class StudentApplicationServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task AdminApproval_ForATeacherApplyingAsAParent_AddsParentToTheirRoles()
+    public async Task AdminApproval_OfALegacyApplicationByATeacherWithoutParent_AddsParentToTheirRoles()
     {
-        var id = await SubmitAsync(TeacherId, Child(), Role.Teacher);
+        // adr/0017: approval is no longer how anyone becomes a Parent, but an application made
+        // before the change by someone without the role still grants it.
+        Grant(TeacherId, Role.Parent);
+        var id = await SubmitAsync(TeacherId, Child(), Role.Teacher, Role.Parent);
+        MakeLegacyApplicant(TeacherId);
+        Assert.Equal([Role.Teacher], RolesOf(TeacherId));
         using (var so = Caller(SafeguardingId, Role.SafeguardingOfficer)) await so.Service.SafeguardingApproveAsync(id);
         using (var admin = Caller(AdminId, Role.Admin)) await admin.Service.ApproveAsync(id, startingRankId: 1);
 
@@ -822,7 +895,7 @@ public sealed class StudentApplicationServiceTests : IDisposable
 
         Assert.Equal(before, Counts());
         Assert.Equal(StudentApplicationStatus.AwaitingAdminApproval, Load(id).Status);
-        Assert.Empty(RolesOf(OtherApplicantId));
+        Assert.Equal([Role.Parent], RolesOf(OtherApplicantId)); // nothing granted: they were already a Parent
     }
 
     [Fact]
@@ -842,6 +915,7 @@ public sealed class StudentApplicationServiceTests : IDisposable
     public async Task Approval_IsAtomic_AFailingWriteLeavesNoStudentLinkGuardianConsentOrRole()
     {
         var id = await SubmitAndPassStageOneAsync();
+        MakeLegacyApplicant(ApplicantId); // so approval would grant Parent, which must roll back too
 
         // Force the final save to fail: the next consent record id is 2, whose details row would
         // take id 2 (DetailsIdFor), and a details row with id 2 already exists for record 1.
@@ -925,7 +999,7 @@ public sealed class StudentApplicationServiceTests : IDisposable
         Assert.Equal(StudentApplicationStatus.Rejected, application.Status);
         Assert.Equal(AdminId, application.AdminDecidedByUserId);
         Assert.Equal(before, Counts());
-        Assert.Empty(RolesOf(ApplicantId));
+        Assert.Equal([Role.Parent], RolesOf(ApplicantId)); // nothing granted: they were already a Parent
         Assert.Equal("user30@example.com", Assert.Single(_notifications.SentRequests).RecipientEmail);
     }
 
@@ -984,6 +1058,25 @@ public sealed class StudentApplicationServiceTests : IDisposable
         using var admin = Caller(AdminId, Role.Admin);
         Assert.Equal(1, await admin.Service.CountAwaitingAdminApprovalAsync());
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => admin.Service.CountAwaitingSafeguardingReviewAsync());
+    }
+
+    [Fact]
+    public async Task WithTheSafeguardingOfficer_ListsOnlyStageOneAndMoreInformation_ForAdminsOnly()
+    {
+        var waiting = await SubmitAsync();
+        var asked = await SubmitAsync(ApplicantId, Child("Dana Child"));
+        await SubmitAndPassStageOneAsync(ApplicantId, Child("Evan Child"));
+        using (var so = Caller(SafeguardingId, Role.SafeguardingOfficer)) await so.Service.RequestMoreInformationAsync(asked, "Which school?");
+
+        using (var admin = Caller(AdminId, Role.Admin))
+        {
+            var list = await admin.Service.ListWithSafeguardingOfficerAsync();
+            Assert.Equal([waiting, asked], list.Select(a => a.Id).ToList());
+            Assert.All(list, a => Assert.Null(a.Details));
+        }
+
+        using var officer = Caller(SafeguardingId, Role.SafeguardingOfficer);
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => officer.Service.ListWithSafeguardingOfficerAsync());
     }
 
     private async Task PassBothStagesAsync(int id)

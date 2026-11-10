@@ -12,8 +12,9 @@ namespace Vlms.Infrastructure.Identity;
 /// <item><see cref="RegisterAsync"/>: the Register page. Creates the account and its
 /// <see cref="ChapterJoinRequest"/> for the open chapter the person chose, in one transaction, then
 /// emails that chapter's active Admins. Grants no role (deny-by-default stays).</item>
-/// <item><see cref="ListAsync"/> and <see cref="DismissAsync"/>: an Admin's "New registrations"
-/// list for their active chapter: open requests whose person holds no role there yet.</item>
+/// <item><see cref="ListAsync"/> and <see cref="DismissAsync"/>: the self-registration half of the
+/// Admin's registration queue for their active chapter (adr/0017; shown on the Registrations page by
+/// <c>Registration.RegistrationQueueService</c>): open requests whose person holds no role there yet.</item>
 /// <item><see cref="ListUnplacedAsync"/> and <see cref="PlaceAsync"/>: a National Administrator
 /// (with two-factor authentication on, as for every chapter-management action) sees adult accounts
 /// that hold no role anywhere and are on no chapter's list, and sends one to a chapter's list.</item>
@@ -99,11 +100,8 @@ public sealed class NewRegistrationService
     {
         var chapterId = RequireAdmin();
 
-        var rows = await _db.ChapterJoinRequests
-            .Where(r => r.ChapterId == chapterId && r.DismissedAt == null
-                && !_db.UserRoles.Any(u => u.UserId == r.UserId && u.ChapterId == chapterId))
+        var rows = await OpenRequestsIn(_db, chapterId)
             .Join(_db.AppUsers, r => r.UserId, u => u.Id, (r, u) => new { r, u })
-            .Where(x => x.u.Email != "")
             .Select(x => new
             {
                 x.u.Id, x.u.DisplayName, x.u.Email, x.r.JoiningAs, x.r.RequestedAt, x.r.PlacedByUserId,
@@ -119,6 +117,17 @@ public sealed class NewRegistrationService
             .Select(x => new NewRegistration(x.Id, x.DisplayName, x.Email, x.JoiningAs, x.RequestedAt, x.Confirmed, x.PlacedByUserId != null))
             .ToList();
     }
+
+    /// <summary>
+    /// The open requests in <paramref name="chapterId"/> whose person (an adult account with an
+    /// email) holds no role there: the self-registration half of the chapter's registration queue
+    /// (adr/0017). Shared with <c>Registration.RegistrationQueueService</c>'s count so the list and
+    /// the count can never disagree. The caller checks the role.
+    /// </summary>
+    internal static IQueryable<ChapterJoinRequest> OpenRequestsIn(VlmsDbContext db, int chapterId) =>
+        db.ChapterJoinRequests.Where(r => r.ChapterId == chapterId && r.DismissedAt == null
+            && !db.UserRoles.Any(u => u.UserId == r.UserId && u.ChapterId == chapterId)
+            && db.AppUsers.Any(u => u.Id == r.UserId && u.Email != ""));
 
     /// <summary>
     /// Takes <paramref name="userId"/> off the active chapter's list without granting a role. Deletes
@@ -208,7 +217,7 @@ public sealed class NewRegistrationService
             var subject = $"VLMS: new registration ({displayName})";
             var body = $"{displayName} has registered and is waiting for a role in your chapter.{joining} "
                 + "No role has been given; they can do nothing until an Admin grants one."
-                + (_publicBaseUrl is null ? "" : $"\n\nGive them a role here: {_publicBaseUrl}/administration/user-roles")
+                + (_publicBaseUrl is null ? "" : $"\n\nGive them a role here: {_publicBaseUrl}/registration/approve")
                 + "\n\nVarangians";
 
             foreach (var admin in admins)

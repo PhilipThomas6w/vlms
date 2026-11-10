@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
 using Vlms.Domain;
 using Vlms.Infrastructure;
 using Vlms.Infrastructure.Identity;
@@ -71,6 +72,17 @@ public sealed class ApproveRegistrationPageTests : BunitContext, IDisposable
             scope.ServiceProvider.GetRequiredService<VlmsDbContext>(),
             scope.ServiceProvider.GetRequiredService<ICurrentUserContext>(),
             scope.ServiceProvider.GetRequiredService<UserManager<VlmsIdentityUser>>()));
+
+        // The page's "Waiting for a role" part (adr/0017), on a scope of its own as its interactive
+        // circuit would have.
+        var queueScope = _adminProvider.CreateScope().ServiceProvider;
+        var queueDb = queueScope.GetRequiredService<VlmsDbContext>();
+        var queueUser = queueScope.GetRequiredService<ICurrentUserContext>();
+        Services.AddSingleton(new RegistrationQueueService(
+            queueDb, queueScope.GetRequiredService<DbContextOptions<VlmsDbContext>>(), queueUser,
+            new NewRegistrationService(queueDb, queueUser, queueScope.GetRequiredService<AppUserProvisioningService>(),
+                queueScope.GetRequiredService<INotificationService>(), NullLogger<NewRegistrationService>.Instance, null),
+            new RoleAssignmentService(queueDb, queueUser, queueScope.GetRequiredService<UserManager<VlmsIdentityUser>>())));
     }
 
     protected override void Dispose(bool disposing)

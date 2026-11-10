@@ -147,7 +147,12 @@ $expectedMinimums = @{
     # FR-016 role changes take effect immediately: multi-role unions, mid-scope grant/revoke/MFA
     # change, security-stamp rotation.
     "RoleChangeTests.cs"                = 13
-    "StudentApplicationServiceTests.cs" = 38
+    # Raised 10/11/2026 for adr/0017: only a Parent of the chosen chapter applies; the Admin's
+    # list of applications still with the Safeguarding Officer.
+    "StudentApplicationServiceTests.cs" = 44
+    # adr/0017 registration queue: who is on it, granting several roles all or none, dismissal,
+    # Admin only, the count, and a role-less caller's own status.
+    "RegistrationQueueServiceTests.cs"  = 10
     # FR-021 chapters (adr/0010): the reflection classification, every entity per chapter, the
     # write rules, roles per chapter, national administrator least privilege, notifications.
     "ChapterSeparationTests.cs"         = 27
@@ -204,6 +209,8 @@ $endToEndMinimums = @{
     "AccessEndToEndTests.cs"     = 8
     "RoleMatrixEndToEndTests.cs" = 5
     "ParentRegistrationEndToEndTests.cs" = 3
+    # adr/0017: no role, no access; only a Parent registers a child; the legacy applicant keeps My applications.
+    "RegistrationQueueEndToEndTests.cs" = 6
     # adr/0015: the rendered (and offline-saved) lesson page and the Teacher's Information picture address, per role.
     "TeachersInformationEndToEndTests.cs" = 4
 }
@@ -246,6 +253,9 @@ $hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Infrastructure/Identity/
 $hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Infrastructure/Identity/VlmsIdentityUser.cs")
 $hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Web/Components/Account/VlmsSignInManager.cs")
 $hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Infrastructure/Registration/StudentApplicationService.cs")
+# adr/0017 registration queue: who is waiting, multi-role grants, the counts and the role-less status.
+$hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Infrastructure/Registration/RegistrationQueueService.cs")
+$hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Infrastructure/Identity/NewRegistrationService.cs")
 # FR-021 chapters (adr/0010): filters' write side, membership, scope override, national services,
 # the switch endpoint, the anonymous-lookup context and the invite acceptance that uses the override.
 $hashedFiles += Get-ChildItem (Join-Path $repoRoot "src/Vlms.Infrastructure/Chapters") -Filter "*.cs"

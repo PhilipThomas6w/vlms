@@ -1,5 +1,5 @@
 @page "/registration/apply"
-@attribute [Authorize(Policy = "RequireSignedIn")]
+@attribute [Authorize(Policy = "RequireParent")]
 @using System.Globalization
 @using Vlms.Infrastructure.Chapters
 @using Vlms.Infrastructure.Registration
@@ -7,8 +7,9 @@
 @inject ChapterService Chapters
 
 @* Static SSR (no @rendermode), so the form posts as a normal HTTP request; this is also what the
-   request-level end-to-end test drives. Any signed-in adult can apply, holding no role yet
-   (adr/0008 answer 1); the service refuses student sign-ins and leavers. Nothing is created but the
+   request-level end-to-end test drives. Only a Parent can apply (adr/0017), and only in a chapter
+   where they are a Parent: the chapter list offers only those, and the service refuses any other.
+   Nothing is created but the
    application until a Safeguarding Officer and then an Admin approve it.
 
    Children are rendered in a loop with native inputs named "Input.Children[n].Field", which the
@@ -202,8 +203,10 @@ else
     protected override async Task OnInitializedAsync()
     {
         Input ??= new();
-        // The open chapters (FR-021): that chapter's Safeguarding Officer and Admin decide.
-        _chapters = await Chapters.ListOpenAsync();
+        // The open chapters where the caller is a Parent (FR-021, adr/0017): that chapter's
+        // Safeguarding Officer and Admin decide.
+        var mine = await Applications.ListChaptersICanApplyInAsync();
+        _chapters = (await Chapters.ListOpenAsync()).Where(c => mine.Contains(c.Id)).ToList();
         if (Input.ChapterId is null && _chapters.Count == 1)
         {
             Input.ChapterId = _chapters[0].Id;
