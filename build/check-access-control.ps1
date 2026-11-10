@@ -159,17 +159,17 @@ $expectedMinimums = @{
     # private subscribe link served without signing in.
     "CalendarServiceTests.cs"           = 10
     "CalendarFeedServiceTests.cs"       = 6
-    # adr/0012 app-hosted lessons: the Teacher's Information for staff only, per role; lesson and
-    # Teacher's Information pictures by id; the converted lesson's offline details.
-    # Raised 10/11/2026 for adr/0015: teacher's notes and their notes-only pictures for staff only
-    # (Approvers included), never for a student or parent, never at the ordinary picture address.
-    "LessonPageServiceTests.cs"         = 16
+    # adr/0012 app-hosted lessons: lesson pictures by id; the converted lesson's offline details.
+    # adr/0015 (amended 10/11/2026): the lesson's Teacher's Information and its staff-only pictures for
+    # staff only (Approvers included), never for a student or parent, never at the ordinary picture
+    # address. Rank-wide Teacher's Information is gone, so the floor is back near its earlier level.
+    "LessonPageServiceTests.cs"         = 12
     # adr/0013 lesson suggestions: who may suggest, review, publish now, read history and change the
     # setting; one open suggestion; self-approval; the stale-base guard; pictures to the author only.
     "LessonSuggestionServiceTests.cs"   = 25
-    # adr/0015 teacher's notes through suggestions and Teacher's Information as its own suggestion type:
-    # who may suggest and read its history, one open per rank (service and database), its pictures by role.
-    "TeachersNotesSuggestionTests.cs"   = 12
+    # adr/0015 the lesson's Teacher's Information through suggestions: carried in review, approval and
+    # history, its picture staff-only, a picture it uses must be the suggestion's.
+    "TeachersInformationSuggestionTests.cs" = 4
     # adr/0014 retention purge: Admin-only, active chapter, still-due recheck, typed name, what a
     # deletion removes, the parent and staff account rules, the deletion log; the reminder and the
     # audit-log purge (system principal only, rows older than 6 years only). Raised 27/10/2026 for
@@ -200,8 +200,8 @@ $endToEndMinimums = @{
     "AccessEndToEndTests.cs"     = 8
     "RoleMatrixEndToEndTests.cs" = 5
     "ParentRegistrationEndToEndTests.cs" = 3
-    # adr/0015: the rendered (and offline-saved) lesson page and the notes-picture address, per role.
-    "TeachersNotesEndToEndTests.cs"     = 4
+    # adr/0015: the rendered (and offline-saved) lesson page and the Teacher's Information picture address, per role.
+    "TeachersInformationEndToEndTests.cs" = 4
 }
 foreach ($testFileName in $endToEndMinimums.Keys) {
     $testFilePath = Join-Path $endToEndRoot $testFileName

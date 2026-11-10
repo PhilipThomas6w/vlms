@@ -1,6 +1,5 @@
 @page "/lessons/{Code}/suggest"
 @page "/lessons/new/{RankCode}"
-@page "/curriculum/teachers-information/{TeachersInformationRank}/suggest"
 @attribute [Authorize(Policy = "RequireLessonSuggester")]
 @rendermode InteractiveServer
 @implements IAsyncDisposable
@@ -10,8 +9,8 @@
 @inject IJSRuntime JS
 @inject AntiforgeryStateProvider Antiforgery
 
-@* Suggest changes to a lesson, or a new lesson (FR-007, docs/adr/0013 decisions 1, 2, 5, 6 and 10), with its teacher's
-   notes in a second editor; or to a rank's Teacher's Information (docs/adr/0015 decisions 2 and 4). The lesson page itself
+@* Suggest changes to a lesson, or a new lesson (FR-007, docs/adr/0013 decisions 1, 2, 5, 6 and 10), with its Teacher's
+   Information in a second editor (docs/adr/0015 and its amendment). The lesson page itself
    stays static; this is its own interactive page. The text is edited in wwwroot/lesson-editor.js (Toast UI Editor,
    vendored), which saves Markdown; the editor's element is never re-rendered by Blazor, only shown or hidden. *@
 
@@ -32,10 +31,6 @@ else if (_editor is not null)
         @if (_editor.LessonCode is not null)
         {
             <a href="@LessonLibraryService.PageUrl(_editor.LessonCode)">@_editor.LessonTitle</a><span aria-hidden="true">&nbsp;›&nbsp;</span><span>Suggest changes</span>
-        }
-        else if (_editor.ForTeachersInformation)
-        {
-            <a href="/lessons">Lesson library</a><span aria-hidden="true">&nbsp;›&nbsp;</span><span>@LessonSuggestionService.TeachersInformationTitle</span>
         }
         else
         {
@@ -78,7 +73,7 @@ else if (_editor is not null)
             }
             else if (_message == Outcome.Published && _published is not null)
             {
-                <Notice Kind="success"><p><strong>Published.</strong> @($"The {Subject} is now version {_published.Number}.") <a href="@(_published.ForTeachersInformation ? BackUrl : LessonLibraryService.PageUrl(_published.LessonCode))">@BackText</a></p></Notice>
+                <Notice Kind="success"><p><strong>Published.</strong> @($"The {Subject} is now version {_published.Number}.") <a href="@LessonLibraryService.PageUrl(_published.LessonCode)">@BackText</a></p></Notice>
             }
             else if (_message == Outcome.Discarded)
             {
@@ -105,7 +100,7 @@ else if (_editor is not null)
                 <Notice Kind="warning"><p>This lesson will be retired. <button type="button" class="btn--quiet" @onclick="KeepLesson">Keep the lesson</button></p></Notice>
             }
 
-            <section class="lesson-editor" aria-label="@TextLabel" hidden="@(_kind == LessonChangeKind.Retire)">
+            <section class="lesson-editor" aria-label="Lesson text" hidden="@(_kind == LessonChangeKind.Retire)">
                 <div class="lesson-editor__toolbar" role="toolbar" aria-label="Formatting" @ref="_toolbar">
                     <button type="button" class="btn--secondary" data-command="bold" aria-label="Bold"><strong aria-hidden="true">B</strong></button>
                     <button type="button" class="btn--secondary" data-command="italic" aria-label="Italic"><em aria-hidden="true">I</em></button>
@@ -117,58 +112,55 @@ else if (_editor is not null)
                     <button type="button" class="btn--secondary" data-command="link">Link</button>
                     <button type="button" class="btn--secondary" data-command="picture">Insert picture</button>
                 </div>
-                <div class="lesson-editor__text lesson-text" data-label="@TextLabel" @ref="_host"></div>
+                <div class="lesson-editor__text lesson-text" data-label="Lesson text" @ref="_host"></div>
             </section>
 
-            @if (!_editor.ForTeachersInformation)
-            {
-                <h2 class="section-title" id="notes-heading" hidden="@(_kind == LessonChangeKind.Retire)">Teacher's notes</h2>
-                <section class="lesson-editor" aria-labelledby="notes-heading" hidden="@(_kind == LessonChangeKind.Retire)">
-                    <div class="lesson-editor__toolbar" role="toolbar" aria-label="Teacher's notes formatting" @ref="_notesToolbar">
-                        <button type="button" class="btn--secondary" data-command="bold" aria-label="Bold"><strong aria-hidden="true">B</strong></button>
-                        <button type="button" class="btn--secondary" data-command="italic" aria-label="Italic"><em aria-hidden="true">I</em></button>
-                        <button type="button" class="btn--secondary" data-command="heading">Heading</button>
-                        <button type="button" class="btn--secondary" data-command="subheading">Subheading</button>
-                        <button type="button" class="btn--secondary" data-command="bulletList">Bulleted list</button>
-                        <button type="button" class="btn--secondary" data-command="orderedList">Numbered list</button>
-                        <button type="button" class="btn--secondary" data-command="quote">Quotation</button>
-                        <button type="button" class="btn--secondary" data-command="link">Link</button>
-                        <button type="button" class="btn--secondary" data-command="picture">Insert picture</button>
-                    </div>
-                    <div class="lesson-editor__text lesson-text" data-label="Teacher's notes" @ref="_notesHost"></div>
-                </section>
+            <h2 class="section-title" id="notes-heading" hidden="@(_kind == LessonChangeKind.Retire)">Teacher's Information</h2>
+            <section class="lesson-editor" aria-labelledby="notes-heading" hidden="@(_kind == LessonChangeKind.Retire)">
+                <div class="lesson-editor__toolbar" role="toolbar" aria-label="Teacher's Information formatting" @ref="_notesToolbar">
+                    <button type="button" class="btn--secondary" data-command="bold" aria-label="Bold"><strong aria-hidden="true">B</strong></button>
+                    <button type="button" class="btn--secondary" data-command="italic" aria-label="Italic"><em aria-hidden="true">I</em></button>
+                    <button type="button" class="btn--secondary" data-command="heading">Heading</button>
+                    <button type="button" class="btn--secondary" data-command="subheading">Subheading</button>
+                    <button type="button" class="btn--secondary" data-command="bulletList">Bulleted list</button>
+                    <button type="button" class="btn--secondary" data-command="orderedList">Numbered list</button>
+                    <button type="button" class="btn--secondary" data-command="quote">Quotation</button>
+                    <button type="button" class="btn--secondary" data-command="link">Link</button>
+                    <button type="button" class="btn--secondary" data-command="picture">Insert picture</button>
+                </div>
+                <div class="lesson-editor__text lesson-text" data-label="Teacher's Information" @ref="_notesHost"></div>
+            </section>
 
-                <details class="panel lesson-settings" open="@(_editor.LessonId is null)">
-                    <summary>Lesson settings: title, order and tags</summary>
-                    <div class="field-row">
-                        <div class="field">
-                            <label for="lesson-title">Title</label>
-                            <input id="lesson-title" type="text" maxlength="@LessonSuggestionService.MaxTitleLength" @bind="_title" disabled="@(_kind == LessonChangeKind.Retire)" />
-                        </div>
-                        <div class="field">
-                            <label for="lesson-order">Order in @_editor.RankName</label>
-                            <input id="lesson-order" type="number" min="1" inputmode="numeric" @bind="_order" disabled="@(_kind == LessonChangeKind.Retire)" />
-                        </div>
+            <details class="panel lesson-settings" open="@(_editor.LessonId is null)">
+                <summary>Lesson settings: title, order and tags</summary>
+                <div class="field-row">
+                    <div class="field">
+                        <label for="lesson-title">Title</label>
+                        <input id="lesson-title" type="text" maxlength="@LessonSuggestionService.MaxTitleLength" @bind="_title" disabled="@(_kind == LessonChangeKind.Retire)" />
                     </div>
-                    <fieldset disabled="@(_kind == LessonChangeKind.Retire)">
-                        <legend>Tags</legend>
-                        <ul class="check-list lesson-tags">
-                            @foreach (var tag in Enum.GetValues<LessonTag>())
-                            {
-                                var id = $"tag-{tag}";
-                                <li class="field--check">
-                                    <input type="checkbox" id="@id" checked="@_tags.Contains(tag)" @onchange="e => ToggleTag(tag, e.Value is true)" />
-                                    <label for="@id">@LessonTagNames.Display(tag)</label>
-                                </li>
-                            }
-                        </ul>
-                    </fieldset>
-                    @if (_editor.LessonId is not null && _kind != LessonChangeKind.Retire)
-                    {
-                        <p><button type="button" class="btn--secondary" @onclick="RetireAsync">Retire this lesson</button></p>
-                    }
-                </details>
-            }
+                    <div class="field">
+                        <label for="lesson-order">Order in @_editor.RankName</label>
+                        <input id="lesson-order" type="number" min="1" inputmode="numeric" @bind="_order" disabled="@(_kind == LessonChangeKind.Retire)" />
+                    </div>
+                </div>
+                <fieldset disabled="@(_kind == LessonChangeKind.Retire)">
+                    <legend>Tags</legend>
+                    <ul class="check-list lesson-tags">
+                        @foreach (var tag in Enum.GetValues<LessonTag>())
+                        {
+                            var id = $"tag-{tag}";
+                            <li class="field--check">
+                                <input type="checkbox" id="@id" checked="@_tags.Contains(tag)" @onchange="e => ToggleTag(tag, e.Value is true)" />
+                                <label for="@id">@LessonTagNames.Display(tag)</label>
+                            </li>
+                        }
+                    </ul>
+                </fieldset>
+                @if (_editor.LessonId is not null && _kind != LessonChangeKind.Retire)
+                {
+                    <p><button type="button" class="btn--secondary" @onclick="RetireAsync">Retire this lesson</button></p>
+                }
+            </details>
 
             <div class="field">
                 <label for="reason">@(_editor.CanPublishNow ? "Reason for the change (required to submit for review)" : "Reason for the change (required)")</label>
@@ -241,7 +233,6 @@ else if (_editor is not null)
 @code {
     [Parameter] public string? Code { get; set; }
     [Parameter] public string? RankCode { get; set; }
-    [Parameter] public string? TeachersInformationRank { get; set; }
 
     private enum Outcome { None, Saved, Submitted, Published, Discarded }
 
@@ -276,7 +267,6 @@ else if (_editor is not null)
 
     private string PageHeading => _editor switch
     {
-        { ForTeachersInformation: true } => $"Suggest changes to the Teacher's Information for {_editor.RankName}",
         { LessonCode: not null } => $"Suggest changes to {_editor.LessonTitle}",
         _ => $"New lesson in {_editor?.RankName}"
     };
@@ -285,17 +275,13 @@ else if (_editor is not null)
 
     private string BackText => _editor?.LessonCode is not null ? "Back to the lesson" : "Back to the lesson library";
 
-    private string TextLabel => _editor?.ForTeachersInformation == true ? LessonSuggestionService.TeachersInformationTitle : "Lesson text";
-
-    private string Subject =>_editor?.ForTeachersInformation == true ? "Teacher's Information" : "lesson";
+    private const string Subject = "lesson";
 
     protected override async Task OnParametersSetAsync()
     {
         _editor = Code is not null
             ? await Suggestions.GetEditorAsync(Code)
-            : TeachersInformationRank is not null
-                ? await Suggestions.GetTeachersInformationEditorAsync(TeachersInformationRank)
-                : await Suggestions.GetNewLessonEditorAsync(RankCode ?? "");
+            : await Suggestions.GetNewLessonEditorAsync(RankCode ?? "");
         _loaded = true;
         if (_editor?.Draft is { } draft)
         {
@@ -307,7 +293,7 @@ else if (_editor is not null)
             _tags = draft.Tags.ToHashSet();
             _reason = draft.Reason;
             _body = draft.Body;
-            _notes = draft.TeachersNotes;
+            _notes = draft.TeachersInformation;
             _revises = draft.RevisesSuggestionId;
             if (_status == LessonSuggestionStatus.Submitted)
             {
@@ -328,11 +314,8 @@ else if (_editor is not null)
         _self = DotNetObjectReference.Create(this);
         await _module.InvokeVoidAsync("create", _host, _toolbar, _body, _editor.Draft.PictureUrls,
             Antiforgery.GetAntiforgeryToken()?.Value ?? "", _self, "lib/toastui-editor/toastui-editor.min.js", "text");
-        if (!_editor.ForTeachersInformation)
-        {
-            await _module.InvokeVoidAsync("create", _notesHost, _notesToolbar, _notes, _editor.Draft.PictureUrls,
-                Antiforgery.GetAntiforgeryToken()?.Value ?? "", _self, "lib/toastui-editor/toastui-editor.min.js", "notes");
-        }
+        await _module.InvokeVoidAsync("create", _notesHost, _notesToolbar, _notes, _editor.Draft.PictureUrls,
+            Antiforgery.GetAntiforgeryToken()?.Value ?? "", _self, "lib/toastui-editor/toastui-editor.min.js", "notes");
     }
 
     /// <summary>Called by the editor's script before it uploads a picture: the picture belongs to a saved draft.</summary>
@@ -345,10 +328,7 @@ else if (_editor is not null)
         }
 
         _body = markdown;
-        if (!_editor!.ForTeachersInformation)
-        {
-            _notes = notes ?? "";
-        }
+        _notes = notes ?? "";
         _suggestionId = await Suggestions.SaveDraftAsync(Input());
         _status = LessonSuggestionStatus.Draft;
         await InvokeAsync(StateHasChanged);
@@ -357,17 +337,14 @@ else if (_editor is not null)
 
     private SuggestionInput Input() =>
         new(_suggestionId, _editor!.LessonId, _editor.RankId, _kind, _title, _order, _tags, _body, _reason, _suggestionId is null ? _revises : null,
-            _suggestionId is null ? _editor.CurrentVersionNumber : null, _editor.ForTeachersInformation ? null : _notes);
+            _suggestionId is null ? _editor.CurrentVersionNumber : null, _notes);
 
     private async Task ReadBodyAsync()
     {
         if (_module is not null)
         {
             _body = await _module.InvokeAsync<string>("getMarkdown", "text");
-            if (!_editor!.ForTeachersInformation)
-            {
-                _notes = await _module.InvokeAsync<string>("getMarkdown", "notes");
-            }
+            _notes = await _module.InvokeAsync<string>("getMarkdown", "notes");
         }
     }
 

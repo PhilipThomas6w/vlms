@@ -7,9 +7,9 @@
 @* A converted lesson (docs/adr/0012-app-hosted-lessons.md decision 6). Static server rendering, no interactive
    component: the page needs no live connection, so it is itself what "Save to this device" saves (decision 7).
    The lesson text is HTML from LessonMarkdown (raw HTML disabled, links and pictures restricted), so it is
-   written as markup here. The Teacher's Information and the teacher's notes are only ever present for staff
-   (docs/adr/0015): LessonLibraryService leaves them out for everyone else, so the page a student or parent receives,
-   and saves to a device, carries neither. *@
+   written as markup here. The Teacher's Information is only ever present for staff (docs/adr/0015):
+   LessonLibraryService leaves it out for everyone else, so the page a student or parent receives, and saves to a
+   device, carries none. *@
 
 @if (_page is null)
 {
@@ -65,48 +65,17 @@ else
 
     @if (_page.ShowsTeachersMaterial)
     {
-        @* Staff only (docs/adr/0015 decisions 3 and 4): always offered, empty or not. *@
+        @* Staff only (docs/adr/0015 amendment): always offered, empty or not. *@
         <details class="teachers-information" data-teachers-information>
             <summary>Teacher's Information</summary>
             @if (_page.TeachersInformationHtml is not null)
             {
                 <div class="lesson-text">@((MarkupString)_page.TeachersInformationHtml)</div>
-                @if (_suggestions is { CanSuggest: true } or { CanReadHistory: true })
-                {
-                    <p class="form-actions">
-                        @if (_suggestions.CanSuggest)
-                        {
-                            <a class="btn btn--secondary" href="@LessonSuggestionService.TeachersInformationEditorUrl(_page.RankCode)">Suggest changes<span class="visually-hidden"> to the Teacher's Information</span></a>
-                        }
-                        @if (_suggestions.CanReadHistory)
-                        {
-                            <a class="btn btn--secondary" href="@LessonSuggestionService.TeachersInformationHistoryUrl(_page.RankCode)">History<span class="visually-hidden"> of the Teacher's Information</span></a>
-                        }
-                    </p>
-                }
             }
             else
             {
                 <p>
                     No Teacher's Information yet.
-                    @if (_suggestions is { CanSuggest: true })
-                    {
-                        <a href="@LessonSuggestionService.TeachersInformationEditorUrl(_page.RankCode)">Suggest changes<span class="visually-hidden"> to the Teacher's Information</span></a>
-                    }
-                </p>
-            }
-        </details>
-
-        <details class="teachers-information" data-teachers-notes>
-            <summary>Teacher's notes</summary>
-            @if (_page.TeachersNotesHtml is not null)
-            {
-                <div class="lesson-text">@((MarkupString)_page.TeachersNotesHtml)</div>
-            }
-            else
-            {
-                <p>
-                    No teacher's notes yet.
                     @if (_suggestions is { CanSuggest: true })
                     {
                         @if (_suggestions.Open is { IsMine: false })

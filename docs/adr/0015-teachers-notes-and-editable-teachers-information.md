@@ -48,3 +48,12 @@ The build showed two staff sections on every lesson ("Teacher's Information" for
 3. **"Teacher's notes" is not a separate thing**: it is this lesson-level Teacher's Information.
 4. **Content**: each rank file `R<n>-TI.md` (R2 to R7) has one section per lesson, in lesson order; each section moves word for word into that lesson's Teacher's Information, ahead of any teacher-facing text already moved out of the lesson text (decision 6). Seeder input becomes `seed/lessons/<code>.teachers-information.md`.
 5. The migration `AddTeachersNotes` was never released, so it is replaced by one migration for the final shape.
+
+### As built (amendment)
+
+Built as amended, migration `AddLessonTeachersInformation` (from `AddChapterJoinRequests`; it also drops the production `ranks.teachers_information` and `teachers_information_pictures`, with no data to preserve). Deviations and choices the amendment left open:
+
+- The seeder rejects any `seed/lessons/*.notes.md` or `*-TI.md` file with an error, whether or not it matches a lesson in the manifest, so a stale file is never silently ignored.
+- The Teacher's Information salt in the lesson content-version hash changed from `teacher's notes` to `Teacher's Information` (in both the seeder and `LessonSuggestionService.ContentVersionOf`); nothing had been released, so no saved copy is affected.
+- `LessonChangeKind` keeps its four original members; the `TeachersInformation` kind (value 4) is removed and its open-suggestion index with it.
+- The editor's two panes keep the internal names `text` and `notes` in `lesson-editor.js`; only labels and public names say Teacher's Information.

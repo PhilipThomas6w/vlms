@@ -22,13 +22,7 @@ public enum LessonChangeKind
     Edit,
     ReplaceInFull,
     NewLesson,
-    Retire,
-
-    /// <summary>
-    /// A change to a rank's Teacher's Information (docs/adr/0015 decision 4): <see cref="LessonSuggestion.LessonId"/> is
-    /// null, <see cref="LessonSuggestion.Body"/> is the proposed Teacher's Information, and one may be open per rank.
-    /// </summary>
-    TeachersInformation
+    Retire
 }
 
 /// <summary>
@@ -59,8 +53,8 @@ public sealed class LessonSuggestion
     public required int Order { get; init; }
     public required string Body { get; init; }
 
-    /// <summary>The proposed teacher's notes (docs/adr/0015 decision 2); null when there are none.</summary>
-    public string? TeachersNotes { get; init; }
+    /// <summary>The proposed Teacher's Information (docs/adr/0015 decision 2); null when there are none.</summary>
+    public string? TeachersInformation { get; init; }
 
     public string? Reason { get; init; }
 

@@ -7,8 +7,8 @@
 
 @* Approvers: one suggestion as tracked changes against the lesson's current version, or as it would read; approve it,
    send it back with a comment, or refer it to committee, after which it needs three different Approvers' approval
-   (FR-007, docs/adr/0013 decisions 3, 4 and 8). The lesson's teacher's notes are reviewed with it, and a rank's
-   Teacher's Information is reviewed the same way (docs/adr/0015). The HTML comes from LessonDiff, built from
+   (FR-007, docs/adr/0013 decisions 3, 4 and 8). The lesson's Teacher's Information is reviewed with it (docs/adr/0015).
+   The HTML comes from LessonDiff, built from
    LessonMarkdown's output (raw HTML disabled), so it is written as markup. *@
 
 @if (_loaded && _review is null)
@@ -19,9 +19,9 @@
 }
 else if (_review is not null)
 {
-    <PageTitle>@Heading</PageTitle>
-    <p class="lesson-back"><a href="/curriculum/review">Changes to review</a><span aria-hidden="true">&nbsp;›&nbsp;</span><span>@Heading</span></p>
-    <PageHeader Title="@Heading" />
+    <PageTitle>@_review.LessonTitle</PageTitle>
+    <p class="lesson-back"><a href="/curriculum/review">Changes to review</a><span aria-hidden="true">&nbsp;›&nbsp;</span><span>@_review.LessonTitle</span></p>
+    <PageHeader Title="@_review.LessonTitle" />
 
     <dl class="facts">
         <dt>Suggested by</dt>
@@ -59,7 +59,7 @@ else if (_review is not null)
     <div role="status">
         @if (_approved is not null)
         {
-            <Notice Kind="success"><p><strong>Approved.</strong> @($"The {Subject} is now version {_approved.Number}.") <a href="@_approved.HistoryUrl">@(_approved.ForTeachersInformation ? "See the history" : "See the lesson’s history")</a></p></Notice>
+            <Notice Kind="success"><p><strong>Approved.</strong> @($"The lesson is now version {_approved.Number}.") <a href="@LessonSuggestionService.HistoryUrl(_approved.LessonCode)">See the lesson’s history</a></p></Notice>
         }
         else if (_committeeApprovals is int count)
         {
@@ -77,7 +77,7 @@ else if (_review is not null)
 
     @if (_review.IsStale && Pending)
     {
-        <Notice Kind="warning"><p>@($"The {Subject} has changed since this suggestion was started, so it cannot be approved.")</p></Notice>
+        <Notice Kind="warning"><p>The lesson has changed since this suggestion was started, so it cannot be approved.</p></Notice>
     }
 
     @if (_review.Kind == LessonChangeKind.Retire)
@@ -114,18 +114,18 @@ else if (_review is not null)
         }
     }
 
-    @if (_review.NotesTrackedHtml is not null)
+    @if (_review.InformationTrackedHtml is not null)
     {
-        @* The lesson's teacher's notes (docs/adr/0015 decision 2), always as tracked changes for a lesson replaced in full. *@
-        <h2 class="section-title">Teacher's notes</h2>
+        @* The lesson's Teacher's Information (docs/adr/0015), always as tracked changes for a lesson replaced in full. *@
+        <h2 class="section-title">Teacher's Information</h2>
         @if (_tracked || _review.Kind == LessonChangeKind.ReplaceInFull)
         {
             <p class="diff-legend">Underlined: added · Struck through: removed</p>
-            <article class="lesson-text lesson-diff" aria-label="Teacher's notes: tracked changes">@((MarkupString)_review.NotesTrackedHtml)</article>
+            <article class="lesson-text lesson-diff" aria-label="Teacher's Information: tracked changes">@((MarkupString)_review.InformationTrackedHtml)</article>
         }
         else
         {
-            <article class="lesson-text" aria-label="Teacher's notes: as they would read">@((MarkupString)(_review.NotesFinalHtml ?? ""))</article>
+            <article class="lesson-text" aria-label="Teacher's Information: as they would read">@((MarkupString)(_review.InformationFinalHtml ?? ""))</article>
         }
     }
 
@@ -180,17 +180,10 @@ else if (_review is not null)
 
     private bool Pending => _review?.Status == LessonSuggestionStatus.Submitted && _approved is null && !_sentBack;
 
-    private string Heading => _review is { Kind: LessonChangeKind.TeachersInformation }
-        ? $"{_review.LessonTitle}: {_review.RankName}"
-        : _review?.LessonTitle ?? "";
-
-    private string Subject => _review is { Kind: LessonChangeKind.TeachersInformation } ? "Teacher's Information" : "lesson";
-
     private string ChangesText => _review switch
     {
         null => "",
         { Kind: LessonChangeKind.NewLesson } => "New lesson",
-        { Kind: LessonChangeKind.TeachersInformation, CurrentVersionNumber: null } => "Proposed version 1",
         { CurrentVersionNumber: int n } => $"Version {n} → proposed version {n + 1}",
         _ => ""
     };

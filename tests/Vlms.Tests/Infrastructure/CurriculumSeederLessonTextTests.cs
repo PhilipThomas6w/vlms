@@ -211,39 +211,20 @@ public sealed class CurriculumSeederLessonTextTests : IDisposable
         Assert.Contains(result.Errors, e => e.Contains("broken.jpg") && e.Contains("could not be read"));
     }
 
-    [Fact]
-    public async Task TeachersInformation_IsImportedForItsRank_WithItsPictures()
+    [Theory]
+    [InlineData("lessons/R1-TI.md")]
+    [InlineData("lessons/RECRUIT-TI.md")]
+    public async Task ALeftoverRankWideTeachersInformationFile_IsAValidationError_SoItIsNeverSilentlyIgnored(string path)
     {
-        WriteText("lessons/R1-TI.md", "## For teachers\n\nPrepare the room.\n\n![Room layout](room.jpg)\n");
-        WritePicture("lessons/R1-TI/room.jpg", 640, 480, SKColors.Olive);
+        WriteConvertedLesson();
+        WriteText(path, "## For teachers\n\nPrepare the room.\n");
 
-        var result = await RunAsync();
-
-        Assert.True(result.Succeeded, string.Join("; ", result.Errors));
-        using var db = CreateContext();
-        var rank = await db.Ranks.SingleAsync(r => r.Code == "RECRUIT");
-        Assert.StartsWith("## For teachers", rank.TeachersInformation);
-        var picture = await db.TeachersInformationPictures.SingleAsync();
-        // Content-addressed since Teacher's Information has versions (adr/0015), as lesson pictures are.
-        Assert.Equal((rank.Id, "room.jpg"), (picture.RankId, picture.FileName));
-        Assert.Matches("^teachers-information/RECRUIT/[0-9a-f]{16}/room\\.jpg$", picture.BlobKey);
-        Assert.True(_blobStorage.TryGetBlob(picture.BlobKey, out _));
-
-        var again = await RunAsync();
-        Assert.Equal(0, again.LessonTextsUpdated);
-    }
-
-    [Fact]
-    public async Task TeachersInformation_ByRankCode_IsAlsoRecognised_ButNotTwice()
-    {
-        WriteText("lessons/RECRUIT-TI.md", "Notes.\n");
-        Assert.True((await RunAsync()).Succeeded);
-
-        WriteText("lessons/R1-TI.md", "Other notes.\n");
         var result = await RunAsync();
 
         Assert.False(result.Succeeded);
-        Assert.Contains(result.Errors, e => e.Contains("two Teacher's Information files"));
+        Assert.Contains(result.Errors, e => e.Contains(Path.GetFileName(path)) && e.Contains("no rank-wide Teacher's Information"));
+        using var db = CreateContext();
+        Assert.Empty(db.Lessons);
     }
 
     [Fact]
@@ -334,7 +315,9 @@ public sealed class CurriculumSeederLessonTextTests : IDisposable
 
         var result = await new CurriculumSeeder(db, _blobStorage).SeedAsync(Path.Combine(repo, "seed", "curriculum.json"), Path.Combine(_tempRoot, "content"));
 
-        Assert.DoesNotContain(result.Errors, e => e.Contains("picture") || e.Contains("Teacher's Information"));
+        // The "no longer read" errors (adr/0015 amendment) are for stale .notes.md and -TI.md files; the seed files are being
+        // renamed to .teachers-information.md separately, so they are not looked at here.
+        Assert.DoesNotContain(result.Errors, e => !e.Contains("is no longer read") && (e.Contains("picture") || e.Contains("Teacher's Information")));
     }
 
     private static string FindRepoRoot()

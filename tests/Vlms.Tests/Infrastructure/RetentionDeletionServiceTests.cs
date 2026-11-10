@@ -458,9 +458,6 @@ public sealed class RetentionDeletionServiceTests : IDisposable
         "StudentApplication.SafeguardingReviewedByUserId",
         "StudentGuardianLink.CreatedByUserId",
         "StudentLessonCompletion.CompletedByUserId",
-        "TeachersInformationVersion.ApprovedByUserId",
-        "TeachersInformationVersion.PublishedByUserId",
-        "TeachersInformationVersion.SuggestedByUserId",
     ];
 
     public static TheoryData<string> ActorReferences() => new(ActorReferenceNames);
@@ -802,10 +799,6 @@ public sealed class RetentionDeletionServiceTests : IDisposable
             Id = number, LessonId = 1, Number = number, Kind = LessonVersionKind.ApprovedSuggestion, Title = "Knots", Order = 1,
             IsActive = true, Body = $"Version {number}", PublishedAt = at
         };
-        TeachersInformationVersion InformationVersion(int number) => new()
-        {
-            Id = number, RankId = 1, Number = number, Kind = LessonVersionKind.ApprovedSuggestion, Body = $"Version {number}", PublishedAt = at
-        };
 
         switch (reference)
         {
@@ -863,15 +856,6 @@ public sealed class RetentionDeletionServiceTests : IDisposable
                 break;
             case "LessonVersion.PublishedByUserId":
                 AddWithValue(db, Version(3), nameof(LessonVersion.PublishedByUserId), userId);
-                break;
-            case "TeachersInformationVersion.SuggestedByUserId":
-                AddWithValue(db, InformationVersion(1), nameof(TeachersInformationVersion.SuggestedByUserId), userId);
-                break;
-            case "TeachersInformationVersion.ApprovedByUserId":
-                AddWithValue(db, InformationVersion(2), nameof(TeachersInformationVersion.ApprovedByUserId), userId);
-                break;
-            case "TeachersInformationVersion.PublishedByUserId":
-                AddWithValue(db, InformationVersion(3), nameof(TeachersInformationVersion.PublishedByUserId), userId);
                 break;
             case "ChapterJoinRequest.DismissedByUserId":
                 db.ChapterJoinRequests.Add(new ChapterJoinRequest { UserId = AdminId, ChapterId = Shrewsbury, JoiningAs = JoiningAs.Teacher, RequestedAt = at, DismissedAt = at, DismissedByUserId = userId });

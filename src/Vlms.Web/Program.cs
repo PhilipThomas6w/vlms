@@ -289,7 +289,7 @@ builder.Services.AddAuthorization(options =>
 
     // Lesson library (FR-006): any of Teacher/Approver/Admin/Student/Parent, never SafeguardingOfficer alone.
     options.AddLessonLibraryPolicy();
-    // Teacher's Information pictures (adr/0012 decision 5): Teacher, Admin or National Administrator only.
+    // Teacher's Information pictures (adr/0015): Teacher, Admin, National Administrator or Approver only.
     options.AddTeachersInformationPolicy();
     // Lesson suggestions (FR-007, adr/0013): Teacher or Approver to suggest; Approver or Admin to read the history.
     options.AddLessonSuggestionPolicies();
