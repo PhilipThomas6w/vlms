@@ -1,6 +1,6 @@
 # ADR-0015: Per-lesson teacher's notes and editable Teacher's Information
 
-Status: **Accepted** (Philip, 10/11/2026). Amends `0012` (Teacher's Information seeder-managed) and `0013` (what a suggestion carries).
+Status: **Accepted** (Philip, 10/11/2026); **amended the same day, see "Amendment" below (supersedes decisions 3 and 4 and the per-lesson/rank split).** Amends `0012` (Teacher's Information seeder-managed) and `0013` (what a suggestion carries).
 
 ## Context
 
@@ -38,3 +38,13 @@ Built as decided, migration `AddTeachersNotes`. Choices the decision left open:
 - Teacher's Information pictures are now stored under content-addressed keys, as lesson pictures are, so earlier versions stay readable.
 - No data backfill: a rank's Teacher's Information version 1 (Converted) is made by the next seeder run, or when someone first suggests a change to it.
 - A `.notes.md` file with no lesson text beside it is a seeder warning and is not imported.
+
+## Amendment (Philip, 10/11/2026, after seeing the build)
+
+The build showed two staff sections on every lesson ("Teacher's Information" for the rank, often empty, and "Teacher's notes" for the lesson). Philip: "Each lesson should include Teacher's Information that includes a lesson outline and guidance on how to present the lesson. That's it." So:
+
+1. **One section per lesson, called "Teacher's Information"**: the lesson outline and guidance on presenting it. Staff-only exactly as decision 1 (same roles, assumption kept), part of each lesson version, edited and reviewed through the lesson's "Suggest changes" (decision 2). Empty state "No Teacher's Information yet." with the suggest link.
+2. **No rank-wide Teacher's Information** anywhere: no section, suggestion kind, history page, picture endpoint, seeder input or stored column/table. Supersedes decision 4 and `0012`'s rank-level Teacher's Information.
+3. **"Teacher's notes" is not a separate thing**: it is this lesson-level Teacher's Information.
+4. **Content**: each rank file `R<n>-TI.md` (R2 to R7) has one section per lesson, in lesson order; each section moves word for word into that lesson's Teacher's Information, ahead of any teacher-facing text already moved out of the lesson text (decision 6). Seeder input becomes `seed/lessons/<code>.teachers-information.md`.
+5. The migration `AddTeachersNotes` was never released, so it is replaced by one migration for the final shape.
