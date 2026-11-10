@@ -26,7 +26,9 @@
 
 <section class="section" aria-labelledby="queue-heading">
     <h2 id="queue-heading">Waiting for a role</h2>
-    <RegistrationQueuePanel @rendermode="InteractiveServer" />
+    @* Not prerendered (production defect 10/11/2026): prerendering ran the panel's queries on this
+       page's DbContext while the page's own were in flight. Over the circuit it has its own scope. *@
+    <RegistrationQueuePanel @rendermode="new InteractiveServerRenderMode(prerender: false)" />
 </section>
 
 <section class="section" aria-labelledby="applications-heading">

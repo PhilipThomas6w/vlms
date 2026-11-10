@@ -84,10 +84,24 @@ public sealed class RoleAssignmentServiceTests : IDisposable
     public async Task GrantAsync_ByAdmin_PersistsUserRoleRow()
     {
         using var admin = CreateContext(1, Role.Admin);
+        admin.Context.ChapterJoinRequests.Add(new ChapterJoinRequest { UserId = 10, ChapterId = Chapter.ShrewsburyId, JoiningAs = JoiningAs.Parent, RequestedAt = DateTime.UtcNow });
+        await admin.Context.SaveChangesAsync();
 
         await admin.Service.GrantAsync(10, Role.Parent);
 
         Assert.Equal([Role.Parent], await RolesOf(10));
+    }
+
+    [Fact]
+    public async Task GrantAsync_ToSomeoneNotInTheChapterNorOnItsQueue_IsRefused_AndChangesNothing()
+    {
+        // adr/0017: no way in except the registration queue.
+        using var admin = CreateContext(1, Role.Admin);
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => admin.Service.GrantAsync(10, Role.Parent));
+
+        Assert.Contains("has not joined this chapter", ex.Message);
+        Assert.Empty(await RolesOf(10));
     }
 
     [Fact]

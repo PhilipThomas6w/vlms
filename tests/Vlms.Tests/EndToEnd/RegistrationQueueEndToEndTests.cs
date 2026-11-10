@@ -151,4 +151,44 @@ public sealed partial class RegistrationQueueEndToEndTests : IDisposable
         Assert.DoesNotContain("Waiting for approval", roles);
         Assert.Contains("href=\"/registration/approve\"", roles);
     }
+
+    [Fact]
+    public async Task The_Registrations_page_opens_with_applications_and_people_waiting()
+    {
+        // Production defect 10/11/2026: with applications to load, the interactive queue panel's
+        // prerender ran its queries on the page's DbContext while the page's own were in flight
+        // ("A second operation was started on this context"), and the page failed.
+        var admin = await _factory.SeedUserAsync("admin@test.example", withTotp: true, Role.Admin);
+        var parent = await _factory.SeedUserAsync("parent@test.example", withTotp: false, Role.Parent);
+        var teacherToBe = await _factory.SeedUserAsync("teacher.to.be@test.example", withTotp: false);
+        await RegisterForAsync(teacherToBe.Id, JoiningAs.Teacher);
+        await _factory.WithDbAsync(async db =>
+        {
+            foreach (var (id, status) in new[] { (1, StudentApplicationStatus.AwaitingAdminApproval), (2, StudentApplicationStatus.AwaitingSafeguardingReview) })
+            {
+                db.StudentApplications.Add(new StudentApplication
+                {
+                    Id = id, ChapterId = Chapter.ShrewsburyId, ApplicantUserId = parent.Id, ParentPhone = "07000 000000",
+                    ParentPostalAddress = "1 Church Lane", Relationship = "Mother", ChildName = $"Child {id}", ChildDateOfBirth = new DateOnly(2016, 1, 1),
+                    PhotoMediaConsent = true, TransportConsent = true, OffsiteTripConsent = true, DataSharingConsent = true,
+                    Status = status, SubmittedAt = DateTime.UtcNow, LastSubmittedAt = DateTime.UtcNow
+                });
+            }
+
+            await db.SaveChangesAsync();
+        });
+        var browser = await Browser.SignInAsync(_factory, admin);
+
+        var response = await browser.GetAsync("/registration/approve");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var page = await response.Content.ReadAsStringAsync();
+        Assert.Contains("Child 1", page);
+        Assert.Contains("Child 2", page);
+        Assert.Contains("Waiting for a role", page);
+        // The fix: the queue panel is not prerendered, so it never touches the page's DbContext.
+        // SQLite runs "async" queries synchronously, so the race itself can't be reproduced here;
+        // this asserts the structure that rules it out. The queue loads over the circuit, in its own scope.
+        Assert.DoesNotContain("teacher.to.be@test.example", page);
+    }
 }

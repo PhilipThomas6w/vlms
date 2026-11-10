@@ -529,6 +529,15 @@ public sealed class ChapterSeparationTests : IDisposable
         await Assert.ThrowsAsync<InvalidOperationException>(() => coventryAdmin.RevokeAsync(TwoChapterUser, Role.Teacher));
         await Assert.ThrowsAsync<InvalidOperationException>(() => coventryAdmin.GrantAsync(Chapter.ShrewsburyId * 100 + Staff, Role.Approver));
 
+        // adr/0017: a Shrewsbury member who never joined Coventry cannot be pulled in by its Admin...
+        await Assert.ThrowsAsync<InvalidOperationException>(() => coventryAdmin.GrantAsync(Chapter.ShrewsburyId * 100 + Staff, Role.Teacher));
+        // ...only once they are on Coventry's registration queue.
+        using (var join = NewContext(TestSeedUserContext.Instance))
+        {
+            join.ChapterJoinRequests.Add(new ChapterJoinRequest { UserId = Chapter.ShrewsburyId * 100 + Staff, ChapterId = Coventry, JoiningAs = JoiningAs.Teacher, RequestedAt = DateTime.UtcNow });
+            await join.SaveChangesAsync();
+        }
+
         await coventryAdmin.GrantAsync(Chapter.ShrewsburyId * 100 + Staff, Role.Teacher);
         using var verify = NewContext(TestSeedUserContext.Instance);
         Assert.Equal(Coventry, verify.UserRoles.Single(r => r.UserId == Chapter.ShrewsburyId * 100 + Staff && r.Role == Role.Teacher && r.ChapterId != Chapter.ShrewsburyId).ChapterId);

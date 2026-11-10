@@ -39,45 +39,6 @@
     </Notice>
 }
 
-<section class="section" aria-labelledby="give-heading">
-    <h2 id="give-heading">Give someone a role</h2>
-    <p>
-        Someone who registered for this chapter, or accepted one of its guardian invites, is given a role
-        on <a href="/registration/approve">Registrations</a>. Anyone else is found by the email address
-        they registered with.
-    </p>
-    <form class="field-row" @onsubmit="FindAsync" @onsubmit:preventDefault>
-        <div class="field">
-            <label for="find-email">Their email address</label>
-            <input id="find-email" type="email" autocomplete="off" @bind="_findEmail" />
-        </div>
-        <div class="form-actions"><button type="submit">Find</button></div>
-    </form>
-    @if (_found is { } found)
-    {
-        var foundSelectId = $"grant-role-found-{found.UserId}";
-        <div class="panel">
-            <p><strong>@found.DisplayName</strong> (@found.Email)@(found.IsInactive ? " is Inactive in this chapter." : "")</p>
-            @if (GrantableRoles(found) is { Count: > 0 } foundRoles)
-            {
-                <div class="field-row">
-                    <div class="field">
-                        <label for="@foundSelectId">Role for @found.DisplayName</label>
-                        <select id="@foundSelectId" @bind="_foundRole">
-                            <option value="">Choose a role</option>
-                            @foreach (var role in foundRoles)
-                            {
-                                <option value="@role">@role.DisplayName()</option>
-                            }
-                        </select>
-                    </div>
-                    <button type="button" aria-label="@($"Grant selected role to {found.DisplayName}")" disabled="@(_foundRole is null)" @onclick="GrantFoundAsync">Grant</button>
-                </div>
-            }
-        </div>
-    }
-</section>
-
 <section class="section" aria-labelledby="people-heading">
     <h2 id="people-heading">People in this chapter</h2>
 
@@ -251,55 +212,6 @@
         user.Roles.Contains(Role.Student) || string.IsNullOrEmpty(user.Email)
             ? []
             : RoleAssignmentService.AssignableRoles.Except(user.Roles).ToList();
-
-    private string? _findEmail;
-    private RoleAssignmentService.UserWithRoles? _found;
-    private Role? _foundRole;
-
-    private async Task FindAsync()
-    {
-        _errorMessage = null;
-        _statusMessage = null;
-        _found = await RoleAssignmentService.FindByEmailAsync(_findEmail ?? "");
-        if (_found is null)
-        {
-            _errorMessage = "No account has that email address. Ask them to register first.";
-            return;
-        }
-
-        _foundRole = null;
-    }
-
-    private async Task GrantFoundAsync()
-    {
-        if (_found is not { } found)
-        {
-            return;
-        }
-
-        if (_foundRole is not Role foundRole)
-        {
-            return;
-        }
-
-        _selectedRoles[found.UserId] = foundRole;
-        _confirm = new($"Grant {foundRole.DisplayName()} to {found.DisplayName}?", $"Grant {foundRole.DisplayName()}", false, GrantFoundConfirmedAsync);
-    }
-
-    private async Task GrantFoundConfirmedAsync()
-    {
-        if (_found is not { } found)
-        {
-            return;
-        }
-
-        await GrantAsync(found);
-        if (_errorMessage is null)
-        {
-            _found = null;
-            _findEmail = null;
-        }
-    }
 
     private async Task LoadAsync()
     {

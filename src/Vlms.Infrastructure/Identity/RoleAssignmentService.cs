@@ -16,8 +16,9 @@ namespace Vlms.Infrastructure.Identity;
 /// person holds in another chapter are neither shown nor touched. The national roles (Approver,
 /// National Administrator) are managed by a National Administrator on the chapters page
 /// (<c>Chapters.ChapterService</c>), never here. People without a role in the chapter are not
-/// listed: an Admin finds one by their exact email address (<see cref="FindByEmailAsync"/>), so no
-/// chapter can browse every account on the platform.
+/// listed: someone new reaches the chapter only through its registration queue (adr/0017), and a
+/// role is granted only to someone already in the chapter or on that queue, so no chapter can
+/// browse or pull in other accounts on the platform.
 ///
 /// <b>Authorization: role-checked inside the service itself</b> (defense in depth, same pattern as
 /// <c>Retention.LeavingService</c>) — Admin-only for every method, including the read. Roles stay
@@ -100,34 +101,6 @@ public sealed class RoleAssignmentService
                 _db.StaffInactivities.Any(s => s.UserId == u.Id && s.ChapterId == chapterId && s.ReactivatedAt == null),
                 rolesByUser[u.Id].OrderBy(r => r).ToList()))
             .ToList();
-    }
-
-    /// <summary>
-    /// The adult account with exactly this email address (case-insensitive), with the roles it holds
-    /// in the Admin's chapter (possibly none), or null. How an Admin finds someone new to give a role
-    /// to, without listing every account on the platform. Admin-only.
-    /// </summary>
-    public async Task<UserWithRoles?> FindByEmailAsync(string email, CancellationToken ct = default)
-    {
-        var chapterId = RequireAdmin();
-        if (string.IsNullOrWhiteSpace(email))
-        {
-            return null;
-        }
-
-        var normalised = email.Trim().ToLower();
-        var user = await _db.AppUsers.SingleOrDefaultAsync(u => u.Email != "" && u.Email.ToLower() == normalised, ct);
-        if (user is null)
-        {
-            return null;
-        }
-
-        var roles = await _db.UserRoles
-            .Where(r => r.UserId == user.Id && r.ChapterId == chapterId)
-            .Select(r => r.Role)
-            .ToListAsync(ct);
-        var inactive = await _db.StaffInactivities.AnyAsync(s => s.UserId == user.Id && s.ChapterId == chapterId && s.ReactivatedAt == null, ct);
-        return new UserWithRoles(user.Id, user.DisplayName, user.Email, inactive, roles.Order().ToList());
     }
 
     /// <summary>
@@ -295,6 +268,18 @@ public sealed class RoleAssignmentService
         if (alreadyHeld.Count > 0)
         {
             throw new InvalidOperationException($"{user.DisplayName} already holds the {alreadyHeld.Order().First()} role.");
+        }
+
+        // adr/0017: a role is granted only to someone already in this chapter (holding a role here)
+        // or on its registration queue. There is no other way in: an Admin cannot pull in an account
+        // that never joined the chapter.
+        var inChapter = await _db.UserRoles.AnyAsync(r => r.UserId == userId && r.ChapterId == chapterId, ct)
+            || await NewRegistrationService.OpenRequestsIn(_db, chapterId).AnyAsync(r => r.UserId == userId, ct)
+            || await InviteAcceptorsAwaitingParentIn(_db, chapterId).AnyAsync(id => id == userId, ct);
+        if (!inChapter)
+        {
+            throw new InvalidOperationException(
+                $"{user.DisplayName} has not joined this chapter: they are given a role from Registrations once they register for it.");
         }
 
         await using var transaction = await _db.Database.BeginTransactionAsync(ct);
