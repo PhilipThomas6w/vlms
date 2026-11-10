@@ -1,7 +1,7 @@
 @using Vlms.Infrastructure.Curriculum
 @* "Save to this device" for one lesson (FR-023), on the lesson library and the lesson page alike. Hidden until
    wwwroot/offline-lessons.js shows it; the script reads everything it needs from these data attributes. A converted
-   lesson (adr/0012 decision 7) saves its lesson page and pictures; any other lesson its files. *@
+   lesson (adr/0012 decision 7) saves its lesson page, pictures and handouts (adr/0016); any other lesson its files. *@
 <div class="offline-save" hidden data-offline-lesson
      data-id="@Id" data-code="@Code" data-title="@Title"
      data-rank="@Rank" data-rank-position="@RankPosition" data-position="@Position"
@@ -23,13 +23,14 @@
     /// <summary>A converted lesson's pictures; null for a lesson that is still files.</summary>
     [Parameter] public IReadOnlyList<int>? PictureIds { get; set; }
 
-    /// <summary>The files of a lesson that is not converted.</summary>
+    /// <summary>The lesson's handouts (adr/0016), saved with it whether or not it is converted.</summary>
     [Parameter] public IReadOnlyList<LibraryFile> Files { get; set; } = [];
 
     [Parameter] public string? Version { get; set; }
 
     private string FilesJson() =>
         PictureIds is not null
-            ? System.Text.Json.JsonSerializer.Serialize(PictureIds.Select(id => new { id, name = "", url = LessonLibraryService.PictureUrl(id) }))
-            : System.Text.Json.JsonSerializer.Serialize(Files.Select(f => new { id = f.Id, name = f.DisplayName, url = $"/lessons/files/{f.Id}" }));
+            ? System.Text.Json.JsonSerializer.Serialize(PictureIds.Select(id => new { id, name = "", url = LessonLibraryService.PictureUrl(id) })
+                .Concat(Files.Select(f => new { id = f.Id, name = f.DisplayName, url = f.Url })))
+            : System.Text.Json.JsonSerializer.Serialize(Files.Select(f => new { id = f.Id, name = f.DisplayName, url = f.Url }));
 }

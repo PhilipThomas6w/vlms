@@ -105,7 +105,7 @@ The only thing that works with no connection. The pieces:
   `GET /lessons/saved?id=..` (`LessonFileEndpoint.MapSavedLessonsEndpoint`, `RequireLessonLibrary`,
   `LessonLibraryService.GetSavedLessonsAsync`), drops lessons and files no longer in the library,
   fetches new files and updates titles; a converted lesson whose `version` differs from the saved one
-  is fetched again in full (page and pictures). A non-JSON answer (lapsed sign-in) leaves everything as is.
+  is fetched again in full (page, pictures and, since adr/0016, its handouts). A non-JSON answer (lapsed sign-in) leaves everything as is.
 - **Tests** — `LessonFileEndpointTests` and `LessonLibraryServiceTests` (endpoint and service),
   `PwaAssetsTests` (cache naming, the lessons cache never deleted), `Vlms.UiTests/OfflineLessonsJourneyTests`
   (Chromium: save, go offline, saved list, file from the device, remove), `LessonPageJourneyTests`

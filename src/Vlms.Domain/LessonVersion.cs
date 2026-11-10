@@ -78,6 +78,23 @@ public sealed class LessonVersion
     public LessonSuggestion? Suggestion { get; init; }
     public ICollection<LessonVersionTag> Tags { get; init; } = new List<LessonVersionTag>();
     public ICollection<LessonVersionPicture> Pictures { get; init; } = new List<LessonVersionPicture>();
+    public ICollection<LessonVersionHandout> Handouts { get; init; } = new List<LessonVersionHandout>();
+}
+
+/// <summary>
+/// A handout of a <see cref="LessonVersion"/> (docs/adr/0016 decision 2): its names and stored copy. Handout blob keys name
+/// their content, so they are never overwritten and every version's handouts stay downloadable from the history.
+/// </summary>
+public sealed class LessonVersionHandout
+{
+    public required int Id { get; init; }
+    public required int LessonVersionId { get; init; }
+    public required int Order { get; init; }
+    public required string FileName { get; init; }
+    public required string DisplayName { get; init; }
+    public required string BlobKey { get; init; }
+
+    public LessonVersion? LessonVersion { get; init; }
 }
 
 /// <summary>A tag of a <see cref="LessonVersion"/>, one row per tag.</summary>

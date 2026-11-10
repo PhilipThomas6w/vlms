@@ -71,6 +71,12 @@ public sealed class LessonSuggestionService
     /// <summary>Where a version's picture is served (Approvers and Admins only).</summary>
     public static string VersionPictureUrl(int pictureId) => $"/lessons/versions/pictures/{pictureId}";
 
+    /// <summary>Where a suggestion's handout is downloaded (author and Approvers only; adr/0016).</summary>
+    public static string SuggestionHandoutUrl(int suggestionId, int handoutId) => $"/curriculum/suggestions/{suggestionId}/handouts/{handoutId}";
+
+    /// <summary>Where a version's handout is downloaded (Approvers and Admins only, as the history; adr/0016).</summary>
+    public static string VersionHandoutUrl(int handoutId) => $"/lessons/versions/handouts/{handoutId}";
+
     public static string EditorUrl(string lessonCode) => $"/lessons/{Uri.EscapeDataString(lessonCode)}/suggest";
     public static string NewLessonUrl(string rankCode) => $"/lessons/new/{Uri.EscapeDataString(rankCode)}";
     public static string HistoryUrl(string lessonCode) => $"/lessons/{Uri.EscapeDataString(lessonCode)}/history";
@@ -110,7 +116,7 @@ public sealed class LessonSuggestionService
         RequireSuggester();
         var userId = RequireUserId();
 
-        var lesson = await _db.Lessons.AsNoTracking().Include(l => l.Rank).Include(l => l.Tags).Include(l => l.Pictures)
+        var lesson = await _db.Lessons.AsNoTracking().Include(l => l.Rank).Include(l => l.Tags).Include(l => l.Pictures).Include(l => l.Files)
             .SingleOrDefaultAsync(l => l.Code == lessonCode && l.IsActive && l.Body != null, ct);
         if (lesson is null)
         {
@@ -133,7 +139,7 @@ public sealed class LessonSuggestionService
         }
 
         // A suggestion of the caller's that was sent back, based on the current version, carries on as their new draft.
-        var sentBack = await _db.LessonSuggestions.AsNoTracking().Include(s => s.Tags).Include(s => s.Pictures)
+        var sentBack = await _db.LessonSuggestions.AsNoTracking().Include(s => s.Tags).Include(s => s.Pictures).Include(s => s.Handouts)
             .Where(s => s.LessonId == lesson.Id && s.AuthorUserId == userId && s.Status == LessonSuggestionStatus.SentBack
                 && s.BaseVersionNumber == version)
             .OrderByDescending(s => s.DecidedAt).ThenByDescending(s => s.Id)
@@ -151,7 +157,11 @@ public sealed class LessonSuggestionService
             lesson.Pictures.ToDictionary(p => p.FileName,
                 p => p.TeachersInformationOnly ? LessonLibraryService.TeachersInformationPictureUrl(p.Id) : LessonLibraryService.PictureUrl(p.Id), StringComparer.Ordinal),
             null)
-        { TeachersInformation = lesson.TeachersInformation ?? "" };
+        {
+            TeachersInformation = lesson.TeachersInformation ?? "",
+            Handouts = lesson.Files.OrderBy(f => f.Order).ThenBy(f => f.Id)
+                .Select(f => new DraftHandout(f.BlobKey, f.FileName, f.DisplayName, LessonLibraryService.FileUrl(f.Id))).ToList()
+        };
         return new SuggestionEditor(lesson.Id, lesson.Code, lesson.Title, lesson.RankId, lesson.Rank!.Name, version, null, fresh, canPublish, null);
     }
 
@@ -171,7 +181,7 @@ public sealed class LessonSuggestionService
         }
 
         var canPublish = await CanPublishNowAsync(ct);
-        var draft = await _db.LessonSuggestions.AsNoTracking().Include(s => s.Tags).Include(s => s.Pictures)
+        var draft = await _db.LessonSuggestions.AsNoTracking().Include(s => s.Tags).Include(s => s.Pictures).Include(s => s.Handouts)
             .Where(s => s.RankId == rank.Id && s.Kind == LessonChangeKind.NewLesson && s.AuthorUserId == userId
                 && (s.Status == LessonSuggestionStatus.Draft || s.Status == LessonSuggestionStatus.Submitted)
                 && (suggestionId == null || s.Id == suggestionId))
@@ -352,6 +362,109 @@ public sealed class LessonSuggestionService
         return bytes is null ? null : new LessonFileContent(picture.FileName, bytes);
     }
 
+    /// <summary>
+    /// A handout uploaded into the caller's own draft (docs/adr/0016): a PDF, Word document (.docx), JPEG or PNG, checked by
+    /// its content as well as its extension, at most <see cref="LessonHandoutFiles.MaxBytes"/>, stored under a key naming its
+    /// content (never overwritten) with a name made here, not a path from the client. Its display name starts as the file's
+    /// name without extension and is edited in the suggestion.
+    /// </summary>
+    public async Task<UploadedHandout> UploadHandoutAsync(int suggestionId, string fileName, Stream content, CancellationToken ct = default)
+    {
+        RequireSuggester();
+        var userId = RequireUserId();
+        var suggestion = await _db.LessonSuggestions.Include(s => s.Handouts).SingleOrDefaultAsync(s => s.Id == suggestionId, ct)
+            ?? throw new InvalidOperationException("Save the draft before adding a handout.");
+        if (suggestion.AuthorUserId != userId)
+        {
+            throw new UnauthorizedAccessException("Only its author may add handouts to a draft.");
+        }
+        if (suggestion.Status != LessonSuggestionStatus.Draft)
+        {
+            throw new InvalidOperationException("A submitted suggestion cannot be changed.");
+        }
+
+        var bytes = await LessonHandoutFiles.ReadBoundedAsync(content, ct);
+        var extension = LessonHandoutFiles.CheckedExtension(fileName, bytes);
+        var key = LessonHandoutFiles.BlobKey($"suggestions/{suggestion.Id}", bytes, extension);
+        if (suggestion.Handouts.Any(h => h.BlobKey == key))
+        {
+            throw new InvalidOperationException("That file is already one of the handouts.");
+        }
+
+        await _blobs.UploadAsync(key, bytes, ct);
+        var handout = new LessonSuggestionHandout
+        {
+            Id = await _db.NextIdAsync<LessonSuggestionHandout>(ct),
+            LessonSuggestionId = suggestion.Id,
+            Order = suggestion.Handouts.Select(h => h.Order).DefaultIfEmpty(0).Max() + 1,
+            FileName = LessonHandoutFiles.SafeFileName(fileName, extension),
+            DisplayName = LessonHandoutFiles.DefaultDisplayName(fileName),
+            BlobKey = key
+        };
+        _db.LessonSuggestionHandouts.Add(handout);
+        Set(suggestion, s => s.UpdatedAt, DateTime.UtcNow);
+        await _db.SaveChangesAsync(ct);
+        return new UploadedHandout(handout.Id, handout.DisplayName, handout.FileName);
+    }
+
+    /// <summary>The handouts of the caller's own suggestion, as the editor lists them (adr/0016).</summary>
+    public async Task<IReadOnlyList<DraftHandout>> GetSuggestionHandoutsAsync(int suggestionId, CancellationToken ct = default)
+    {
+        RequireSuggester();
+        var userId = RequireUserId();
+        var suggestion = await _db.LessonSuggestions.AsNoTracking().Include(s => s.Handouts).SingleOrDefaultAsync(s => s.Id == suggestionId, ct);
+        if (suggestion is null)
+        {
+            return [];
+        }
+        if (suggestion.AuthorUserId != userId)
+        {
+            throw new UnauthorizedAccessException("Only its author may list a draft's handouts.");
+        }
+        return DraftHandouts(suggestion);
+    }
+
+    /// <summary>A suggestion's handout, for its author or an Approver; null if unknown or missing.</summary>
+    public async Task<LessonFileContent?> OpenSuggestionHandoutAsync(int suggestionId, int handoutId, CancellationToken ct = default)
+    {
+        var isApprover = _currentUser.HasRole(Role.Approver);
+        if (!isApprover && !CanSuggest)
+        {
+            throw new UnauthorizedAccessException("Caller may not open suggestion handouts.");
+        }
+        var userId = RequireUserId();
+
+        var handout = await _db.LessonSuggestionHandouts.AsNoTracking()
+            .Where(h => h.Id == handoutId && h.LessonSuggestionId == suggestionId)
+            .Select(h => new { h.FileName, h.BlobKey, h.LessonSuggestion!.AuthorUserId })
+            .SingleOrDefaultAsync(ct);
+        if (handout is null)
+        {
+            return null;
+        }
+        if (!isApprover && handout.AuthorUserId != userId)
+        {
+            throw new UnauthorizedAccessException("Only its author or an Approver may open this handout.");
+        }
+
+        var bytes = await _blobs.ReadAsync(handout.BlobKey, ct);
+        return bytes is null ? null : new LessonFileContent(handout.FileName, bytes);
+    }
+
+    /// <summary>A version's handout, for Approvers and Admins (the history); null if unknown or missing.</summary>
+    public async Task<LessonFileContent?> OpenVersionHandoutAsync(int handoutId, CancellationToken ct = default)
+    {
+        RequireHistoryRole();
+        var handout = await _db.LessonVersionHandouts.AsNoTracking().SingleOrDefaultAsync(h => h.Id == handoutId, ct);
+        if (handout is null)
+        {
+            return null;
+        }
+
+        var bytes = await _blobs.ReadAsync(handout.BlobKey, ct);
+        return bytes is null ? null : new LessonFileContent(handout.FileName, bytes);
+    }
+
     // --- Review ----------------------------------------------------------------------------------------------------
 
     /// <summary>Approvers: every submitted suggestion, oldest first ("Changes to review"), referred ones included.</summary>
@@ -400,7 +513,7 @@ public sealed class LessonSuggestionService
         RequireRole(Role.Approver);
         var userId = RequireUserId();
         var suggestion = await _db.LessonSuggestions.AsNoTracking()
-            .Include(s => s.Tags).Include(s => s.Pictures).Include(s => s.AuthorUser).Include(s => s.DecidedByUser)
+            .Include(s => s.Tags).Include(s => s.Pictures).Include(s => s.Handouts).Include(s => s.AuthorUser).Include(s => s.DecidedByUser)
             .SingleOrDefaultAsync(s => s.Id == suggestionId, ct);
         if (suggestion is null || suggestion.Status == LessonSuggestionStatus.Draft)
         {
@@ -421,6 +534,22 @@ public sealed class LessonSuggestionService
         var notesAfter = SuggestionInformationSide(suggestion);
         var hasNotes = !isRetire && (notesBefore.Body is not null || notesAfter.Body is not null);
 
+        // Handouts are compared with the lesson's as they are now: a suggestion that can be approved is based on them (adr/0016).
+        var settings = SettingChanges(current, suggestion.Title, suggestion.Order, suggestion.Tags.Select(t => t.Tag), rankName);
+        if (!isRetire)
+        {
+            var liveHandouts = lesson is null
+                ? []
+                : await _db.LessonFiles.AsNoTracking().Where(f => f.LessonId == lesson.Id).OrderBy(f => f.Order).ThenBy(f => f.Id)
+                    .Select(f => new { f.BlobKey, f.DisplayName }).ToListAsync(ct);
+            var handoutChanges = HandoutChangesHtml(liveHandouts.Select(f => (f.BlobKey, f.DisplayName)).ToList(),
+                suggestion.Handouts.OrderBy(h => h.Order).Select(h => (h.BlobKey, h.DisplayName)).ToList());
+            if (handoutChanges is not null)
+            {
+                settings = [.. settings, new SettingChange("Handouts", handoutChanges)];
+            }
+        }
+
         return new SuggestionReview(
             suggestion.Id, suggestion.Kind, suggestion.Status, lesson?.Code, lesson?.Title ?? suggestion.Title, rankName,
             suggestion.AuthorUser?.DisplayName ?? FormerStaff.Name, suggestion.SubmittedAt ?? suggestion.UpdatedAt, suggestion.Reason,
@@ -429,13 +558,15 @@ public sealed class LessonSuggestionService
             TrackedHtml: isRetire ? "" : LessonDiff.Tracked(before, after),
             FinalHtml: isRetire ? "" : LessonDiff.Render(after),
             BeforeHtml: LessonDiff.Render(before),
-            SettingChanges: SettingChanges(current, suggestion.Title, suggestion.Order, suggestion.Tags.Select(t => t.Tag), rankName),
+            SettingChanges: settings,
             FormerStaff.Or(suggestion.DecidedByUser?.DisplayName, suggestion.DecidedAt is not null), suggestion.DecidedAt, suggestion.SentBackComment,
             committee.Referral, committee.Approvals, committee.ApproverIds.Contains(userId))
         {
             InformationTrackedHtml = hasNotes ? LessonDiff.Tracked(notesBefore, notesAfter) : null,
             InformationFinalHtml = hasNotes ? LessonDiff.Render(notesAfter) : null,
-            InformationBeforeHtml = hasNotes ? LessonDiff.Render(notesBefore) : null
+            InformationBeforeHtml = hasNotes ? LessonDiff.Render(notesBefore) : null,
+            Handouts = isRetire ? [] : suggestion.Handouts.OrderBy(h => h.Order)
+                .Select(h => new HandoutLink(h.DisplayName, SuggestionHandoutUrl(suggestion.Id, h.Id))).ToList()
         };
     }
 
@@ -447,7 +578,7 @@ public sealed class LessonSuggestionService
     {
         RequireRole(Role.Approver);
         var approverId = RequireUserId();
-        var suggestion = await _db.LessonSuggestions.Include(s => s.Tags).Include(s => s.Pictures)
+        var suggestion = await _db.LessonSuggestions.Include(s => s.Tags).Include(s => s.Pictures).Include(s => s.Handouts)
             .SingleOrDefaultAsync(s => s.Id == suggestionId, ct)
             ?? throw new InvalidOperationException("The suggestion no longer exists.");
         if (suggestion.Status != LessonSuggestionStatus.Submitted)
@@ -513,7 +644,7 @@ public sealed class LessonSuggestionService
     {
         RequireRole(Role.Approver);
         var approverId = RequireUserId();
-        var suggestion = await _db.LessonSuggestions.Include(s => s.Tags).Include(s => s.Pictures)
+        var suggestion = await _db.LessonSuggestions.Include(s => s.Tags).Include(s => s.Pictures).Include(s => s.Handouts)
             .SingleOrDefaultAsync(s => s.Id == suggestionId, ct)
             ?? throw new InvalidOperationException("The suggestion no longer exists.");
         if (suggestion.Status != LessonSuggestionStatus.Submitted)
@@ -598,7 +729,7 @@ public sealed class LessonSuggestionService
             return null;
         }
 
-        var versions = await _db.LessonVersions.AsNoTracking().Include(v => v.Tags).Include(v => v.Pictures)
+        var versions = await _db.LessonVersions.AsNoTracking().Include(v => v.Tags).Include(v => v.Pictures).Include(v => v.Handouts)
             .Where(v => v.LessonId == lesson.Id).OrderBy(v => v.Number).ToListAsync(ct);
         var names = await _db.AppUsers.AsNoTracking().ToDictionaryAsync(u => u.Id, u => u.DisplayName, ct);
         string? Name(int? id) => id is int value ? names.GetValueOrDefault(value) : null;
@@ -619,6 +750,11 @@ public sealed class LessonSuggestionService
                 }
                 settings = SettingChanges(previous, version.Title, version.Order, version.Tags.Select(t => t.Tag), lesson.Rank!.Name,
                     version.IsActive);
+                var handoutChanges = HandoutChangesHtml(VersionHandouts(previous), VersionHandouts(version));
+                if (handoutChanges is not null)
+                {
+                    settings = [.. settings, new SettingChange("Handouts", handoutChanges)];
+                }
                 if (version.Kind == LessonVersionKind.ReplacedInFull)
                 {
                     beforeHtml = LessonDiff.Render(VersionSide(previous));
@@ -640,7 +776,8 @@ public sealed class LessonSuggestionService
                 FormerStaff.Or(Name(version.PublishedByUserId), suggested && version.PublishedDirectly),
                 version.Reason, version.PublishedAt, changes, beforeHtml, afterHtml, settings, committee.Referral, committee.Approvals)
             {
-                InformationChangesHtml = notesChanges
+                InformationChangesHtml = notesChanges,
+                Handouts = version.Handouts.OrderBy(h => h.Order).Select(h => new HandoutLink(h.DisplayName, VersionHandoutUrl(h.Id))).ToList()
             });
         }
         entries.Reverse();
@@ -764,7 +901,7 @@ public sealed class LessonSuggestionService
     }
 
     private async Task<LessonSuggestion> LoadSuggestionAsync(int id, CancellationToken ct) =>
-        await _db.LessonSuggestions.AsNoTracking().Include(s => s.Tags).Include(s => s.Pictures).SingleAsync(s => s.Id == id, ct);
+        await _db.LessonSuggestions.AsNoTracking().Include(s => s.Tags).Include(s => s.Pictures).Include(s => s.Handouts).SingleAsync(s => s.Id == id, ct);
 
     private async Task<SentBackInfo?> SentBackInfoAsync(int? suggestionId, CancellationToken ct) =>
         suggestionId is null
@@ -777,7 +914,42 @@ public sealed class LessonSuggestionService
         new(s.Id, s.Status, s.Kind, s.Title, s.Order, s.Tags.Select(t => t.Tag).Order().ToList(), s.Body, s.Reason,
             s.Pictures.ToDictionary(p => p.FileName, p => SuggestionPictureUrl(s.Id, p.FileName), StringComparer.Ordinal),
             s.RevisesSuggestionId)
-        { TeachersInformation = s.TeachersInformation ?? "" };
+        { TeachersInformation = s.TeachersInformation ?? "", Handouts = DraftHandouts(s) };
+
+    private static List<DraftHandout> DraftHandouts(LessonSuggestion s) =>
+        s.Handouts.OrderBy(h => h.Order).ThenBy(h => h.Id)
+            .Select(h => new DraftHandout(h.BlobKey, h.FileName, h.DisplayName, SuggestionHandoutUrl(s.Id, h.Id))).ToList();
+
+    private static List<(string BlobKey, string Name)> VersionHandouts(LessonVersion version) =>
+        version.Handouts.OrderBy(h => h.Order).Select(h => (h.BlobKey, h.DisplayName)).ToList();
+
+    /// <summary>
+    /// The handouts added, renamed and removed between two lists (matched on the content-addressed blob key), as a list of
+    /// tracked changes: the words "added", "renamed" and "removed" say it as well as the underlining and striking through.
+    /// Null when nothing changed. Names are HTML-encoded.
+    /// </summary>
+    public static string? HandoutChangesHtml(IReadOnlyList<(string BlobKey, string Name)> before, IReadOnlyList<(string BlobKey, string Name)> after)
+    {
+        static string E(string text) => System.Net.WebUtility.HtmlEncode(text);
+        var items = new List<string>();
+        foreach (var (key, name) in after)
+        {
+            var match = before.FirstOrDefault(b => b.BlobKey == key);
+            if (match.BlobKey is null)
+            {
+                items.Add($"<li><ins>{E(name)}</ins> (added)</li>");
+            }
+            else if (match.Name != name)
+            {
+                items.Add($"<li><del>{E(match.Name)}</del> <ins>{E(name)}</ins> (renamed)</li>");
+            }
+        }
+        foreach (var (_, name) in before.Where(b => after.All(a => a.BlobKey != b.BlobKey)))
+        {
+            items.Add($"<li><del>{E(name)}</del> (removed)</li>");
+        }
+        return items.Count == 0 ? null : "<ul>" + string.Concat(items) + "</ul>";
+    }
 
     // Teacher's Information are stored as null when there are none (adr/0015).
     private static string? InformationOrNull(string? notes) => string.IsNullOrWhiteSpace(notes) ? null : notes;
@@ -801,7 +973,7 @@ public sealed class LessonSuggestionService
         LessonSuggestion suggestion;
         if (input.SuggestionId is int id)
         {
-            suggestion = await _db.LessonSuggestions.Include(s => s.Tags).Include(s => s.Pictures).SingleOrDefaultAsync(s => s.Id == id, ct)
+            suggestion = await _db.LessonSuggestions.Include(s => s.Tags).Include(s => s.Pictures).Include(s => s.Handouts).SingleOrDefaultAsync(s => s.Id == id, ct)
                 ?? throw new InvalidOperationException("The draft no longer exists.");
             if (suggestion.AuthorUserId != userId)
             {
@@ -829,12 +1001,17 @@ public sealed class LessonSuggestionService
             {
                 _db.LessonSuggestionTags.Add(new LessonSuggestionTag { LessonSuggestionId = suggestion.Id, Tag = tag });
             }
+            if (input.Handouts is { } wantedHandouts)
+            {
+                ApplyHandouts(suggestion, wantedHandouts);
+            }
             return suggestion;
         }
 
         int rankId;
         int? baseVersion = null;
         var pictures = new List<(string FileName, string BlobKey)>();
+        var handouts = new List<(string FileName, string DisplayName, string BlobKey)>();
         if (input.Kind == LessonChangeKind.NewLesson)
         {
             if (input.LessonId is not null)
@@ -847,7 +1024,7 @@ public sealed class LessonSuggestionService
         else
         {
             var lessonId = input.LessonId ?? throw new InvalidOperationException("Choose the lesson to change.");
-            var lesson = await _db.Lessons.AsNoTracking().Include(l => l.Tags).Include(l => l.Pictures)
+            var lesson = await _db.Lessons.AsNoTracking().Include(l => l.Tags).Include(l => l.Pictures).Include(l => l.Files)
                 .SingleOrDefaultAsync(l => l.Id == lessonId && l.IsActive && l.Body != null, ct)
                 ?? throw new InvalidOperationException("The lesson no longer exists.");
             if (await _db.LessonSuggestions.AnyAsync(s => s.LessonId == lessonId
@@ -863,7 +1040,25 @@ public sealed class LessonSuggestionService
                 throw new InvalidOperationException("The lesson has changed since you opened it. Open Suggest changes again to start from the latest version.");
             }
             pictures.AddRange(lesson.Pictures.Select(p => (p.FileName, p.BlobKey)));
-            await AddRevisedPicturesAsync(input, userId, s => s.LessonId == lessonId, pictures, ct);
+            var revisedHandouts = await AddRevisedPicturesAsync(input, userId, s => s.LessonId == lessonId, pictures, ct);
+            var lessonHandouts = lesson.Files.OrderBy(f => f.Order).ThenBy(f => f.Id).Select(f => (f.FileName, f.DisplayName, f.BlobKey)).ToList();
+            if (input.Handouts is null)
+            {
+                // A suggestion carried on from one sent back keeps that suggestion's handouts; otherwise the lesson's.
+                handouts.AddRange(revisedHandouts ?? lessonHandouts);
+            }
+            else
+            {
+                var pool = (revisedHandouts ?? []).Concat(lessonHandouts).DistinctBy(h => h.BlobKey).ToList();
+                foreach (var wanted in input.Handouts.DistinctBy(h => h.Key))
+                {
+                    var match = pool.FirstOrDefault(h => h.BlobKey == wanted.Key);
+                    if (match.BlobKey is not null)
+                    {
+                        handouts.Add((match.FileName, LessonHandoutFiles.CheckedDisplayName(wanted.DisplayName), match.BlobKey));
+                    }
+                }
+            }
         }
 
         suggestion = new LessonSuggestion
@@ -899,19 +1094,54 @@ public sealed class LessonSuggestionService
                 suggestion.Pictures.Add(picture);
             }
         }
+        var nextHandoutId = await _db.NextIdAsync<LessonSuggestionHandout>(ct);
+        for (var i = 0; i < handouts.Count; i++)
+        {
+            var handout = new LessonSuggestionHandout
+            {
+                Id = nextHandoutId++, LessonSuggestionId = suggestion.Id, Order = i + 1,
+                FileName = handouts[i].FileName, DisplayName = handouts[i].DisplayName, BlobKey = handouts[i].BlobKey
+            };
+            _db.LessonSuggestionHandouts.Add(handout);
+            if (!suggestion.Handouts.Contains(handout))
+            {
+                suggestion.Handouts.Add(handout);
+            }
+        }
         return suggestion;
     }
 
-    // Carrying on the caller's own suggestion that was sent back (of the same lesson) brings its pictures along.
-    private async Task AddRevisedPicturesAsync(SuggestionInput input, int userId, System.Linq.Expressions.Expression<Func<LessonSuggestion, bool>> sameSubject,
-        List<(string FileName, string BlobKey)> pictures, CancellationToken ct)
+    // The editor's list of handouts (adr/0016): those left out are removed, the others take its order and display names.
+    // Only handouts the suggestion already has are kept; a key it does not have is ignored. Names are checked first, so a
+    // refused name changes nothing.
+    private void ApplyHandouts(LessonSuggestion suggestion, IReadOnlyList<HandoutInput> wanted)
+    {
+        var named = wanted.DistinctBy(h => h.Key).Select(h => (h.Key, Name: LessonHandoutFiles.CheckedDisplayName(h.DisplayName))).ToList();
+        _db.LessonSuggestionHandouts.RemoveRange(suggestion.Handouts.Where(h => named.All(n => n.Key != h.BlobKey)).ToList());
+        var order = 1;
+        foreach (var (key, name) in named)
+        {
+            var handout = suggestion.Handouts.FirstOrDefault(h => h.BlobKey == key);
+            if (handout is null)
+            {
+                continue;
+            }
+            Set(handout, h => h.Order, order++);
+            Set(handout, h => h.DisplayName, name);
+        }
+    }
+
+    // Carrying on the caller's own suggestion that was sent back (of the same lesson) brings its pictures along; returns its
+    // handouts (adr/0016), or null when not carrying one on.
+    private async Task<List<(string FileName, string DisplayName, string BlobKey)>?> AddRevisedPicturesAsync(SuggestionInput input, int userId,
+        System.Linq.Expressions.Expression<Func<LessonSuggestion, bool>> sameSubject, List<(string FileName, string BlobKey)> pictures, CancellationToken ct)
     {
         if (input.RevisesSuggestionId is not int revises)
         {
-            return;
+            return null;
         }
 
-        var original = await _db.LessonSuggestions.AsNoTracking().Include(s => s.Pictures).Where(sameSubject)
+        var original = await _db.LessonSuggestions.AsNoTracking().Include(s => s.Pictures).Include(s => s.Handouts).Where(sameSubject)
             .SingleOrDefaultAsync(s => s.Id == revises, ct);
         if (original is null || original.AuthorUserId != userId || original.Status != LessonSuggestionStatus.SentBack)
         {
@@ -921,6 +1151,7 @@ public sealed class LessonSuggestionService
         {
             pictures.Add((picture.FileName, picture.BlobKey));
         }
+        return original.Handouts.OrderBy(h => h.Order).ThenBy(h => h.Id).Select(h => (h.FileName, h.DisplayName, h.BlobKey)).ToList();
     }
 
     // A lesson written before versions were kept (or seeded without the seeder) gets its version 1 now, as it is.
@@ -957,6 +1188,14 @@ public sealed class LessonSuggestionService
             _db.LessonVersionPictures.Add(new LessonVersionPicture
             {
                 Id = pictureId++, LessonVersionId = versionId, Order = picture.Order, FileName = picture.FileName, BlobKey = picture.BlobKey
+            });
+        }
+        var handoutId = await _db.NextIdAsync<LessonVersionHandout>(ct);
+        foreach (var file in lesson.Files.OrderBy(f => f.Order).ThenBy(f => f.Id))
+        {
+            _db.LessonVersionHandouts.Add(new LessonVersionHandout
+            {
+                Id = handoutId++, LessonVersionId = versionId, Order = file.Order, FileName = file.FileName, DisplayName = file.DisplayName, BlobKey = file.BlobKey
             });
         }
         // Saved at once, so the suggestion's base and the stale check read the same version.
@@ -1098,6 +1337,16 @@ public sealed class LessonSuggestionService
             notesOnly = inNotes.ToHashSet(StringComparer.Ordinal);
         }
 
+        // The handouts (adr/0016): the suggestion's, in its order; a retirement keeps the lesson's.
+        List<(string FileName, string DisplayName, string BlobKey)> handouts = retire
+            ? (await _db.LessonFiles.AsNoTracking().Where(f => f.LessonId == lesson.Id).OrderBy(f => f.Order).ThenBy(f => f.Id)
+                .Select(f => new { f.FileName, f.DisplayName, f.BlobKey }).ToListAsync(ct))
+                .Select(f => (f.FileName, f.DisplayName, f.BlobKey)).ToList()
+            : _db.ChangeTracker.Entries<LessonSuggestionHandout>()
+                .Where(e => e.Entity.LessonSuggestionId == suggestion.Id && e.State != EntityState.Deleted && e.State != EntityState.Detached)
+                .Select(e => e.Entity).OrderBy(h => h.Order).ThenBy(h => h.Id)
+                .Select(h => (h.FileName, h.DisplayName, h.BlobKey)).DistinctBy(h => h.BlobKey).ToList();
+
         var contentVersion = ContentVersionOf(lesson.Id, number, body, pictures, notes);
 
         Set(lesson, l => l.Title, title);
@@ -1142,6 +1391,30 @@ public sealed class LessonSuggestionService
                     Set(match, p => p.TeachersInformationOnly, onlyNotes);
                 }
             }
+
+            // Live handouts, matched on their content-addressed key, so an id stays the same while its handout remains
+            // (saved copies on devices refer to it, FR-023).
+            var liveFiles = await _db.LessonFiles.Where(f => f.LessonId == lesson.Id).ToListAsync(ct);
+            _db.LessonFiles.RemoveRange(liveFiles.Where(f => handouts.All(h => h.BlobKey != f.BlobKey)));
+            var nextFileId = await _db.NextIdAsync<LessonFile>(ct);
+            for (var i = 0; i < handouts.Count; i++)
+            {
+                var (fileName, displayName, blobKey) = handouts[i];
+                var match = liveFiles.FirstOrDefault(f => f.BlobKey == blobKey);
+                if (match is null)
+                {
+                    _db.LessonFiles.Add(new LessonFile
+                    {
+                        Id = nextFileId++, LessonId = lesson.Id, Order = i + 1, FileName = fileName, DisplayName = displayName, BlobKey = blobKey
+                    });
+                }
+                else
+                {
+                    Set(match, f => f.Order, i + 1);
+                    Set(match, f => f.FileName, fileName);
+                    Set(match, f => f.DisplayName, displayName);
+                }
+            }
         }
 
         var kind = suggestion.Kind == LessonChangeKind.ReplaceInFull
@@ -1179,6 +1452,15 @@ public sealed class LessonSuggestionService
             _db.LessonVersionPictures.Add(new LessonVersionPicture
             {
                 Id = nextVersionPictureId++, LessonVersionId = versionId, Order = i + 1, FileName = pictures[i].FileName, BlobKey = pictures[i].BlobKey
+            });
+        }
+        var nextVersionHandoutId = await _db.NextIdAsync<LessonVersionHandout>(ct);
+        for (var i = 0; i < handouts.Count; i++)
+        {
+            _db.LessonVersionHandouts.Add(new LessonVersionHandout
+            {
+                Id = nextVersionHandoutId++, LessonVersionId = versionId, Order = i + 1,
+                FileName = handouts[i].FileName, DisplayName = handouts[i].DisplayName, BlobKey = handouts[i].BlobKey
             });
         }
 
@@ -1357,7 +1639,23 @@ public sealed record SuggestionInput(
     string? Reason,
     int? RevisesSuggestionId = null,
     int? BaseVersionNumber = null,
-    string? TeachersInformation = null);
+    string? TeachersInformation = null,
+    IReadOnlyList<HandoutInput>? Handouts = null);
+
+/// <summary>
+/// A handout as the editor keeps it (adr/0016): <see cref="Key"/> is the one the editor was given in
+/// <see cref="DraftHandout.Key"/>, and its display name as edited. Null <see cref="SuggestionInput.Handouts"/> leaves the
+/// handouts as they are.
+/// </summary>
+public sealed record HandoutInput(string Key, string DisplayName);
+
+/// <summary>A handout in the editor: its key (server-side only), stored file name, display name and download address.</summary>
+public sealed record DraftHandout(string Key, string FileName, string DisplayName, string Url);
+
+public sealed record UploadedHandout(int Id, string DisplayName, string FileName);
+
+/// <summary>A handout to download from the review or the history.</summary>
+public sealed record HandoutLink(string DisplayName, string Url);
 
 public sealed record OpenSuggestion(int Id, LessonSuggestionStatus Status, string AuthorName, DateTime Date, bool IsMine);
 
@@ -1380,6 +1678,9 @@ public sealed record SuggestionDraftView(
 {
     /// <summary>The lesson's Teacher's Information in Markdown, edited beside the text (adr/0015 decision 2); empty for none.</summary>
     public string TeachersInformation { get; init; } = "";
+
+    /// <summary>The suggestion's handouts, in order (adr/0016).</summary>
+    public IReadOnlyList<DraftHandout> Handouts { get; init; } = [];
 }
 
 public sealed record SuggestionEditor(
@@ -1452,6 +1753,9 @@ public sealed record SuggestionReview(
     public string? InformationTrackedHtml { get; init; }
     public string? InformationFinalHtml { get; init; }
     public string? InformationBeforeHtml { get; init; }
+
+    /// <summary>The suggestion's handouts, to download (adr/0016); what changed is in <see cref="SettingChanges"/> as "Handouts".</summary>
+    public IReadOnlyList<HandoutLink> Handouts { get; init; } = [];
 }
 
 public sealed record HistoryVersion(
@@ -1474,6 +1778,9 @@ public sealed record HistoryVersion(
 {
     /// <summary>The Teacher's Information' tracked changes from the version before; null when they did not change (adr/0015).</summary>
     public string? InformationChangesHtml { get; init; }
+
+    /// <summary>This version's handouts, to download (adr/0016).</summary>
+    public IReadOnlyList<HandoutLink> Handouts { get; init; } = [];
 }
 
 public sealed record SentBackSuggestion(string SuggestedBy, DateTime SuggestedAt, string? Reason, string SentBackBy, DateTime SentBackAt, string Comment,

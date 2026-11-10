@@ -188,10 +188,12 @@
     }
 
     // A lesson as /lessons/saved describes it, in the form the index keeps.
+    // A converted lesson keeps its pictures and its handouts (adr/0016); any other lesson its files.
     function lessonRecord(l) {
+        var handouts = (l.files || []).map(function (f) { return { id: f.id, name: f.displayName || f.name || f.fileName, url: '/lessons/files/' + f.id }; });
         var files = l.page
-            ? (l.pictureIds || []).map(function (id) { return { id: id, name: '', url: '/lessons/pictures/' + id }; })
-            : l.files.map(function (f) { return { id: f.id, name: f.displayName || f.name || f.fileName, url: '/lessons/files/' + f.id }; });
+            ? (l.pictureIds || []).map(function (id) { return { id: id, name: '', url: '/lessons/pictures/' + id }; }).concat(handouts)
+            : handouts;
         return { id: l.id, code: l.code, title: l.title, rank: l.rank, rankPosition: l.rankPosition, position: l.position, files: files, page: l.page || null, version: l.version || null };
     }
 

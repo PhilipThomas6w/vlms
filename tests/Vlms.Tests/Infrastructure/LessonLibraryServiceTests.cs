@@ -53,10 +53,10 @@ public sealed class LessonLibraryServiceTests : IDisposable
         context.LessonTagAssignments.Add(new LessonTagAssignment { LessonId = 12, Tag = LessonTag.OldTestament });
         context.LessonTagAssignments.Add(new LessonTagAssignment { LessonId = 12, Tag = LessonTag.ChurchLife });
 
-        context.LessonFiles.Add(new LessonFile { Id = 102, LessonId = 12, Order = 2, FileName = "Handout.pdf", BlobKey = "lessons/12/handout.pdf" });
-        context.LessonFiles.Add(new LessonFile { Id = 101, LessonId = 12, Order = 1, FileName = "Lesson.docx", BlobKey = "lessons/12/lesson.docx" });
-        context.LessonFiles.Add(new LessonFile { Id = 131, LessonId = 13, Order = 1, FileName = "Old.pdf", BlobKey = "lessons/13/old.pdf" });
-        context.LessonFiles.Add(new LessonFile { Id = 111, LessonId = 11, Order = 1, FileName = "Lost.pdf", BlobKey = "lessons/11/lost.pdf" });
+        context.LessonFiles.Add(new LessonFile { Id = 102, LessonId = 12, Order = 2, FileName = "Handout.pdf", DisplayName = "Handout", BlobKey = "lessons/12/handout.pdf" });
+        context.LessonFiles.Add(new LessonFile { Id = 101, LessonId = 12, Order = 1, FileName = "Lesson.docx", DisplayName = "Lesson", BlobKey = "lessons/12/lesson.docx" });
+        context.LessonFiles.Add(new LessonFile { Id = 131, LessonId = 13, Order = 1, FileName = "Old.pdf", DisplayName = "Old", BlobKey = "lessons/13/old.pdf" });
+        context.LessonFiles.Add(new LessonFile { Id = 111, LessonId = 11, Order = 1, FileName = "Lost.pdf", DisplayName = "Lost", BlobKey = "lessons/11/lost.pdf" });
         context.SaveChanges();
 
         _blobs.UploadAsync("lessons/12/lesson.docx", [1, 2, 3]).Wait();

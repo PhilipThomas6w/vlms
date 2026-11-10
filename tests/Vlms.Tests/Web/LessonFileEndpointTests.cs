@@ -85,11 +85,11 @@ public sealed class LessonFileEndpointTests : IAsyncLifetime
         context.Ranks.Add(new Rank { Id = 1, Order = 1, Code = "R1", Name = "First" });
         context.Lessons.Add(new Lesson { Id = 1, RankId = 1, Code = "L1", Title = "Active", Order = 1, IsActive = true });
         context.Lessons.Add(new Lesson { Id = 2, RankId = 1, Code = "L2", Title = "Retired", Order = 2, IsActive = false });
-        context.LessonFiles.Add(new LessonFile { Id = 1, LessonId = 1, Order = 1, FileName = "Lesson plan.docx", BlobKey = "lessons/1/lesson.docx" });
-        context.LessonFiles.Add(new LessonFile { Id = 2, LessonId = 1, Order = 2, FileName = "Handout.pdf", BlobKey = "lessons/1/handout.pdf" });
-        context.LessonFiles.Add(new LessonFile { Id = 3, LessonId = 1, Order = 3, FileName = "Diagram.PNG", BlobKey = "lessons/1/diagram.PNG" });
-        context.LessonFiles.Add(new LessonFile { Id = 4, LessonId = 1, Order = 4, FileName = "Picture.svg", BlobKey = "lessons/1/picture.svg" });
-        context.LessonFiles.Add(new LessonFile { Id = 5, LessonId = 2, Order = 1, FileName = "Old.pdf", BlobKey = "lessons/2/old.pdf" });
+        context.LessonFiles.Add(new LessonFile { Id = 1, LessonId = 1, Order = 1, FileName = "Lesson plan.docx", DisplayName = "Lesson plan", BlobKey = "lessons/1/lesson.docx" });
+        context.LessonFiles.Add(new LessonFile { Id = 2, LessonId = 1, Order = 2, FileName = "Handout.pdf", DisplayName = "Handout", BlobKey = "lessons/1/handout.pdf" });
+        context.LessonFiles.Add(new LessonFile { Id = 3, LessonId = 1, Order = 3, FileName = "Diagram.PNG", DisplayName = "Diagram", BlobKey = "lessons/1/diagram.PNG" });
+        context.LessonFiles.Add(new LessonFile { Id = 4, LessonId = 1, Order = 4, FileName = "Picture.svg", DisplayName = "Picture", BlobKey = "lessons/1/picture.svg" });
+        context.LessonFiles.Add(new LessonFile { Id = 5, LessonId = 2, Order = 1, FileName = "Old.pdf", DisplayName = "Old", BlobKey = "lessons/2/old.pdf" });
         context.SaveChanges();
         context.Dispose();
     }

@@ -31,6 +31,7 @@ else if (_history is not null)
                 @if (version.Kind == LessonVersionKind.Converted)
                 {
                     <p>@version.PublishedAt.ToString("dd/MM/yyyy") · Converted from the original lesson.</p>
+                    <VersionHandouts Handouts="version.Handouts" />
                 }
                 else
                 {
@@ -67,6 +68,7 @@ else if (_history is not null)
                             <dd class="lesson-diff">@((MarkupString)setting.Html)</dd>
                         }
                     </dl>
+                    <VersionHandouts Handouts="version.Handouts" />
                     @if (version.ChangesHtml is not null || version.AfterHtml is not null || version.InformationChangesHtml is not null)
                     {
                         <button type="button" class="btn--secondary" aria-expanded="@(open ? "true" : "false")" aria-controls="@id"

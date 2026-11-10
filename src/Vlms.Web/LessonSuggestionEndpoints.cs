@@ -17,7 +17,14 @@ namespace Vlms.Web;
 /// Approvers only (the service decides).</item>
 /// <item><c>GET /lessons/versions/pictures/{id}</c>: a version's picture, behind <see cref="HistoryPolicyName"/>
 /// (Approvers and Admins), the service checking again.</item>
+/// <item><c>POST /curriculum/suggestions/{id}/handouts</c>: a handout added in the editor (docs/adr/0016), sent the same way as
+/// a picture (field <c>file</c>, antiforgery token in the <c>RequestVerificationToken</c> header), behind
+/// <see cref="SuggesterPolicyName"/>; <see cref="LessonSuggestionService.UploadHandoutAsync"/> limits it to the author's own
+/// draft and checks its type by content and its size. Answers <c>{ id, displayName, fileName }</c>, or 400 with a message.</item>
+/// <item><c>GET /curriculum/suggestions/{id}/handouts/{handoutId}</c>: a suggestion's handout, author and Approvers only.</item>
+/// <item><c>GET /lessons/versions/handouts/{id}</c>: a version's handout, behind <see cref="HistoryPolicyName"/>.</item>
 /// </list>
+/// Handouts are served as lesson files are: PDF and pictures inline, Word as an attachment, always <c>nosniff</c>.
 /// </summary>
 public static class LessonSuggestionEndpoints
 {
@@ -26,6 +33,9 @@ public static class LessonSuggestionEndpoints
     public const string UploadRoutePattern = "/curriculum/suggestions/{id:int}/pictures";
     public const string SuggestionPictureRoutePattern = "/curriculum/suggestions/{id:int}/pictures/{fileName}";
     public const string VersionPictureRoutePattern = "/lessons/versions/pictures/{id:int}";
+    public const string HandoutUploadRoutePattern = "/curriculum/suggestions/{id:int}/handouts";
+    public const string SuggestionHandoutRoutePattern = "/curriculum/suggestions/{id:int}/handouts/{handoutId:int}";
+    public const string VersionHandoutRoutePattern = "/lessons/versions/handouts/{id:int}";
 
     public static void AddLessonSuggestionPolicies(this AuthorizationOptions options)
     {
@@ -67,6 +77,32 @@ public static class LessonSuggestionEndpoints
 
         endpoints.MapGet(VersionPictureRoutePattern, (int id, LessonSuggestionService suggestions, HttpContext http, CancellationToken ct) =>
             Serve(() => suggestions.OpenVersionPictureAsync(id, ct), http))
+            .RequireAuthorization(HistoryPolicyName);
+
+        endpoints.MapPost(HandoutUploadRoutePattern, async (int id, IFormFile file, LessonSuggestionService suggestions, CancellationToken ct) =>
+        {
+            try
+            {
+                await using var stream = file.OpenReadStream();
+                var handout = await suggestions.UploadHandoutAsync(id, file.FileName, stream, ct);
+                return Results.Ok(new { id = handout.Id, displayName = handout.DisplayName, fileName = handout.FileName });
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Results.Forbid();
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.BadRequest(new { message = ex.Message });
+            }
+        }).RequireAuthorization(SuggesterPolicyName);
+
+        endpoints.MapGet(SuggestionHandoutRoutePattern, (int id, int handoutId, LessonSuggestionService suggestions, HttpContext http, CancellationToken ct) =>
+            Serve(() => suggestions.OpenSuggestionHandoutAsync(id, handoutId, ct), http))
+            .RequireAuthorization(SuggesterPolicyName);
+
+        endpoints.MapGet(VersionHandoutRoutePattern, (int id, LessonSuggestionService suggestions, HttpContext http, CancellationToken ct) =>
+            Serve(() => suggestions.OpenVersionHandoutAsync(id, ct), http))
             .RequireAuthorization(HistoryPolicyName);
     }
 

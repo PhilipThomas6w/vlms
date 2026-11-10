@@ -20,9 +20,9 @@ public sealed class CurriculumSeederLessonTextTests : IDisposable
     private const string Manifest = """
         {
           "ranks": [
-            { "order": 1, "code": "RECRUIT", "name": "Recruit", "source": "Recruits (1)", "lessons": [
-              { "order": 1, "code": "R1-01", "title": "Intro", "tags": ["Church Life"], "source": "1. Intro" },
-              { "order": 2, "code": "R1-02", "title": "Second", "tags": ["Worship"], "source": "2. Second" } ] }
+            { "order": 1, "code": "RECRUIT", "name": "Recruit", "lessons": [
+              { "order": 1, "code": "R1-01", "title": "Intro", "tags": ["Church Life"] },
+              { "order": 2, "code": "R1-02", "title": "Second", "tags": ["Worship"] } ] }
           ]
         }
         """;
@@ -42,8 +42,7 @@ public sealed class CurriculumSeederLessonTextTests : IDisposable
         schema.Database.EnsureCreated();
 
         _tempRoot = Path.Combine(Path.GetTempPath(), $"vlms-seed-text-{Guid.NewGuid():N}");
-        WriteText("Recruits (1)/1. Intro/Main.docx", "x");
-        WriteText("Recruits (1)/2. Second/Main.docx", "x");
+        Directory.CreateDirectory(Path.Combine(_tempRoot, "content", "lessons"));
     }
 
     public void Dispose()
@@ -196,7 +195,7 @@ public sealed class CurriculumSeederLessonTextTests : IDisposable
         using var db = CreateContext();
         Assert.Empty(await db.Lessons.ToListAsync());
         Assert.Empty(await db.LessonPictures.ToListAsync());
-        Assert.False(_blobStorage.TryGetBlob("lessons/R1-01/Main.docx", out _));
+        Assert.Empty(await db.LessonFiles.ToListAsync());
     }
 
     [Fact]
@@ -306,8 +305,8 @@ public sealed class CurriculumSeederLessonTextTests : IDisposable
     [Fact]
     public async Task RealHeraldLessons_ValidateAgainstTheRealManifest()
     {
-        // The committed seed/lessons files: every picture they refer to exists and reads (the content root's lesson
-        // folders are not in git, so only the lesson-text errors are looked at).
+        // The committed seed: since docs/adr/0016 everything the seeder reads is in git (lesson text, pictures, Teacher's
+        // Information and handouts), so the whole run must succeed.
         var repo = FindRepoRoot();
         var lessonsCopy = Path.Combine(_tempRoot, "content", "lessons");
         CopyDirectory(Path.Combine(repo, "seed", "lessons"), lessonsCopy);
@@ -315,8 +314,9 @@ public sealed class CurriculumSeederLessonTextTests : IDisposable
 
         var result = await new CurriculumSeeder(db, _blobStorage).SeedAsync(Path.Combine(repo, "seed", "curriculum.json"), Path.Combine(_tempRoot, "content"));
 
-        // A stale .notes.md or -TI.md left in the real seed ("is no longer read", adr/0015 amendment) fails here too.
-        Assert.DoesNotContain(result.Errors, e => e.Contains("is no longer read") || e.Contains("picture") || e.Contains("Teacher's Information"));
+        // A stale .notes.md or -TI.md left in the real seed ("is no longer read", adr/0015 amendment), a bad picture or a
+        // handout of a type not allowed fails here too.
+        Assert.True(result.Succeeded, string.Join("; ", result.Errors));
     }
 
     private static string FindRepoRoot()

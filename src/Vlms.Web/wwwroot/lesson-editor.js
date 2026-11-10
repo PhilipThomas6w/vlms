@@ -211,6 +211,32 @@ function openPictureDialog(editor) {
   file.focus();
 }
 
+// A handout chosen in the page's file input, sent to the saved draft (docs/adr/0016). Answers { ok, message, id }; the
+// server checks the type by content, the size and that the caller is the draft's author.
+export async function uploadHandout(input, suggestionId) {
+  if (!input.files || input.files.length === 0) {
+    return { ok: false, message: 'Choose a file to upload.', id: 0 };
+  }
+  try {
+    const form = new FormData();
+    form.append('file', input.files[0]);
+    const response = await fetch('/curriculum/suggestions/' + suggestionId + '/handouts', {
+      method: 'POST',
+      body: form,
+      headers: { 'RequestVerificationToken': token },
+      credentials: 'same-origin'
+    });
+    const answer = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return { ok: false, message: answer.message || 'The handout could not be uploaded. Try again.', id: 0 };
+    }
+    input.value = '';
+    return { ok: true, message: null, id: answer.id };
+  } catch {
+    return { ok: false, message: 'The handout could not be uploaded. Try again.', id: 0 };
+  }
+}
+
 export function getMarkdown(name) {
   const editor = editors[name || 'text'];
   return editor ? fromEditor(editor.getMarkdown()) : '';

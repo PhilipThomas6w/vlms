@@ -170,6 +170,10 @@ $expectedMinimums = @{
     # adr/0015 the lesson's Teacher's Information through suggestions: carried in review, approval and
     # history, its picture staff-only, a picture it uses must be the suggestion's.
     "TeachersInformationSuggestionTests.cs" = 4
+    # adr/0016 lesson handouts: upload for the draft's author only, a real file of an allowed type within
+    # 20 MB; a suggestion's handout for its author and Approvers, a version's for Approvers and Admins; the
+    # lesson's handouts for everyone who sees the lesson, offline included.
+    "LessonHandoutTests.cs"             = 15
     # adr/0014 retention purge: Admin-only, active chapter, still-due recheck, typed name, what a
     # deletion removes, the parent and staff account rules, the deletion log; the reminder and the
     # audit-log purge (system principal only, rows older than 6 years only). Raised 27/10/2026 for
@@ -264,6 +268,8 @@ $hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Web/LessonPageEndpoint.c
 # adr/0013 lesson suggestions: the service's role checks and the picture upload and picture endpoints.
 $hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Infrastructure/Curriculum/LessonSuggestionService.cs")
 $hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Web/LessonSuggestionEndpoints.cs")
+# adr/0016 lesson handouts: the upload checks (type by content, size, safe name).
+$hashedFiles += Get-Item (Join-Path $repoRoot "src/Vlms.Infrastructure/Curriculum/LessonHandoutFiles.cs")
 # adr/0014 retention purge: the deletions, the reminder, the audit-log purge and the leaving service.
 $hashedFiles += Get-ChildItem (Join-Path $repoRoot "src/Vlms.Infrastructure/Retention") -Filter "*.cs"
 $hashedFiles += $pageFiles
