@@ -42,8 +42,7 @@ public sealed class ChapterSeparationTests : IDisposable
     /// <summary>The entities that are national by design (the curriculum, ranks, badges, roles, chapters, audit).</summary>
     private static readonly HashSet<Type> NationalOrIdentityTypes =
     [
-        typeof(Rank), typeof(Lesson), typeof(LessonTagAssignment), typeof(LessonFile), typeof(LessonPicture), typeof(TeachersInformationPicture),
-        typeof(TeachersInformationVersion), typeof(TeachersInformationVersionPicture),
+        typeof(Rank), typeof(Lesson), typeof(LessonTagAssignment), typeof(LessonFile), typeof(LessonPicture),
         typeof(LessonVersion), typeof(LessonVersionTag), typeof(LessonVersionPicture), typeof(LessonSuggestion), typeof(LessonSuggestionTag),
         typeof(LessonSuggestionPicture), typeof(LessonSuggestionApproval), typeof(LessonPublishingSettingChange),
         typeof(RankBadge), typeof(AppUser), typeof(UserRole), typeof(Chapter), typeof(ActiveChapterChoice),

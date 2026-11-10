@@ -36,14 +36,14 @@ public sealed class LessonLibraryService
     }
 
     /// <summary>
-    /// The roles that see a rank's Teacher's Information and every lesson's teacher's notes (docs/adr/0012 decision 5,
-    /// amended by docs/adr/0015): Teachers and Admins, the National Administrator who looks after the national curriculum,
-    /// and Approvers, who must read the notes to review a suggestion (adr/0015, flagged assumption). Never Students or
+    /// The roles that see every lesson's Teacher's Information (docs/adr/0015 and its amendment): Teachers and Admins, the
+    /// National Administrator who looks after the national curriculum, and Approvers, who must read it to review a suggestion
+    /// (adr/0015, flagged assumption). Never Students or
     /// Parents, nor a Safeguarding Officer with none of these roles.
     /// </summary>
     public static readonly IReadOnlyList<Role> TeachersInformationRoles = [Role.Teacher, Role.Admin, Role.NationalAdministrator, Role.Approver];
 
-    /// <summary>Whether the caller sees Teacher's Information and teacher's notes (<see cref="TeachersInformationRoles"/>).</summary>
+    /// <summary>Whether the caller sees Teacher's Information (<see cref="TeachersInformationRoles"/>).</summary>
     public bool CanReadTeachersMaterial => TeachersInformationRoles.Any(_currentUser.HasRole);
 
     /// <summary>Every rank in <see cref="Rank.Order"/>, each with its active lessons in <see cref="Lesson.Order"/>.</summary>
@@ -67,8 +67,8 @@ public sealed class LessonLibraryService
                 HasPage = l.Body != null,
                 Tags = l.Tags.Select(t => t.Tag).ToList(),
                 Files = l.Files.Select(f => new { f.Id, f.Order, f.FileName }).ToList(),
-                // A picture only the teacher's notes use is never one a device saves with the lesson (adr/0015).
-                Pictures = l.Pictures.Where(p => !p.TeachersNotesOnly).Select(p => new { p.Id, p.Order }).ToList()
+                // A picture only the Teacher's Information use is never one a device saves with the lesson (adr/0015).
+                Pictures = l.Pictures.Where(p => !p.TeachersInformationOnly).Select(p => new { p.Id, p.Order }).ToList()
             })
             .ToListAsync(ct);
 
@@ -99,9 +99,9 @@ public sealed class LessonLibraryService
     /// <summary>
     /// A converted lesson's page (adr/0012 decision 6): its title, rank and text as HTML (<see cref="LessonMarkdown"/>),
     /// pictures pointing at <c>/lessons/pictures/{id}</c>. Null when the code is unknown, the lesson is retired or it has
-    /// no text yet. The rank's Teacher's Information and the lesson's teacher's notes (adr/0015) come with it only for
+    /// no text yet. The lesson's Teacher's Information (adr/0015) comes with it only for
     /// <see cref="TeachersInformationRoles"/>: enforced here, not left to the page. For anyone else the page carries
-    /// neither, nor the address of a picture only the notes use.
+    /// none, nor the address of a picture only it uses.
     /// </summary>
     public async Task<LessonPage?> GetLessonPageAsync(string code, CancellationToken ct = default)
     {
@@ -122,55 +122,41 @@ public sealed class LessonLibraryService
             && (l.Order < lesson.Order || (l.Order == lesson.Order && l.Id < lesson.Id)), ct);
 
         var allPictures = await _db.LessonPictures.AsNoTracking().Where(p => p.LessonId == lesson.Id)
-            .OrderBy(p => p.Order).ThenBy(p => p.Id).Select(p => new { p.Id, p.FileName, p.TeachersNotesOnly }).ToListAsync(ct);
-        var pictures = allPictures.Where(p => !p.TeachersNotesOnly).ToList();
+            .OrderBy(p => p.Order).ThenBy(p => p.Id).Select(p => new { p.Id, p.FileName, p.TeachersInformationOnly }).ToListAsync(ct);
+        var pictures = allPictures.Where(p => !p.TeachersInformationOnly).ToList();
         var pictureIds = pictures.ToDictionary(p => p.FileName, p => p.Id, StringComparer.Ordinal);
         var html = LessonMarkdown.ToHtml(lesson.Body!,
             name => pictureIds.TryGetValue(name, out var id) ? PictureUrl(id) : null);
 
         var staff = CanReadTeachersMaterial;
         string? information = null;
-        string? notes = null;
         if (staff)
         {
-            var body = await _db.Ranks.AsNoTracking().Where(r => r.Id == lesson.RankId).Select(r => r.TeachersInformation).SingleAsync(ct);
-            if (!string.IsNullOrWhiteSpace(body))
+            // Read here, and only for staff, so the Teacher's Information never leaves the database for anyone else.
+            var informationBody = await _db.Lessons.AsNoTracking().Where(l => l.Id == lesson.Id).Select(l => l.TeachersInformation).SingleAsync(ct);
+            if (!string.IsNullOrWhiteSpace(informationBody))
             {
-                var informationPictures = await _db.TeachersInformationPictures.AsNoTracking().Where(p => p.RankId == lesson.RankId)
-                    .Select(p => new { p.Id, p.FileName }).ToDictionaryAsync(p => p.FileName, p => p.Id, ct);
-                information = LessonMarkdown.ToHtml(body,
-                    name => informationPictures.TryGetValue(name, out var id) ? TeachersInformationPictureUrl(id) : null);
-            }
-
-            // Read here, and only for staff, so the notes never leave the database for anyone else.
-            var notesBody = await _db.Lessons.AsNoTracking().Where(l => l.Id == lesson.Id).Select(l => l.TeachersNotes).SingleAsync(ct);
-            if (!string.IsNullOrWhiteSpace(notesBody))
-            {
-                var notesPictures = allPictures.ToDictionary(p => p.FileName, p => p, StringComparer.Ordinal);
-                notes = LessonMarkdown.ToHtml(notesBody,
-                    name => notesPictures.TryGetValue(name, out var p) ? (p.TeachersNotesOnly ? TeachersNotesPictureUrl(p.Id) : PictureUrl(p.Id)) : null);
+                var informationPictures = allPictures.ToDictionary(p => p.FileName, p => p, StringComparer.Ordinal);
+                information = LessonMarkdown.ToHtml(informationBody,
+                    name => informationPictures.TryGetValue(name, out var p) ? (p.TeachersInformationOnly ? TeachersInformationPictureUrl(p.Id) : PictureUrl(p.Id)) : null);
             }
         }
 
         return new LessonPage(lesson.Id, lesson.Code, lesson.Title, $"{lesson.RankCode}: {lesson.RankName}", html,
-            lesson.ContentVersion, pictures.Select(p => p.Id).ToList(), information)
+            lesson.ContentVersion, pictures.Select(p => p.Id).ToList())
         {
             RankPosition = rankPosition,
             Position = position,
-            RankCode = lesson.RankCode,
             ShowsTeachersMaterial = staff,
-            TeachersNotesHtml = notes
+            TeachersInformationHtml = information
         };
     }
 
     /// <summary>Where a lesson picture is served (by id only).</summary>
     public static string PictureUrl(int id) => $"/lessons/pictures/{id}";
 
-    /// <summary>Where a Teacher's Information picture is served (by id only, staff only).</summary>
+    /// <summary>Where a picture only a lesson's Teacher's Information uses is served (by id only, staff only; adr/0015).</summary>
     public static string TeachersInformationPictureUrl(int id) => $"/lessons/teachers-information/pictures/{id}";
-
-    /// <summary>Where a picture only a lesson's teacher's notes use is served (by id only, staff only; adr/0015).</summary>
-    public static string TeachersNotesPictureUrl(int id) => $"/lessons/teachers-notes/pictures/{id}";
 
     /// <summary>
     /// A converted lesson's page (adr/0012 decision 6). It is plain server-rendered HTML needing no live connection, so
@@ -179,8 +165,8 @@ public sealed class LessonLibraryService
     public static string PageUrl(string code) => $"/lessons/{Uri.EscapeDataString(code)}";
 
     /// <summary>
-    /// A lesson picture's content, or null if the id is unknown, its lesson is retired, only the teacher's notes use it
-    /// (served by <see cref="OpenTeachersNotesPictureAsync"/> instead, adr/0015) or the blob is missing. Same role check as
+    /// A lesson picture's content, or null if the id is unknown, its lesson is retired, only the Teacher's Information use it
+    /// (served by <see cref="OpenTeachersInformationPictureAsync"/> instead, adr/0015) or the blob is missing. Same role check as
     /// the rest of the library.
     /// </summary>
     public async Task<LessonFileContent?> OpenPictureAsync(int pictureId, CancellationToken ct = default)
@@ -188,28 +174,7 @@ public sealed class LessonLibraryService
         RequireLibraryRole();
 
         var picture = await _db.LessonPictures.AsNoTracking()
-            .Where(p => p.Id == pictureId && p.Lesson!.IsActive && !p.TeachersNotesOnly)
-            .Select(p => new { p.FileName, p.BlobKey })
-            .SingleOrDefaultAsync(ct);
-        if (picture is null)
-        {
-            return null;
-        }
-
-        var content = await _blobStorage.ReadAsync(picture.BlobKey, ct);
-        return content is null ? null : new LessonFileContent(picture.FileName, content);
-    }
-
-    /// <summary>
-    /// A Teacher's Information picture's content, or null if unknown or missing. Throws
-    /// <see cref="UnauthorizedAccessException"/> for anyone outside <see cref="TeachersInformationRoles"/>.
-    /// </summary>
-    public async Task<LessonFileContent?> OpenTeachersInformationPictureAsync(int pictureId, CancellationToken ct = default)
-    {
-        RequireTeachersMaterialRole();
-
-        var picture = await _db.TeachersInformationPictures.AsNoTracking()
-            .Where(p => p.Id == pictureId)
+            .Where(p => p.Id == pictureId && p.Lesson!.IsActive && !p.TeachersInformationOnly)
             .Select(p => new { p.FileName, p.BlobKey })
             .SingleOrDefaultAsync(ct);
         if (picture is null)
@@ -270,10 +235,10 @@ public sealed class LessonLibraryService
     }
 
     /// <summary>
-    /// A picture of an active lesson for its teacher's notes (adr/0015), or null if unknown, retired or missing. Throws
+    /// A picture of an active lesson for its Teacher's Information (adr/0015), or null if unknown, retired or missing. Throws
     /// <see cref="UnauthorizedAccessException"/> for anyone outside <see cref="TeachersInformationRoles"/>.
     /// </summary>
-    public async Task<LessonFileContent?> OpenTeachersNotesPictureAsync(int pictureId, CancellationToken ct = default)
+    public async Task<LessonFileContent?> OpenTeachersInformationPictureAsync(int pictureId, CancellationToken ct = default)
     {
         RequireTeachersMaterialRole();
 
@@ -294,7 +259,7 @@ public sealed class LessonLibraryService
     {
         if (!CanReadTeachersMaterial)
         {
-            throw new UnauthorizedAccessException("Caller does not hold a role that may read Teacher's Information or teacher's notes.");
+            throw new UnauthorizedAccessException("Caller does not hold a role that may read Teacher's Information.");
         }
     }
 
@@ -323,11 +288,11 @@ public sealed record LibraryLesson(int Id, string Code, string Title, IReadOnlyL
 
 /// <summary>
 /// A converted lesson's page: <see cref="Html"/> is the rendered lesson text; <see cref="TeachersInformationHtml"/> is the
-/// rank's Teacher's Information and <see cref="TeachersNotesHtml"/> the lesson's teacher's notes, each present only for
-/// staff (<see cref="LessonLibraryService.TeachersInformationRoles"/>) and only when there is some.
+/// lesson's Teacher's Information, present only for staff (<see cref="LessonLibraryService.TeachersInformationRoles"/>)
+/// and only when there is some.
 /// </summary>
 public sealed record LessonPage(int Id, string Code, string Title, string Rank, string Html, string? ContentVersion,
-    IReadOnlyList<int> PictureIds, string? TeachersInformationHtml)
+    IReadOnlyList<int> PictureIds)
 {
     /// <summary>The rank's position in the library (0-based), for the saved-lessons index.</summary>
     public int RankPosition { get; init; }
@@ -335,13 +300,11 @@ public sealed record LessonPage(int Id, string Code, string Title, string Rank, 
     /// <summary>The lesson's position within its rank (0-based), for the saved-lessons index.</summary>
     public int Position { get; init; }
 
-    public string RankCode { get; init; } = "";
-
-    /// <summary>Whether the caller sees the staff sections (Teacher's Information and teacher's notes), empty or not (adr/0015 decisions 3, 4).</summary>
+    /// <summary>Whether the caller sees the staff Teacher's Information section, empty or not (adr/0015 amendment).</summary>
     public bool ShowsTeachersMaterial { get; init; }
 
-    /// <summary>The lesson's teacher's notes as HTML; null when there are none or the caller is not staff.</summary>
-    public string? TeachersNotesHtml { get; init; }
+    /// <summary>The lesson's Teacher's Information as HTML; null when there are none or the caller is not staff.</summary>
+    public string? TeachersInformationHtml { get; init; }
 }
 
 /// <summary>A lesson as a device that saved it needs to know it: <c>Rank</c> reads like "R1: First", the two positions give the delivery order.</summary>

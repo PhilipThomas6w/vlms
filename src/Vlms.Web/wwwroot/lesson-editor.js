@@ -8,7 +8,7 @@
 // sent to the server (POST /curriculum/suggestions/{id}/pictures, antiforgery token in the RequestVerificationToken
 // header), which resizes and stores it and answers with its file name and address.
 //
-// A page may hold more than one editor (docs/adr/0015: the lesson text and its teacher's notes), each made by create() with
+// A page may hold more than one editor (docs/adr/0015: the lesson text and its Teacher's Information), each made by create() with
 // its own name ('text' when none is given) and toolbar. They share the suggestion's pictures, the dialogs and the page.
 
 const editors = {};

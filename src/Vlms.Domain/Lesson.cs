@@ -26,11 +26,11 @@ public sealed class Lesson
     public string? ContentVersion { get; init; }
 
     /// <summary>
-    /// The lesson's teacher's notes in Markdown (docs/adr/0015 decision 1), or null when it has none: staff-only material
+    /// The lesson's Teacher's Information in Markdown (docs/adr/0015 decision 1), or null when it has none: staff-only material
     /// beside the text, never sent to students or parents. Its pictures are the lesson's <see cref="Pictures"/>, by file
-    /// name; one used only here is <see cref="LessonPicture.TeachersNotesOnly"/>.
+    /// name; one used only here is <see cref="LessonPicture.TeachersInformationOnly"/>.
     /// </summary>
-    public string? TeachersNotes { get; init; }
+    public string? TeachersInformation { get; init; }
 
     public Rank? Rank { get; init; }
     public ICollection<LessonTagAssignment> Tags { get; init; } = new List<LessonTagAssignment>();

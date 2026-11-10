@@ -7,18 +7,8 @@ public sealed class Rank
     public required string Code { get; init; }
     public required string Name { get; init; }
 
-    /// <summary>
-    /// The rank's Teacher's Information in Markdown (docs/adr/0012-app-hosted-lessons.md decision 5), shown at the
-    /// top of the rank's lessons to Teachers, Admins, the National Administrator and Approvers only (docs/adr/0015);
-    /// null when there is none. Changed through suggestions (<see cref="LessonChangeKind.TeachersInformation"/>), each
-    /// change kept as a <see cref="TeachersInformationVersion"/>.
-    /// </summary>
-    public string? TeachersInformation { get; init; }
-
     public ICollection<Lesson> Lessons { get; init; } = new List<Lesson>();
     public ICollection<RankBadge> RankBadges { get; init; } = new List<RankBadge>();
-    public ICollection<TeachersInformationPicture> TeachersInformationPictures { get; init; } = new List<TeachersInformationPicture>();
-    public ICollection<TeachersInformationVersion> TeachersInformationVersions { get; init; } = new List<TeachersInformationVersion>();
 
     public bool IsBefore(Rank other) => Order < other.Order;
 }

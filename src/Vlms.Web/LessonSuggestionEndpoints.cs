@@ -17,8 +17,6 @@ namespace Vlms.Web;
 /// Approvers only (the service decides).</item>
 /// <item><c>GET /lessons/versions/pictures/{id}</c>: a version's picture, behind <see cref="HistoryPolicyName"/>
 /// (Approvers and Admins), the service checking again.</item>
-/// <item><c>GET /curriculum/teachers-information/versions/pictures/{id}</c>: a rank's Teacher's Information version's
-/// picture (docs/adr/0015), behind <see cref="HistoryPolicyName"/>, the service checking again.</item>
 /// </list>
 /// </summary>
 public static class LessonSuggestionEndpoints
@@ -28,7 +26,6 @@ public static class LessonSuggestionEndpoints
     public const string UploadRoutePattern = "/curriculum/suggestions/{id:int}/pictures";
     public const string SuggestionPictureRoutePattern = "/curriculum/suggestions/{id:int}/pictures/{fileName}";
     public const string VersionPictureRoutePattern = "/lessons/versions/pictures/{id:int}";
-    public const string TeachersInformationVersionPictureRoutePattern = "/curriculum/teachers-information/versions/pictures/{id:int}";
 
     public static void AddLessonSuggestionPolicies(this AuthorizationOptions options)
     {
@@ -70,10 +67,6 @@ public static class LessonSuggestionEndpoints
 
         endpoints.MapGet(VersionPictureRoutePattern, (int id, LessonSuggestionService suggestions, HttpContext http, CancellationToken ct) =>
             Serve(() => suggestions.OpenVersionPictureAsync(id, ct), http))
-            .RequireAuthorization(HistoryPolicyName);
-
-        endpoints.MapGet(TeachersInformationVersionPictureRoutePattern, (int id, LessonSuggestionService suggestions, HttpContext http, CancellationToken ct) =>
-            Serve(() => suggestions.OpenTeachersInformationVersionPictureAsync(id, ct), http))
             .RequireAuthorization(HistoryPolicyName);
     }
 

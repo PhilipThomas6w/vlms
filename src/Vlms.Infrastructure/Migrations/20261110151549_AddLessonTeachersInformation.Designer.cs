@@ -12,8 +12,8 @@ using Vlms.Infrastructure;
 namespace Vlms.Infrastructure.Migrations
 {
     [DbContext(typeof(VlmsDbContext))]
-    [Migration("20261110135627_AddTeachersNotes")]
-    partial class AddTeachersNotes
+    [Migration("20261110151549_AddLessonTeachersInformation")]
+    partial class AddLessonTeachersInformation
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -849,9 +849,9 @@ namespace Vlms.Infrastructure.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("rank_id");
 
-                    b.Property<string>("TeachersNotes")
+                    b.Property<string>("TeachersInformation")
                         .HasColumnType("text")
-                        .HasColumnName("teachers_notes");
+                        .HasColumnName("teachers_information");
 
                     b.Property<string>("Title")
                         .IsRequired()
@@ -920,9 +920,9 @@ namespace Vlms.Infrastructure.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("order");
 
-                    b.Property<bool>("TeachersNotesOnly")
+                    b.Property<bool>("TeachersInformationOnly")
                         .HasColumnType("boolean")
-                        .HasColumnName("teachers_notes_only");
+                        .HasColumnName("teachers_information_only");
 
                     b.HasKey("Id");
 
@@ -1036,9 +1036,9 @@ namespace Vlms.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("submitted_at");
 
-                    b.Property<string>("TeachersNotes")
+                    b.Property<string>("TeachersInformation")
                         .HasColumnType("text")
-                        .HasColumnName("teachers_notes");
+                        .HasColumnName("teachers_information");
 
                     b.Property<string>("Title")
                         .IsRequired()
@@ -1060,16 +1060,13 @@ namespace Vlms.Infrastructure.Migrations
                         .HasDatabaseName("IX_lesson_suggestions_lesson_id_open")
                         .HasFilter("status IN (0, 1)");
 
+                    b.HasIndex("RankId");
+
                     b.HasIndex("ReferredByUserId");
 
                     b.HasIndex("RevisesSuggestionId");
 
                     b.HasIndex("Status");
-
-                    b.HasIndex("RankId", "Kind")
-                        .IsUnique()
-                        .HasDatabaseName("IX_lesson_suggestions_rank_id_teachers_information_open")
-                        .HasFilter("kind = 4 AND status IN (0, 1)");
 
                     b.ToTable("lesson_suggestions");
                 });
@@ -1234,9 +1231,9 @@ namespace Vlms.Infrastructure.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("suggestion_id");
 
-                    b.Property<string>("TeachersNotes")
+                    b.Property<string>("TeachersInformation")
                         .HasColumnType("text")
-                        .HasColumnName("teachers_notes");
+                        .HasColumnName("teachers_information");
 
                     b.Property<string>("Title")
                         .IsRequired()
@@ -1432,10 +1429,6 @@ namespace Vlms.Infrastructure.Migrations
                     b.Property<int>("Order")
                         .HasColumnType("integer")
                         .HasColumnName("order");
-
-                    b.Property<string>("TeachersInformation")
-                        .HasColumnType("text")
-                        .HasColumnName("teachers_information");
 
                     b.HasKey("Id");
 
@@ -1924,140 +1917,6 @@ namespace Vlms.Infrastructure.Migrations
                     b.HasIndex("StudentId");
 
                     b.ToTable("student_rank_progresses");
-                });
-
-            modelBuilder.Entity("Vlms.Domain.TeachersInformationPicture", b =>
-                {
-                    b.Property<int>("Id")
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    b.Property<string>("BlobKey")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("blob_key");
-
-                    b.Property<string>("FileName")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("file_name");
-
-                    b.Property<int>("Order")
-                        .HasColumnType("integer")
-                        .HasColumnName("order");
-
-                    b.Property<int>("RankId")
-                        .HasColumnType("integer")
-                        .HasColumnName("rank_id");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("RankId", "FileName")
-                        .IsUnique();
-
-                    b.ToTable("teachers_information_pictures");
-                });
-
-            modelBuilder.Entity("Vlms.Domain.TeachersInformationVersion", b =>
-                {
-                    b.Property<int>("Id")
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    b.Property<int?>("ApprovedByUserId")
-                        .HasColumnType("integer")
-                        .HasColumnName("approved_by_user_id");
-
-                    b.Property<string>("Body")
-                        .HasColumnType("text")
-                        .HasColumnName("body");
-
-                    b.Property<int>("Kind")
-                        .HasColumnType("integer")
-                        .HasColumnName("kind");
-
-                    b.Property<int>("Number")
-                        .HasColumnType("integer")
-                        .HasColumnName("number");
-
-                    b.Property<DateTime>("PublishedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("published_at");
-
-                    b.Property<int?>("PublishedByUserId")
-                        .HasColumnType("integer")
-                        .HasColumnName("published_by_user_id");
-
-                    b.Property<bool>("PublishedDirectly")
-                        .HasColumnType("boolean")
-                        .HasColumnName("published_directly");
-
-                    b.Property<int>("RankId")
-                        .HasColumnType("integer")
-                        .HasColumnName("rank_id");
-
-                    b.Property<string>("Reason")
-                        .HasColumnType("text")
-                        .HasColumnName("reason");
-
-                    b.Property<DateTime?>("SuggestedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("suggested_at");
-
-                    b.Property<int?>("SuggestedByUserId")
-                        .HasColumnType("integer")
-                        .HasColumnName("suggested_by_user_id");
-
-                    b.Property<int?>("SuggestionId")
-                        .HasColumnType("integer")
-                        .HasColumnName("suggestion_id");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ApprovedByUserId");
-
-                    b.HasIndex("PublishedByUserId");
-
-                    b.HasIndex("SuggestedByUserId");
-
-                    b.HasIndex("SuggestionId");
-
-                    b.HasIndex("RankId", "Number")
-                        .IsUnique();
-
-                    b.ToTable("teachers_information_versions");
-                });
-
-            modelBuilder.Entity("Vlms.Domain.TeachersInformationVersionPicture", b =>
-                {
-                    b.Property<int>("Id")
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    b.Property<string>("BlobKey")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("blob_key");
-
-                    b.Property<string>("FileName")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("file_name");
-
-                    b.Property<int>("Order")
-                        .HasColumnType("integer")
-                        .HasColumnName("order");
-
-                    b.Property<int>("TeachersInformationVersionId")
-                        .HasColumnType("integer")
-                        .HasColumnName("teachers_information_version_id");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TeachersInformationVersionId", "FileName")
-                        .IsUnique();
-
-                    b.ToTable("teachers_information_version_pictures");
                 });
 
             modelBuilder.Entity("Vlms.Domain.UserRole", b =>
@@ -2960,61 +2819,6 @@ namespace Vlms.Infrastructure.Migrations
                     b.Navigation("Student");
                 });
 
-            modelBuilder.Entity("Vlms.Domain.TeachersInformationPicture", b =>
-                {
-                    b.HasOne("Vlms.Domain.Rank", "Rank")
-                        .WithMany("TeachersInformationPictures")
-                        .HasForeignKey("RankId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Rank");
-                });
-
-            modelBuilder.Entity("Vlms.Domain.TeachersInformationVersion", b =>
-                {
-                    b.HasOne("Vlms.Domain.AppUser", null)
-                        .WithMany()
-                        .HasForeignKey("ApprovedByUserId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("Vlms.Domain.AppUser", null)
-                        .WithMany()
-                        .HasForeignKey("PublishedByUserId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("Vlms.Domain.Rank", "Rank")
-                        .WithMany("TeachersInformationVersions")
-                        .HasForeignKey("RankId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Vlms.Domain.AppUser", null)
-                        .WithMany()
-                        .HasForeignKey("SuggestedByUserId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("Vlms.Domain.LessonSuggestion", "Suggestion")
-                        .WithMany()
-                        .HasForeignKey("SuggestionId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.Navigation("Rank");
-
-                    b.Navigation("Suggestion");
-                });
-
-            modelBuilder.Entity("Vlms.Domain.TeachersInformationVersionPicture", b =>
-                {
-                    b.HasOne("Vlms.Domain.TeachersInformationVersion", "TeachersInformationVersion")
-                        .WithMany("Pictures")
-                        .HasForeignKey("TeachersInformationVersionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("TeachersInformationVersion");
-                });
-
             modelBuilder.Entity("Vlms.Domain.UserRole", b =>
                 {
                     b.HasOne("Vlms.Domain.Chapter", null)
@@ -3099,10 +2903,6 @@ namespace Vlms.Infrastructure.Migrations
                     b.Navigation("Lessons");
 
                     b.Navigation("RankBadges");
-
-                    b.Navigation("TeachersInformationPictures");
-
-                    b.Navigation("TeachersInformationVersions");
                 });
 
             modelBuilder.Entity("Vlms.Domain.RankBadge", b =>
@@ -3131,11 +2931,6 @@ namespace Vlms.Infrastructure.Migrations
             modelBuilder.Entity("Vlms.Domain.StudentLessonCompletion", b =>
                 {
                     b.Navigation("Certificate");
-                });
-
-            modelBuilder.Entity("Vlms.Domain.TeachersInformationVersion", b =>
-                {
-                    b.Navigation("Pictures");
                 });
 #pragma warning restore 612, 618
         }

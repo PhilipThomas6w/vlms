@@ -47,8 +47,6 @@ public class NavigationCoverageTests
         // Lesson suggestions (adr/0013): the editor and history from the lesson page, a new lesson from the library,
         // and one suggestion from Changes to review.
         "/lessons/{Code}/suggest", "/lessons/new/{RankCode}", "/lessons/{Code}/history", "/curriculum/review/{Id:int}",
-        // A rank's Teacher's Information (adr/0015): its editor and history from the lesson page.
-        "/curriculum/teachers-information/{TeachersInformationRank}/suggest", "/curriculum/teachers-information/{TeachersInformationRank}/history",
     ];
 
     // Routes linked ahead of their page being merged; empty since /student merged (FR-011).
