@@ -22,7 +22,7 @@ else
     <PageTitle>@_page.Title</PageTitle>
     <p class="lesson-back"><a href="/lessons#lesson-@_page.Code">Lesson library</a></p>
     <PageHeader Title="@_page.Title">
-        <Lead>@_page.Rank@(_suggestions?.VersionNumber is int number ? $" · Version {number}" : "")</Lead>
+        <Lead>@_page.Rank</Lead>
         <Actions>
             @if (_suggestions is { CanSuggest: true })
             {

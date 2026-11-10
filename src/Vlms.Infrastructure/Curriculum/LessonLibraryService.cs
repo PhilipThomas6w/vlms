@@ -142,7 +142,7 @@ public sealed class LessonLibraryService
             }
         }
 
-        return new LessonPage(lesson.Id, lesson.Code, lesson.Title, $"{lesson.RankCode}: {lesson.RankName}", html,
+        return new LessonPage(lesson.Id, lesson.Code, lesson.Title, lesson.RankName, html,
             lesson.ContentVersion, pictures.Select(p => p.Id).ToList())
         {
             RankPosition = rankPosition,
@@ -202,7 +202,7 @@ public sealed class LessonLibraryService
         var library = await GetLibraryAsync(ct);
         return library
             .SelectMany((rank, rankPosition) => rank.Lessons.Select((lesson, position) =>
-                new SavedLesson(lesson.Id, lesson.Code, lesson.Title, $"{rank.Code}: {rank.Name}", rankPosition, position,
+                new SavedLesson(lesson.Id, lesson.Code, lesson.Title, rank.Name, rankPosition, position,
                     lesson.HasPage ? [] : lesson.Files)
                 {
                     Page = lesson.HasPage ? PageUrl(lesson.Code) : null,

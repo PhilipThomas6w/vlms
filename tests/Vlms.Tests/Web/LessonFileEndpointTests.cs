@@ -184,7 +184,7 @@ public sealed class LessonFileEndpointTests : IAsyncLifetime
         var lesson = Assert.Single(json.RootElement.EnumerateArray());
         Assert.Equal(1, lesson.GetProperty("id").GetInt32());
         Assert.Equal("Active", lesson.GetProperty("title").GetString());
-        Assert.Equal("R1: First", lesson.GetProperty("rank").GetString());
+        Assert.Equal("First", lesson.GetProperty("rank").GetString());
         Assert.Equal([1, 2, 3, 4], lesson.GetProperty("files").EnumerateArray().Select(f => f.GetProperty("id").GetInt32()));
     }
 

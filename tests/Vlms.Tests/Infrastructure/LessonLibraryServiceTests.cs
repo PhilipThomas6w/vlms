@@ -218,7 +218,7 @@ public sealed class LessonLibraryServiceTests : IDisposable
         Assert.Equal([12, 21], saved.Select(l => l.Id));
         var first = saved[0];
         Assert.Equal("First lesson", first.Title);
-        Assert.Equal("R1: First", first.Rank);
+        Assert.Equal("First", first.Rank);
         Assert.Equal([101, 102], first.Files.Select(f => f.Id));
     }
 

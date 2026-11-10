@@ -147,7 +147,6 @@ public sealed class LessonSuggestionJourneyTests
         // Everyone now reads version 2.
         await teacher.GotoAsync(baseUrl + $"/lessons/{Code}", new PageGotoOptions { WaitUntil = WaitUntilState.NetworkIdle });
         await Assertions.Expect(teacher.Locator("article.lesson-text")).ToContainTextAsync("Why is it stamped with a seal?");
-        await Assertions.Expect(teacher.GetByText("Version 2")).ToBeVisibleAsync();
     }
 
     // Another Approver, for the committee (adr/0013 decision 8): the capture seed has one.

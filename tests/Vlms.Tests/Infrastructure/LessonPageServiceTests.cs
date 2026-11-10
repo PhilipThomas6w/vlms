@@ -148,7 +148,7 @@ public sealed class LessonPageServiceTests : IDisposable
         var page = await AsAsync(Role.Student, s => s.GetLessonPageAsync("R5-01"));
 
         Assert.NotNull(page);
-        Assert.Equal(("Prosphora", "HERALD: Herald", "v1"), (page.Title, page.Rank, page.ContentVersion));
+        Assert.Equal(("Prosphora", "Herald", "v1"), (page.Title, page.Rank, page.ContentVersion));
         Assert.Equal((0, 0), (page.RankPosition, page.Position));
         Assert.Contains("src=\"/lessons/pictures/20\"", page.Html);
         Assert.DoesNotContain("<script", page.Html);
