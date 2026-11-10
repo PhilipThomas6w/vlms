@@ -2,7 +2,7 @@
 
 Each NKJV quotation in a lesson ends with "NKJV." and each Septuagint quotation with "SAAS." The Orthodox Study Bible's copyright page allows these short notices in Sunday School lessons and similar religious instruction, in place of the full credit line (Philip, 27/10/2026).
 
-Total: 388 verses across 46 passages (232 NT, 156 OT). The NKJV free-use limit is 500 verses, with no whole book.
+Total: 458 verses across 61 passages (291 NT, 167 OT). The NKJV free-use limit is 500 verses, with no whole book.
 
 All passages below were put into the lessons on 27/10/2026, extracted by script from Philip's copy of the Orthodox Study Bible (PDF). Old Testament text is the St Athanasius Academy Septuagint, with its numbering where it differs: Exodus 8:1-15, 8:16-19 and 8:20-24 are OSB Exodus 7:26-8:11, 8:12-15 and 8:16-20; Isaiah 9:1-2 is OSB Isaiah 9:1 and Isaiah 9:6-7 is OSB Isaiah 9:5-6. The fill-in table `Scripture to supply.docx` is no longer needed.
 
@@ -54,6 +54,21 @@ All passages below were put into the lessons on 27/10/2026, extracted by script 
 | R6-07 | The Parable of the Rich Man and Lazarus | Luke 16:19-31 | NT | 13 |
 | R6-08 | Love of neighbour | Matthew 25:31-46 | NT | 16 |
 | R7-07 | The Beatitudes | Matthew 5:1-12 | NT | 12 |
+| R8-01 | The Prayer of Habakkuk, Chapter 3:1-19 | Habakkuk 3:4 | OT | 1 |
+| R8-02 | 1 Timothy 3:1-13 | 1 Timothy 3:1-13 | NT | 13 |
+| R8-02 | 1 Timothy 5:17-22 | 1 Timothy 5:17-22 | NT | 6 |
+| R8-02 | John 15:16 | John 15:16 | NT | 1 |
+| R8-02 | 1 Thessalonians 5:12-13 | 1 Thessalonians 5:12-13 | NT | 2 |
+| R8-02 | 1 Corinthians 12:27-28 | 1 Corinthians 12:27-28 | NT | 2 |
+| R8-02 | Acts 6:1-6 | Acts 6:1-6 | NT | 6 |
+| R8-02 | Acts 14:23 | Acts 14:23 | NT | 1 |
+| R8-02 | Titus 1:5-9 | Titus 1:5-9 | NT | 5 |
+| R8-02 | 2 Timothy 4:1-5 | 2 Timothy 4:1-5 | NT | 5 |
+| R8-02 | Revelation 3:7-13 | Revelation 3:7-13 | NT | 7 |
+| R8-02 | 1 Peter 2:25 | 1 Peter 2:25 | NT | 1 |
+| R8-02 | 1 Peter 5:1-9 | 1 Peter 5:1-9 | NT | 9 |
+| R8-07 | Confession | 1 John 1:9 | NT | 1 |
+| R8-08 | St Andrei Rubliof's Icon of the Hospitality of Abraham | Genesis 18:1-10 | OT | 10 |
 
 Also placeholders for short quotations (their verses are counted in the passages above): R6-06 gap-fill `[Isaiah 6:8, OSB text to be added]` (within Isaiah 6:1-8); R6-08 gap-fill `[Matthew 25:40, OSB text to be added]` (within Matthew 25:31-46).
 

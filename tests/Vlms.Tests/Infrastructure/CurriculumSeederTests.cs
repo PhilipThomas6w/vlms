@@ -244,7 +244,7 @@ public sealed class CurriculumSeederTests : IDisposable
         var validTags = Enum.GetNames<LessonTag>().ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         Assert.Equal(10, ranks.Count);
-        Assert.Equal(56, lessons.Count);
+        Assert.Equal(64, lessons.Count);
         Assert.Equal(ranks.Count, ranks.Select(r => r.GetProperty("code").GetString()).Distinct().Count());
         Assert.Equal(lessons.Count, lessons.Select(l => l.GetProperty("code").GetString()).Distinct().Count());
         Assert.All(lessons.SelectMany(l => l.GetProperty("tags").EnumerateArray()),
