@@ -72,7 +72,7 @@ public sealed class AccountEmailService
     /// <summary>
     /// Sends a password-reset link if <paramref name="email"/> belongs to a confirmed account;
     /// otherwise does nothing. A staff member who has left and holds no other role
-    /// (<see cref="LeftStaffPolicy.IsLockedOut"/>, FR-017) gets no link: a new password would not let
+    /// (<see cref="InactiveStaffPolicy.IsLockedOut"/>, FR-017) gets no link: a new password would not let
     /// them sign in, and the page says the same thing whether or not a link was sent, so the
     /// account's state is not revealed. One who is also a parent still gets one.
     /// </summary>
@@ -80,7 +80,7 @@ public sealed class AccountEmailService
     {
         var user = await FindAsync(email);
         if (user is null || !await _userManager.IsEmailConfirmedAsync(user)
-            || await LeftStaffPolicy.IsLockedOutAsync(_db, user.Id, ct))
+            || await InactiveStaffPolicy.IsLockedOutAsync(_db, user.Id, ct))
         {
             return;
         }

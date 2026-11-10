@@ -14,7 +14,7 @@ namespace Vlms.Tests.Infrastructure;
 /// Verifies <see cref="LeavingService"/> (STATE.md "Manual 'leaving' flag for students and
 /// teachers, feeding the retention report"): the Admin-only action that sets
 /// <see cref="Student.Status"/>/<see cref="Student.LeftAt"/>, and marks staff Inactive in the
-/// Admin's chapter with an open <see cref="StaffStepDown"/> (FR-017 as amended 27/10/2026) — no self-service path for anyone to
+/// Admin's chapter with an open <see cref="StaffInactivity"/> (FR-017 as amended 27/10/2026) — no self-service path for anyone to
 /// mark themselves inactive/left, and no cascading effect on anything else (promotions, badges,
 /// certificates, existing <see cref="DbsCheck"/> rows).
 ///
@@ -187,26 +187,26 @@ public sealed class LeavingServiceTests : IDisposable
             () => admin.Service.MarkStudentInactiveAsync(9999, CancellationToken.None));
     }
 
-    private async Task<StaffStepDown?> OpenPeriodAsync(int userId)
+    private async Task<StaffInactivity?> OpenPeriodAsync(int userId)
     {
         using var verify = CreateContext(1, Role.Admin);
-        return await verify.Context.StaffStepDowns.AsNoTracking()
-            .SingleOrDefaultAsync(s => s.UserId == userId && s.ChapterId == Chapter.ShrewsburyId && s.ReinstatedAt == null);
+        return await verify.Context.StaffInactivities.AsNoTracking()
+            .SingleOrDefaultAsync(s => s.UserId == userId && s.ChapterId == Chapter.ShrewsburyId && s.ReactivatedAt == null);
     }
 
     [Fact]
-    public async Task StepDownAsync_ByAdmin_OpensAnInactivePeriodInThisChapter_WithTheTimeCapturedAutomatically()
+    public async Task MarkInactiveAsync_ByAdmin_OpensAnInactivePeriodInThisChapter_WithTheTimeCapturedAutomatically()
     {
         using var admin = CreateContext(1, Role.Admin);
         var before = DateTime.UtcNow;
 
-        await admin.Service.StepDownAsync(10, CancellationToken.None);
+        await admin.Service.MarkInactiveAsync(10, CancellationToken.None);
 
         var after = DateTime.UtcNow;
         var period = await OpenPeriodAsync(10);
         Assert.NotNull(period);
-        Assert.InRange(period!.SteppedDownAt, before, after);
-        Assert.Equal(1, period.SteppedDownByUserId);
+        Assert.InRange(period!.InactiveAt, before, after);
+        Assert.Equal(1, period.MarkedInactiveByUserId);
     }
 
     [Theory]
@@ -215,46 +215,46 @@ public sealed class LeavingServiceTests : IDisposable
     [InlineData(Role.Parent)]
     [InlineData(Role.Student)]
     [InlineData(Role.SafeguardingOfficer)]
-    public async Task StepDownAsync_ByNonAdminRole_Throws_AndChangesNothing(Role role)
+    public async Task MarkInactiveAsync_ByNonAdminRole_Throws_AndChangesNothing(Role role)
     {
         using var caller = CreateContext(2, role);
 
         await Assert.ThrowsAsync<UnauthorizedAccessException>(
-            () => caller.Service.StepDownAsync(10, CancellationToken.None));
+            () => caller.Service.MarkInactiveAsync(10, CancellationToken.None));
 
         Assert.Null(await OpenPeriodAsync(10));
     }
 
     [Fact]
-    public async Task StepDownAsync_NonTeacherAppUser_Throws()
+    public async Task MarkInactiveAsync_NonTeacherAppUser_Throws()
     {
         using var admin = CreateContext(1, Role.Admin);
 
         // AppUser 20 holds Approver, not Teacher.
         await Assert.ThrowsAsync<InvalidOperationException>(
-            () => admin.Service.StepDownAsync(20, CancellationToken.None));
+            () => admin.Service.MarkInactiveAsync(20, CancellationToken.None));
     }
 
     [Fact]
-    public async Task StepDownAsync_UnknownAppUser_Throws()
+    public async Task MarkInactiveAsync_UnknownAppUser_Throws()
     {
         using var admin = CreateContext(1, Role.Admin);
 
         await Assert.ThrowsAsync<InvalidOperationException>(
-            () => admin.Service.StepDownAsync(9999, CancellationToken.None));
+            () => admin.Service.MarkInactiveAsync(9999, CancellationToken.None));
     }
 
     [Fact]
-    public async Task StepDownAsync_AlreadyInactive_Throws()
+    public async Task MarkInactiveAsync_AlreadyInactive_Throws()
     {
         using (var admin = CreateContext(1, Role.Admin))
         {
-            await admin.Service.StepDownAsync(10, CancellationToken.None);
+            await admin.Service.MarkInactiveAsync(10, CancellationToken.None);
         }
 
         using var secondAttempt = CreateContext(1, Role.Admin);
         await Assert.ThrowsAsync<InvalidOperationException>(
-            () => secondAttempt.Service.StepDownAsync(10, CancellationToken.None));
+            () => secondAttempt.Service.MarkInactiveAsync(10, CancellationToken.None));
     }
 
     // --- FR-017 (amended 27/10/2026): Inactive suspends the chapter's roles; sign-in still works. ---
@@ -263,14 +263,14 @@ public sealed class LeavingServiceTests : IDisposable
     [InlineData(30)] // Admin
     [InlineData(40)] // Safeguarding Officer
     [InlineData(50)] // Teacher who is also a Parent
-    public async Task StepDownAsync_AnyStaffRole_OpensAPeriod_RotatesStamp_KeepsRoles_AndDoesNotLockOut(int userId)
+    public async Task MarkInactiveAsync_AnyStaffRole_OpensAPeriod_RotatesStamp_KeepsRoles_AndDoesNotLockOut(int userId)
     {
         var stampBefore = await CreateSignInAsync(userId);
         var rolesBefore = await RolesOfAsync(userId);
 
         using (var admin = CreateContext(1, Role.Admin))
         {
-            await admin.Service.StepDownAsync(userId, CancellationToken.None);
+            await admin.Service.MarkInactiveAsync(userId, CancellationToken.None);
         }
 
         Assert.NotNull(await OpenPeriodAsync(userId));
@@ -278,16 +278,16 @@ public sealed class LeavingServiceTests : IDisposable
         var identity = await verify.Context.Users.AsNoTracking().SingleAsync(u => u.Id == userId);
         Assert.NotEqual(stampBefore, identity.SecurityStamp);
         Assert.Equal(rolesBefore, await RolesOfAsync(userId));
-        Assert.False(await LeftStaffPolicy.IsLockedOutAsync(verify.Context, userId));
+        Assert.False(await InactiveStaffPolicy.IsLockedOutAsync(verify.Context, userId));
     }
 
     [Fact]
-    public async Task StepDownAsync_Self_Throws_AndChangesNothing()
+    public async Task MarkInactiveAsync_Self_Throws_AndChangesNothing()
     {
         using (var admin = CreateContext(1, Role.Admin))
         {
             var ex = await Assert.ThrowsAsync<InvalidOperationException>(
-                () => admin.Service.StepDownAsync(1, CancellationToken.None));
+                () => admin.Service.MarkInactiveAsync(1, CancellationToken.None));
             Assert.Contains("yourself", ex.Message);
         }
 
@@ -295,19 +295,19 @@ public sealed class LeavingServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task StepDownAsync_LastActiveAdmin_Throws()
+    public async Task MarkInactiveAsync_LastActiveAdmin_Throws()
     {
         // Admin Two is marked Inactive first (allowed: Admin One remains). Then a caller other than
         // Admin One (context user id 99) can't mark Admin One, the last active Admin, Inactive.
         using (var admin = CreateContext(1, Role.Admin))
         {
-            await admin.Service.StepDownAsync(30, CancellationToken.None);
+            await admin.Service.MarkInactiveAsync(30, CancellationToken.None);
         }
 
         using (var other = CreateContext(99, Role.Admin))
         {
             var ex = await Assert.ThrowsAsync<InvalidOperationException>(
-                () => other.Service.StepDownAsync(1, CancellationToken.None));
+                () => other.Service.MarkInactiveAsync(1, CancellationToken.None));
             Assert.Contains("last active Admin", ex.Message);
         }
 
@@ -315,11 +315,11 @@ public sealed class LeavingServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task StepDownAsync_AdminWhenAnotherActiveAdminExists_Succeeds()
+    public async Task MarkInactiveAsync_AdminWhenAnotherActiveAdminExists_Succeeds()
     {
         using (var admin = CreateContext(1, Role.Admin))
         {
-            await admin.Service.StepDownAsync(30, CancellationToken.None);
+            await admin.Service.MarkInactiveAsync(30, CancellationToken.None);
         }
 
         Assert.NotNull(await OpenPeriodAsync(30));

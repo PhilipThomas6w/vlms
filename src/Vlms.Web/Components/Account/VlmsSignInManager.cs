@@ -27,7 +27,7 @@ namespace Vlms.Web.Components.Account;
 /// <see cref="VlmsIdentityPolicy.SecurityStampValidationInterval"/>, persistent or not.
 ///
 /// Second (functional.md FR-017, Philip 22/10/2026, clarified 23/10/2026): a Teacher, Admin or
-/// Safeguarding Officer who has left and holds no other role (<see cref="LeftStaffPolicy.IsLockedOut"/>)
+/// Safeguarding Officer who has left and holds no other role (<see cref="InactiveStaffPolicy.IsLockedOut"/>)
 /// can't sign in at all; one who is also a Parent signs in as a parent only, because their staff
 /// roles no longer count (<c>IdentityCurrentUserContext</c>). <see cref="VlmsUserConfirmation"/>
 /// already makes them unconfirmed, so Identity's own pre-sign-in check refuses the password and
@@ -72,7 +72,7 @@ public sealed class VlmsSignInManager : SignInManager<VlmsIdentityUser>
     protected override async Task<SignInResult?> PreSignInCheck(VlmsIdentityUser user)
     {
         var result = await base.PreSignInCheck(user);
-        if (result is { IsNotAllowed: true } && await LeftStaffPolicy.IsLockedOutAsync(_db, user.Id))
+        if (result is { IsNotAllowed: true } && await InactiveStaffPolicy.IsLockedOutAsync(_db, user.Id))
         {
             return SignInResult.Failed;
         }

@@ -8,7 +8,7 @@ namespace Vlms.Infrastructure.Chapters;
 /// Which chapters a person belongs to, and which of them they are working in
 /// (docs/adr/0010-chapters.md, "Active chapter"). A person belongs to a chapter while they hold a
 /// chapter role there that still counts: a staff leaver's Teacher, Admin and Safeguarding Officer
-/// rows do not (<see cref="LeftStaffPolicy"/>), their Parent rows do. Reads <see cref="UserRole"/>,
+/// rows do not (<see cref="InactiveStaffPolicy"/>), their Parent rows do. Reads <see cref="UserRole"/>,
 /// <see cref="AppUser"/> and <see cref="ActiveChapterChoice"/> only, none of which is filtered.
 /// </summary>
 public static class ChapterMembership
@@ -19,7 +19,7 @@ public static class ChapterMembership
         ArgumentNullException.ThrowIfNull(db);
         return db.UserRoles
             .Where(r => r.UserId == userId && r.ChapterId != null
-                && !db.StaffStepDowns.Any(s => s.UserId == userId && s.ChapterId == r.ChapterId && s.ReinstatedAt == null))
+                && !db.StaffInactivities.Any(s => s.UserId == userId && s.ChapterId == r.ChapterId && s.ReactivatedAt == null))
             .Select(r => r.ChapterId!.Value)
             .Distinct()
             .OrderBy(id => id)
@@ -54,12 +54,12 @@ public static class ChapterMembership
     {
         ArgumentNullException.ThrowIfNull(db);
         return db.AppUsers.Where(u => u.Roles.Any(r => r.ChapterId == chapterId && roles.Contains(r.Role))
-            && !db.StaffStepDowns.Any(s => s.UserId == u.Id && s.ChapterId == chapterId && s.ReinstatedAt == null));
+            && !db.StaffInactivities.Any(s => s.UserId == u.Id && s.ChapterId == chapterId && s.ReactivatedAt == null));
     }
 
     /// <summary>Whether a user is inactive in one chapter.</summary>
     public static bool IsInactiveInChapter(VlmsDbContext db, int userId, int chapterId) =>
-        db.StaffStepDowns.Any(s => s.UserId == userId && s.ChapterId == chapterId && s.ReinstatedAt == null);
+        db.StaffInactivities.Any(s => s.UserId == userId && s.ChapterId == chapterId && s.ReactivatedAt == null);
 
     /// <summary>The ids of the people holding <paramref name="role"/> in <paramref name="chapterId"/>.</summary>
     public static IQueryable<int> HoldersIn(VlmsDbContext db, int chapterId, Role role)

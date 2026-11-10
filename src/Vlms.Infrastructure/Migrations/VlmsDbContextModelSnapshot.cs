@@ -1569,7 +1569,7 @@ namespace Vlms.Infrastructure.Migrations
                     b.ToTable("sensitive_data_access_logs");
                 });
 
-            modelBuilder.Entity("Vlms.Domain.StaffStepDown", b =>
+            modelBuilder.Entity("Vlms.Domain.StaffInactivity", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -1582,25 +1582,25 @@ namespace Vlms.Infrastructure.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("chapter_id");
 
+                    b.Property<DateTime>("InactiveAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("inactive_at");
+
+                    b.Property<int?>("MarkedInactiveByUserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("marked_inactive_by_user_id");
+
+                    b.Property<DateTime?>("ReactivatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("reactivated_at");
+
+                    b.Property<int?>("ReactivatedByUserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("reactivated_by_user_id");
+
                     b.Property<bool>("RecordedBeforeHistory")
                         .HasColumnType("boolean")
                         .HasColumnName("recorded_before_history");
-
-                    b.Property<DateTime?>("ReinstatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("reinstated_at");
-
-                    b.Property<int?>("ReinstatedByUserId")
-                        .HasColumnType("integer")
-                        .HasColumnName("reinstated_by_user_id");
-
-                    b.Property<DateTime>("SteppedDownAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("stepped_down_at");
-
-                    b.Property<int?>("SteppedDownByUserId")
-                        .HasColumnType("integer")
-                        .HasColumnName("stepped_down_by_user_id");
 
                     b.Property<int>("UserId")
                         .HasColumnType("integer")
@@ -1610,13 +1610,13 @@ namespace Vlms.Infrastructure.Migrations
 
                     b.HasIndex("ChapterId");
 
-                    b.HasIndex("ReinstatedByUserId");
+                    b.HasIndex("MarkedInactiveByUserId");
 
-                    b.HasIndex("SteppedDownByUserId");
+                    b.HasIndex("ReactivatedByUserId");
 
-                    b.HasIndex("UserId", "SteppedDownAt");
+                    b.HasIndex("UserId", "InactiveAt");
 
-                    b.ToTable("staff_step_downs");
+                    b.ToTable("staff_inactivities");
                 });
 
             modelBuilder.Entity("Vlms.Domain.Student", b =>
@@ -2685,7 +2685,7 @@ namespace Vlms.Infrastructure.Migrations
                     b.Navigation("Rank");
                 });
 
-            modelBuilder.Entity("Vlms.Domain.StaffStepDown", b =>
+            modelBuilder.Entity("Vlms.Domain.StaffInactivity", b =>
                 {
                     b.HasOne("Vlms.Domain.Chapter", null)
                         .WithMany()
@@ -2695,12 +2695,12 @@ namespace Vlms.Infrastructure.Migrations
 
                     b.HasOne("Vlms.Domain.AppUser", null)
                         .WithMany()
-                        .HasForeignKey("ReinstatedByUserId")
+                        .HasForeignKey("MarkedInactiveByUserId")
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("Vlms.Domain.AppUser", null)
                         .WithMany()
-                        .HasForeignKey("SteppedDownByUserId")
+                        .HasForeignKey("ReactivatedByUserId")
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("Vlms.Domain.AppUser", null)

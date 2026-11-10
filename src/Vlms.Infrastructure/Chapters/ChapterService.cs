@@ -165,7 +165,7 @@ public sealed class ChapterService
             .Where(u => u.Roles.Any(r => r.Role == Role.Admin && r.ChapterId == chapterId))
             .OrderBy(u => u.DisplayName)
             .Select(u => new RoleHolder(u.Id, u.DisplayName, u.Email,
-                _db.StaffStepDowns.Any(s => s.UserId == u.Id && s.ChapterId == chapterId && s.ReinstatedAt == null)))
+                _db.StaffInactivities.Any(s => s.UserId == u.Id && s.ChapterId == chapterId && s.ReactivatedAt == null)))
             .ToListAsync(ct);
     }
 
@@ -202,14 +202,14 @@ public sealed class ChapterService
         var role = await _db.UserRoles.SingleOrDefaultAsync(r => r.UserId == userId && r.Role == Role.Admin && r.ChapterId == chapterId, ct)
             ?? throw new InvalidOperationException("That person is not an Admin of this chapter.");
 
-        if (await _db.StaffStepDowns.AnyAsync(s => s.UserId == userId && s.ChapterId == chapterId && s.ReinstatedAt == null, ct))
+        if (await _db.StaffInactivities.AnyAsync(s => s.UserId == userId && s.ChapterId == chapterId && s.ReactivatedAt == null, ct))
         {
             throw new InvalidOperationException("This person is inactive in this chapter. Reactivate them before removing their retained Admin role.");
         }
 
         if (!await _db.AppUsers.AnyAsync(u => u.Id != userId
                 && u.Roles.Any(r => r.Role == Role.Admin && r.ChapterId == chapterId)
-                && !_db.StaffStepDowns.Any(s => s.UserId == u.Id && s.ChapterId == chapterId && s.ReinstatedAt == null), ct))
+                && !_db.StaffInactivities.Any(s => s.UserId == u.Id && s.ChapterId == chapterId && s.ReactivatedAt == null), ct))
         {
             throw new InvalidOperationException("This is the chapter's last Admin. Appoint another Admin first.");
         }

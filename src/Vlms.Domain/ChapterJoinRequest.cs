@@ -28,7 +28,7 @@ public static class JoiningAsText
 /// registrations" list. Granting them a role there takes them off it; an Admin may instead dismiss
 /// it, which deletes nothing. Grants no role and no access of its own.
 ///
-/// National table, like <see cref="StaffStepDown"/>: no chapter query filter, because a National
+/// National table, like <see cref="StaffInactivity"/>: no chapter query filter, because a National
 /// Administrator must see whether an account is on any chapter's list. The service reads the
 /// active chapter's rows only for Admins.
 /// </summary>

@@ -18,14 +18,14 @@ namespace Vlms.Tests.Web;
 /// Inactive and reactivating them are each confirmed in the page, and the history shows who acted. The real page,
 /// service and SQLite database are used.
 /// </summary>
-public sealed class StaffSteppingDownPageTests : BunitContext, IDisposable
+public sealed class StaffInactivePageTests : BunitContext, IDisposable
 {
     private readonly SqliteConnection _anchor;
     private readonly string _connectionString;
 
-    public StaffSteppingDownPageTests()
+    public StaffInactivePageTests()
     {
-        _connectionString = $"Data Source=file:vlms-step-down-page-{Guid.NewGuid():N};Mode=Memory;Cache=Shared";
+        _connectionString = $"Data Source=file:vlms-inactive-page-{Guid.NewGuid():N};Mode=Memory;Cache=Shared";
         _anchor = new SqliteConnection(_connectionString);
         _anchor.Open();
 
@@ -104,7 +104,7 @@ public sealed class StaffSteppingDownPageTests : BunitContext, IDisposable
     }
 
     [Fact]
-    public void TheHistory_ShowsADeletedAdminAsAFormerMemberOfStaff_ButNamesNobodyForAStepDownRecordedBeforeTheHistory()
+    public void TheHistory_ShowsADeletedAdminAsAFormerMemberOfStaff_ButNamesNobodyForAnInactiveRecordRecordedBeforeTheHistory()
     {
         var legacyAt = new DateTime(2020, 3, 1, 9, 0, 0, DateTimeKind.Utc);
         var legacyBack = new DateTime(2021, 3, 1, 9, 0, 0, DateTimeKind.Utc);
@@ -112,17 +112,17 @@ public sealed class StaffSteppingDownPageTests : BunitContext, IDisposable
         var clearedBack = new DateTime(2023, 3, 1, 9, 0, 0, DateTimeKind.Utc);
         using (var db = Db())
         {
-            // A step-down copied in before the history existed names nobody; one whose Admins' accounts were
+            // An Inactive record copied in before the history existed names nobody; one whose Admins' accounts were
             // deleted under the retention rules (docs/adr/0014) has its references cleared.
-            db.StaffStepDowns.Add(new StaffStepDown
+            db.StaffInactivities.Add(new StaffInactivity
             {
-                UserId = 10, ChapterId = Chapter.ShrewsburyId, SteppedDownAt = legacyAt, RecordedBeforeHistory = true,
-                ReinstatedAt = legacyBack, ReinstatedByUserId = 1
+                UserId = 10, ChapterId = Chapter.ShrewsburyId, InactiveAt = legacyAt, RecordedBeforeHistory = true,
+                ReactivatedAt = legacyBack, ReactivatedByUserId = 1
             });
-            db.StaffStepDowns.Add(new StaffStepDown
+            db.StaffInactivities.Add(new StaffInactivity
             {
-                UserId = 10, ChapterId = Chapter.ShrewsburyId, SteppedDownAt = clearedAt, SteppedDownByUserId = null,
-                ReinstatedAt = clearedBack, ReinstatedByUserId = null
+                UserId = 10, ChapterId = Chapter.ShrewsburyId, InactiveAt = clearedAt, MarkedInactiveByUserId = null,
+                ReactivatedAt = clearedBack, ReactivatedByUserId = null
             });
             db.SaveChanges();
         }

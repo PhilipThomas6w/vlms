@@ -51,7 +51,7 @@ public sealed class AppUser
 
     /// <summary>
     /// STATE.md "Manual 'leaving' flag..." — set by the Admin-only
-    /// <c>Retention.LeavingService.StepDownAsync</c>, feeding
+    /// <c>Retention.LeavingService.MarkInactiveAsync</c>, feeding
     /// <c>Reporting.RetentionFlagging</c>'s "6 years after expiry <i>or the teacher leaving</i>"
     /// <see cref="DbsCheck"/> retention check (docs/governance/security-compliance.md). Mirrors
     /// <see cref="StudentLessonCompletion.IsReversed"/>/<see cref="StudentLessonCompletion.ReversedAt"/>'s
@@ -71,21 +71,21 @@ public sealed class AppUser
     /// generic field is simpler, and every other role (Admin/Approver/Parent/SafeguardingOfficer)
     /// leaving the organisation is an equally plausible future need this field costs nothing extra to
     /// also support. What *is* scoped is the action itself:
-    /// <c>LeavingService.StepDownAsync</c> validates the target holds <see cref="Role.Teacher"/>,
+    /// <c>LeavingService.MarkInactiveAsync</c> validates the target holds <see cref="Role.Teacher"/>,
     /// <see cref="Role.Admin"/> or <see cref="Role.SafeguardingOfficer"/> (Teacher only until FR-017
-    /// was amended on 22/10/2026), and locks them out entirely (<c>Identity.LeftStaffPolicy</c>).
+    /// was amended on 22/10/2026), and locks them out entirely (<c>Identity.InactiveStaffPolicy</c>).
     /// Students and parents who leave keep access (FR-017); no write path sets this field on a
     /// parent-only or student account.
     ///
-    /// Amended 27/10/2026 (FR-017): for staff this meant <b>stepped down</b>.
+    /// Amended 27/10/2026 (FR-017): for staff this meant <b>marked Inactive</b>.
     ///
     /// <b>Retired 03/11/2026 (Philip):</b> staff inactivity is per chapter and recorded only as an open
-    /// <see cref="StaffStepDown"/>. Nothing sets or reads this field or <see cref="LeftAt"/> any more;
+    /// <see cref="StaffInactivity"/>. Nothing sets or reads this field or <see cref="LeftAt"/> any more;
     /// both are to be dropped by a later migration (STATE.md).
     /// </summary>
     public bool HasLeft { get; init; }
 
-    /// <summary>Retired with <see cref="HasLeft"/> (03/11/2026); the retention clock reads <see cref="StaffStepDown.SteppedDownAt"/>.</summary>
+    /// <summary>Retired with <see cref="HasLeft"/> (03/11/2026); the retention clock reads <see cref="StaffInactivity.InactiveAt"/>.</summary>
     public DateTime? LeftAt { get; init; }
 
     public ICollection<UserRole> Roles { get; init; } = new List<UserRole>();

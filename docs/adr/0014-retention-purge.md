@@ -28,7 +28,7 @@ Retention is confirmed (`governance/security-compliance.md`): students 3 years a
 `Retention/RetentionDeletionService` (Delete and Delete all shown on the report), `RetentionReminderService` and `AuditLogPurgeService`, run monthly by `Vlms.Jobs retention-monthly` (`deploy/systemd/vlms-retention.*`); entity `DeletionLogEntry` and migration `AddDeletionLog` (append-only deletion log; the `vlms_retention` DELETE policy); provisioning in `deploy/README.md` step 3b. Readings made while building, for confirmation:
 
 - An account is also kept while it holds an Approver or national role or any role in another chapter, and while it has a registration application on record. (As first built it was also kept while any other kept record still named it; superseded below, "References to a deleted account".)
-- A stepped-down staff member's account goes only once they stepped down at least 6 years ago (current step-down date), whichever record's deletion triggers the check.
+- An Inactive staff member's account goes only once they were marked Inactive at least 6 years ago (current Inactive date), whichever record's deletion triggers the check.
 - Deleting an application does not delete the applicant's account (this ADR names no rule for it).
 - "Delete all shown" asks for each person's name, one field per record.
 - The audit-log purge writes no deletion-log row (it removes log rows, not a person's record); its count is in the job's journal.

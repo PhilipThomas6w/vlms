@@ -20,7 +20,7 @@ namespace Vlms.Infrastructure.Retention;
 ///   <see cref="StudentStatus.Inactive"/> (the enum value already existed — see <c>Student.cs</c> —
 ///   but no write path anywhere in this codebase ever reached it before this) plus
 ///   <see cref="Student.LeftAt"/>.
-/// - <see cref="StepDownAsync"/> sets the equivalent <see cref="AppUser.HasLeft"/>/
+/// - <see cref="MarkInactiveAsync"/> sets the equivalent <see cref="AppUser.HasLeft"/>/
 ///   <see cref="AppUser.LeftAt"/> pair for a Teacher, Admin or Safeguarding Officer (Teacher only
 ///   until FR-017 was amended on 22/10/2026) and ends their staff access — see <see cref="AppUser.HasLeft"/>'s
 ///   own doc comment for the schema-placement judgement call.
@@ -107,27 +107,25 @@ public sealed class LeavingService
     /// Steps down a staff member (an <see cref="AppUser"/> holding <see cref="Role.Teacher"/>,
     /// <see cref="Role.Admin"/> or <see cref="Role.SafeguardingOfficer"/> in the Admin's active
     /// chapter): sets <see cref="AppUser.HasLeft"/> to true and <see cref="AppUser.LeftAt"/> to now,
-    /// and opens a <see cref="StaffStepDown"/> history row. Admin-only.
+    /// and opens a <see cref="StaffInactivity"/> history row. Admin-only.
     ///
     /// <b>Takes away their staff access at once</b> (functional.md FR-017, Philip 22/10/2026,
-    /// clarified 23/10/2026, amended 27/10/2026; <see cref="LeftStaffPolicy"/>): from this moment
+    /// clarified 23/10/2026, amended 27/10/2026; <see cref="InactiveStaffPolicy"/>): from this moment
     /// their staff roles count as not held (<c>Security.IdentityCurrentUserContext</c>), and the
     /// security stamp is rotated in the same transaction so open sessions are re-validated. With no
     /// other role they can't sign in at all; a staff member who is also a Parent keeps parent access
     /// to their own children. <see cref="AppUser.LeftAt"/> starts the retention clock.
     ///
     /// <b>Role rows are kept, not revoked.</b> They are the history (the retention report, DBS checks
-    /// against a teacher, who held Admin), what marks this account as stepped-down staff rather than a
-    /// parent who left, and what <see cref="ReinstateAsync"/> restores;
+    /// against a teacher, who held Admin), what marks this account as Inactive staff rather than a
+    /// parent who left, and what <see cref="ReactivateAsync"/> restores;
     /// <see cref="RoleAssignmentService.RevokeAsync"/> refuses to remove them and
     /// <see cref="RoleAssignmentService.GrantAsync"/> refuses to add staff roles meanwhile.
     ///
     /// Throws if <paramref name="userId"/> doesn't exist, holds none of the three staff roles here,
-    /// is also staff of another chapter, has already stepped down, is the caller (an Admin can't lock
-    /// themselves out), or is the chapter's last Admin who hasn't stepped down.
+    /// is also staff of another chapter, is already Inactive, is the caller (an Admin can't lock
+    /// themselves out), or is the chapter's last Admin who is not Inactive.
     /// </summary>
-    public Task<AppUser> StepDownAsync(int userId, CancellationToken ct = default) => MarkInactiveAsync(userId, ct);
-
     public async Task<AppUser> MarkInactiveAsync(int userId, CancellationToken ct = default)
     {
         var (adminId, chapterId) = RequireAdminInChapter();
@@ -149,7 +147,7 @@ public sealed class LeavingService
                 $"{user.DisplayName} is not a Teacher, Admin or Safeguarding Officer in this chapter.");
         }
 
-        if (await _db.StaffStepDowns.AnyAsync(s => s.UserId == userId && s.ChapterId == chapterId && s.ReinstatedAt == null, ct))
+        if (await _db.StaffInactivities.AnyAsync(s => s.UserId == userId && s.ChapterId == chapterId && s.ReactivatedAt == null, ct))
         {
             throw new InvalidOperationException($"{user.DisplayName} is already inactive in this chapter.");
         }
@@ -157,7 +155,7 @@ public sealed class LeavingService
         if (roles.Contains(Role.Admin)
             && !await _db.AppUsers.AnyAsync(u => u.Id != userId
                 && u.Roles.Any(r => r.Role == Role.Admin && r.ChapterId == chapterId)
-                && !_db.StaffStepDowns.Any(s => s.UserId == u.Id && s.ChapterId == chapterId && s.ReinstatedAt == null), ct))
+                && !_db.StaffInactivities.Any(s => s.UserId == u.Id && s.ChapterId == chapterId && s.ReactivatedAt == null), ct))
         {
             throw new InvalidOperationException(
                 $"{user.DisplayName} is the last active Admin in this chapter. Grant Admin to someone else first.");
@@ -165,9 +163,9 @@ public sealed class LeavingService
 
         var now = DateTime.UtcNow;
         await using var transaction = await _db.Database.BeginTransactionAsync(ct);
-        _db.StaffStepDowns.Add(new StaffStepDown
+        _db.StaffInactivities.Add(new StaffInactivity
         {
-            UserId = userId, ChapterId = chapterId, SteppedDownAt = now, SteppedDownByUserId = adminId
+            UserId = userId, ChapterId = chapterId, InactiveAt = now, MarkedInactiveByUserId = adminId
         });
 
         await _db.SaveChangesAsync(ct);
@@ -179,43 +177,41 @@ public sealed class LeavingService
     }
 
     /// <summary>
-    /// Reinstates a staff member who stepped down (functional.md FR-017 as amended 27/10/2026):
+    /// Reactivates a staff member who is Inactive (functional.md FR-017 as amended 27/10/2026):
     /// clears <see cref="AppUser.HasLeft"/>/<see cref="AppUser.LeftAt"/> (which stops the retention
-    /// clock) and closes their open <see cref="StaffStepDown"/> row with the caller and the time.
+    /// clock) and closes their open <see cref="StaffInactivity"/> row with the caller and the time.
     /// Admin-only, within the Admin's active chapter.
     ///
     /// <b>Roles come back exactly as they were</b>, because their rows were never removed and
-    /// nothing may add a staff role while they are stepped down (<see cref="StepDownAsync"/>): the
+    /// nothing may add a staff role while they are marked Inactive (<see cref="MarkInactiveAsync"/>): the
     /// staff roles they held in this chapter count again, and no others are granted. Their sign-in,
     /// password and authenticator are untouched, so MFA works as before. An expired DBS check does
-    /// not stop reinstatement; the DBS expiry flagging picks it up as for any Teacher.
+    /// not stop reactivation; the DBS expiry flagging picks it up as for any Teacher.
     ///
-    /// <b>Chapters.</b> Stepping down is account-wide but only ever done by the Admin of the one
-    /// chapter holding the person's staff roles (<see cref="StepDownAsync"/> refuses staff of several
-    /// chapters, and no staff role can be granted meanwhile). So a stepped-down person has staff
-    /// roles in exactly one chapter, and only that chapter's Admin reinstates them; anyone with
+    /// <b>Chapters.</b> Marking Inactive is account-wide but only ever done by the Admin of the one
+    /// chapter holding the person's staff roles (<see cref="MarkInactiveAsync"/> refuses staff of several
+    /// chapters, and no staff role can be granted meanwhile). So an Inactive person has staff
+    /// roles in exactly one chapter, and only that chapter's Admin reactivates them; anyone with
     /// staff roles elsewhere too (not reachable through the app) is refused.
     ///
     /// The security stamp is rotated in the same transaction (FR-016). Throws if the caller is the
-    /// person, the person has not stepped down, or holds no staff role in the active chapter.
+    /// person, the person is not Inactive, or holds no staff role in the active chapter.
     /// </summary>
-    public Task<AppUser> ReinstateAsync(int userId, CancellationToken ct = default) => ReactivateAsync(userId, ct);
-
     public async Task<AppUser> ReactivateAsync(int userId, CancellationToken ct = default)
     {
         var (adminId, chapterId) = RequireAdminInChapter();
 
         if (adminId == userId)
         {
-            throw new InvalidOperationException("You can't reinstate yourself. Ask another Admin to do it.");
+            throw new InvalidOperationException("You can't reactivate yourself. Ask another Admin to do it.");
         }
 
         var user = await _db.AppUsers.SingleOrDefaultAsync(u => u.Id == userId, ct)
             ?? throw new InvalidOperationException($"AppUser {userId} does not exist.");
 
-        var open = await _db.StaffStepDowns
-            .Where(s => s.UserId == userId && s.ChapterId == chapterId && s.ReinstatedAt == null)
-            .OrderByDescending(s => s.SteppedDownAt)
+        var open = await _db.StaffInactivities
+            .Where(s => s.UserId == userId && s.ChapterId == chapterId && s.ReactivatedAt == null)
+            .OrderByDescending(s => s.InactiveAt)
             .FirstOrDefaultAsync(ct);
         if (open is null)
         {
@@ -232,8 +228,8 @@ public sealed class LeavingService
         await using var transaction = await _db.Database.BeginTransactionAsync(ct);
 
         var values = _db.Entry(open).CurrentValues;
-        values[nameof(StaffStepDown.ReinstatedAt)] = now;
-        values[nameof(StaffStepDown.ReinstatedByUserId)] = adminId;
+        values[nameof(StaffInactivity.ReactivatedAt)] = now;
+        values[nameof(StaffInactivity.ReactivatedByUserId)] = adminId;
 
         await _db.SaveChangesAsync(ct);
         await SecurityStamps.RotateAsync(_userManager, userId);
@@ -241,18 +237,15 @@ public sealed class LeavingService
         return user;
     }
 
-    /// <summary>One period of stepping down, with the names of the Admins who acted (null when not recorded).</summary>
-    public sealed record StepDownPeriod(DateTime SteppedDownAt, string? SteppedDownBy, DateTime? ReinstatedAt, string? ReinstatedBy);
+    /// <summary>One period of marking Inactive, with the names of the Admins who acted (null when not recorded).</summary>
+    public sealed record InactivePeriod(DateTime InactiveAt, string? MarkedInactiveBy, DateTime? ReactivatedAt, string? ReactivatedBy);
 
     /// <summary>A Teacher, Admin or Safeguarding Officer of the active chapter: their staff roles there and their history.</summary>
     public sealed record StaffMember(
-        int UserId, string DisplayName, string Email, bool IsInactive, IReadOnlyList<Role> Roles, IReadOnlyList<StepDownPeriod> History)
-    {
-        public bool SteppedDown => IsInactive;
-    }
+        int UserId, string DisplayName, string Email, bool IsInactive, IReadOnlyList<Role> Roles, IReadOnlyList<InactivePeriod> History);
 
     /// <summary>
-    /// Everyone holding a staff role in the Admin's active chapter, stepped down or not, ordered by
+    /// Everyone holding a staff role in the Admin's active chapter, marked Inactive or not, ordered by
     /// name, each with their stepping-down history in this chapter (oldest first). Admin-only.
     /// </summary>
     public async Task<IReadOnlyList<StaffMember>> ListStaffAsync(CancellationToken ct = default)
@@ -267,12 +260,12 @@ public sealed class LeavingService
         var userIds = rolesByUser.Select(g => g.Key).ToList();
 
         var users = await _db.AppUsers.Where(u => userIds.Contains(u.Id)).OrderBy(u => u.DisplayName).ToListAsync(ct);
-        var periods = await _db.StaffStepDowns
+        var periods = await _db.StaffInactivities
             .Where(s => s.ChapterId == chapterId && userIds.Contains(s.UserId))
-            .OrderBy(s => s.SteppedDownAt)
+            .OrderBy(s => s.InactiveAt)
             .ToListAsync(ct);
 
-        var actorIds = periods.SelectMany(p => new[] { p.SteppedDownByUserId, p.ReinstatedByUserId })
+        var actorIds = periods.SelectMany(p => new[] { p.MarkedInactiveByUserId, p.ReactivatedByUserId })
             .OfType<int>().Distinct().ToList();
         var names = await _db.AppUsers.Where(u => actorIds.Contains(u.Id)).ToDictionaryAsync(u => u.Id, u => u.DisplayName, ct);
         string? NameOf(int? id) => id is int value ? names.GetValueOrDefault(value) : null;
@@ -280,14 +273,14 @@ public sealed class LeavingService
 
         return users
             .Select(u => new StaffMember(
-                u.Id, u.DisplayName, u.Email, periodsByUser[u.Id].Any(p => p.ReinstatedAt == null),
+                u.Id, u.DisplayName, u.Email, periodsByUser[u.Id].Any(p => p.ReactivatedAt == null),
                 rolesByUser[u.Id].Order().ToList(),
                 periodsByUser[u.Id]
                     // An Admin whose account was deleted under the retention rules reads as a former member of
-                    // staff; a step-down copied in before this history existed names nobody (docs/adr/0014).
-                    .Select(p => new StepDownPeriod(
-                        p.SteppedDownAt, FormerStaff.Or(NameOf(p.SteppedDownByUserId), !p.RecordedBeforeHistory),
-                        p.ReinstatedAt, FormerStaff.Or(NameOf(p.ReinstatedByUserId), p.ReinstatedAt is not null)))
+                    // staff; an Inactive record copied in before this history existed names nobody (docs/adr/0014).
+                    .Select(p => new InactivePeriod(
+                        p.InactiveAt, FormerStaff.Or(NameOf(p.MarkedInactiveByUserId), !p.RecordedBeforeHistory),
+                        p.ReactivatedAt, FormerStaff.Or(NameOf(p.ReactivatedByUserId), p.ReactivatedAt is not null)))
                     .ToList()))
             .ToList();
     }
@@ -317,7 +310,7 @@ public sealed class LeavingService
         if (!_currentUser.HasRole(Role.Admin))
         {
             throw new UnauthorizedAccessException(
-                "Caller must hold the Admin role to mark a student as having left or to step down or reinstate staff.");
+                "Caller must hold the Admin role to mark a student as having left or to mark Inactive or reactivate staff.");
         }
     }
 }

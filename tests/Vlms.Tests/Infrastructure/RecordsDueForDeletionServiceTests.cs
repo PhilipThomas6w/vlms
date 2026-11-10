@@ -19,7 +19,7 @@ namespace Vlms.Tests.Infrastructure;
 /// <see cref="Student.LeftAt"/> (STATE.md "Manual 'leaving' flag..." item, set by
 /// <see cref="Retention.LeavingService"/>) can both be flagged; DBS checks past their own expiry, or
 /// whose teacher has been Inactive in its chapter since earlier than that expiry (an open
-/// <see cref="StaffStepDown"/>), can both be flagged too.
+/// <see cref="StaffInactivity"/>), can both be flagged too.
 ///
 /// Same SQLite-in-memory-via-DI pattern as <see cref="ProgressReportingServiceTests"/>/
 /// <see cref="ConsentExpiryJobTests"/> — this service legitimately reads <see cref="DbsCheck"/> (a

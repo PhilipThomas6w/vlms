@@ -87,7 +87,7 @@ else
                     <td data-label="Roles">@RolesText(member)</td>
                     <td data-label="History">@foreach (var line in History(member)) { <div>@line</div> }</td>
                     <td>
-                        @if (_confirming == (member.UserId, ConfirmKind.StepDown))
+                        @if (_confirming == (member.UserId, ConfirmKind.MarkInactive))
                         {
                             <p role="alert">Mark @member.DisplayName Inactive in this chapter?</p>
                             <button class="btn--danger" aria-label="@($"Confirm: Mark Inactive for {member.DisplayName}")" @onclick="() => MarkInactiveAsync(member.UserId)">Mark Inactive</button>
@@ -95,7 +95,7 @@ else
                         }
                         else
                         {
-                            <button class="btn--secondary" aria-label="@($"Mark Inactive: {member.DisplayName}")" @onclick="() => AskToConfirm(member.UserId, ConfirmKind.StepDown)">Mark Inactive</button>
+                            <button class="btn--secondary" aria-label="@($"Mark Inactive: {member.DisplayName}")" @onclick="() => AskToConfirm(member.UserId, ConfirmKind.MarkInactive)">Mark Inactive</button>
                         }
                     </td>
                 </tr>
@@ -105,7 +105,7 @@ else
 }
 
 <h2>Inactive in this chapter</h2>
-@if (_steppedDown.Count == 0)
+@if (_inactive.Count == 0)
 {
     <p>Nobody is currently Inactive in this chapter.</p>
 }
@@ -122,7 +122,7 @@ else
             </tr>
         </thead>
         <tbody>
-            @foreach (var member in _steppedDown)
+            @foreach (var member in _inactive)
             {
                 <tr>
                     <td data-label="Name">@member.DisplayName</td>
@@ -134,7 +134,7 @@ else
                         {
                             // Nobody reactivates themselves (LeavingService.ReactivateAsync refuses it too).
                         }
-                        else if (_confirming == (member.UserId, ConfirmKind.Reinstate))
+                        else if (_confirming == (member.UserId, ConfirmKind.Reactivate))
                         {
                             <p role="alert">Reactivate @member.DisplayName in this chapter with @RolesText(member)?</p>
                             <button aria-label="@($"Confirm: reactivate {member.DisplayName}")" @onclick="() => ReactivateAsync(member.UserId)">Reactivate</button>
@@ -142,7 +142,7 @@ else
                         }
                         else
                         {
-                            <button class="btn--secondary" aria-label="@($"Reactivate {member.DisplayName}")" @onclick="() => AskToConfirm(member.UserId, ConfirmKind.Reinstate)">Reactivate</button>
+                            <button class="btn--secondary" aria-label="@($"Reactivate {member.DisplayName}")" @onclick="() => AskToConfirm(member.UserId, ConfirmKind.Reactivate)">Reactivate</button>
                         }
                     </td>
                 </tr>
@@ -152,11 +152,11 @@ else
 }
 
 @code {
-    private enum ConfirmKind { StepDown, Reinstate }
+    private enum ConfirmKind { MarkInactive, Reactivate }
 
     private List<Student> _activeStudents = new();
     private List<LeavingService.StaffMember> _currentStaff = new();
-    private List<LeavingService.StaffMember> _steppedDown = new();
+    private List<LeavingService.StaffMember> _inactive = new();
 
     private string? _errorMessage;
     private string? _statusMessage;
@@ -167,8 +167,8 @@ else
 
     private static IEnumerable<string> History(LeavingService.StaffMember member) =>
         member.History.Select(p =>
-            $"Marked Inactive {p.SteppedDownAt:d MMMM yyyy}" + (p.SteppedDownBy is { } by ? $" by {by}" : "")
-            + (p.ReinstatedAt is { } back ? $"; reactivated {back:d MMMM yyyy}" + (p.ReinstatedBy is { } who ? $" by {who}" : "") : ""));
+            $"Marked Inactive {p.InactiveAt:d MMMM yyyy}" + (p.MarkedInactiveBy is { } by ? $" by {by}" : "")
+            + (p.ReactivatedAt is { } back ? $"; reactivated {back:d MMMM yyyy}" + (p.ReactivatedBy is { } who ? $" by {who}" : "") : ""));
     private void AskToConfirm(int userId, ConfirmKind kind)
     {
         _errorMessage = null;
@@ -193,7 +193,7 @@ else
 
         _activeStudents = students;
         _currentStaff = staff.Where(m => !m.IsInactive).ToList();
-        _steppedDown = staff.Where(m => m.IsInactive).ToList();
+        _inactive = staff.Where(m => m.IsInactive).ToList();
     }
 
     private async Task MarkStudentInactiveAsync(int studentId)

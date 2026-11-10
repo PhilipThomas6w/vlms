@@ -172,9 +172,9 @@
 
         _registrations = await RegistrationQueue.CountWaitingAsync();
 
-        _inactiveChapters = await (from period in Db.StaffStepDowns
+        _inactiveChapters = await (from period in Db.StaffInactivities
             join chapter in Db.Chapters on period.ChapterId equals chapter.Id
-            where period.UserId == userId && period.ReinstatedAt == null
+            where period.UserId == userId && period.ReactivatedAt == null
             orderby chapter.Name
             select chapter.Name).Distinct().ToListAsync();
     }

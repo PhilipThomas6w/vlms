@@ -88,7 +88,7 @@ public sealed class StudentAdministrationService
 
         var chapterId = _currentUser.ActiveChapterId;
         return await _db.AppUsers
-            .Where(u => teacherIds.Contains(u.Id) && !_db.StaffStepDowns.Any(s => s.UserId == u.Id && s.ChapterId == chapterId && s.ReinstatedAt == null))
+            .Where(u => teacherIds.Contains(u.Id) && !_db.StaffInactivities.Any(s => s.UserId == u.Id && s.ChapterId == chapterId && s.ReactivatedAt == null))
             .OrderBy(u => u.DisplayName)
             .Select(u => new AssignableTeacher(u.Id, u.DisplayName))
             .ToListAsync(ct);
@@ -118,7 +118,7 @@ public sealed class StudentAdministrationService
                     $"AppUser {teacherId} does not hold the Teacher role — only a Teacher can be assigned to a student.");
             }
 
-            if (await _db.StaffStepDowns.AnyAsync(s => s.UserId == teacherId && s.ChapterId == student.ChapterId && s.ReinstatedAt == null, ct))
+            if (await _db.StaffInactivities.AnyAsync(s => s.UserId == teacherId && s.ChapterId == student.ChapterId && s.ReactivatedAt == null, ct))
             {
                 throw new InvalidOperationException(
                     $"AppUser {teacherId} is Inactive in this chapter and cannot be assigned to a student.");

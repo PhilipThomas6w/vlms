@@ -162,11 +162,11 @@ public sealed class VlmsWebFactory : WebApplicationFactory<Vlms.Web.Components.A
     }
 
     /// <summary>
-    /// Runs the real <see cref="LeavingService.StepDownAsync"/> against this app's database, as
+    /// Runs the real <see cref="LeavingService.MarkInactiveAsync"/> against this app's database, as
     /// the Admin <paramref name="adminUserId"/> (the page that calls it is interactive, so it can't be
     /// driven by a form post here).
     /// </summary>
-    public async Task<AppUser> StepDownAsync(int adminUserId, int userId)
+    public async Task<AppUser> MarkInactiveAsync(int adminUserId, int userId)
     {
         var services = new ServiceCollection();
         services.AddLogging();
@@ -176,11 +176,11 @@ public sealed class VlmsWebFactory : WebApplicationFactory<Vlms.Web.Components.A
         services.AddScoped<LeavingService>();
         await using var provider = services.BuildServiceProvider();
         await using var scope = provider.CreateAsyncScope();
-        return await scope.ServiceProvider.GetRequiredService<LeavingService>().StepDownAsync(userId);
+        return await scope.ServiceProvider.GetRequiredService<LeavingService>().MarkInactiveAsync(userId);
     }
 
-    /// <summary>Runs the real <see cref="LeavingService.ReinstateAsync"/> as the Admin <paramref name="adminUserId"/>.</summary>
-    public async Task<AppUser> ReinstateAsync(int adminUserId, int userId)
+    /// <summary>Runs the real <see cref="LeavingService.ReactivateAsync"/> as the Admin <paramref name="adminUserId"/>.</summary>
+    public async Task<AppUser> ReactivateAsync(int adminUserId, int userId)
     {
         var services = new ServiceCollection();
         services.AddLogging();
@@ -190,7 +190,7 @@ public sealed class VlmsWebFactory : WebApplicationFactory<Vlms.Web.Components.A
         services.AddScoped<LeavingService>();
         await using var provider = services.BuildServiceProvider();
         await using var scope = provider.CreateAsyncScope();
-        return await scope.ServiceProvider.GetRequiredService<LeavingService>().ReinstateAsync(userId);
+        return await scope.ServiceProvider.GetRequiredService<LeavingService>().ReactivateAsync(userId);
     }
     protected override void Dispose(bool disposing)
     {
