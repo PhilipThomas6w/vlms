@@ -36,8 +36,8 @@ public sealed class LessonPageServiceTests : IDisposable
         });
         context.Lessons.Add(new Lesson { Id = 11, RankId = 1, Code = "R5-02", Title = "Unconverted", Order = 2, IsActive = true });
         context.Lessons.Add(new Lesson { Id = 12, RankId = 1, Code = "R5-03", Title = "Retired", Order = 3, IsActive = false, Body = "Old", ContentVersion = "v0" });
-        context.LessonFiles.Add(new LessonFile { Id = 100, LessonId = 10, Order = 1, FileName = "Prosphora.docx", BlobKey = "lessons/R5-01/Prosphora.docx" });
-        context.LessonFiles.Add(new LessonFile { Id = 101, LessonId = 11, Order = 1, FileName = "Liturgy.docx", BlobKey = "lessons/R5-02/Liturgy.docx" });
+        context.LessonFiles.Add(new LessonFile { Id = 100, LessonId = 10, Order = 1, FileName = "Prosphora.docx", DisplayName = "Prosphora", BlobKey = "lessons/R5-01/Prosphora.docx" });
+        context.LessonFiles.Add(new LessonFile { Id = 101, LessonId = 11, Order = 1, FileName = "Liturgy.docx", DisplayName = "Liturgy", BlobKey = "lessons/R5-02/Liturgy.docx" });
         context.LessonPictures.Add(new LessonPicture { Id = 20, LessonId = 10, Order = 1, FileName = "loaves.jpg", BlobKey = "lesson-pictures/R5-01/loaves.jpg" });
         context.LessonPictures.Add(new LessonPicture { Id = 21, LessonId = 12, Order = 1, FileName = "old.jpg", BlobKey = "lesson-pictures/R5-03/old.jpg" });
         context.LessonPictures.Add(new LessonPicture
@@ -194,14 +194,15 @@ public sealed class LessonPageServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task SavedLessons_AConvertedLessonIsItsPageAndPictures_NotItsFiles()
+    public async Task SavedLessons_AConvertedLessonIsItsPagePicturesAndHandouts()
     {
         var saved = await AsAsync(Role.Student, s => s.GetSavedLessonsAsync([10, 11]));
 
         var converted = saved.Single(l => l.Id == 10);
         Assert.Equal(("/lessons/R5-01", "v1"), (converted.Page, converted.Version));
         Assert.Equal([20], converted.PictureIds);
-        Assert.Empty(converted.Files);
+        // Its handouts are saved with it (docs/adr/0016 decision 3).
+        Assert.Equal([100], converted.Files.Select(f => f.Id));
 
         var plain = saved.Single(l => l.Id == 11);
         Assert.Null(plain.Page);

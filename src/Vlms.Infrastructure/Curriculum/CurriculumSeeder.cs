@@ -10,11 +10,13 @@ namespace Vlms.Infrastructure.Curriculum;
 /// <summary>
 /// Outcome of a <see cref="CurriculumSeeder.SeedAsync"/> run. When <see cref="Errors"/> is non-empty
 /// nothing was written (no database rows, no blobs) and the counters are all zero.
-/// <see cref="FileNamesAdded"/> counts new entries written to the file-name list; <see cref="FilesRenamed"/>
-/// counts existing file rows renamed in place. <see cref="Warnings"/> never block a run: they report lessons/ranks in the database that the
+/// <see cref="Warnings"/> never block a run: they report lessons/ranks in the database that the
 /// manifest no longer mentions (left untouched, as lessons may have completions).
-/// <see cref="LessonTextsUpdated"/> counts lessons and ranks whose text (lesson body or Teacher's Information) or
+/// <see cref="LessonTextsUpdated"/> counts lessons whose text (lesson body or Teacher's Information) or
 /// pictures changed; <see cref="PicturesUploaded"/> counts resized pictures written to storage.
+/// <see cref="HandoutsUploaded"/> counts handouts written to storage (docs/adr/0016); <see cref="FilesRemoved"/> counts a
+/// lesson's current files removed because they are not in its <c>handouts/</c> folder, and <see cref="BlobsDeleted"/> the
+/// stored files then deleted (those no version, suggestion or other lesson still refers to).
 /// </summary>
 public sealed record CurriculumSeedResult(
     IReadOnlyList<string> Errors,
@@ -23,11 +25,11 @@ public sealed record CurriculumSeedResult(
     int RanksUpdated,
     int LessonsCreated,
     int LessonsUpdated,
-    int FilesUploaded,
-    int FileNamesAdded = 0,
-    int FilesRenamed = 0,
+    int HandoutsUploaded,
     int LessonTextsUpdated = 0,
-    int PicturesUploaded = 0)
+    int PicturesUploaded = 0,
+    int FilesRemoved = 0,
+    int BlobsDeleted = 0)
 {
     public bool Succeeded => Errors.Count == 0;
 }
@@ -37,26 +39,28 @@ public sealed record CurriculumSeedResult(
 /// docs/requirements/functional.md "Curriculum management"), driven by the cleansed manifest
 /// <c>seed/curriculum.json</c> plus a content root holding the lesson folders (not in git). Wrapped
 /// by the <c>seed-curriculum</c> command of the <c>Vlms.Jobs</c> host; the logic lives here so it is
-/// testable.
+/// testable. Since docs/adr/0016 everything it reads is in git (<c>seed/</c>): the original rank folders are no longer
+/// read, and the manifest's <c>source</c> fields play no part.
 ///
 /// <b>Properties every change must keep:</b>
 /// <list type="bullet">
-/// <item><b>Validate first, write nothing on error.</b> Every lesson folder must exist, every tag must
-/// map to a <see cref="LessonTag"/>, codes must be unique. All errors are collected, not just the first.</item>
+/// <item><b>Validate first, write nothing on error.</b> Every tag must map to a <see cref="LessonTag"/>, codes must be
+/// unique, every picture and handout must be readable and of an allowed type. All errors are collected, not just the first.</item>
 /// <item><b>Idempotent.</b> Ranks and lessons are matched on <c>Code</c>; rows that already match are
-/// untouched, so a re-run changes nothing and Ids and blob keys are stable. Blob keys are deterministic
-/// (<c>lessons/{lessonCode}/{relative path}</c>) and uploads overwrite, so a changed file is applied.</item>
-/// <item><b>Never deletes.</b> Lessons absent from the manifest are reported as warnings only.</item>
+/// untouched, so a re-run changes nothing and Ids and blob keys are stable.</item>
+/// <item><b>Never deletes a lesson.</b> Lessons absent from the manifest are reported as warnings only.</item>
 /// <item><b>Application-assigned Ids</b> (max + 1), as elsewhere in the codebase.</item>
-/// <item><b>File Ids are stable.</b> When only a lesson's file names differ (same order, same blob keys)
-/// the rows are renamed in place, because saved offline lessons and links refer to the Ids; the set is
-/// replaced only when the order or the blob keys change.</item>
-/// <item><b>Hand-corrected names win.</b> <c>seed/file-names.json</c> (keyed by blob key: original name
-/// and clean name) only ever gains entries for new files, made by <see cref="LessonFileNames.CleanName"/>;
-/// existing entries are never changed or removed, so a hand edit survives every run. An entry for a
-/// file no longer present is a warning, not an error. The stored name is the clean name plus the
-/// original extension (FR-006); only seeded files are named this way.</item>
 /// </list>
+///
+/// <b>Handouts</b> (docs/adr/0016): a lesson's handouts are the files in <c>lessons/{lesson code}/handouts/</c> (none
+/// when there is no folder), in name order, each a PDF, Word document (.docx), JPEG or PNG checked by content, at most
+/// 20 MB (<see cref="LessonHandoutFiles"/>). The display name is the file name without its extension. Each is stored under a
+/// key naming its content (<c>lesson-handouts/{code}/{hash}{extension}</c>), so it is never overwritten. Existing rows are
+/// matched on that key, then on content, then on file name, so a remaining handout keeps its id (saved copies on devices
+/// refer to it). <b>Pruning:</b> for a lesson the seeder still owns, a current file not in <c>handouts/</c> is removed from
+/// the lesson, and its stored file deleted unless a lesson version, a suggestion or another lesson still refers to it;
+/// the run reports how many (<see cref="CurriculumSeedResult.FilesRemoved"/>). With handouts, a converted lesson's content
+/// version covers them too.
 ///
 /// <b>App-hosted lessons</b> (docs/adr/0012-app-hosted-lessons.md): the folder <c>lessons</c> under the content root
 /// (<c>seed/lessons</c>, in git) holds the converted lessons: <c>{lesson code}.md</c> is the lesson text, its pictures in
@@ -70,7 +74,7 @@ public sealed record CurriculumSeedResult(
 /// <b>Lesson versions</b> (docs/adr/0013-lesson-suggestions-review-and-history.md decisions 4 and 9): each lesson the
 /// seeder creates or changes is recorded as its next <see cref="LessonVersion"/> of kind
 /// <see cref="LessonVersionKind.Converted"/>. A lesson whose latest version did not come from the seeder (it was changed
-/// through lesson suggestions) is never written again: it is skipped, with a warning, files and pictures included. Lesson
+/// through lesson suggestions) is never written again: it is skipped, with a warning, handouts and pictures included. Lesson
 /// pictures are stored under a key naming their content (<c>lesson-pictures/{code}/{hash}/{name}</c>), so a changed
 /// picture never overwrites one an earlier version shows.
 ///
@@ -80,18 +84,15 @@ public sealed record CurriculumSeedResult(
 /// <see cref="LessonPicture.TeachersInformationOnly"/>. There is no rank-wide Teacher's Information: a leftover
 /// <c>{lesson code}.notes.md</c> or <c>R{n}-TI.md</c> is a validation error, so a stale file is never silently ignored.
 ///
-/// Running it: <c>Vlms.Jobs seed-curriculum --manifest seed/curriculum.json --content-root seed
-/// --file-names seed/file-names.json</c>. Add <c>--names-only</c> to write the list and stop (no
-/// uploads, no database), to review or hand-correct it first; run again without it to apply. With no
-/// <c>--file-names</c> the names are left exactly as the files are called (existing behaviour).
+/// Running it: <c>Vlms.Jobs seed-curriculum --manifest seed/curriculum.json --content-root seed</c>.
 ///
 /// Uploads happen before the single <c>SaveChanges</c>: a failed upload leaves the database untouched,
-/// and re-running simply overwrites the same keys.
+/// and re-running simply overwrites the same keys. Stored files are deleted only after it succeeded.
 /// </summary>
 public sealed class CurriculumSeeder
 {
-    /// <summary>Name of the per-lesson subfolder whose files follow the top-level documents.</summary>
-    public const string ImagesFolderName = "Images";
+    /// <summary>Name of a lesson's handouts folder: <c>lessons/{lesson code}/handouts/</c> (adr/0016).</summary>
+    public const string HandoutsFolderName = "handouts";
 
     /// <summary>Folder under the content root holding the converted lessons (adr/0012).</summary>
     public const string LessonsFolderName = "lessons";
@@ -119,8 +120,7 @@ public sealed class CurriculumSeeder
         _blobStorage = blobStorage;
     }
 
-    public async Task<CurriculumSeedResult> SeedAsync(string manifestPath, string contentRoot, CancellationToken ct = default,
-        string? fileNamesPath = null, bool namesOnly = false)
+    public async Task<CurriculumSeedResult> SeedAsync(string manifestPath, string contentRoot, CancellationToken ct = default)
     {
         var errors = new List<string>();
         var manifest = ReadManifest(manifestPath, errors);
@@ -131,25 +131,12 @@ public sealed class CurriculumSeeder
 
         var plan = Validate(manifest, contentRoot, errors);
         var warnings = new List<string>();
-        var namesAdded = 0;
-        // Lesson text is read even when the manifest has errors, so one run reports every problem.
+        // Lesson text and handouts are read even when the manifest has errors, so one run reports every problem.
         ReadLessonTexts(plan, Path.Combine(contentRoot, LessonsFolderName), errors, warnings);
+        ReadHandouts(plan, Path.Combine(contentRoot, LessonsFolderName), errors, warnings);
         if (errors.Count > 0)
         {
             return Failed(errors);
-        }
-        if (fileNamesPath is not null)
-        {
-            namesAdded = ApplyFileNames(plan, fileNamesPath, errors, warnings);
-        }
-        if (errors.Count > 0)
-        {
-            return Failed(errors);
-        }
-
-        if (namesOnly)
-        {
-            return new CurriculumSeedResult(errors, warnings, 0, 0, 0, 0, 0, namesAdded);
         }
 
         // Lessons changed through lesson suggestions since they were converted belong to the suggestions now (adr/0013
@@ -165,13 +152,17 @@ public sealed class CurriculumSeeder
             warnings.Add($"Lesson '{code}' has been changed through lesson suggestions since it was converted; left untouched.");
         }
 
-        // Uploads (deterministic keys, overwrite) come before any database write.
-        var filesUploaded = 0;
-        foreach (var file in plan.SelectMany(r => r.Lessons).Where(l => !suggestionOwned.Contains(l.Code)).SelectMany(l => l.Files))
+        // Handouts (content-addressed keys, so one already stored is the same file) come before any database write.
+        var handoutsUploaded = 0;
+        foreach (var handout in plan.SelectMany(r => r.Lessons).Where(l => !suggestionOwned.Contains(l.Code)).SelectMany(l => l.Handouts))
         {
             ct.ThrowIfCancellationRequested();
-            await _blobStorage.UploadAsync(file.BlobKey, await File.ReadAllBytesAsync(file.FullPath, ct), ct);
-            filesUploaded++;
+            if (await _blobStorage.ExistsAsync(handout.BlobKey, ct))
+            {
+                continue;
+            }
+            await _blobStorage.UploadAsync(handout.BlobKey, handout.Content, ct);
+            handoutsUploaded++;
         }
 
         // Pictures: a lesson's only when its text or pictures changed (or one is missing from storage). Still before any
@@ -198,8 +189,10 @@ public sealed class CurriculumSeeder
         var ranksUpdated = 0;
         var lessonsCreated = 0;
         var lessonsUpdated = 0;
-        var filesRenamed = 0;
+        var filesRemoved = 0;
         var textsUpdated = 0;
+        // Stored files a lesson no longer uses; deleted after the save, if nothing else refers to them.
+        var releasedKeys = new HashSet<string>(StringComparer.Ordinal);
 
         var ranks = await _db.Ranks.ToDictionaryAsync(r => r.Code, ct);
         var lessons = await _db.Lessons.ToDictionaryAsync(l => l.Code, ct);
@@ -213,6 +206,7 @@ public sealed class CurriculumSeeder
         var nextLessonPictureId = await NextIdAsync(_db.LessonPictures.Select(p => p.Id), ct);
         var nextVersionId = await NextIdAsync(_db.LessonVersions.Select(v => v.Id), ct);
         var nextVersionPictureId = await NextIdAsync(_db.LessonVersionPictures.Select(p => p.Id), ct);
+        var nextVersionHandoutId = await NextIdAsync(_db.LessonVersionHandouts.Select(h => h.Id), ct);
 
         foreach (var planRank in plan)
         {
@@ -281,35 +275,42 @@ public sealed class CurriculumSeeder
                     changed = true;
                 }
 
-                // Files: an identical sequence leaves the rows (and Ids) alone; the same order and blob keys
-                // with different names rename the rows in place (Ids stay stable); otherwise replace the set.
-                var existingFiles = files[lesson.Id].OrderBy(f => f.Order).ToList();
-                var sameKeys = existingFiles.Count == planLesson.Files.Count
-                    && existingFiles.Zip(planLesson.Files).All(p => p.First.Order == p.Second.Order && p.First.BlobKey == p.Second.BlobKey);
-                if (sameKeys)
+                // Handouts (adr/0016): matched on key, then content, then file name, so a remaining handout keeps its id;
+                // a current file not in handouts/ is removed (pruned).
+                var existingFiles = files[lesson.Id].OrderBy(f => f.Order).ThenBy(f => f.Id).ToList();
+                var matches = await MatchHandoutsAsync(existingFiles, planLesson.Handouts, ct);
+                foreach (var gone in existingFiles.Where(f => !matches.ContainsKey(f)))
                 {
-                    foreach (var (existing, planned) in existingFiles.Zip(planLesson.Files).Where(p => p.First.FileName != p.Second.FileName))
-                    {
-                        SetValue(existing, f => f.FileName, planned.FileName);
-                        filesRenamed++;
-                        changed = true;
-                    }
+                    _db.LessonFiles.Remove(gone);
+                    releasedKeys.Add(gone.BlobKey);
+                    filesRemoved++;
+                    changed = true;
                 }
-                else
+                foreach (var planned in planLesson.Handouts)
                 {
-                    _db.LessonFiles.RemoveRange(existingFiles);
-                    foreach (var file in planLesson.Files)
+                    var existing = matches.FirstOrDefault(m => m.Value == planned).Key;
+                    if (existing is null)
                     {
                         _db.LessonFiles.Add(new LessonFile
                         {
-                            Id = nextFileId++,
-                            LessonId = lesson.Id,
-                            Order = file.Order,
-                            FileName = file.FileName,
-                            BlobKey = file.BlobKey
+                            Id = nextFileId++, LessonId = lesson.Id, Order = planned.Order, FileName = planned.FileName,
+                            DisplayName = planned.DisplayName, BlobKey = planned.BlobKey
                         });
+                        changed = true;
                     }
-                    changed = true;
+                    else if (existing.Order != planned.Order || existing.FileName != planned.FileName
+                        || existing.DisplayName != planned.DisplayName || existing.BlobKey != planned.BlobKey)
+                    {
+                        if (existing.BlobKey != planned.BlobKey)
+                        {
+                            releasedKeys.Add(existing.BlobKey);
+                        }
+                        SetValue(existing, f => f.Order, planned.Order);
+                        SetValue(existing, f => f.FileName, planned.FileName);
+                        SetValue(existing, f => f.DisplayName, planned.DisplayName);
+                        SetValue(existing, f => f.BlobKey, planned.BlobKey);
+                        changed = true;
+                    }
                 }
 
                 // Lesson text and pictures (adr/0012).
@@ -387,6 +388,14 @@ public sealed class CurriculumSeeder
                             Id = nextVersionPictureId++, LessonVersionId = versionId, Order = order, FileName = fileName, BlobKey = blobKey
                         });
                     }
+                    foreach (var handout in planLesson.Handouts)
+                    {
+                        _db.LessonVersionHandouts.Add(new LessonVersionHandout
+                        {
+                            Id = nextVersionHandoutId++, LessonVersionId = versionId, Order = handout.Order, FileName = handout.FileName,
+                            DisplayName = handout.DisplayName, BlobKey = handout.BlobKey
+                        });
+                    }
                 }
             }
         }
@@ -400,8 +409,58 @@ public sealed class CurriculumSeeder
 
         await _db.SaveChangesAsync(ct);
 
-        return new CurriculumSeedResult(errors, warnings, ranksCreated, ranksUpdated, lessonsCreated, lessonsUpdated, filesUploaded, namesAdded,
-            filesRenamed, textsUpdated, picturesUploaded);
+        // Stored files no longer used by any lesson, version or suggestion are deleted, now the database no longer needs them.
+        var blobsDeleted = 0;
+        if (releasedKeys.Count > 0)
+        {
+            var keys = releasedKeys.ToList();
+            var stillUsed = (await _db.LessonFiles.AsNoTracking().Where(f => keys.Contains(f.BlobKey)).Select(f => f.BlobKey).ToListAsync(ct))
+                .Concat(await _db.LessonVersionHandouts.AsNoTracking().Where(h => keys.Contains(h.BlobKey)).Select(h => h.BlobKey).ToListAsync(ct))
+                .Concat(await _db.LessonSuggestionHandouts.AsNoTracking().Where(h => keys.Contains(h.BlobKey)).Select(h => h.BlobKey).ToListAsync(ct))
+                .ToHashSet(StringComparer.Ordinal);
+            foreach (var key in keys.Where(k => !stillUsed.Contains(k)).Order(StringComparer.Ordinal))
+            {
+                await _blobStorage.DeleteAsync(key, ct);
+                blobsDeleted++;
+            }
+        }
+
+        return new CurriculumSeedResult(errors, warnings, ranksCreated, ranksUpdated, lessonsCreated, lessonsUpdated, handoutsUploaded,
+            textsUpdated, picturesUploaded, filesRemoved, blobsDeleted);
+    }
+
+    /// <summary>
+    /// Pairs a lesson's current files with its planned handouts: first on the same blob key, then on the same content (the
+    /// stored file is read), then on the same file name ignoring case. Each is paired at most once.
+    /// </summary>
+    private async Task<Dictionary<LessonFile, PlannedHandout>> MatchHandoutsAsync(List<LessonFile> existing, List<PlannedHandout> planned, CancellationToken ct)
+    {
+        var matches = new Dictionary<LessonFile, PlannedHandout>();
+        void Pair(Func<LessonFile, PlannedHandout, bool> same)
+        {
+            foreach (var handout in planned.Where(p => !matches.ContainsValue(p)))
+            {
+                var file = existing.FirstOrDefault(f => !matches.ContainsKey(f) && same(f, handout));
+                if (file is not null)
+                {
+                    matches[file] = handout;
+                }
+            }
+        }
+
+        Pair((f, p) => f.BlobKey == p.BlobKey);
+        if (matches.Count < Math.Min(existing.Count, planned.Count))
+        {
+            var hashes = new Dictionary<LessonFile, string?>();
+            foreach (var file in existing.Where(f => !matches.ContainsKey(f)))
+            {
+                var content = await _blobStorage.ReadAsync(file.BlobKey, ct);
+                hashes[file] = content is null ? null : Convert.ToHexStringLower(SHA256.HashData(content));
+            }
+            Pair((f, p) => hashes.TryGetValue(f, out var hash) && hash == p.Hash);
+            Pair((f, p) => string.Equals(f.FileName, p.FileName, StringComparison.OrdinalIgnoreCase));
+        }
+        return matches;
     }
 
     /// <summary>
@@ -588,43 +647,86 @@ public sealed class CurriculumSeeder
     private static async Task<int> NextIdAsync(IQueryable<int> ids, CancellationToken ct)
         => (await ids.Select(i => (int?)i).MaxAsync(ct) ?? 0) + 1;
 
+    // --- Handouts (adr/0016) -------------------------------------------------------------------
+
     /// <summary>
-    /// Reads the file-name list, adds entries for new files, saves it when it gained any, and gives every
-    /// planned file its listed clean name (plus its original extension). Returns the entries added.
-    /// Writes only the list, never the database or blobs, so it is safe before validation passes elsewhere.
+    /// Reads each lesson's <c>handouts/</c> folder. Errors: a file that is not a PDF, Word document (.docx), JPEG or PNG by its
+    /// content and extension, one over the size limit, two with the same content. Warnings: a folder inside it (not read), a
+    /// handouts folder of no lesson in the manifest. With handouts, a converted lesson's content version covers them too
+    /// (a lesson without any keeps the version it always had).
     /// </summary>
-    private static int ApplyFileNames(List<PlannedRank> plan, string fileNamesPath, List<string> errors, List<string> warnings)
+    private static void ReadHandouts(List<PlannedRank> plan, string lessonsRoot, List<string> errors, List<string> warnings)
     {
-        var list = LessonFileNames.LoadList(fileNamesPath, errors);
-        if (errors.Count > 0)
+        if (!Directory.Exists(lessonsRoot))
         {
-            return 0;
+            return;
         }
 
-        var planned = plan.SelectMany(r => r.Lessons).Select(l => l.Files).ToList();
-        var added = LessonFileNames.MergeList(list,
-            planned.SelectMany(f => f).Select(f => (f.BlobKey, f.FileName)), warnings);
-        if (added > 0)
+        var codes = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var lesson in plan.SelectMany(r => r.Lessons))
         {
-            LessonFileNames.SaveList(fileNamesPath, list);
-        }
-
-        foreach (var files in planned)
-        {
-            for (var i = 0; i < files.Count; i++)
+            codes.Add(lesson.Code);
+            var folder = Path.Combine(lessonsRoot, lesson.Code, HandoutsFolderName);
+            if (!Directory.Exists(folder))
             {
-                files[i] = files[i] with { FileName = LessonFileNames.StoredName(list[files[i].BlobKey].Name, files[i].FileName) };
+                continue;
             }
 
-            foreach (var duplicate in files.GroupBy(f => f.FileName, StringComparer.OrdinalIgnoreCase).Where(g => g.Count() > 1))
+            var where = $"{LessonsFolderName}/{lesson.Code}/{HandoutsFolderName}";
+            foreach (var inner in Directory.EnumerateDirectories(folder).Order(StringComparer.Ordinal))
             {
-                warnings.Add($"Two files of one lesson are both named '{duplicate.Key}' ({string.Join(", ", duplicate.Select(f => f.BlobKey))}); correct one in the file-name list.");
+                warnings.Add($"Lesson '{lesson.Code}': '{where}/{Path.GetFileName(inner)}/' is a folder; handouts are only the files directly in '{where}/'. Not read.");
+            }
+            foreach (var path in Directory.EnumerateFiles(folder).Where(p => !IsJunk(p)).OrderBy(p => Path.GetFileName(p), StringComparer.OrdinalIgnoreCase))
+            {
+                var name = Path.GetFileName(path);
+                if (new FileInfo(path).Length > LessonHandoutFiles.MaxBytes)
+                {
+                    errors.Add($"Lesson '{lesson.Code}': handout '{where}/{name}' is larger than {LessonHandoutFiles.MaxBytes / (1024 * 1024)} MB.");
+                    continue;
+                }
+                var content = File.ReadAllBytes(path);
+                string extension;
+                try
+                {
+                    extension = LessonHandoutFiles.CheckedExtension(name, content);
+                }
+                catch (InvalidOperationException)
+                {
+                    errors.Add($"Lesson '{lesson.Code}': handout '{where}/{name}' is not a PDF, Word document (.docx), JPEG or PNG.");
+                    continue;
+                }
+                var hash = Convert.ToHexStringLower(SHA256.HashData(content));
+                if (lesson.Handouts.FirstOrDefault(h => h.Hash == hash) is { } same)
+                {
+                    errors.Add($"Lesson '{lesson.Code}': handouts '{where}/{same.SourceName}' and '{where}/{name}' are the same file.");
+                    continue;
+                }
+                lesson.Handouts.Add(new PlannedHandout(lesson.Handouts.Count + 1, LessonHandoutFiles.SafeFileName(name, extension),
+                    LessonHandoutFiles.DefaultDisplayName(name), LessonHandoutFiles.BlobKey(lesson.Code, content, extension), content, hash, name));
+            }
+
+            if (lesson.Text is { } text && lesson.Handouts.Count > 0)
+            {
+                using var combined = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+                combined.AppendData(Encoding.UTF8.GetBytes(text.Version));
+                foreach (var handout in lesson.Handouts)
+                {
+                    combined.AppendData(Encoding.UTF8.GetBytes($"\0handout\0{handout.DisplayName}\0{handout.FileName}\0{handout.BlobKey}"));
+                }
+                lesson.Text = text with { Version = Convert.ToHexStringLower(combined.GetHashAndReset()) };
             }
         }
 
-        return added;
+        foreach (var folder in Directory.EnumerateDirectories(lessonsRoot).Order(StringComparer.Ordinal))
+        {
+            var code = Path.GetFileName(folder);
+            if (!codes.Contains(code) && Directory.Exists(Path.Combine(folder, HandoutsFolderName)))
+            {
+                warnings.Add($"'{LessonsFolderName}/{code}/{HandoutsFolderName}/' matches no lesson in the manifest; not imported.");
+            }
+        }
     }
-
     private static CurriculumSeedResult Failed(List<string> errors) => new(errors, [], 0, 0, 0, 0, 0);
 
     // --- Manifest parsing and validation ------------------------------------------------------
@@ -698,25 +800,7 @@ public sealed class CurriculumSeeder
                     else errors.Add($"{label}: unknown tag '{name}'.");
                 }
 
-                var files = new List<PlannedFile>();
-                if (string.IsNullOrWhiteSpace(rank.Source) || string.IsNullOrWhiteSpace(lesson.Source))
-                {
-                    errors.Add($"{label}: the rank or lesson has no 'source' folder.");
-                }
-                else if (rootExists)
-                {
-                    var folder = Path.Combine(contentRoot, rank.Source, lesson.Source);
-                    if (!Directory.Exists(folder))
-                    {
-                        errors.Add($"{label}: folder not found: {folder}");
-                    }
-                    else
-                    {
-                        files = ListFiles(folder, lesson.Code);
-                    }
-                }
-
-                plannedLessons.Add(new PlannedLesson(lesson.Code, lesson.Title, lesson.Order, lessonTags, files));
+                plannedLessons.Add(new PlannedLesson(lesson.Code, lesson.Title, lesson.Order, lessonTags));
             }
 
             plan.Add(new PlannedRank(rank.Code, rank.Name, rank.Order, plannedLessons));
@@ -742,34 +826,6 @@ public sealed class CurriculumSeeder
         return false;
     }
 
-    /// <summary>Top-level documents (alphabetical) first, then the Images subfolder's files (alphabetical).</summary>
-    private static List<PlannedFile> ListFiles(string folder, string lessonCode)
-    {
-        var result = new List<PlannedFile>();
-
-        foreach (var path in Directory.EnumerateFiles(folder).Where(p => !IsJunk(p))
-                     .OrderBy(p => Path.GetFileName(p), StringComparer.OrdinalIgnoreCase))
-        {
-            result.Add(Planned(lessonCode, Path.GetFileName(path), path, result.Count + 1));
-        }
-
-        var images = Directory.EnumerateDirectories(folder)
-            .FirstOrDefault(d => string.Equals(Path.GetFileName(d), ImagesFolderName, StringComparison.OrdinalIgnoreCase));
-        if (images is not null)
-        {
-            foreach (var path in Directory.EnumerateFiles(images, "*", SearchOption.AllDirectories).Where(p => !IsJunk(p))
-                         .OrderBy(p => Path.GetRelativePath(folder, p).Replace('\\', '/'), StringComparer.OrdinalIgnoreCase))
-            {
-                result.Add(Planned(lessonCode, Path.GetRelativePath(folder, path).Replace('\\', '/'), path, result.Count + 1));
-            }
-        }
-
-        return result;
-    }
-
-    private static PlannedFile Planned(string lessonCode, string relativePath, string fullPath, int order)
-        => new(order, Path.GetFileName(fullPath), $"lessons/{lessonCode}/{relativePath}", fullPath);
-
     private static bool IsJunk(string path)
     {
         var name = Path.GetFileName(path);
@@ -781,9 +837,12 @@ public sealed class CurriculumSeeder
 
     private sealed record PlannedRank(string Code, string Name, int Order, List<PlannedLesson> Lessons);
 
-    private sealed record PlannedLesson(string Code, string Title, int Order, HashSet<LessonTag> Tags, List<PlannedFile> Files)
+    private sealed record PlannedLesson(string Code, string Title, int Order, HashSet<LessonTag> Tags)
     {
         public PlannedText? Text { get; set; }
+
+        /// <summary>The files of <c>lessons/{code}/handouts/</c>, in order (adr/0016).</summary>
+        public List<PlannedHandout> Handouts { get; } = [];
     }
 
     private sealed record PlannedText(string Body, string Version, List<PlannedPicture> Pictures)
@@ -794,7 +853,8 @@ public sealed class CurriculumSeeder
 
     /// <param name="InformationOnly">Only the Teacher's Information use it (adr/0015), so it is served to staff only.</param>
     private sealed record PlannedPicture(int Order, string FileName, string BlobKey, byte[] Content, bool InformationOnly = false);
-    private sealed record PlannedFile(int Order, string FileName, string BlobKey, string FullPath);
+    /// <param name="SourceName">The name of the file in the handouts folder, for messages.</param>
+    private sealed record PlannedHandout(int Order, string FileName, string DisplayName, string BlobKey, byte[] Content, string Hash, string SourceName);
 
     private sealed class ManifestDto
     {
@@ -806,7 +866,6 @@ public sealed class CurriculumSeeder
         public int Order { get; set; }
         public string? Code { get; set; }
         public string? Name { get; set; }
-        public string? Source { get; set; }
         public List<LessonDto>? Lessons { get; set; }
     }
 
@@ -816,6 +875,5 @@ public sealed class CurriculumSeeder
         public string? Code { get; set; }
         public string? Title { get; set; }
         public List<string>? Tags { get; set; }
-        public string? Source { get; set; }
     }
 }

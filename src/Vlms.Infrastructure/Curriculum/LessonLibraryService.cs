@@ -66,7 +66,7 @@ public sealed class LessonLibraryService
                 l.ContentVersion,
                 HasPage = l.Body != null,
                 Tags = l.Tags.Select(t => t.Tag).ToList(),
-                Files = l.Files.Select(f => new { f.Id, f.Order, f.FileName }).ToList(),
+                Files = l.Files.Select(f => new { f.Id, f.Order, f.FileName, f.DisplayName }).ToList(),
                 // A picture only the Teacher's Information use is never one a device saves with the lesson (adr/0015).
                 Pictures = l.Pictures.Where(p => !p.TeachersInformationOnly).Select(p => new { p.Id, p.Order }).ToList()
             })
@@ -86,7 +86,7 @@ public sealed class LessonLibraryService
                     l.Title,
                     l.Tags.Order().Select(LessonTagNames.Display).ToList(),
                     l.Files.OrderBy(f => f.Order).ThenBy(f => f.Id)
-                        .Select(f => new LibraryFile(f.Id, f.FileName)).ToList())
+                        .Select(f => new LibraryFile(f.Id, f.FileName, f.DisplayName)).ToList())
                 {
                     HasPage = l.HasPage,
                     ContentVersion = l.HasPage ? l.ContentVersion : null,
@@ -142,15 +142,24 @@ public sealed class LessonLibraryService
             }
         }
 
+        // The lesson's handouts, for everyone who sees the lesson (adr/0016 decision 3).
+        var handouts = await _db.LessonFiles.AsNoTracking().Where(f => f.LessonId == lesson.Id)
+            .OrderBy(f => f.Order).ThenBy(f => f.Id)
+            .Select(f => new LibraryFile(f.Id, f.FileName, f.DisplayName)).ToListAsync(ct);
+
         return new LessonPage(lesson.Id, lesson.Code, lesson.Title, lesson.RankName, html,
             lesson.ContentVersion, pictures.Select(p => p.Id).ToList())
         {
+            Handouts = handouts,
             RankPosition = rankPosition,
             Position = position,
             ShowsTeachersMaterial = staff,
             TeachersInformationHtml = information
         };
     }
+
+    /// <summary>Where a lesson's handout is downloaded (by id only).</summary>
+    public static string FileUrl(int id) => $"/lessons/files/{id}";
 
     /// <summary>Where a lesson picture is served (by id only).</summary>
     public static string PictureUrl(int id) => $"/lessons/pictures/{id}";
@@ -193,7 +202,7 @@ public sealed class LessonLibraryService
     /// what <see cref="GetLibraryAsync"/> already shows. Same role check as the rest of the library. A converted lesson
     /// (adr/0012 decision 7) is saved as its lesson page and pictures, not its files: <see cref="SavedLesson.Page"/>,
     /// <see cref="SavedLesson.Version"/> (compared by the device, so a changed lesson is fetched again) and
-    /// <see cref="SavedLesson.PictureIds"/>, with no files.
+    /// <see cref="SavedLesson.PictureIds"/>, with its handouts as its files (adr/0016 decision 3), so they open offline too.
     /// </summary>
     public async Task<IReadOnlyList<SavedLesson>> GetSavedLessonsAsync(IReadOnlyCollection<int> lessonIds, CancellationToken ct = default)
     {
@@ -203,7 +212,7 @@ public sealed class LessonLibraryService
         return library
             .SelectMany((rank, rankPosition) => rank.Lessons.Select((lesson, position) =>
                 new SavedLesson(lesson.Id, lesson.Code, lesson.Title, rank.Name, rankPosition, position,
-                    lesson.HasPage ? [] : lesson.Files)
+                    lesson.Files)
                 {
                     Page = lesson.HasPage ? PageUrl(lesson.Code) : null,
                     Version = lesson.ContentVersion,
@@ -305,6 +314,9 @@ public sealed record LessonPage(int Id, string Code, string Title, string Rank, 
 
     /// <summary>The lesson's Teacher's Information as HTML; null when there are none or the caller is not staff.</summary>
     public string? TeachersInformationHtml { get; init; }
+
+    /// <summary>The lesson's handouts, in order (adr/0016), for everyone who sees the lesson.</summary>
+    public IReadOnlyList<LibraryFile> Handouts { get; init; } = [];
 }
 
 /// <summary>A lesson as a device that saved it needs to know it: <c>Rank</c> reads like "R1: First", the two positions give the delivery order.</summary>
@@ -320,10 +332,11 @@ public sealed record SavedLesson(int Id, string Code, string Title, string Rank,
     public IReadOnlyList<int> PictureIds { get; init; } = [];
 }
 
-public sealed record LibraryFile(int Id, string FileName)
+/// <summary>A lesson's handout (adr/0016): <see cref="DisplayName"/> is the name shown to people, <see cref="FileName"/> the download's.</summary>
+public sealed record LibraryFile(int Id, string FileName, string DisplayName)
 {
-    /// <summary>The name shown to people: the stored name without its extension (FR-006).</summary>
-    public string DisplayName => LessonFileNames.DisplayName(FileName);
+    /// <summary>Where it is downloaded (by id only).</summary>
+    public string Url => LessonLibraryService.FileUrl(Id);
 }
 
 public sealed record LessonFileContent(string FileName, byte[] Content);

@@ -131,6 +131,35 @@ else if (_editor is not null)
                 <div class="lesson-editor__text lesson-text" data-label="Teacher's Information" @ref="_notesHost"></div>
             </section>
 
+            @* The lesson's handouts (docs/adr/0016): added, renamed and removed as part of the suggestion. *@
+            <h2 class="section-title" id="handouts-heading" hidden="@(_kind == LessonChangeKind.Retire)">Handouts</h2>
+            <section class="lesson-handouts" aria-labelledby="handouts-heading" hidden="@(_kind == LessonChangeKind.Retire)">
+                @if (_handouts.Count > 0)
+                {
+                    <ul class="handout-list">
+                        @foreach (var (handout, index) in _handouts.Select((h, i) => (h, i)))
+                        {
+                            var id = $"handout-name-{index}";
+                            <li @key="handout.Key">
+                                <div class="field">
+                                    <label for="@id">Name<span class="visually-hidden"> of @handout.FileName</span></label>
+                                    <input id="@id" type="text" maxlength="@LessonHandoutFiles.MaxDisplayNameLength" @bind="handout.DisplayName" />
+                                </div>
+                                <p>
+                                    <a href="@handout.Url" data-enhance-nav="false">@handout.FileName</a>
+                                    <button type="button" class="btn--quiet" @onclick="() => RemoveHandout(handout)">Remove<span class="visually-hidden"> @handout.FileName</span></button>
+                                </p>
+                            </li>
+                        }
+                    </ul>
+                }
+                <div class="field">
+                    <label for="handout-file">Add a handout (PDF, Word document, JPEG or PNG, up to 20 MB)</label>
+                    <input id="handout-file" type="file" accept=".pdf,.docx,.jpg,.jpeg,.png,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/jpeg,image/png" @ref="_handoutFile" />
+                </div>
+                <p><button type="button" class="btn--secondary" @onclick="UploadHandoutAsync" disabled="@_busy">Upload handout</button></p>
+            </section>
+
             <details class="panel lesson-settings" open="@(_editor.LessonId is null)">
                 <summary>Lesson settings: title, order and tags</summary>
                 <div class="field-row">
@@ -254,6 +283,20 @@ else if (_editor is not null)
     private PublishedVersion? _published;
     private bool _busy;
     private bool _confirmDiscard;
+    private List<HandoutRow> _handouts = [];
+    private readonly HashSet<string> _removedHandouts = new(StringComparer.Ordinal);
+    private ElementReference _handoutFile;
+
+    // A handout as the editor keeps it; the key never leaves the server.
+    private sealed class HandoutRow(string key, string fileName, string url, string displayName)
+    {
+        public string Key { get; } = key;
+        public string FileName { get; } = fileName;
+        public string Url { get; } = url;
+        public string DisplayName { get; set; } = displayName;
+    }
+
+    private sealed record UploadAnswer(bool Ok, string? Message, int Id);
 
     private ElementReference _host;
     private ElementReference _toolbar;
@@ -295,6 +338,7 @@ else if (_editor is not null)
             _body = draft.Body;
             _notes = draft.TeachersInformation;
             _revises = draft.RevisesSuggestionId;
+            _handouts = draft.Handouts.Select(h => new HandoutRow(h.Key, h.FileName, h.Url, h.DisplayName)).ToList();
             if (_status == LessonSuggestionStatus.Submitted)
             {
                 _message = Outcome.Submitted;
@@ -337,7 +381,43 @@ else if (_editor is not null)
 
     private SuggestionInput Input() =>
         new(_suggestionId, _editor!.LessonId, _editor.RankId, _kind, _title, _order, _tags, _body, _reason, _suggestionId is null ? _revises : null,
-            _suggestionId is null ? _editor.CurrentVersionNumber : null, _notes);
+            _suggestionId is null ? _editor.CurrentVersionNumber : null, _notes,
+            _handouts.Select(h => new HandoutInput(h.Key, h.DisplayName)).ToList());
+
+    private void RemoveHandout(HandoutRow handout)
+    {
+        _handouts.Remove(handout);
+        _removedHandouts.Add(handout.Key);
+    }
+
+    // Saves the draft if it is new (a handout belongs to a saved draft), then the script sends the chosen file
+    // (POST /curriculum/suggestions/{id}/handouts, antiforgery token in the header) and the list is brought up to date.
+    private Task UploadHandoutAsync() => RunAsync(async () =>
+    {
+        if (_module is null)
+        {
+            return;
+        }
+        if (_suggestionId is null)
+        {
+            _suggestionId = await Suggestions.SaveDraftAsync(Input());
+            _status = LessonSuggestionStatus.Draft;
+        }
+
+        var answer = await _module.InvokeAsync<UploadAnswer>("uploadHandout", _handoutFile, _suggestionId.Value);
+        if (!answer.Ok)
+        {
+            _error = answer.Message ?? "The handout could not be uploaded. Try again.";
+            return;
+        }
+        foreach (var handout in await Suggestions.GetSuggestionHandoutsAsync(_suggestionId.Value))
+        {
+            if (_handouts.All(h => h.Key != handout.Key) && !_removedHandouts.Contains(handout.Key))
+            {
+                _handouts.Add(new HandoutRow(handout.Key, handout.FileName, handout.Url, handout.DisplayName));
+            }
+        }
+    });
 
     private async Task ReadBodyAsync()
     {

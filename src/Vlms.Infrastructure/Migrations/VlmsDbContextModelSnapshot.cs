@@ -873,6 +873,11 @@ namespace Vlms.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("blob_key");
 
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("display_name");
+
                     b.Property<string>("FileName")
                         .IsRequired()
                         .HasColumnType("text")
@@ -1103,6 +1108,43 @@ namespace Vlms.Infrastructure.Migrations
                     b.ToTable("lesson_suggestion_approvals");
                 });
 
+            modelBuilder.Entity("Vlms.Domain.LessonSuggestionHandout", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    b.Property<string>("BlobKey")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("blob_key");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("display_name");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("file_name");
+
+                    b.Property<int>("LessonSuggestionId")
+                        .HasColumnType("integer")
+                        .HasColumnName("lesson_suggestion_id");
+
+                    b.Property<int>("Order")
+                        .HasColumnType("integer")
+                        .HasColumnName("order");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LessonSuggestionId", "BlobKey")
+                        .IsUnique();
+
+                    b.ToTable("lesson_suggestion_handouts");
+                });
+
             modelBuilder.Entity("Vlms.Domain.LessonSuggestionPicture", b =>
                 {
                     b.Property<int>("Id")
@@ -1251,6 +1293,43 @@ namespace Vlms.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("lesson_versions");
+                });
+
+            modelBuilder.Entity("Vlms.Domain.LessonVersionHandout", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    b.Property<string>("BlobKey")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("blob_key");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("display_name");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("file_name");
+
+                    b.Property<int>("LessonVersionId")
+                        .HasColumnType("integer")
+                        .HasColumnName("lesson_version_id");
+
+                    b.Property<int>("Order")
+                        .HasColumnType("integer")
+                        .HasColumnName("order");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LessonVersionId", "BlobKey")
+                        .IsUnique();
+
+                    b.ToTable("lesson_version_handouts");
                 });
 
             modelBuilder.Entity("Vlms.Domain.LessonVersionPicture", b =>
@@ -2464,6 +2543,17 @@ namespace Vlms.Infrastructure.Migrations
                     b.Navigation("LessonSuggestion");
                 });
 
+            modelBuilder.Entity("Vlms.Domain.LessonSuggestionHandout", b =>
+                {
+                    b.HasOne("Vlms.Domain.LessonSuggestion", "LessonSuggestion")
+                        .WithMany("Handouts")
+                        .HasForeignKey("LessonSuggestionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("LessonSuggestion");
+                });
+
             modelBuilder.Entity("Vlms.Domain.LessonSuggestionPicture", b =>
                 {
                     b.HasOne("Vlms.Domain.LessonSuggestion", "LessonSuggestion")
@@ -2526,6 +2616,17 @@ namespace Vlms.Infrastructure.Migrations
                     b.Navigation("Lesson");
 
                     b.Navigation("Suggestion");
+                });
+
+            modelBuilder.Entity("Vlms.Domain.LessonVersionHandout", b =>
+                {
+                    b.HasOne("Vlms.Domain.LessonVersion", "LessonVersion")
+                        .WithMany("Handouts")
+                        .HasForeignKey("LessonVersionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("LessonVersion");
                 });
 
             modelBuilder.Entity("Vlms.Domain.LessonVersionPicture", b =>
@@ -2871,6 +2972,8 @@ namespace Vlms.Infrastructure.Migrations
                 {
                     b.Navigation("CommitteeApprovals");
 
+                    b.Navigation("Handouts");
+
                     b.Navigation("Pictures");
 
                     b.Navigation("Tags");
@@ -2878,6 +2981,8 @@ namespace Vlms.Infrastructure.Migrations
 
             modelBuilder.Entity("Vlms.Domain.LessonVersion", b =>
                 {
+                    b.Navigation("Handouts");
+
                     b.Navigation("Pictures");
 
                     b.Navigation("Tags");

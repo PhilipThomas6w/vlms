@@ -25,6 +25,10 @@ A small DI-registration helper (STATE.md "Identity" item) that wires a real `Use
 
 A minimal `ILogger<T>` test double, same spirit as `FakeCurrentUserContext`/`InMemoryBlobStorage`: records every logged `(LogLevel, formatted message)` pair to a list so a test can assert on log severity (e.g. `ConsentExpiryJob`'s Error-vs-Warning escalation distinction, see [safeguarding-consent.md](safeguarding-consent.md)) without pulling in a mocking library.
 
+## `HandoutBytes` (`Infrastructure/HandoutBytes.cs`)
+
+Small valid files of each handout type (adr/0016): `Pdf`, `Png`, `Jpeg`, `Docx` (a zip with `[Content_Types].xml` and `word/document.xml`), each distinct by a `marker` argument so content-addressed keys differ, and `Zip` (a zip that is not a Word document). Used by `LessonHandoutTests`, `CurriculumSeederHandoutTests` and `Web/LessonHandoutEndpointTests`.
+
 ## Test-provider strategy after the PostgreSQL pivot (adr/0005) — decided explicitly, not assumed
 
 adr/0005-hosting-pivot-self-hosted-vps-postgresql.md moved the production provider from Azure SQL

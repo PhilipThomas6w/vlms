@@ -39,7 +39,7 @@
                         <th scope="col">Code</th>
                         <th scope="col">Title</th>
                         <th scope="col">Tags</th>
-                        <th scope="col">Files</th>
+                        <th scope="col">Handouts</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -59,10 +59,10 @@
                                 }
                             </td>
                             <td data-label="Tags">@string.Join(", ", lesson.Tags)</td>
-                            <td data-label="Files">
+                            <td data-label="Handouts">
                                 @if (lesson.Files.Count == 0 && !lesson.HasPage)
                                 {
-                                    <text>No files</text>
+                                    <text>No handouts</text>
                                 }
                                 else
                                 {
@@ -71,7 +71,7 @@
                                         <ul>
                                             @foreach (var file in lesson.Files)
                                             {
-                                                <li><a href="/lessons/files/@file.Id" data-enhance-nav="false">@file.DisplayName</a></li>
+                                                <li><a href="@file.Url" data-enhance-nav="false">@file.DisplayName</a></li>
                                             }
                                         </ul>
                                     }

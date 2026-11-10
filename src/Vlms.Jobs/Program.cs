@@ -244,8 +244,7 @@ if (seedCurriculumArgs is not null)
     try
     {
         var seed = await scope.ServiceProvider.GetRequiredService<CurriculumSeeder>()
-            .SeedAsync(seedCurriculumArgs.ManifestPath!, seedCurriculumArgs.ContentRoot!, default,
-                seedCurriculumArgs.FileNamesPath, seedCurriculumArgs.NamesOnly);
+            .SeedAsync(seedCurriculumArgs.ManifestPath!, seedCurriculumArgs.ContentRoot!);
         foreach (var warning in seed.Warnings)
         {
             seedLogger.LogWarning("seed-curriculum: {Warning}", warning);
@@ -263,8 +262,8 @@ if (seedCurriculumArgs is not null)
         }
 
         seedLogger.LogInformation(
-            "seed-curriculum done: ranks {RanksCreated} created / {RanksUpdated} updated; lessons {LessonsCreated} created / {LessonsUpdated} updated; {FilesUploaded} file(s) uploaded; {FileNamesAdded} file-name list entr(ies) added, {FilesRenamed} file(s) renamed; {LessonTextsUpdated} lesson text(s) updated, {PicturesUploaded} picture(s) uploaded.",
-            seed.RanksCreated, seed.RanksUpdated, seed.LessonsCreated, seed.LessonsUpdated, seed.FilesUploaded, seed.FileNamesAdded, seed.FilesRenamed, seed.LessonTextsUpdated, seed.PicturesUploaded);
+            "seed-curriculum done: ranks {RanksCreated} created / {RanksUpdated} updated; lessons {LessonsCreated} created / {LessonsUpdated} updated; {HandoutsUploaded} handout(s) uploaded; removed {FilesRemoved} file(s) not in a lesson's handouts folder ({BlobsDeleted} stored file(s) deleted); {LessonTextsUpdated} lesson text(s) updated, {PicturesUploaded} picture(s) uploaded.",
+            seed.RanksCreated, seed.RanksUpdated, seed.LessonsCreated, seed.LessonsUpdated, seed.HandoutsUploaded, seed.FilesRemoved, seed.BlobsDeleted, seed.LessonTextsUpdated, seed.PicturesUploaded);
     }
     catch (Exception ex)
     {

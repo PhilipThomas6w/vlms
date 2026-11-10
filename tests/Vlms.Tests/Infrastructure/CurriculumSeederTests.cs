@@ -11,9 +11,9 @@ namespace Vlms.Tests.Infrastructure;
 
 /// <summary>
 /// Verifies <see cref="CurriculumSeeder"/> (STATE.md "Seed rank ladder + curriculum"): idempotent
-/// upsert of ranks, lessons, tags and files from a manifest, validate-first-write-nothing, and file
-/// ordering. Uses a small temporary folder fixture built per test, never the real (untracked) seed
-/// content; one test parses the real <c>seed/curriculum.json</c> for structure only.
+/// upsert of ranks, lessons and tags from a manifest, and validate-first-write-nothing. Handouts are covered by
+/// <see cref="CurriculumSeederHandoutTests"/> (docs/adr/0016). Uses a small temporary folder fixture built per test; one
+/// test parses the real <c>seed/curriculum.json</c> for structure only.
 /// </summary>
 public sealed class CurriculumSeederTests : IDisposable
 {
@@ -57,30 +57,19 @@ public sealed class CurriculumSeederTests : IDisposable
         return await new CurriculumSeeder(db, _blobStorage).SeedAsync(manifestPath, Path.Combine(_tempRoot, "content"));
     }
 
-    private void WriteContent(string relativePath, string text = "x")
-    {
-        var path = Path.Combine(_tempRoot, "content", relativePath);
-        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        File.WriteAllText(path, text);
-    }
 
-    private static string Manifest(string lessonTitle = "Intro", string tag = "Church Life", string lessonSource = "1. Intro") => $$"""
+    private static string Manifest(string lessonTitle = "Intro", string tag = "Church Life") => $$"""
         {
           "ranks": [
-            { "order": 1, "code": "RECRUIT", "name": "Recruit", "source": "Recruits (1)", "lessons": [
-              { "order": 1, "code": "R1-01", "title": "{{lessonTitle}}", "tags": ["{{tag}}", "Worship"], "source": "{{lessonSource}}" } ] },
-            { "order": 2, "code": "GUARDSMAN", "name": "Guardsman", "source": "Guardsman (2)", "lessons": [] }
+            { "order": 1, "code": "RECRUIT", "name": "Recruit", "lessons": [
+              { "order": 1, "code": "R1-01", "title": "{{lessonTitle}}", "tags": ["{{tag}}", "Worship"] } ] },
+            { "order": 2, "code": "GUARDSMAN", "name": "Guardsman", "lessons": [] }
           ]
         }
         """;
 
-    private void WriteStandardContent()
-    {
-        WriteContent("Recruits (1)/1. Intro/B Handout.docx");
-        WriteContent("Recruits (1)/1. Intro/A Main.docx");
-        WriteContent("Recruits (1)/1. Intro/Images/z.jpg");
-        WriteContent("Recruits (1)/1. Intro/Images/a.jpg");
-    }
+    // The content root (the original rank folders are no longer read, docs/adr/0016).
+    private void WriteStandardContent() => Directory.CreateDirectory(Path.Combine(_tempRoot, "content", "lessons"));
 
     private static async Task<(List<Rank> Ranks, List<Lesson> Lessons, List<LessonTagAssignment> Tags, List<LessonFile> Files)> SnapshotAsync(VlmsDbContext db) =>
         (await db.Ranks.OrderBy(r => r.Id).ToListAsync(), await db.Lessons.OrderBy(l => l.Id).ToListAsync(),
@@ -88,24 +77,22 @@ public sealed class CurriculumSeederTests : IDisposable
          await db.LessonFiles.OrderBy(f => f.Id).ToListAsync());
 
     [Fact]
-    public async Task FirstRun_CreatesRanksLessonsTagsAndFiles()
+    public async Task FirstRun_CreatesRanksLessonsAndTags()
     {
         WriteStandardContent();
 
         var result = await RunAsync(Manifest());
 
-        Assert.True(result.Succeeded);
+        Assert.True(result.Succeeded, string.Join("; ", result.Errors));
         Assert.Equal(2, result.RanksCreated);
         Assert.Equal(1, result.LessonsCreated);
-        Assert.Equal(4, result.FilesUploaded);
         using var db = CreateContext();
         var (ranks, lessons, tags, files) = await SnapshotAsync(db);
         Assert.Equal(["RECRUIT", "GUARDSMAN"], ranks.Select(r => r.Code));
         var lesson = Assert.Single(lessons);
         Assert.Equal((ranks[0].Id, "Intro", 1, true), (lesson.RankId, lesson.Title, lesson.Order, lesson.IsActive));
         Assert.Equal([LessonTag.ChurchLife, LessonTag.Worship], tags.Select(t => t.Tag));
-        Assert.Equal(4, files.Count);
-        Assert.True(_blobStorage.TryGetBlob("lessons/R1-01/A Main.docx", out _));
+        Assert.Empty(files);
     }
 
     [Fact]
@@ -129,42 +116,44 @@ public sealed class CurriculumSeederTests : IDisposable
     }
 
     [Fact]
-    public async Task ChangedTitleTagAndFile_AreApplied()
+    public async Task ChangedTitleAndTag_AreApplied()
     {
         WriteStandardContent();
         await RunAsync(Manifest());
         using var before = CreateContext();
         var lessonId = (await before.Lessons.SingleAsync()).Id;
 
-        WriteContent("Recruits (1)/1. Intro/C New.docx");
         var result = await RunAsync(Manifest(lessonTitle: "Renamed", tag: "Saints"));
 
         Assert.True(result.Succeeded);
         Assert.Equal(1, result.LessonsUpdated);
         using var db = CreateContext();
-        var (_, lessons, tags, files) = await SnapshotAsync(db);
+        var (_, lessons, tags, _) = await SnapshotAsync(db);
         var lesson = Assert.Single(lessons);
         Assert.Equal((lessonId, "Renamed"), (lesson.Id, lesson.Title));
         Assert.Equal(new HashSet<LessonTag> { LessonTag.Worship, LessonTag.Saints }, tags.Select(t => t.Tag).ToHashSet());
-        Assert.Equal(5, files.Count);
-        Assert.Contains(files, f => f.FileName == "C New.docx");
     }
 
     [Fact]
-    public async Task MissingFolderAndUnknownTag_FailValidation_AndWriteNothing()
+    public async Task UnknownTag_FailsValidation_AndWritesNothing()
     {
-        // The content root exists but the lesson's folder deliberately does not.
-        Directory.CreateDirectory(Path.Combine(_tempRoot, "content"));
+        WriteStandardContent();
         var result = await RunAsync(Manifest(tag: "Not A Tag"));
 
         Assert.False(result.Succeeded);
         Assert.Contains(result.Errors, e => e.Contains("unknown tag 'Not A Tag'"));
-        Assert.Contains(result.Errors, e => e.Contains("folder not found"));
         using var db = CreateContext();
         Assert.Empty(db.Ranks);
         Assert.Empty(db.Lessons);
-        Assert.Empty(db.LessonFiles);
-        Assert.False(_blobStorage.TryGetBlob("lessons/R1-01/A Main.docx", out _));
+    }
+
+    [Fact]
+    public async Task MissingContentRoot_FailsValidation()
+    {
+        var result = await RunAsync(Manifest());
+
+        Assert.False(result.Succeeded);
+        Assert.Contains(result.Errors, e => e.Contains("Content root not found"));
     }
 
     [Fact]
@@ -173,9 +162,9 @@ public sealed class CurriculumSeederTests : IDisposable
         WriteStandardContent();
         var manifest = """
             { "ranks": [
-              { "order": 1, "code": "A", "name": "A", "source": "Recruits (1)", "lessons": [
-                { "order": 1, "code": "L", "title": "One", "tags": [], "source": "1. Intro" },
-                { "order": 2, "code": "L", "title": "Two", "tags": [], "source": "1. Intro" } ] } ] }
+              { "order": 1, "code": "A", "name": "A", "lessons": [
+                { "order": 1, "code": "L", "title": "One", "tags": [] },
+                { "order": 2, "code": "L", "title": "Two", "tags": [] } ] } ] }
             """;
 
         var result = await RunAsync(manifest);
@@ -195,31 +184,12 @@ public sealed class CurriculumSeederTests : IDisposable
     }
 
     [Fact]
-    public async Task JunkFiles_AreSkipped_AndOrderIsDocumentsThenImages()
-    {
-        WriteStandardContent();
-        WriteContent("Recruits (1)/1. Intro/~$A Main.docx");
-        WriteContent("Recruits (1)/1. Intro/scratch.tmp");
-        WriteContent("Recruits (1)/1. Intro/Thumbs.db");
-        WriteContent("Recruits (1)/1. Intro/desktop.ini");
-        WriteContent("Recruits (1)/1. Intro/Images/Thumbs.db");
-
-        await RunAsync(Manifest());
-
-        using var db = CreateContext();
-        var files = await db.LessonFiles.OrderBy(f => f.Order).ToListAsync();
-        Assert.Equal(["A Main.docx", "B Handout.docx", "a.jpg", "z.jpg"], files.Select(f => f.FileName));
-        Assert.Equal([1, 2, 3, 4], files.Select(f => f.Order));
-        Assert.Equal("lessons/R1-01/Images/a.jpg", files[2].BlobKey);
-    }
-
-    [Fact]
     public async Task LessonRemovedFromManifest_IsKept_AndReportedAsWarning()
     {
         WriteStandardContent();
         await RunAsync(Manifest());
 
-        var result = await RunAsync("""{ "ranks": [ { "order": 1, "code": "RECRUIT", "name": "Recruit", "source": "Recruits (1)", "lessons": [] } ] }""");
+        var result = await RunAsync("""{ "ranks": [ { "order": 1, "code": "RECRUIT", "name": "Recruit", "lessons": [] } ] }""");
 
         Assert.True(result.Succeeded);
         Assert.Contains(result.Warnings, w => w.Contains("R1-01"));
@@ -249,118 +219,5 @@ public sealed class CurriculumSeederTests : IDisposable
         Assert.Equal(lessons.Count, lessons.Select(l => l.GetProperty("code").GetString()).Distinct().Count());
         Assert.All(lessons.SelectMany(l => l.GetProperty("tags").EnumerateArray()),
             t => Assert.Contains(new string(t.GetString()!.Where(char.IsLetter).ToArray()), validTags));
-    }
-
-    // --- Clean file names (FR-006) ------------------------------------------------------------
-
-    private string NamesPath => Path.Combine(_tempRoot, "file-names.json");
-
-    private async Task<CurriculumSeedResult> RunWithNamesAsync(bool namesOnly = false)
-    {
-        var manifestPath = Path.Combine(_tempRoot, "manifest.json");
-        await File.WriteAllTextAsync(manifestPath, Manifest());
-        using var db = CreateContext();
-        return await new CurriculumSeeder(db, _blobStorage)
-            .SeedAsync(manifestPath, Path.Combine(_tempRoot, "content"), default, NamesPath, namesOnly);
-    }
-
-    private void WriteScannerContent()
-    {
-        WriteContent("Recruits (1)/1. Intro/Varangian Guard.docx");
-        WriteContent("Recruits (1)/1. Intro/Images/St Theodore1_ Icon 07102022_095055_000113.jpg");
-    }
-
-    [Fact]
-    public async Task WithFileNames_StoresCleanNameWithOriginalExtension_AndWritesTheList()
-    {
-        WriteScannerContent();
-
-        var result = await RunWithNamesAsync();
-
-        Assert.True(result.Succeeded);
-        Assert.Equal(2, result.FileNamesAdded);
-        using var db = CreateContext();
-        Assert.Equal(["Varangian Guard.docx", "St Theodore 1 – Icon.jpg"], (await db.LessonFiles.OrderBy(f => f.Order).ToListAsync()).Select(f => f.FileName));
-        var json = await File.ReadAllTextAsync(NamesPath);
-        Assert.Contains("\"lessons/R1-01/Images/St Theodore1_ Icon 07102022_095055_000113.jpg\"", json);
-        Assert.Contains("St Theodore 1 – Icon", json);
-        // The blob key stays the real path, whatever the name.
-        Assert.True(_blobStorage.TryGetBlob("lessons/R1-01/Images/St Theodore1_ Icon 07102022_095055_000113.jpg", out _));
-    }
-
-    [Fact]
-    public async Task NamesOnly_WritesTheListAndNothingElse()
-    {
-        WriteScannerContent();
-
-        var result = await RunWithNamesAsync(namesOnly: true);
-
-        Assert.True(result.Succeeded);
-        Assert.Equal(2, result.FileNamesAdded);
-        Assert.Equal(0, result.FilesUploaded);
-        Assert.True(File.Exists(NamesPath));
-        using var db = CreateContext();
-        Assert.Empty(await db.Lessons.ToListAsync());
-    }
-
-    [Fact]
-    public async Task HandEditedName_WinsOnLaterRuns_AndIsRenamedInPlaceKeepingIds()
-    {
-        WriteScannerContent();
-        await RunAsync(Manifest()); // seeded earlier with the raw scanner names
-        using var before = CreateContext();
-        var idsBefore = (await before.LessonFiles.OrderBy(f => f.Order).ToListAsync()).Select(f => f.Id).ToList();
-
-        var first = await RunWithNamesAsync();
-        Assert.Equal(1, first.FilesRenamed); // only the scanner-named image differs
-        Assert.Equal(1, first.LessonsUpdated);
-
-        // Philip corrects one name by hand.
-        var json = (await File.ReadAllTextAsync(NamesPath)).Replace("\"St Theodore 1 – Icon\"", "\"St Theodore – Icon (1)\"");
-        await File.WriteAllTextAsync(NamesPath, json);
-        var second = await RunWithNamesAsync();
-
-        Assert.True(second.Succeeded);
-        Assert.Equal((0, 1), (second.FileNamesAdded, second.FilesRenamed));
-        using var db = CreateContext();
-        var files = await db.LessonFiles.OrderBy(f => f.Order).ToListAsync();
-        Assert.Equal(idsBefore, files.Select(f => f.Id));
-        Assert.Equal(["Varangian Guard.docx", "St Theodore – Icon (1).jpg"], files.Select(f => f.FileName));
-
-        var third = await RunWithNamesAsync();
-        Assert.Equal((0, 0, 0), (third.FileNamesAdded, third.FilesRenamed, third.LessonsUpdated));
-        Assert.Contains("St Theodore – Icon (1)", await File.ReadAllTextAsync(NamesPath));
-    }
-
-    [Fact]
-    public async Task NewFile_GetsTheRuleName_AndMissingFileIsOnlyAWarning()
-    {
-        WriteScannerContent();
-        await RunWithNamesAsync();
-        File.Delete(Path.Combine(_tempRoot, "content", "Recruits (1)/1. Intro/Varangian Guard.docx"));
-        WriteContent("Recruits (1)/1. Intro/Feasts_07102022_101217_000123.jpg");
-
-        var result = await RunWithNamesAsync();
-
-        Assert.True(result.Succeeded);
-        Assert.Equal(1, result.FileNamesAdded);
-        Assert.Contains(result.Warnings, w => w.Contains("lessons/R1-01/Varangian Guard.docx") && w.Contains("no longer present"));
-        Assert.Contains("Varangian Guard", await File.ReadAllTextAsync(NamesPath)); // never removed
-        using var db = CreateContext();
-        Assert.Contains(await db.LessonFiles.ToListAsync(), f => f.FileName == "Feasts.jpg");
-    }
-
-    [Fact]
-    public async Task UnreadableList_RefusesAndWritesNothing()
-    {
-        WriteScannerContent();
-        await File.WriteAllTextAsync(NamesPath, "{ not json");
-
-        var result = await RunWithNamesAsync();
-
-        Assert.False(result.Succeeded);
-        using var db = CreateContext();
-        Assert.Empty(await db.Lessons.ToListAsync());
-        Assert.False(_blobStorage.TryGetBlob("lessons/R1-01/Varangian Guard.docx", out _));
     }
 }

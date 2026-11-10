@@ -1,0 +1,20 @@
+@using Vlms.Infrastructure.Curriculum
+@* A lesson version's handouts in its history (docs/adr/0016), each downloadable by Approvers and Admins. Nothing when it had none. *@
+@if (Handouts.Count > 0)
+{
+    <dl class="facts">
+        <dt>Handouts</dt>
+        <dd>
+            <ul>
+                @foreach (var handout in Handouts)
+                {
+                    <li><a href="@handout.Url" data-enhance-nav="false">@handout.DisplayName</a></li>
+                }
+            </ul>
+        </dd>
+    </dl>
+}
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<HandoutLink> Handouts { get; set; } = [];
+}

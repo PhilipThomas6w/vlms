@@ -38,6 +38,19 @@ else if (_review is not null)
             <dt>@setting.Label</dt>
             <dd class="lesson-diff">@((MarkupString)setting.Html)</dd>
         }
+        @if (_review.Handouts.Count > 0)
+        {
+            @* The suggestion's handouts, to open (docs/adr/0016); what changed is under "Handouts" above. *@
+            <dt>@(_review.SettingChanges.Any(s => s.Label == "Handouts") ? "Handouts as suggested" : "Handouts")</dt>
+            <dd>
+                <ul>
+                    @foreach (var handout in _review.Handouts)
+                    {
+                        <li><a href="@handout.Url" data-enhance-nav="false">@handout.DisplayName</a></li>
+                    }
+                </ul>
+            </dd>
+        }
         @if (_review.Referral is { } referral)
         {
             <dt>Referred to committee</dt>

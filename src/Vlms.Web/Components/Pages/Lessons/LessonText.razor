@@ -41,7 +41,7 @@ else
             }
             <SaveLessonButton Id="_page.Id" Code="@_page.Code" Title="@_page.Title" Rank="@_page.Rank"
                               RankPosition="_page.RankPosition" Position="_page.Position"
-                              PictureIds="_page.PictureIds" Version="@_page.ContentVersion" />
+                              PictureIds="_page.PictureIds" Files="_page.Handouts" Version="@_page.ContentVersion" />
         </Actions>
     </PageHeader>
     @if (_suggestions?.Open is { IsMine: false } open)
@@ -93,6 +93,20 @@ else
     }
 
     <article class="lesson-text" aria-label="@_page.Title">@((MarkupString)_page.Html)</article>
+
+    @if (_page.Handouts.Count > 0)
+    {
+        @* The lesson's handouts (docs/adr/0016), for everyone who sees the lesson; saved with it for offline use. *@
+        <section class="lesson-handouts" aria-labelledby="handouts-heading">
+            <h2 class="section-title" id="handouts-heading">Handouts</h2>
+            <ul>
+                @foreach (var handout in _page.Handouts)
+                {
+                    <li><a href="@handout.Url" data-enhance-nav="false">@handout.DisplayName</a></li>
+                }
+            </ul>
+        </section>
+    }
 }
 
 @code {

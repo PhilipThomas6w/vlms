@@ -370,11 +370,14 @@ Not yet verified on a live host (same status as the rest of this file — see §
 
 ## 6b. Seed the rank ladder and curriculum (after migrations; safe to re-run)
 
-The 10 ranks and 56 lessons come from the versioned manifest `seed/curriculum.json`; the lesson
-files (Word documents and `Images` folders) are **not** in git, so copy the seed content folder to
-the server first (for example to `/tmp/vlms-seed`; it holds the rank folders `Recruits (1)`,
-`Guardsman (2)` and so on, as named by the manifest's `source` fields). Delete the copy afterwards:
-the `Admin` subfolder holds personal data and is never read.
+The 10 ranks and 56 lessons come from the versioned manifest `seed/curriculum.json`; the content root
+is the repository's `seed` folder: each lesson's text in `lessons/<code>.md`, its pictures in
+`lessons/<code>/` and its handouts in `lessons/<code>/handouts/` (`docs/adr/0016`). Copy that folder to
+the server first (for example to `/tmp/vlms-seed`). The old rank folders (`Recruits (1)` and so on)
+are no longer read.
+
+**Do not run it before the lessons' `handouts/` folders are committed:** a lesson the seeder owns
+loses every file that is not in its `handouts/` folder.
 
 The command needs the migrated database and the **production** `Storage__LocalRootPath`
 (the same directory `Vlms.Web` reads), so `/etc/vlms/jobs.env` must contain
@@ -382,20 +385,21 @@ The command needs the migrated database and the **production** `Storage__LocalRo
 Run it as `vlms` with the same environment file the timer uses:
 
 ```bash
-sudo systemd-run --wait --pipe -p User=vlms -p WorkingDirectory=/opt/vlms/jobs   -p EnvironmentFile=/etc/vlms/jobs.env   /usr/bin/dotnet /opt/vlms/jobs/Vlms.Jobs.dll seed-curriculum --manifest /opt/vlms/seed/curriculum.json --content-root /tmp/vlms-seed
-# expected: "seed-curriculum done: ranks 10 created ...; lessons 56 created ...; 314 file(s) uploaded." and exit code 0
+sudo systemd-run --wait --pipe -p User=vlms -p WorkingDirectory=/opt/vlms/jobs   -p EnvironmentFile=/etc/vlms/jobs.env   /usr/bin/dotnet /opt/vlms/jobs/Vlms.Jobs.dll seed-curriculum --manifest /tmp/vlms-seed/curriculum.json --content-root /tmp/vlms-seed
+# expected: "seed-curriculum done: ranks ...; lessons ...; N handout(s) uploaded; removed N file(s) not in a lesson's handouts folder (N stored file(s) deleted); ..." and exit code 0
 ```
 
-(`seed/curriculum.json` is not part of the published output: copy it from the repository alongside
-the content, and point `--manifest` at wherever you put it.)
+(`seed/` is not part of the published output: point `--manifest` at the copied `curriculum.json`.)
 
-- It validates everything first (every lesson folder exists, every tag is a known tag, codes are
-  unique). On any problem it writes nothing, prints the full list of errors and exits non-zero (1;
+- It validates everything first (every tag is a known tag, codes are unique, every handout is a
+  PDF, Word document (.docx), JPEG or PNG of at most 20 MB, with no duplicate in a lesson). On any problem it writes nothing, prints the full list of errors and exits non-zero (1;
   2 for bad arguments).
 - Re-running with the same input changes nothing. After editing the manifest or a document, re-run
-  it to apply the change. Files are uploaded under `lessons/<lesson code>/...` and overwritten.
-- It never deletes: a lesson or rank that is in the database but no longer in the manifest is
-  reported as a warning and left alone.
+  it to apply the change. Handouts are stored by content under `lesson-handouts/<lesson code>/...`.
+- A lesson whose latest version came from a suggestion is left alone with a warning.
+- It removes a lesson's file that is not in its `handouts/` folder, and deletes the stored file
+  unless a lesson, version or suggestion still uses it. Otherwise it never deletes: a lesson or rank
+  that is in the database but no longer in the manifest is reported as a warning and left alone.
 
 Not yet verified on a live host or against PostgreSQL (tests use SQLite in memory), including the
 `systemd-run -p EnvironmentFile=` form.

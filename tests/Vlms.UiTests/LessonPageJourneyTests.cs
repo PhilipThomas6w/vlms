@@ -41,6 +41,11 @@ public sealed class LessonPageJourneyTests
         db.LessonPictures.Add(new LessonPicture { Id = pictureId, LessonId = lesson.Id, Order = 1, FileName = "loaves.jpg", BlobKey = $"lesson-pictures/{Code}/loaves.jpg" });
         await db.SaveChangesAsync();
         await scope.ServiceProvider.GetRequiredService<IBlobStorage>().UploadAsync($"lesson-pictures/{Code}/loaves.jpg", Jpeg());
+        // The lesson's handouts (adr/0016) are saved with its page, so they need stored files.
+        foreach (var key in await db.LessonFiles.Where(f => f.LessonId == lesson.Id).Select(f => f.BlobKey).ToListAsync())
+        {
+            await scope.ServiceProvider.GetRequiredService<IBlobStorage>().UploadAsync(key, System.Text.Encoding.ASCII.GetBytes($"handout {key}"));
+        }
 
         return (factory, baseUrl, personas, pictureId);
     }
@@ -83,6 +88,15 @@ public sealed class LessonPageJourneyTests
 
         await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Level = 1, Name = "Prosphora" })).ToBeVisibleAsync();
         await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Level = 2, Name = "Questions" })).ToBeVisibleAsync();
+        // The lesson's handouts (adr/0016), after the text.
+        await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Level = 2, Name = "Handouts" })).ToBeVisibleAsync();
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<VlmsDbContext>();
+            var lessonId = await db.Lessons.Where(l => l.Code == Code).Select(l => l.Id).SingleAsync();
+            await Assertions.Expect(page.Locator(".lesson-handouts a[href^='/lessons/files/']")).ToHaveCountAsync(
+                await db.LessonFiles.CountAsync(f => f.LessonId == lessonId));
+        }
         var picture = page.GetByRole(AriaRole.Img, new() { Name = "Three loaves of prosphora" });
         await picture.ScrollIntoViewIfNeededAsync();
         await Assertions.Expect(picture).ToBeVisibleAsync();
@@ -170,6 +184,9 @@ public sealed class LessonPageJourneyTests
         Assert.NotEqual("none", await page.EvaluateAsync<string>("() => getComputedStyle(document.querySelector('.lesson-text')).maxWidth"));
         await Assertions.Expect(page.Locator("[data-teachers-information]")).ToHaveCountAsync(1);
         await Assertions.Expect(block.GetByRole(AriaRole.Status)).ToHaveTextAsync("Saved on this device");
+        // Its handouts (adr/0016) open from the device too.
+        var handoutUrl = await page.Locator(".lesson-handouts a").First.GetAttributeAsync("href");
+        Assert.StartsWith("200:handout ", await page.EvaluateAsync<string>("async (u) => { const r = await fetch(u); return r.status + ':' + await r.text(); }", handoutUrl));
 
         // No live connection is attempted or missed: no script errors, no reconnect or error banner.
         await page.WaitForTimeoutAsync(1500);

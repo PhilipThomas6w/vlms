@@ -185,7 +185,7 @@ public sealed class AccessEndToEndTests : IDisposable
         {
             db.Ranks.Add(new Rank { Id = 1, Order = 1, Code = "R1", Name = "First" });
             db.Lessons.Add(new Lesson { Id = 1, RankId = 1, Code = "L1", Title = "Active", Order = 1, IsActive = true });
-            db.LessonFiles.Add(new LessonFile { Id = 1, LessonId = 1, Order = 1, FileName = "Handout.pdf", BlobKey = "lessons/1/handout.pdf" });
+            db.LessonFiles.Add(new LessonFile { Id = 1, LessonId = 1, Order = 1, FileName = "Handout.pdf", DisplayName = "Handout", BlobKey = "lessons/1/handout.pdf" });
             await db.SaveChangesAsync();
         });
         var teacher = await _factory.SeedUserAsync("teacher-file@test.example", withTotp: true, Role.Teacher);

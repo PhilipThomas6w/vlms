@@ -46,9 +46,11 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
     public DbSet<LessonVersion> LessonVersions => Set<LessonVersion>();
     public DbSet<LessonVersionTag> LessonVersionTags => Set<LessonVersionTag>();
     public DbSet<LessonVersionPicture> LessonVersionPictures => Set<LessonVersionPicture>();
+    public DbSet<LessonVersionHandout> LessonVersionHandouts => Set<LessonVersionHandout>();
     public DbSet<LessonSuggestion> LessonSuggestions => Set<LessonSuggestion>();
     public DbSet<LessonSuggestionTag> LessonSuggestionTags => Set<LessonSuggestionTag>();
     public DbSet<LessonSuggestionPicture> LessonSuggestionPictures => Set<LessonSuggestionPicture>();
+    public DbSet<LessonSuggestionHandout> LessonSuggestionHandouts => Set<LessonSuggestionHandout>();
     public DbSet<LessonSuggestionApproval> LessonSuggestionApprovals => Set<LessonSuggestionApproval>();
     public DbSet<LessonPublishingSettingChange> LessonPublishingSettingChanges => Set<LessonPublishingSettingChange>();
     public DbSet<Student> Students => Set<Student>();
@@ -194,6 +196,7 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
             e.HasOne<AppUser>().WithMany().HasForeignKey(x => x.PublishedByUserId).OnDelete(DeleteBehavior.SetNull);
             e.HasMany(x => x.Tags).WithOne().HasForeignKey(x => x.LessonVersionId).OnDelete(DeleteBehavior.Cascade);
             e.HasMany(x => x.Pictures).WithOne(x => x.LessonVersion).HasForeignKey(x => x.LessonVersionId).OnDelete(DeleteBehavior.Cascade);
+            e.HasMany(x => x.Handouts).WithOne(x => x.LessonVersion).HasForeignKey(x => x.LessonVersionId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<LessonVersionTag>(e => e.HasKey(x => new { x.LessonVersionId, x.Tag }));
@@ -217,8 +220,24 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
             e.HasMany(x => x.CommitteeApprovals).WithOne(x => x.LessonSuggestion).HasForeignKey(x => x.LessonSuggestionId).OnDelete(DeleteBehavior.Restrict);
             e.HasMany(x => x.Tags).WithOne().HasForeignKey(x => x.LessonSuggestionId).OnDelete(DeleteBehavior.Cascade);
             e.HasMany(x => x.Pictures).WithOne(x => x.LessonSuggestion).HasForeignKey(x => x.LessonSuggestionId).OnDelete(DeleteBehavior.Cascade);
+            e.HasMany(x => x.Handouts).WithOne(x => x.LessonSuggestion).HasForeignKey(x => x.LessonSuggestionId).OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(x => x.LessonId).IsUnique().HasFilter("status IN (0, 1)").HasDatabaseName("IX_lesson_suggestions_lesson_id_open");
             e.HasIndex(x => x.Status);
+        });
+
+        // Lesson handouts (docs/adr/0016): blob keys name their content, so a key is one file within a version or suggestion.
+        modelBuilder.Entity<LessonVersionHandout>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.HasIndex(x => new { x.LessonVersionId, x.BlobKey }).IsUnique();
+        });
+
+        modelBuilder.Entity<LessonSuggestionHandout>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.HasIndex(x => new { x.LessonSuggestionId, x.BlobKey }).IsUnique();
         });
 
         modelBuilder.Entity<LessonSuggestionTag>(e => e.HasKey(x => new { x.LessonSuggestionId, x.Tag }));

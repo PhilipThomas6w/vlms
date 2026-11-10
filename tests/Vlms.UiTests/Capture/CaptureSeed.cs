@@ -104,10 +104,10 @@ public static class CaptureSeed
                     db.LessonTagAssignments.Add(new LessonTagAssignment { LessonId = lesson.Id, Tag = Enum.Parse<LessonTag>(tag.GetString()!.Replace(" ", "")) });
                 }
 
-                db.LessonFiles.Add(new LessonFile { Id = ++fileId, LessonId = lesson.Id, Order = 1, FileName = $"{lesson.Title}.docx", BlobKey = $"capture/missing-{fileId}.docx" });
+                db.LessonFiles.Add(new LessonFile { Id = ++fileId, LessonId = lesson.Id, Order = 1, FileName = $"{lesson.Title}.docx", DisplayName = lesson.Title, BlobKey = $"capture/missing-{fileId}.docx" });
                 if (lesson.Id % 3 == 0)
                 {
-                    db.LessonFiles.Add(new LessonFile { Id = ++fileId, LessonId = lesson.Id, Order = 2, FileName = $"{lesson.Title} - handout.pdf", BlobKey = $"capture/missing-{fileId}.pdf" });
+                    db.LessonFiles.Add(new LessonFile { Id = ++fileId, LessonId = lesson.Id, Order = 2, FileName = $"{lesson.Title} - handout.pdf", DisplayName = $"{lesson.Title} - handout", BlobKey = $"capture/missing-{fileId}.pdf" });
                 }
             }
 

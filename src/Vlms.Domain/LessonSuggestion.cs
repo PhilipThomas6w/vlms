@@ -91,6 +91,7 @@ public sealed class LessonSuggestion
     public AppUser? DecidedByUser { get; init; }
     public ICollection<LessonSuggestionTag> Tags { get; init; } = new List<LessonSuggestionTag>();
     public ICollection<LessonSuggestionPicture> Pictures { get; init; } = new List<LessonSuggestionPicture>();
+    public ICollection<LessonSuggestionHandout> Handouts { get; init; } = new List<LessonSuggestionHandout>();
     public ICollection<LessonSuggestionApproval> CommitteeApprovals { get; init; } = new List<LessonSuggestionApproval>();
 }
 
@@ -136,6 +137,23 @@ public sealed class LessonSuggestionPicture
     public required int Id { get; init; }
     public required int LessonSuggestionId { get; init; }
     public required string FileName { get; init; }
+    public required string BlobKey { get; init; }
+
+    public LessonSuggestion? LessonSuggestion { get; init; }
+}
+
+/// <summary>
+/// A handout of a <see cref="LessonSuggestion"/> (docs/adr/0016 decision 2): the lesson's handouts when the draft was
+/// started, less any removed, plus any uploaded to it. Its display name is edited in the suggestion. Readable only by its
+/// author and Approvers until the suggestion is published.
+/// </summary>
+public sealed class LessonSuggestionHandout
+{
+    public required int Id { get; init; }
+    public required int LessonSuggestionId { get; init; }
+    public required int Order { get; init; }
+    public required string FileName { get; init; }
+    public required string DisplayName { get; init; }
     public required string BlobKey { get; init; }
 
     public LessonSuggestion? LessonSuggestion { get; init; }
