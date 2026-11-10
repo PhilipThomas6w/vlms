@@ -130,8 +130,17 @@
       "order": 8,
       "code": "CROSS-BEARER",
       "name": "Cross-bearer",
-      "source": null,
-      "lessons": []
+      "source": "Cross-bearer (8)",
+      "lessons": [
+        { "order": 1, "code": "R8-01", "title": "Matins", "tags": ["Church Life"], "source": "2 Church Life Matins" },
+        { "order": 2, "code": "R8-02", "title": "Ordination", "tags": ["Mysteries"], "source": "3 Mysteries Ordination" },
+        { "order": 3, "code": "R8-03", "title": "The Fall of Constantinople", "tags": ["Church History"], "source": "4 Church History Fall of Constantinople" },
+        { "order": 4, "code": "R8-04", "title": "The New Martyrs", "tags": ["Saints"], "source": "5 Saint New Martyrs" },
+        { "order": 5, "code": "R8-05", "title": "The Prophet Jeremiah", "tags": ["Old Testament"], "source": "6 OT Jeremiah" },
+        { "order": 6, "code": "R8-06", "title": "The Acts of the Apostles and Epistles", "tags": ["New Testament"], "source": "7 NT Acts and Epistles" },
+        { "order": 7, "code": "R8-07", "title": "The Rule of Life", "tags": ["Christian Life"], "source": "8 Christian Life Rule of Life" },
+        { "order": 8, "code": "R8-08", "title": "The Creed", "tags": ["Prayers"], "source": "9 Prayers The Creed" }
+      ]
     },
     {
       "order": 9,
