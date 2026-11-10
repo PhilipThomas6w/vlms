@@ -41,6 +41,9 @@ public sealed class LessonVersion
     /// <summary>The lesson text (Markdown); null for a lesson that had not been converted (files only).</summary>
     public string? Body { get; init; }
 
+    /// <summary>The lesson's teacher's notes (Markdown, docs/adr/0015); null when it had none.</summary>
+    public string? TeachersNotes { get; init; }
+
     /// <summary>The lesson's <see cref="Lesson.ContentVersion"/> once this version was live.</summary>
     public string? ContentVersion { get; init; }
 

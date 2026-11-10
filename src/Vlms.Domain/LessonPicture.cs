@@ -19,5 +19,12 @@ public sealed class LessonPicture
 
     public required string BlobKey { get; init; }
 
+    /// <summary>
+    /// True when only the lesson's teacher's notes use it (docs/adr/0015 decision 1): it is then served only to the roles
+    /// that see the notes (<c>GET /lessons/teachers-notes/pictures/{id}</c>), never through the lesson-picture endpoint
+    /// students and parents use, and it is not one of the pictures a device saves with the lesson.
+    /// </summary>
+    public bool TeachersNotesOnly { get; init; }
+
     public Lesson? Lesson { get; init; }
 }

@@ -161,10 +161,15 @@ $expectedMinimums = @{
     "CalendarFeedServiceTests.cs"       = 6
     # adr/0012 app-hosted lessons: the Teacher's Information for staff only, per role; lesson and
     # Teacher's Information pictures by id; the converted lesson's offline details.
-    "LessonPageServiceTests.cs"         = 10
+    # Raised 10/11/2026 for adr/0015: teacher's notes and their notes-only pictures for staff only
+    # (Approvers included), never for a student or parent, never at the ordinary picture address.
+    "LessonPageServiceTests.cs"         = 16
     # adr/0013 lesson suggestions: who may suggest, review, publish now, read history and change the
     # setting; one open suggestion; self-approval; the stale-base guard; pictures to the author only.
     "LessonSuggestionServiceTests.cs"   = 25
+    # adr/0015 teacher's notes through suggestions and Teacher's Information as its own suggestion type:
+    # who may suggest and read its history, one open per rank (service and database), its pictures by role.
+    "TeachersNotesSuggestionTests.cs"   = 12
     # adr/0014 retention purge: Admin-only, active chapter, still-due recheck, typed name, what a
     # deletion removes, the parent and staff account rules, the deletion log; the reminder and the
     # audit-log purge (system principal only, rows older than 6 years only). Raised 27/10/2026 for
@@ -195,6 +200,8 @@ $endToEndMinimums = @{
     "AccessEndToEndTests.cs"     = 8
     "RoleMatrixEndToEndTests.cs" = 5
     "ParentRegistrationEndToEndTests.cs" = 3
+    # adr/0015: the rendered (and offline-saved) lesson page and the notes-picture address, per role.
+    "TeachersNotesEndToEndTests.cs"     = 4
 }
 foreach ($testFileName in $endToEndMinimums.Keys) {
     $testFilePath = Join-Path $endToEndRoot $testFileName

@@ -45,6 +45,7 @@ public sealed class LessonPageEndpointTests : IAsyncLifetime
         var blobs = new InMemoryBlobStorage();
         await blobs.UploadAsync("lesson-pictures/R5-01/loaves.jpg", [0xFF, 0xD8, 0xFF]);
         await blobs.UploadAsync("teachers-information/HERALD/room.jpg", [0xFF, 0xD8, 0xFE]);
+        await blobs.UploadAsync("lesson-pictures/R5-01/seating.jpg", [0xFF, 0xD8, 0xFD]);
 
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = "Development" });
         builder.WebHost.UseTestServer();
@@ -89,6 +90,10 @@ public sealed class LessonPageEndpointTests : IAsyncLifetime
         context.Lessons.Add(new Lesson { Id = 2, RankId = 1, Code = "R5-02", Title = "Unconverted", Order = 2, IsActive = true });
         context.LessonPictures.Add(new LessonPicture { Id = 7, LessonId = 1, Order = 1, FileName = "loaves.jpg", BlobKey = "lesson-pictures/R5-01/loaves.jpg" });
         context.TeachersInformationPictures.Add(new TeachersInformationPicture { Id = 8, RankId = 1, Order = 1, FileName = "room.jpg", BlobKey = "teachers-information/HERALD/room.jpg" });
+        context.LessonPictures.Add(new LessonPicture
+        {
+            Id = 9, LessonId = 1, Order = 2, FileName = "seating.jpg", BlobKey = "lesson-pictures/R5-01/seating.jpg", TeachersNotesOnly = true
+        });
         context.SaveChanges();
     }
 
@@ -164,6 +169,7 @@ public sealed class LessonPageEndpointTests : IAsyncLifetime
     [InlineData("Teacher")]
     [InlineData("Admin")]
     [InlineData("NationalAdministrator")]
+    [InlineData("Approver")]
     public async Task TeachersInformationPicture_Staff_GetIt(string role)
     {
         var response = await GetAsync("/lessons/teachers-information/pictures/8", role);
@@ -175,7 +181,6 @@ public sealed class LessonPageEndpointTests : IAsyncLifetime
     [Theory]
     [InlineData("Student")]
     [InlineData("Parent")]
-    [InlineData("Approver")]
     [InlineData("SafeguardingOfficer")]
     public async Task TeachersInformationPicture_EveryoneElse_IsForbidden(string role) =>
         Assert.Equal(HttpStatusCode.Forbidden, (await GetAsync("/lessons/teachers-information/pictures/8", role)).StatusCode);
@@ -183,6 +188,40 @@ public sealed class LessonPageEndpointTests : IAsyncLifetime
     [Fact]
     public async Task TeachersInformationPicture_StaffWithoutMfa_IsForbidden() =>
         Assert.Equal(HttpStatusCode.Forbidden, (await GetAsync("/lessons/teachers-information/pictures/8", "Teacher", mfa: false)).StatusCode);
+
+    [Theory]
+    [InlineData("Teacher")]
+    [InlineData("Admin")]
+    [InlineData("NationalAdministrator")]
+    [InlineData("Approver")]
+    public async Task TeachersNotesPicture_Staff_GetIt(string role)
+    {
+        var response = await GetAsync("/lessons/teachers-notes/pictures/9", role);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal([0xFF, 0xD8, 0xFD], await response.Content.ReadAsByteArrayAsync());
+    }
+
+    [Theory]
+    [InlineData("Student")]
+    [InlineData("Parent")]
+    [InlineData("SafeguardingOfficer")]
+    public async Task TeachersNotesPicture_EveryoneElse_IsForbidden(string role) =>
+        Assert.Equal(HttpStatusCode.Forbidden, (await GetAsync("/lessons/teachers-notes/pictures/9", role)).StatusCode);
+
+    [Fact]
+    public async Task TeachersNotesPicture_Anonymous_IsChallenged_StaffWithoutMfa_Forbidden()
+    {
+        Assert.Equal(HttpStatusCode.Unauthorized, (await GetAsync("/lessons/teachers-notes/pictures/9", null)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await GetAsync("/lessons/teachers-notes/pictures/9", "Teacher", mfa: false)).StatusCode);
+    }
+
+    [Theory]
+    [InlineData("Student")]
+    [InlineData("Parent")]
+    [InlineData("Teacher")]
+    public async Task NotesOnlyPicture_IsNotFound_AtTheLessonPictureAddress(string role) =>
+        Assert.Equal(HttpStatusCode.NotFound, (await GetAsync("/lessons/pictures/9", role)).StatusCode);
 
     [Fact]
     public async Task ThereIsNoSeparateOfflineRendering() =>

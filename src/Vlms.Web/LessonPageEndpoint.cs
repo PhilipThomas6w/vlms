@@ -11,8 +11,11 @@ namespace Vlms.Web;
 /// <item><c>GET /lessons/pictures/{id}</c>: a lesson picture by id only, behind the lesson-library policy
 /// (<see cref="LessonFileEndpoint.PolicyName"/>: library role plus MFA), the service checking the role again.</item>
 /// <item><c>GET /lessons/teachers-information/pictures/{id}</c>: a Teacher's Information picture by id only, behind
-/// <see cref="TeachersInformationPolicyName"/> (Teacher, Admin or National Administrator, plus MFA), the service checking
-/// again.</item>
+/// <see cref="TeachersInformationPolicyName"/> (Teacher, Admin, National Administrator or Approver, plus MFA), the service
+/// checking again.</item>
+/// <item><c>GET /lessons/teachers-notes/pictures/{id}</c>: a picture of a lesson's teacher's notes by id only (docs/adr/0015),
+/// behind the same staff-only policy, the service checking again. A picture only the notes use is never served by the
+/// lesson-picture endpoint above.</item>
 /// </list>
 /// There is no separate offline rendering: the lesson page itself is plain server-rendered HTML, and that is what
 /// "Save to this device" saves, with its pictures (decision 7, as amended by Philip, 26/10/2026).
@@ -22,6 +25,7 @@ public static class LessonPageEndpoint
     public const string TeachersInformationPolicyName = "RequireTeachersInformation";
     public const string PictureRoutePattern = "/lessons/pictures/{id:int}";
     public const string TeachersInformationPictureRoutePattern = "/lessons/teachers-information/pictures/{id:int}";
+    public const string TeachersNotesPictureRoutePattern = "/lessons/teachers-notes/pictures/{id:int}";
 
     public static void AddTeachersInformationPolicy(this AuthorizationOptions options) =>
         options.AddPolicy(TeachersInformationPolicyName, policy =>
@@ -38,6 +42,10 @@ public static class LessonPageEndpoint
 
         endpoints.MapGet(TeachersInformationPictureRoutePattern, (int id, LessonLibraryService library, HttpContext http, CancellationToken ct) =>
             Serve(() => library.OpenTeachersInformationPictureAsync(id, ct), http))
+            .RequireAuthorization(TeachersInformationPolicyName);
+
+        endpoints.MapGet(TeachersNotesPictureRoutePattern, (int id, LessonLibraryService library, HttpContext http, CancellationToken ct) =>
+            Serve(() => library.OpenTeachersNotesPictureAsync(id, ct), http))
             .RequireAuthorization(TeachersInformationPolicyName);
     }
 

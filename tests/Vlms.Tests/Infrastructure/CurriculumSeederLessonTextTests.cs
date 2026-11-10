@@ -224,7 +224,9 @@ public sealed class CurriculumSeederLessonTextTests : IDisposable
         var rank = await db.Ranks.SingleAsync(r => r.Code == "RECRUIT");
         Assert.StartsWith("## For teachers", rank.TeachersInformation);
         var picture = await db.TeachersInformationPictures.SingleAsync();
-        Assert.Equal((rank.Id, "room.jpg", "teachers-information/RECRUIT/room.jpg"), (picture.RankId, picture.FileName, picture.BlobKey));
+        // Content-addressed since Teacher's Information has versions (adr/0015), as lesson pictures are.
+        Assert.Equal((rank.Id, "room.jpg"), (picture.RankId, picture.FileName));
+        Assert.Matches("^teachers-information/RECRUIT/[0-9a-f]{16}/room\\.jpg$", picture.BlobKey);
         Assert.True(_blobStorage.TryGetBlob(picture.BlobKey, out _));
 
         var again = await RunAsync();

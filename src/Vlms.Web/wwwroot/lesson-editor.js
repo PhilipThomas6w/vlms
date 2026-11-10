@@ -7,8 +7,11 @@
 // page gives for it, so the browser can show it, and swapped back when the text is read. A picture inserted here is first
 // sent to the server (POST /curriculum/suggestions/{id}/pictures, antiforgery token in the RequestVerificationToken
 // header), which resizes and stores it and answers with its file name and address.
+//
+// A page may hold more than one editor (docs/adr/0015: the lesson text and its teacher's notes), each made by create() with
+// its own name ('text' when none is given) and toolbar. They share the suggestion's pictures, the dialogs and the page.
 
-let editor = null;
+const editors = {};
 let pictures = {};
 let token = '';
 let dotnet = null;
@@ -58,15 +61,19 @@ function labelEditable(host, label) {
   element.setAttribute('aria-label', label);
 }
 
-export async function create(host, toolbar, markdown, pictureUrls, antiforgeryToken, dotnetRef, scriptUrl) {
+export async function create(host, toolbar, markdown, pictureUrls, antiforgeryToken, dotnetRef, scriptUrl, name) {
+  name = name || 'text';
   await loadScript(scriptUrl);
-  pictures = Object.assign({}, pictureUrls || {});
+  if (Object.keys(editors).length === 0) {
+    pictures = {};
+  }
+  Object.assign(pictures, pictureUrls || {});
   token = antiforgeryToken || '';
   dotnet = dotnetRef;
-  if (editor) {
-    editor.destroy();
+  if (editors[name]) {
+    editors[name].destroy();
   }
-  editor = new window.toastui.Editor({
+  const editor = new window.toastui.Editor({
     el: host,
     initialEditType: 'wysiwyg',
     previewStyle: 'tab',
@@ -78,19 +85,20 @@ export async function create(host, toolbar, markdown, pictureUrls, antiforgeryTo
     minHeight: '380px',
     initialValue: toEditor(markdown)
   });
+  editors[name] = editor;
   // The library's own hidden Markdown pane and toolbar are not used.
   host.querySelectorAll('.toastui-editor-toolbar, .toastui-editor-md-container, .toastui-editor-mode-switch').forEach(e => { e.hidden = true; });
   labelEditable(host, host.dataset.label || 'Lesson text');
-  wireToolbar(host, toolbar);
+  wireToolbar(editor, toolbar);
 }
 
-function wireToolbar(host, toolbar) {
+function wireToolbar(editor, toolbar) {
   const buttons = Array.from(toolbar.querySelectorAll('button[data-command]'));
   buttons.forEach((button, index) => {
     button.tabIndex = index === 0 ? 0 : -1;
     // Keep the selection in the text when a button is pressed with the mouse.
     button.addEventListener('mousedown', e => e.preventDefault());
-    button.addEventListener('click', () => run(button.dataset.command, host));
+    button.addEventListener('click', () => run(button.dataset.command, editor));
     button.addEventListener('keydown', e => {
       let next = null;
       if (e.key === 'ArrowRight') next = (index + 1) % buttons.length;
@@ -106,7 +114,7 @@ function wireToolbar(host, toolbar) {
   });
 }
 
-function run(command, host) {
+function run(command, editor) {
   if (!editor) return;
   switch (command) {
     case 'bold': editor.exec('bold'); break;
@@ -116,8 +124,8 @@ function run(command, host) {
     case 'bulletList': editor.exec('bulletList'); break;
     case 'orderedList': editor.exec('orderedList'); break;
     case 'quote': editor.exec('blockQuote'); break;
-    case 'link': openLinkDialog(host); return;
-    case 'picture': openPictureDialog(host); return;
+    case 'link': openLinkDialog(editor); return;
+    case 'picture': openPictureDialog(editor); return;
   }
   editor.focus();
 }
@@ -126,7 +134,7 @@ function dialog(id) {
   return document.getElementById(id);
 }
 
-function openLinkDialog(host) {
+function openLinkDialog(editor) {
   const box = dialog('link-dialog');
   const address = box.querySelector('input[name="address"]');
   const error = box.querySelector('[data-error]');
@@ -150,7 +158,7 @@ function openLinkDialog(host) {
   address.focus();
 }
 
-function openPictureDialog(host) {
+function openPictureDialog(editor) {
   const box = dialog('picture-dialog');
   const file = box.querySelector('input[type="file"]');
   const description = box.querySelector('input[name="description"]');
@@ -174,7 +182,7 @@ function openPictureDialog(host) {
     }
     submit.disabled = true;
     try {
-      const id = await dotnet.invokeMethodAsync('EnsureDraftAsync', getMarkdown());
+      const id = await dotnet.invokeMethodAsync('EnsureDraftAsync', getMarkdown('text'), getMarkdown('notes'));
       const form = new FormData();
       form.append('file', file.files[0]);
       const response = await fetch('/curriculum/suggestions/' + id + '/pictures', {
@@ -203,16 +211,19 @@ function openPictureDialog(host) {
   file.focus();
 }
 
-export function getMarkdown() {
+export function getMarkdown(name) {
+  const editor = editors[name || 'text'];
   return editor ? fromEditor(editor.getMarkdown()) : '';
 }
 
-export function setMarkdown(markdown) {
+export function setMarkdown(markdown, name) {
+  const editor = editors[name || 'text'];
   if (!editor) return;
   editor.setMarkdown(toEditor(markdown), false);
 }
 
-export function focus() {
+export function focus(name) {
+  const editor = editors[name || 'text'];
   if (editor) editor.focus();
 }
 
@@ -221,9 +232,9 @@ export function addPictures(pictureUrls) {
 }
 
 export function dispose() {
-  if (editor) {
-    editor.destroy();
-    editor = null;
+  for (const name of Object.keys(editors)) {
+    editors[name].destroy();
+    delete editors[name];
   }
   dotnet = null;
 }
