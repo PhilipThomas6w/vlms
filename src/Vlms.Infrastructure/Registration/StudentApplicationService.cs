@@ -84,8 +84,9 @@ public sealed record ApplicationForApproval(
 /// Parent registration with two-stage approval (functional.md FR-004 as amended 22/10/2026,
 /// adr/0008 answers 1, 4, 5, 6).
 ///
-/// <b>The application.</b> A signed-in adult (any account that is not a student sign-in, including
-/// staff who stepped down; they need hold no role yet) applies to register one or more children, giving their phone
+/// <b>The application.</b> A Parent of the chosen chapter (adr/0017: only a Parent can register a
+/// child; an Admin grants Parent from the registration queue, staff who stepped down included)
+/// applies to register one or more children, giving their phone
 /// number and postal address, their relationship to each child, and a full consent form for each.
 /// Each child becomes one <see cref="StudentApplication"/> with its sensitive fields in a
 /// <see cref="StudentApplicationSensitiveDetails"/> row (restricted and read-audited). Nothing else is
@@ -102,8 +103,9 @@ public sealed record ApplicationForApproval(
 /// the existing student), the applicant's <see cref="ParentGuardian"/> if they have none (linked to
 /// their own account, so no invite is needed), the <see cref="StudentGuardianLink"/>, an approved
 /// <see cref="ConsentRecord"/> with its <see cref="ConsentSensitiveDetails"/> copied from the
-/// application, and the Parent role (added to any roles already held, with the security stamp
-/// rotated as <see cref="RoleAssignmentService"/> does).
+/// application, and, only for an application submitted before adr/0017 by someone who still does
+/// not hold it, the Parent role (added to any roles already held, with the security stamp rotated
+/// as <see cref="RoleAssignmentService"/> does). Approval is no longer how anyone becomes a Parent.
 ///
 /// <b>One person, both stages.</b> Allowed: a user holding both roles may approve at stage 1 and
 /// then at stage 2. Each stage records who acted. Whether that should be allowed is an open question
@@ -145,7 +147,8 @@ public sealed class StudentApplicationService
     /// already has as an open or approved application or as a linked student, or appears twice in
     /// the same submission. <paramref name="chapterId"/> is the chapter the parent chose (FR-021,
     /// docs/adr/0010-chapters.md): it must be an open chapter, and that chapter's Safeguarding
-    /// Officer reviews the application and its Admin approves it.
+    /// Officer reviews the application and its Admin approves it. The caller must hold the Parent
+    /// role in that chapter (adr/0017); anyone else is refused before anything is checked or written.
     /// </summary>
     public async Task<IReadOnlyList<StudentApplication>> SubmitAsync(
         int chapterId, ApplicantDetails applicant, IReadOnlyList<ChildApplicationForm> children, CancellationToken ct = default)
@@ -157,6 +160,13 @@ public sealed class StudentApplicationService
         if (!await _db.Chapters.AnyAsync(c => c.Id == chapterId && c.IsActive, ct))
         {
             throw new ArgumentException("Choose the chapter at your parish.");
+        }
+
+        // adr/0017: only a Parent can register a child, and only in a chapter where they are one.
+        if (!await IsParentInAsync(userId, chapterId, ct))
+        {
+            throw new UnauthorizedAccessException(
+                "Only a Parent can register a child. Please ask an Admin of your chapter to give you the Parent role.");
         }
 
         if (children.Count == 0)
@@ -232,6 +242,31 @@ public sealed class StudentApplicationService
 
         return created;
     }
+
+    /// <summary>
+    /// The open chapters where the caller holds the Parent role, the only ones they may apply in
+    /// (adr/0017). Empty for anyone signed out or holding Parent nowhere.
+    /// </summary>
+    public async Task<IReadOnlyList<int>> ListChaptersICanApplyInAsync(CancellationToken ct = default)
+    {
+        if (_currentUser.UserId is not int userId)
+        {
+            return [];
+        }
+
+        return await _db.UserRoles
+            .Where(r => r.UserId == userId && r.Role == Role.Parent && r.ChapterId != null
+                && !_db.StaffStepDowns.Any(s => s.UserId == userId && s.ChapterId == r.ChapterId && s.ReinstatedAt == null))
+            .Join(_db.Chapters.Where(c => c.IsActive), r => r.ChapterId, c => (int?)c.Id, (r, c) => c.Id)
+            .Distinct()
+            .ToListAsync(ct);
+    }
+
+    // A Parent role counts as HasRole counts it: held in the chapter, and not suspended by an open
+    // Inactive period there (FR-017, LeftStaffPolicy).
+    private async Task<bool> IsParentInAsync(int userId, int chapterId, CancellationToken ct) =>
+        await _db.UserRoles.AnyAsync(r => r.UserId == userId && r.Role == Role.Parent && r.ChapterId == chapterId, ct)
+        && !await _db.StaffStepDowns.AnyAsync(s => s.UserId == userId && s.ChapterId == chapterId && s.ReinstatedAt == null, ct);
 
     /// <summary>The caller's own applications, newest first, with their restricted details (audited).</summary>
     public async Task<IReadOnlyList<ApplicationView>> GetMyApplicationsAsync(CancellationToken ct = default)
@@ -422,6 +457,22 @@ public sealed class StudentApplicationService
             .Select(a => a.Id)
             .ToListAsync(ct);
         return (await LoadViewsAsync(ids, includeDetails: false, ct)).OrderBy(a => a.SafeguardingReviewedAt).ToList();
+    }
+
+    /// <summary>
+    /// Applications still with the Safeguarding Officer (waiting for their review, or for the parent
+    /// to answer their request for more information), oldest first, for the Admin's Registrations
+    /// page (adr/0017): status only, no restricted details.
+    /// </summary>
+    public async Task<IReadOnlyList<ApplicationView>> ListWithSafeguardingOfficerAsync(CancellationToken ct = default)
+    {
+        RequireAdmin();
+        var ids = await StaffApplications
+            .Where(a => a.Status == StudentApplicationStatus.AwaitingSafeguardingReview
+                || a.Status == StudentApplicationStatus.MoreInformationRequested)
+            .Select(a => a.Id)
+            .ToListAsync(ct);
+        return (await LoadViewsAsync(ids, includeDetails: false, ct)).OrderBy(a => a.SubmittedAt).ThenBy(a => a.Id).ToList();
     }
 
     /// <summary>Number waiting for final approval, for the home page.</summary>
@@ -657,7 +708,8 @@ public sealed class StudentApplicationService
         });
 
         // Parent in the application's chapter (docs/adr/0010-chapters.md): a Parent role in another
-        // chapter does not count here.
+        // chapter does not count here. Since adr/0017 only a Parent can apply, so this grants Parent
+        // only for an application submitted before that change by someone who still lacks it.
         var grantParent = !await _db.UserRoles.AnyAsync(
             r => r.UserId == applicant.Id && r.Role == Role.Parent && r.ChapterId == application.ChapterId, ct);
         if (grantParent)
@@ -983,7 +1035,9 @@ public sealed class StudentApplicationService
     }
 
     /// <summary>
-    /// Any signed-in adult may apply, holding no role yet: not a student sign-in.
+    /// A signed-in adult, not a student sign-in. Enough to read and resubmit one's own applications
+    /// (an application submitted before adr/0017 may belong to someone with no Parent role);
+    /// <see cref="SubmitAsync"/> also requires the Parent role in the chosen chapter.
     /// </summary>
     private async Task<int> RequireApplicantAsync(CancellationToken ct)
     {

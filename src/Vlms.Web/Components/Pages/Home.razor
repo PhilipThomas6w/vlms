@@ -3,6 +3,7 @@
 @using Microsoft.EntityFrameworkCore
 @inject Vlms.Domain.ICurrentUserContext CurrentUser
 @inject Vlms.Infrastructure.VlmsDbContext Db
+@inject Vlms.Infrastructure.Registration.RegistrationQueueService RegistrationQueue
 
 <PageTitle>Home</PageTitle>
 
@@ -24,14 +25,22 @@
     </NotAuthorized>
     <Authorized>
         <PageHeader Title="Home" />
+        @* No role, no access (adr/0017 decision 3): someone holding no role anywhere sees only where
+           their registration stands, and the menu shows them nothing but Home. *@
+        @if (_status is { HoldsARole: false } status)
+        {
+            <Notice Kind="info" Role="status">
+                <p id="registration-status">@StatusText(status)</p>
+            </Notice>
+        }
+        else
+        {
         @if (_inactiveChapters.Count > 0)
         {
             <Notice Kind="warning" Role="status">
                 <p><strong>Your account is Inactive in @string.Join(", ", _inactiveChapters).</strong> You can still sign in and use any other chapters where you are active.</p>
                 <p>To return to an inactive chapter, ask one of its Admins to reactivate you. Your existing roles will be restored; you do not need a new invitation.</p>
-                <AuthorizeView Policy="RequireSignedIn" Context="inactiveApplyContext">
-                    <p>You can still request Parent access by <a href="/registration/apply">applying to register a child</a>.</p>
-                </AuthorizeView>
+                <p>If you also want Parent access, ask an Admin of your chapter.</p>
             </Notice>
         }
         @* Every staff page needs two-factor sign-in (MfaRequirementHandler); until it is set up the staff
@@ -105,7 +114,7 @@
                 <ul class="action-list">
                     <li><a href="/administration/students"><Icon Name="users" />Manage students</a></li>
                     <li><a href="/administration/user-roles"><Icon Name="shield" />User roles</a></li>
-                    <li><a href="/registration/approve"><Icon Name="inbox" />Approve registration applications</a></li>
+                    <li><a href="/registration/approve"><Icon Name="inbox" />Registrations@(_registrations > 0 ? $" ({_registrations} waiting)" : "")</a></li>
                     <li><a href="/registration/students"><Icon Name="user-plus" />Register student</a></li>
                     <li><a href="/guardianship/links"><Icon Name="link" />Guardian links</a></li>
                     <li><a href="/reporting"><Icon Name="chart" />Reporting</a></li>
@@ -127,27 +136,26 @@
                 </ul>
             </section>
         </AuthorizeView>
-        @* Not for a student sign-in, which can't apply (the menu hides it the same way; the pages refuse students regardless). *@
-        <AuthorizeView Policy="RequireStudent" Context="studentContext">
-            <NotAuthorized>
-        <AuthorizeView Policy="RequireSignedIn" Context="applyContext">
+        @* Only a Parent registers a child (adr/0017); a member of staff who is also a parent is given the Parent role. *@
+        <AuthorizeView Policy="RequireParent" Context="applyContext">
             <section class="action-card" aria-labelledby="home-register">
                 <h3 id="home-register">Register your child</h3>
-                <p>Parents: apply to register your children with the Varangians, then follow your applications.</p>
+                <p>Apply to register your children with the Varangians, then follow your applications.</p>
                 <ul class="action-list">
                     <li><a href="/registration/apply"><Icon Name="user-plus" />Register a child</a></li>
                     <li><a href="/registration/my-applications"><Icon Name="clipboard" />My applications</a></li>
                 </ul>
             </section>
         </AuthorizeView>
-            </NotAuthorized>
-        </AuthorizeView>
         </div>
+        }
     </Authorized>
 </AuthorizeView>
 
 @code {
     private List<string> _inactiveChapters = new();
+    private Vlms.Infrastructure.Registration.MyRegistrationStatus? _status;
+    private int _registrations;
 
     protected override async Task OnInitializedAsync()
     {
@@ -156,12 +164,27 @@
             return;
         }
 
+        _status = await RegistrationQueue.GetMyStatusAsync();
+        if (!_status.HoldsARole)
+        {
+            return;
+        }
+
+        _registrations = await RegistrationQueue.CountWaitingAsync();
+
         _inactiveChapters = await (from period in Db.StaffStepDowns
             join chapter in Db.Chapters on period.ChapterId equals chapter.Id
             where period.UserId == userId && period.ReinstatedAt == null
             orderby chapter.Name
             select chapter.Name).Distinct().ToListAsync();
     }
+
+    private static string StatusText(Vlms.Infrastructure.Registration.MyRegistrationStatus status) => status switch
+    {
+        { Dismissed: true } => "Your registration was not approved. Please contact your chapter.",
+        { WaitingInChapters.Count: > 0 } => $"Your registration is in progress. An Admin of {string.Join(" or ", status.WaitingInChapters)} will give you access.",
+        _ => "Your registration is in progress. An Admin will give you access."
+    };
 
     private bool NeedsTwoFactor => !CurrentUser.HasMfaEnabled
         && (CurrentUser.HoldsStaffRoleInAnyChapter || CurrentUser.HasRole(Vlms.Domain.Role.NationalAdministrator));

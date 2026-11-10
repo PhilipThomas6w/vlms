@@ -1,5 +1,5 @@
 @page "/registration/my-applications"
-@attribute [Authorize(Policy = "RequireSignedIn")]
+@attribute [Authorize(Policy = "RequireParentOrApplicant")]
 @using System.Globalization
 @using Vlms.Domain
 @using Vlms.Infrastructure.Registration
@@ -7,6 +7,8 @@
 
 @* Static SSR, like Apply.razor. The applicant's own applications only (the service filters by the
    signed-in account, and the restricted details pass the query filter for the applicant alone).
+   A Parent, or someone with an application of their own made before only Parents could apply
+   (RequireParentOrApplicant, adr/0017 As built).
    ?edit={id} opens the answer-and-resubmit form for an application waiting for more information. *@
 
 <PageTitle>My applications</PageTitle>

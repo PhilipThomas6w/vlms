@@ -7,12 +7,12 @@ namespace Vlms.Tests.EndToEnd;
 
 /// <summary>
 /// Request-level tests of parent registration with two-stage approval (functional.md FR-004 as
-/// amended 22/10/2026, adr/0008; TC-039), over the real pipeline: a signed-in adult with no role
-/// applies for two children on /registration/apply; nothing but the applications exists; a
+/// amended 22/10/2026, adr/0008; TC-039), over the real pipeline: a Parent (only a Parent can
+/// apply since adr/0017) applies for two children on /registration/apply; nothing but the applications exists; a
 /// Safeguarding Officer (with TOTP) asks for more information on /registration/review; the parent
 /// answers on /registration/my-applications; the Safeguarding Officer approves; an Admin (with TOTP)
-/// approves on /registration/approve at a chosen rank, which creates the student, link, consent and
-/// Parent role; the parent then reaches the parent dashboard. Also: the stage pages refuse the
+/// approves on /registration/approve at a chosen rank, which creates the student, link and consent;
+/// the parent then sees the child on the parent dashboard. Also: the stage pages refuse the
 /// wrong roles, and a Teacher can no longer reach direct registration.
 /// </summary>
 public sealed class ParentRegistrationEndToEndTests : IDisposable
@@ -30,7 +30,7 @@ public sealed class ParentRegistrationEndToEndTests : IDisposable
             db.Ranks.Add(new Rank { Id = 2, Order = 2, Code = "R2", Name = "Reader" });
             await db.SaveChangesAsync();
         });
-        var parentUser = await _factory.SeedUserAsync("new.parent@test.example", withTotp: false);
+        var parentUser = await _factory.SeedUserAsync("new.parent@test.example", withTotp: false, Role.Parent);
         var safeguarding = await _factory.SeedUserAsync("so@test.example", withTotp: true, Role.SafeguardingOfficer);
         var admin = await _factory.SeedUserAsync("admin@test.example", withTotp: true, Role.Admin);
 
@@ -69,7 +69,7 @@ public sealed class ParentRegistrationEndToEndTests : IDisposable
             chrisId = applications[0].Id;
             Assert.Empty(await db.Students.ToListAsync());
             Assert.Empty(await db.StudentGuardianLinks.ToListAsync());
-            Assert.Empty(await db.UserRoles.Where(r => r.UserId == parentUser.Id).ToListAsync());
+            Assert.Equal([Role.Parent], await db.UserRoles.Where(r => r.UserId == parentUser.Id).Select(r => r.Role).ToListAsync());
         });
         Assert.Contains(_factory.Email.SentEmails, m => m.RecipientEmail == "so@test.example");
 
@@ -140,7 +140,7 @@ public sealed class ParentRegistrationEndToEndTests : IDisposable
                 (await db.StudentApplications.SingleAsync(a => a.ChildName == "Dana Child")).Status);
         });
 
-        // 6. Signing in again (the role grant rotated the security stamp), the parent reaches the dashboard.
+        // 6. Signing in again, the parent sees the child on the dashboard.
         var parentAgain = await Browser.SignInAsync(_factory, parentUser);
         var dashboard = await parentAgain.GetAsync("/parent/dashboard");
         Assert.Equal(HttpStatusCode.OK, dashboard.StatusCode);
@@ -150,7 +150,7 @@ public sealed class ParentRegistrationEndToEndTests : IDisposable
     [Fact]
     public async Task An_incomplete_application_lists_every_problem_marks_each_field_and_keeps_what_was_typed()
     {
-        var parentUser = await _factory.SeedUserAsync("errors.parent@test.example", withTotp: false);
+        var parentUser = await _factory.SeedUserAsync("errors.parent@test.example", withTotp: false, Role.Parent);
         var parent = await Browser.SignInAsync(_factory, parentUser);
 
         // Phone, address, one child's date of birth and emergency contact, and the second child's name,
@@ -205,7 +205,7 @@ public sealed class ParentRegistrationEndToEndTests : IDisposable
     [Fact]
     public async Task A_duplicate_child_name_from_the_same_parent_is_refused_on_the_page()
     {
-        var parentUser = await _factory.SeedUserAsync("dup.parent@test.example", withTotp: false);
+        var parentUser = await _factory.SeedUserAsync("dup.parent@test.example", withTotp: false, Role.Parent);
         var parent = await Browser.SignInAsync(_factory, parentUser);
 
         var response = await PostFormAsync(parent, "/registration/apply", "apply-registration",

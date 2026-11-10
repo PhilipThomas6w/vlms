@@ -40,6 +40,7 @@ public class StatusMessageAccessibilityTests
     [InlineData("Safeguarding", "DbsChecks.razor")]
     [InlineData("Progress", "CompletionReversals.razor")]
     [InlineData("Administration", "UserRoles.razor")]
+    [InlineData("Registration", "RegistrationQueuePanel.razor")]
     public void Page_DeclaresStatusRoleElement_BoundToAStatusMessageField(string folder, string fileName)
     {
         var content = ReadPage(folder, fileName);
@@ -60,7 +61,8 @@ public class StatusMessageAccessibilityTests
     [InlineData("Safeguarding", "DbsChecks.razor", "_statusMessage = \"DBS check recorded.\"")]
     [InlineData("Progress", "CompletionReversals.razor", "_statusMessage = \"Completion reversed.\"")]
     [InlineData("Administration", "UserRoles.razor", "_statusMessage = $\"{role} granted to {user.DisplayName}.\"")]
-    [InlineData("Administration", "UserRoles.razor", "_statusMessage = $\"{waiting.DisplayName} approved as Parent.\"")]
+    [InlineData("Registration", "RegistrationQueuePanel.razor", "_statusMessage = $\"{RoleList(roles)} granted to {person.DisplayName}.\"")]
+    [InlineData("Registration", "RegistrationQueuePanel.razor", "_statusMessage = $\"{person.DisplayName} dismissed without a role.\"")]
     public void Page_SetsAConcreteStatusMessage_OnASuccessPath(string folder, string fileName, string expectedAssignment)
     {
         var content = ReadPage(folder, fileName);

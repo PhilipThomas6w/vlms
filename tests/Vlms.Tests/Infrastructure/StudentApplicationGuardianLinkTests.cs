@@ -53,7 +53,8 @@ public sealed class StudentApplicationGuardianLinkTests : IDisposable
         User(AdminId, "Admin One", "admin@example.com", Role.Admin);
         User(SafeguardingId, "Safeguarding One", "so@example.com", Role.SafeguardingOfficer);
         User(TeacherId, "Teacher One", "teacher@example.com", Role.Teacher);
-        User(ApplicantId, "Jane Applicant", "Jane.Parent@Example.com");
+        // Only a Parent can apply (adr/0017).
+        User(ApplicantId, "Jane Applicant", "Jane.Parent@Example.com", Role.Parent);
         User(OtherUserId, "Other User", "other@example.com");
         User(OwnGuardianApplicantId, "Erin Parent", "erin@example.com", Role.Parent);
 

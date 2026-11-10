@@ -136,9 +136,9 @@ builder.Services.AddScoped<GuardianLinkService>();
 builder.Services.AddScoped<StudentRegistrationService>();
 
 // --- Parent registration applications with two-stage approval (functional.md FR-004 as amended
-// 22/10/2026, adr/0008 answers 1, 4, 5, 6): any signed-in adult applies; a Safeguarding Officer
-// reviews (stage 1), an Admin approves (stage 2), which alone creates the Student, link, consent and
-// Parent role. Emails after each save, never throwing.
+// 22/10/2026, adr/0008 answers 1, 4, 5, 6; adr/0017): a Parent applies; a Safeguarding Officer
+// reviews (stage 1), an Admin approves (stage 2), which alone creates the Student, link and consent
+// (and grants Parent only for an application made before adr/0017 by someone without it). Emails after each save, never throwing.
 builder.Services.AddScoped(sp => new RegistrationNotificationService(
     sp.GetRequiredService<VlmsDbContext>(), sp.GetRequiredService<INotificationService>(),
     sp.GetRequiredService<ILogger<RegistrationNotificationService>>(), builder.Configuration["App:PublicBaseUrl"]));
@@ -149,6 +149,9 @@ builder.Services.AddScoped(sp => new NewRegistrationService(
     sp.GetRequiredService<VlmsDbContext>(), sp.GetRequiredService<ICurrentUserContext>(),
     sp.GetRequiredService<AppUserProvisioningService>(), sp.GetRequiredService<INotificationService>(),
     sp.GetRequiredService<ILogger<NewRegistrationService>>(), builder.Configuration["App:PublicBaseUrl"]));
+// The chapter's one registration queue (adr/0017): the list above plus accepted guardian invites,
+// granted from the Registrations page; the menu and home-page counts.
+builder.Services.AddScoped<RegistrationQueueService>();
 
 // --- Consent/DBS management UI (STATE.md, functional.md FR-001/FR-002, data-design.md
 // ConsentRecord/ConsentSensitiveDetails/DbsCheck) — Admin/SafeguardingOfficer only, never the
@@ -275,6 +278,7 @@ builder.Services.AddScoped<IAuthorizationHandler, ParentStudentAccessHandler>();
 builder.Services.AddScoped<IAuthorizationHandler, StudentSelfAccessHandler>();
 builder.Services.AddScoped<IAuthorizationHandler, TeacherStudentAccessHandler>();
 builder.Services.AddScoped<IAuthorizationHandler, MfaRequirementHandler>();
+builder.Services.AddScoped<IAuthorizationHandler, ParentOrApplicantAuthorizationHandler>();
 
 builder.Services.AddAuthorization(options =>
 {
@@ -304,11 +308,18 @@ builder.Services.AddAuthorization(options =>
     });
 
     // Any signed-in user, with the same MFA rule as every other policy (Admin, Safeguarding Officer
-    // and Teacher must have MFA). Used by the parent registration application pages, which an adult
-    // with no role yet must reach (adr/0008 answer 1); the service refuses student sign-ins and leavers.
+    // and Teacher must have MFA). Since adr/0017 no page uses it: only a Parent registers a child.
     options.AddPolicy("RequireSignedIn", policy =>
     {
         policy.RequireAuthenticatedUser();
+        policy.Requirements.Add(new MfaRequirement());
+    });
+
+    // My applications (adr/0017 As built): a Parent, or someone with an application of their own
+    // (one submitted before only Parents could apply). Registering a child is RequireParent.
+    options.AddPolicy("RequireParentOrApplicant", policy =>
+    {
+        policy.Requirements.Add(new ParentOrApplicantRequirement());
         policy.Requirements.Add(new MfaRequirement());
     });
 

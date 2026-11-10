@@ -13,7 +13,8 @@ namespace Vlms.Infrastructure.Identity;
 /// <c>Chapters.ChapterMembership</c> read the open period, and every policy, chapter service and
 /// sensitive-data query filter reads those. Other chapters are unaffected.</item>
 /// <item>Nobody is locked out of signing in: an Inactive person can still sign in, sees which chapters
-/// they are Inactive in, and may apply to register a child. <see cref="IsLockedOut"/> therefore
+/// they are Inactive in, and may ask an Admin for the Parent role (adr/0017; it counts only once
+/// they are reactivated there, like every role in that chapter). <see cref="IsLockedOut"/> therefore
 /// always answers false; it stays as the one hook the sign-in, confirmation and reset paths call.</item>
 /// <item>Their staff roles still count for the account-wide MFA rule
 /// (<see cref="HoldsCountingStaffRoleInAnyChapter"/>; docs/adr/0010-chapters.md assumption 9, amended

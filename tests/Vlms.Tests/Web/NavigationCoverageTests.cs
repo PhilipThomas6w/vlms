@@ -20,6 +20,8 @@ public class NavigationCoverageTests
         ["RequireLessonSuggester"] = ["Teacher", "Approver"],
         ["RequireLessonHistory"] = ["Approver", "Admin"],
         ["RequireParent"] = ["Parent"],
+        // A Parent, or someone with an application of their own made before adr/0017 (no role).
+        ["RequireParentOrApplicant"] = ["Parent"],
         ["RequireStudent"] = ["Student"],
         ["RequireSafeguardingOfficer"] = ["SafeguardingOfficer"],
         ["RequireNationalAdministrator"] = ["NationalAdministrator"],

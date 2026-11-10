@@ -1,0 +1,244 @@
+@using Vlms.Domain
+@using Vlms.Infrastructure.Identity
+@using Vlms.Infrastructure.Registration
+@inject RegistrationQueueService Queue
+
+@* The chapter's registration queue (adr/0017), on the Admin's Registrations page: everyone waiting
+   for a role here, whatever they are joining as, and accepted guardian invites not yet a Parent.
+   Interactive (the page around it is static SSR, whose approval forms stay as they were). Several
+   roles can be granted at once; every grant and dismissal is confirmed, naming the person. The
+   service checks the Admin role on every call. *@
+
+@if (_errorMessage is not null)
+{
+    <p class="error" role="alert">@_errorMessage</p>
+}
+<p role="status">@_statusMessage</p>
+
+@if (_confirm is not null)
+{
+    <Notice Kind="warning" Role="alert">
+        <p><strong>@_confirm.Question</strong></p>
+        <div class="btn-row confirm-actions">
+            <button type="button" class="@(_confirm.Destructive ? "btn--danger" : null)" @onclick="ConfirmAsync">@_confirm.ConfirmLabel</button>
+            <button type="button" class="btn--secondary" @onclick="CancelConfirm">Cancel</button>
+        </div>
+    </Notice>
+}
+
+@if (_entries is null)
+{
+    <p>Loading…</p>
+}
+else if (_entries.Count == 0)
+{
+    <p>Nobody is waiting for a role in this chapter.</p>
+}
+else
+{
+    <p>
+        These people registered for this chapter, or accepted one of its guardian invites, and are
+        waiting for a role here. Until they have one they can do nothing but see that their
+        registration is in progress. Choose one or more roles and grant them; granting takes them off
+        this list. Dismissing takes someone who registered off the list without a role and deletes
+        nothing. Admin, Safeguarding Officer and Teacher holders must set up two-factor sign-in before
+        those roles take effect. The Approver role is national and is granted by a National Administrator.
+    </p>
+    <table class="data-table data-table--wide">
+        <thead>
+            <tr>
+                <th scope="col">User</th>
+                <th scope="col">Email</th>
+                <th scope="col">Joining as</th>
+                <th scope="col">Registered</th>
+                <th scope="col">Came from</th>
+                <th scope="col">DBS check</th>
+                <th scope="col">Grant roles</th>
+                <th scope="col"><span class="visually-hidden">Dismiss</span></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var person in _entries)
+            {
+                var available = GrantableRoles(person);
+                var chosen = _chosen[person.UserId];
+                <tr>
+                    <td data-label="User">@person.DisplayName</td>
+                    <td data-label="Email">@person.Email@(person.EmailConfirmed ? " (confirmed)" : " (not yet confirmed)")</td>
+                    <td data-label="Joining as">@person.JoiningAs.DisplayName()</td>
+                    <td data-label="Registered">@(person.RegisteredAt?.ToString("dd/MM/yyyy") ?? "Not known")</td>
+                    <td data-label="Came from">@CameFrom(person)</td>
+                    <td data-label="DBS check">
+                        @if (person.Dbs is { } dbs)
+                        {
+                            <span>@DbsText(dbs)</span>
+                            <a href="/safeguarding/dbs" aria-label="@($"DBS checks, to add or update {person.DisplayName}'s")">DBS checks</a>
+                        }
+                        else
+                        {
+                            <span>Not a teacher</span>
+                        }
+                    </td>
+                    <td data-label="Grant roles">
+                        @if (available.Count > 0)
+                        {
+                            <fieldset class="cell-form">
+                                <legend>Roles for @person.DisplayName</legend>
+                                @foreach (var role in available)
+                                {
+                                    var id = $"grant-{person.UserId}-{role}";
+                                    <div class="field--check">
+                                        <input id="@id" type="checkbox" checked="@chosen.Contains(role)" @onchange="e => Toggle(person.UserId, role, e)" />
+                                        <label for="@id">@role.DisplayName()</label>
+                                    </div>
+                                }
+                                <button type="button" aria-label="@($"Grant the chosen roles to {person.DisplayName}")"
+                                        disabled="@(chosen.Count == 0)" @onclick="() => AskGrant(person)">Grant</button>
+                            </fieldset>
+                        }
+                    </td>
+                    <td>
+                        @if (person.CanDismiss)
+                        {
+                            <button type="button" class="btn--secondary" aria-label="@($"Dismiss {person.DisplayName} without a role")"
+                                    @onclick="() => AskDismiss(person)">Dismiss</button>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private IReadOnlyList<QueueEntry>? _entries;
+    private readonly Dictionary<int, List<Role>> _chosen = new();
+    private PendingConfirm? _confirm;
+    private string? _errorMessage;
+    private string? _statusMessage;
+
+    private sealed record PendingConfirm(string Question, string ConfirmLabel, bool Destructive, Func<Task> Action);
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            _entries = await Queue.ListAsync();
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _entries = [];
+            _errorMessage = ex.Message;
+            return;
+        }
+
+        // No role is pre-selected: a grant is always a deliberate choice.
+        _chosen.Clear();
+        foreach (var entry in _entries)
+        {
+            _chosen[entry.UserId] = [];
+        }
+    }
+
+    // The chapter roles an Admin grants (RoleAssignmentService.AssignableRoles), less any already held.
+    private static List<Role> GrantableRoles(QueueEntry person) =>
+        RoleAssignmentService.AssignableRoles.Except(person.CurrentRoles).ToList();
+
+    private static string CameFrom(QueueEntry person)
+    {
+        var parts = person.Sources.Select(source => source switch
+        {
+            QueueSource.PlacedByNationalAdministrator => "Sent by the National Administrator",
+            QueueSource.GuardianInvite => person.LinkedStudentNames.Count == 0
+                ? "Guardian invite"
+                : $"Guardian invite for {string.Join(", ", person.LinkedStudentNames)}",
+            _ => "Self-registration"
+        });
+        var text = string.Join("; ", parts);
+        return person.CurrentRoles.Count == 0
+            ? text
+            : $"{text} (already {string.Join(", ", person.CurrentRoles.Select(r => r.DisplayName()))} here)";
+    }
+
+    private static string DbsText(QueueDbsStatus dbs) => dbs.State switch
+    {
+        QueueDbsState.None => "None",
+        QueueDbsState.Valid => $"Valid until {dbs.ExpiryDate:dd/MM/yyyy}",
+        QueueDbsState.Expired => $"Expired on {dbs.ExpiryDate:dd/MM/yyyy}",
+        QueueDbsState.Flagged => "Flagged",
+        _ => "Pending"
+    };
+
+    private void Toggle(int userId, Role role, ChangeEventArgs e)
+    {
+        var list = _chosen[userId];
+        list.Remove(role);
+        if (e.Value is true)
+        {
+            list.Add(role);
+        }
+    }
+
+    private static string RoleList(IEnumerable<Role> roles)
+    {
+        var names = roles.Order().Select(r => r.DisplayName()).ToList();
+        return names.Count == 1 ? names[0] : $"{string.Join(", ", names[..^1])} and {names[^1]}";
+    }
+
+    private void AskGrant(QueueEntry person)
+    {
+        var roles = _chosen[person.UserId].ToList();
+        if (roles.Count == 0)
+        {
+            return;
+        }
+
+        _confirm = new($"Grant {RoleList(roles)} to {person.DisplayName}?", $"Grant to {person.DisplayName}", false, () => GrantAsync(person, roles));
+    }
+
+    private void AskDismiss(QueueEntry person) =>
+        _confirm = new($"Dismiss {person.DisplayName} without giving a role?", $"Dismiss {person.DisplayName}", true, () => DismissAsync(person));
+
+    private async Task ConfirmAsync()
+    {
+        var pending = _confirm;
+        _confirm = null;
+        if (pending is not null) await pending.Action();
+    }
+
+    private void CancelConfirm() => _confirm = null;
+
+    private async Task GrantAsync(QueueEntry person, IReadOnlyList<Role> roles)
+    {
+        _errorMessage = null;
+        _statusMessage = null;
+        try
+        {
+            await Queue.GrantAsync(person.UserId, roles);
+            _statusMessage = $"{RoleList(roles)} granted to {person.DisplayName}.";
+            await LoadAsync();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+
+    private async Task DismissAsync(QueueEntry person)
+    {
+        _errorMessage = null;
+        _statusMessage = null;
+        try
+        {
+            await Queue.DismissAsync(person.UserId);
+            _statusMessage = $"{person.DisplayName} dismissed without a role.";
+            await LoadAsync();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+}

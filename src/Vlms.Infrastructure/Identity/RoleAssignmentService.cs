@@ -135,10 +135,11 @@ public sealed class RoleAssignmentService
     /// <paramref name="FromGuardianInvite"/> is true when the account was created by accepting a
     /// guardian invite; <paramref name="LinkedStudentNames"/> are the students its
     /// <see cref="ParentGuardian"/> record is linked to (empty for a self-registered account).
+    /// <paramref name="AcceptedAt"/> is when they first accepted one of this chapter's invites.
     /// </summary>
     public sealed record AwaitingApproval(
         int UserId, string DisplayName, string Email, bool FromGuardianInvite, IReadOnlyList<string> LinkedStudentNames,
-        IReadOnlyList<Role> CurrentRoles);
+        IReadOnlyList<Role> CurrentRoles, DateTimeOffset? AcceptedAt = null, bool EmailConfirmed = false);
 
     /// <summary>
     /// STATE.md "Waiting-for-approval list on the role-assignment page", per chapter since FR-021:
@@ -156,14 +157,9 @@ public sealed class RoleAssignmentService
     {
         var chapterId = RequireAdmin();
 
-        // GuardianInvites is chapter-filtered: these are this chapter's invites.
-        var inviteAccepters = _db.GuardianInvites
-            .Where(i => i.ConsumedByAppUserId != null && i.ChapterId == chapterId)
-            .Select(i => i.ConsumedByAppUserId!.Value);
-        var parents = _db.UserRoles.Where(r => r.Role == Role.Parent && r.ChapterId == chapterId).Select(r => r.UserId);
-
+        var waitingUsers = InviteAcceptorsAwaitingParentIn(_db, chapterId);
         var waiting = await _db.AppUsers
-            .Where(u => inviteAccepters.Contains(u.Id) && !parents.Contains(u.Id))
+            .Where(u => waitingUsers.Contains(u.Id))
             .OrderBy(u => u.DisplayName)
             .ToListAsync(ct);
 
@@ -180,13 +176,37 @@ public sealed class RoleAssignmentService
             .ToListAsync(ct);
         var studentsByUser = links.ToLookup(l => l.UserId, l => l.StudentName);
 
+        var accepted = (await _db.GuardianInvites
+            .Where(i => i.ChapterId == chapterId && i.ConsumedByAppUserId != null && waitingIds.Contains(i.ConsumedByAppUserId.Value))
+            .Select(i => new { UserId = i.ConsumedByAppUserId!.Value, i.ConsumedAt })
+            .ToListAsync(ct))
+            .GroupBy(i => i.UserId)
+            .ToDictionary(g => g.Key, g => g.Min(i => i.ConsumedAt));
+        var confirmed = (await _db.Users.Where(i => waitingIds.Contains(i.Id) && i.EmailConfirmed).Select(i => i.Id).ToListAsync(ct)).ToHashSet();
+
         return waiting
             .Select(u => new AwaitingApproval(
                 u.Id, u.DisplayName, u.Email, FromGuardianInvite: true,
                 studentsByUser[u.Id].Distinct().OrderBy(n => n).ToList(),
-                rolesByUser[u.Id].OrderBy(r => r).ToList()))
+                rolesByUser[u.Id].OrderBy(r => r).ToList(),
+                accepted.GetValueOrDefault(u.Id),
+                confirmed.Contains(u.Id)))
             .ToList();
     }
+
+    /// <summary>
+    /// The accounts that accepted one of <paramref name="chapterId"/>'s guardian invites and do not
+    /// hold <see cref="Role.Parent"/> there: the guardian-invite half of the chapter's registration
+    /// queue (adr/0017), shared with <c>Registration.RegistrationQueueService</c>'s count.
+    /// GuardianInvites is chapter-filtered, so this sees only the caller's chapter's invites. The
+    /// caller checks the role.
+    /// </summary>
+    internal static IQueryable<int> InviteAcceptorsAwaitingParentIn(VlmsDbContext db, int chapterId) =>
+        db.GuardianInvites
+            .Where(i => i.ConsumedByAppUserId != null && i.ChapterId == chapterId)
+            .Select(i => i.ConsumedByAppUserId!.Value)
+            .Where(id => !db.UserRoles.Any(r => r.UserId == id && r.Role == Role.Parent && r.ChapterId == chapterId))
+            .Distinct();
 
     /// <summary>
     /// Approves a guardian who accepted one of this chapter's invites by granting
@@ -213,27 +233,50 @@ public sealed class RoleAssignmentService
     /// Admin-only. Throws if the role is not one a chapter Admin grants, the user doesn't exist, has
     /// been marked as having left, is a student sign-in, or already holds the role in this chapter.
     /// </summary>
-    public async Task GrantAsync(int userId, Role role, CancellationToken ct = default)
+    public Task GrantAsync(int userId, Role role, CancellationToken ct = default) =>
+        GrantAsync(userId, [role], ct);
+
+    /// <summary>
+    /// Grants every role in <paramref name="roles"/> to <paramref name="userId"/> in the Admin's
+    /// active chapter, all or none, in one transaction with one security-stamp rotation (the
+    /// registration queue's several-roles-in-one-go grant, adr/0017). Admin-only. Every role is
+    /// checked first with <see cref="GrantAsync(int, Role, CancellationToken)"/>'s rules; any refusal
+    /// throws before anything is written. Throws if no role is given or one is given twice.
+    /// </summary>
+    public async Task GrantAsync(int userId, IReadOnlyCollection<Role> roles, CancellationToken ct = default)
     {
         var chapterId = RequireAdmin();
+        ArgumentNullException.ThrowIfNull(roles);
+        if (roles.Count == 0)
+        {
+            throw new InvalidOperationException("Choose at least one role to grant.");
+        }
+
+        if (roles.Distinct().Count() != roles.Count)
+        {
+            throw new InvalidOperationException("Each role can be granted only once.");
+        }
 
         var user = await _db.AppUsers.SingleOrDefaultAsync(u => u.Id == userId, ct)
             ?? throw new InvalidOperationException($"AppUser {userId} does not exist.");
 
-        // FR-017 (amended 27/10/2026): roles may be granted to someone Inactive in this chapter, but
-        // none counts until they are reactivated there (IdentityCurrentUserContext.HasRole).
-        // FR-011, adr/0007: Student is granted only when a linked parent creates a student sign-in
-        // (StudentAccountService), never here; and a student sign-in gets no other role.
-        if (role == Role.Student)
+        foreach (var role in roles)
         {
-            throw new InvalidOperationException(
-                "The Student role is granted only when a parent creates the student's sign-in.");
-        }
+            // FR-017 (amended 27/10/2026): roles may be granted to someone Inactive in this chapter, but
+            // none counts until they are reactivated there (IdentityCurrentUserContext.HasRole).
+            // FR-011, adr/0007: Student is granted only when a linked parent creates a student sign-in
+            // (StudentAccountService), never here; and a student sign-in gets no other role.
+            if (role == Role.Student)
+            {
+                throw new InvalidOperationException(
+                    "The Student role is granted only when a parent creates the student's sign-in.");
+            }
 
-        if (role.IsNationalRole())
-        {
-            throw new InvalidOperationException(
-                $"{role.DisplayName()} is a national role: a National Administrator grants it.");
+            if (role.IsNationalRole())
+            {
+                throw new InvalidOperationException(
+                    $"{role.DisplayName()} is a national role: a National Administrator grants it.");
+            }
         }
 
         // A student sign-in has no email (StudentSignInPolicy); the Student lookup alone would miss
@@ -244,13 +287,22 @@ public sealed class RoleAssignmentService
                 $"{user.DisplayName} is a student sign-in — it can't be given other roles.");
         }
 
-        if (await _db.UserRoles.AnyAsync(r => r.UserId == userId && r.Role == role && r.ChapterId == chapterId, ct))
+        var requested = roles.ToList();
+        var alreadyHeld = await _db.UserRoles
+            .Where(r => r.UserId == userId && r.ChapterId == chapterId && requested.Contains(r.Role))
+            .Select(r => r.Role)
+            .ToListAsync(ct);
+        if (alreadyHeld.Count > 0)
         {
-            throw new InvalidOperationException($"{user.DisplayName} already holds the {role} role.");
+            throw new InvalidOperationException($"{user.DisplayName} already holds the {alreadyHeld.Order().First()} role.");
         }
 
         await using var transaction = await _db.Database.BeginTransactionAsync(ct);
-        _db.UserRoles.Add(new UserRole { UserId = userId, Role = role, ChapterId = chapterId });
+        foreach (var role in requested)
+        {
+            _db.UserRoles.Add(new UserRole { UserId = userId, Role = role, ChapterId = chapterId });
+        }
+
         await _db.SaveChangesAsync(ct);
         await SecurityStamps.RotateAsync(_userManager, userId);
         await transaction.CommitAsync(ct);

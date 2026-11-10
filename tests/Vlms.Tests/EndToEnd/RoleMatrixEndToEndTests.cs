@@ -28,6 +28,9 @@ public sealed class RoleMatrixEndToEndTests(RoleMatrixEndToEndTests.Sessions ses
         ["RequireTeacher"] = [Role.Teacher],
         ["RequireApprover"] = [Role.Approver],
         ["RequireParent"] = [Role.Parent],
+        // My applications (adr/0017 As built): a Parent, or someone with an application of their own
+        // (no profile here has one without being a Parent).
+        ["RequireParentOrApplicant"] = [Role.Parent],
         ["RequireStudent"] = [Role.Student],
         ["RequireSafeguardingOfficer"] = [Role.SafeguardingOfficer],
         ["RequireNationalAdministrator"] = [Role.NationalAdministrator],
@@ -120,6 +123,13 @@ public sealed class RoleMatrixEndToEndTests(RoleMatrixEndToEndTests.Sessions ses
             {
                 // No role requirement: authenticated users only, plus the MFA rule.
                 Assert.Contains(policy.Requirements, r => r is Microsoft.AspNetCore.Authorization.Infrastructure.DenyAnonymousAuthorizationRequirement);
+                Assert.DoesNotContain(policy.Requirements, r => r is AnyRoleRequirement or RoleRequirement);
+                continue;
+            }
+
+            if (name == "RequireParentOrApplicant")
+            {
+                Assert.Contains(policy.Requirements, r => r is ParentOrApplicantRequirement);
                 Assert.DoesNotContain(policy.Requirements, r => r is AnyRoleRequirement or RoleRequirement);
                 continue;
             }
