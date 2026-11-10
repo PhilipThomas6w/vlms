@@ -249,7 +249,7 @@ public sealed class LessonSuggestionJourneyTests
 
         // A picture, uploaded with its description, then shown in the editor.
         await approver.Keyboard.PressAsync("Enter");
-        await approver.GetByRole(AriaRole.Button, new() { Name = "Insert picture" }).ClickAsync();
+        await approver.GetByRole(AriaRole.Region, new() { Name = "Lesson text" }).GetByRole(AriaRole.Button, new() { Name = "Insert picture" }).ClickAsync();
         var dialog = approver.GetByRole(AriaRole.Dialog, new() { Name = "Insert picture" });
         await Assertions.Expect(dialog).ToBeVisibleAsync();
         await AssertNoWcagViolationsAsync(approver, "the picture dialog");

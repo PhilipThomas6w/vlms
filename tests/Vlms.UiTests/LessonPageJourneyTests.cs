@@ -36,6 +36,7 @@ public sealed class LessonPageJourneyTests
         db.Entry(lesson).Property(l => l.Body).CurrentValue =
             "## Questions\n\n- What is a Prosphora?\n\n![Three loaves of prosphora](loaves.jpg)\n\n| Ingredient | Amount |\n|---|---|\n| Strong White Flour | 12 oz |\n";
         db.Entry(lesson).Property(l => l.ContentVersion).CurrentValue = "ui-test-1";
+        db.Entry(lesson).Property(l => l.TeachersNotes).CurrentValue = "## Lesson plan\n\nShow the seal before the questions.";
         var pictureId = await db.LessonPictures.Select(p => (int?)p.Id).MaxAsync() is { } max ? max + 1 : 1;
         db.LessonPictures.Add(new LessonPicture { Id = pictureId, LessonId = lesson.Id, Order = 1, FileName = "loaves.jpg", BlobKey = $"lesson-pictures/{Code}/loaves.jpg" });
         var rank = await db.Ranks.SingleAsync(r => r.Id == lesson.RankId);
@@ -93,6 +94,11 @@ public sealed class LessonPageJourneyTests
         await Assertions.Expect(information).ToHaveCountAsync(1);
         await information.Locator("summary").ClickAsync();
         await Assertions.Expect(information).ToContainTextAsync("Bake a loaf with the class");
+        // The lesson's teacher's notes (docs/adr/0015), open, so axe checks their content too.
+        var notes = page.Locator("[data-teachers-notes]");
+        await Assertions.Expect(notes).ToHaveCountAsync(1);
+        await notes.Locator("summary").ClickAsync();
+        await Assertions.Expect(notes).ToContainTextAsync("Show the seal before the questions.");
         await AssertNoWcagViolationsAsync(page);
 
         await page.SetViewportSizeAsync(375, 800);
@@ -123,6 +129,8 @@ public sealed class LessonPageJourneyTests
         await Assertions.Expect(page.Locator("[data-teachers-information]")).ToHaveCountAsync(0);
         await Assertions.Expect(page.Locator("main")).Not.ToContainTextAsync("Teacher's Information");
         await Assertions.Expect(page.Locator("main")).Not.ToContainTextAsync("Bake a loaf");
+        await Assertions.Expect(page.Locator("[data-teachers-notes]")).ToHaveCountAsync(0);
+        await Assertions.Expect(page.Locator("main")).Not.ToContainTextAsync("Show the seal");
         await AssertNoWcagViolationsAsync(page);
     }
 

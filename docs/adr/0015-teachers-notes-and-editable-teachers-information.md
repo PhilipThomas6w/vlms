@@ -28,3 +28,13 @@ Philip's review of the Cross-bearer import (10/11/2026) found two defects across
 - One EF migration (notes on lesson versions and lessons; versions and suggestions for rank Teacher's Information).
 - The access-control stage of the gate gains the new endpoints; tests prove a Student and a Parent receive no notes from the page, the picture endpoints or the offline copy.
 - Cross-bearer's production import waits for this change.
+
+## As built (10/11/2026)
+
+Built as decided, migration `AddTeachersNotes`. Choices the decision left open:
+
+- A Teacher's Information suggestion is a `LessonSuggestion` of a new kind (`TeachersInformation`, no lesson, the rank set), not a separate table, so the review queue, committee referral and Approver alerts apply unchanged. Its versions have their own table, `TeachersInformationVersion`.
+- Notes pictures share the lesson's picture rows (one file-name namespace per lesson); a picture only the notes use is flagged `TeachersNotesOnly` and is served only at the staff-only address.
+- Teacher's Information pictures are now stored under content-addressed keys, as lesson pictures are, so earlier versions stay readable.
+- No data backfill: a rank's Teacher's Information version 1 (Converted) is made by the next seeder run, or when someone first suggests a change to it.
+- A `.notes.md` file with no lesson text beside it is a seeder warning and is not imported.

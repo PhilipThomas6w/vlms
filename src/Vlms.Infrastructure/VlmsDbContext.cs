@@ -44,6 +44,8 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
     public DbSet<LessonFile> LessonFiles => Set<LessonFile>();
     public DbSet<LessonPicture> LessonPictures => Set<LessonPicture>();
     public DbSet<TeachersInformationPicture> TeachersInformationPictures => Set<TeachersInformationPicture>();
+    public DbSet<TeachersInformationVersion> TeachersInformationVersions => Set<TeachersInformationVersion>();
+    public DbSet<TeachersInformationVersionPicture> TeachersInformationVersionPictures => Set<TeachersInformationVersionPicture>();
     public DbSet<LessonVersion> LessonVersions => Set<LessonVersion>();
     public DbSet<LessonVersionTag> LessonVersionTags => Set<LessonVersionTag>();
     public DbSet<LessonVersionPicture> LessonVersionPictures => Set<LessonVersionPicture>();
@@ -146,6 +148,28 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
             e.HasMany(x => x.Lessons).WithOne(x => x.Rank).HasForeignKey(x => x.RankId).OnDelete(DeleteBehavior.Cascade);
             e.HasMany(x => x.RankBadges).WithOne(x => x.Rank).HasForeignKey(x => x.RankId).OnDelete(DeleteBehavior.Cascade);
             e.HasMany(x => x.TeachersInformationPictures).WithOne(x => x.Rank).HasForeignKey(x => x.RankId).OnDelete(DeleteBehavior.Cascade);
+            e.HasMany(x => x.TeachersInformationVersions).WithOne(x => x.Rank).HasForeignKey(x => x.RankId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // A rank's Teacher's Information versions (docs/adr/0015 decision 4), kept permanently like lesson versions.
+        modelBuilder.Entity<TeachersInformationVersion>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.HasIndex(x => new { x.RankId, x.Number }).IsUnique();
+            e.HasOne(x => x.Suggestion).WithMany().HasForeignKey(x => x.SuggestionId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne<AppUser>().WithMany().HasForeignKey(x => x.SuggestedByUserId).OnDelete(DeleteBehavior.SetNull);
+            e.HasOne<AppUser>().WithMany().HasForeignKey(x => x.ApprovedByUserId).OnDelete(DeleteBehavior.SetNull);
+            e.HasOne<AppUser>().WithMany().HasForeignKey(x => x.PublishedByUserId).OnDelete(DeleteBehavior.SetNull);
+            e.HasMany(x => x.Pictures).WithOne(x => x.TeachersInformationVersion).HasForeignKey(x => x.TeachersInformationVersionId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<TeachersInformationVersionPicture>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.HasIndex(x => new { x.TeachersInformationVersionId, x.FileName }).IsUnique();
         });
 
         modelBuilder.Entity<Lesson>(e =>
@@ -227,6 +251,9 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
             e.HasMany(x => x.Tags).WithOne().HasForeignKey(x => x.LessonSuggestionId).OnDelete(DeleteBehavior.Cascade);
             e.HasMany(x => x.Pictures).WithOne(x => x.LessonSuggestion).HasForeignKey(x => x.LessonSuggestionId).OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(x => x.LessonId).IsUnique().HasFilter("status IN (0, 1)").HasDatabaseName("IX_lesson_suggestions_lesson_id_open");
+            // One open Teacher's Information suggestion per rank (docs/adr/0015; kind 4 is LessonChangeKind.TeachersInformation).
+            e.HasIndex(x => new { x.RankId, x.Kind }).IsUnique().HasFilter("kind = 4 AND status IN (0, 1)")
+                .HasDatabaseName("IX_lesson_suggestions_rank_id_teachers_information_open");
             e.HasIndex(x => x.Status);
         });
 

@@ -9,8 +9,9 @@ namespace Vlms.Tests.Infrastructure;
 
 /// <summary>
 /// The app-hosted lesson reads of <see cref="LessonLibraryService"/> (docs/adr/0012-app-hosted-lessons.md decisions 5–7):
-/// the lesson page, lesson pictures, the Teacher's Information shown to Teachers, Admins and the National Administrator
-/// only (enforced in the service, for each role), and what a device needs to save a converted lesson's page.
+/// the lesson page, lesson pictures, the Teacher's Information and teacher's notes shown to Teachers, Admins, the National
+/// Administrator and Approvers only (docs/adr/0015; enforced in the service, for each role), and what a device needs to save
+/// a converted lesson's page, which for a student or parent never includes the notes or their pictures.
 /// </summary>
 public sealed class LessonPageServiceTests : IDisposable
 {
@@ -30,7 +31,8 @@ public sealed class LessonPageServiceTests : IDisposable
         context.Lessons.Add(new Lesson
         {
             Id = 10, RankId = 1, Code = "R5-01", Title = "Prosphora", Order = 1, IsActive = true,
-            Body = "## Questions\n\n![Loaves](loaves.jpg)\n\n<script>alert(1)</script>", ContentVersion = "v1"
+            Body = "## Questions\n\n![Loaves](loaves.jpg)\n\n<script>alert(1)</script>", ContentVersion = "v1",
+            TeachersNotes = "## Lesson plan\n\nTEACHER-ONLY-PLAN\n\n![Seating plan](seating.jpg)\n\n![Loaves](loaves.jpg)"
         });
         context.Lessons.Add(new Lesson { Id = 11, RankId = 1, Code = "R5-02", Title = "Unconverted", Order = 2, IsActive = true });
         context.Lessons.Add(new Lesson { Id = 12, RankId = 1, Code = "R5-03", Title = "Retired", Order = 3, IsActive = false, Body = "Old", ContentVersion = "v0" });
@@ -38,12 +40,17 @@ public sealed class LessonPageServiceTests : IDisposable
         context.LessonFiles.Add(new LessonFile { Id = 101, LessonId = 11, Order = 1, FileName = "Liturgy.docx", BlobKey = "lessons/R5-02/Liturgy.docx" });
         context.LessonPictures.Add(new LessonPicture { Id = 20, LessonId = 10, Order = 1, FileName = "loaves.jpg", BlobKey = "lesson-pictures/R5-01/loaves.jpg" });
         context.LessonPictures.Add(new LessonPicture { Id = 21, LessonId = 12, Order = 1, FileName = "old.jpg", BlobKey = "lesson-pictures/R5-03/old.jpg" });
+        context.LessonPictures.Add(new LessonPicture
+        {
+            Id = 22, LessonId = 10, Order = 2, FileName = "seating.jpg", BlobKey = "lesson-pictures/R5-01/seating.jpg", TeachersNotesOnly = true
+        });
         context.TeachersInformationPictures.Add(new TeachersInformationPicture { Id = 30, RankId = 1, Order = 1, FileName = "room.jpg", BlobKey = "teachers-information/HERALD/room.jpg" });
         context.SaveChanges();
 
         _blobs.UploadAsync("lesson-pictures/R5-01/loaves.jpg", [1, 2]).Wait();
         _blobs.UploadAsync("lesson-pictures/R5-03/old.jpg", [3]).Wait();
         _blobs.UploadAsync("teachers-information/HERALD/room.jpg", [4]).Wait();
+        _blobs.UploadAsync("lesson-pictures/R5-01/seating.jpg", [5]).Wait();
     }
 
     public void Dispose() => _anchorConnection.Dispose();
@@ -58,9 +65,10 @@ public sealed class LessonPageServiceTests : IDisposable
         return await act(new LessonLibraryService(context, _blobs, user));
     }
 
-    public static TheoryData<Role> Staff => new() { Role.Teacher, Role.Admin, Role.NationalAdministrator };
+    // Approvers see both since docs/adr/0015 (flagged assumption: they must read the notes to review a suggestion).
+    public static TheoryData<Role> Staff => new() { Role.Teacher, Role.Admin, Role.NationalAdministrator, Role.Approver };
 
-    public static TheoryData<Role> NotStaff => new() { Role.Student, Role.Parent, Role.Approver };
+    public static TheoryData<Role> NotStaff => new() { Role.Student, Role.Parent };
 
     [Theory]
     [MemberData(nameof(Staff))]
@@ -76,7 +84,7 @@ public sealed class LessonPageServiceTests : IDisposable
 
     [Theory]
     [MemberData(nameof(NotStaff))]
-    public async Task LessonPage_ForStudentsParentsAndApprovers_HasNoTeachersInformation(Role role)
+    public async Task LessonPage_ForStudentsAndParents_HasNoTeachersInformation(Role role)
     {
         var page = await AsAsync(role, s => s.GetLessonPageAsync("R5-01"));
 
@@ -84,6 +92,85 @@ public sealed class LessonPageServiceTests : IDisposable
         Assert.Null(page.TeachersInformationHtml);
         Assert.DoesNotContain("For teachers", page.Html);
     }
+
+    [Theory]
+    [MemberData(nameof(Staff))]
+    public async Task LessonPage_ForStaff_CarriesTheTeachersNotes_WithANotesOnlyPictureAtTheStaffAddress(Role role)
+    {
+        var page = await AsAsync(role, s => s.GetLessonPageAsync("R5-01"));
+
+        Assert.NotNull(page);
+        Assert.True(page.ShowsTeachersMaterial);
+        Assert.NotNull(page.TeachersNotesHtml);
+        Assert.Contains("TEACHER-ONLY-PLAN", page.TeachersNotesHtml);
+        Assert.Contains("src=\"/lessons/teachers-notes/pictures/22\"", page.TeachersNotesHtml);
+        // A picture the text uses too keeps its ordinary address.
+        Assert.Contains("src=\"/lessons/pictures/20\"", page.TeachersNotesHtml);
+        Assert.DoesNotContain("TEACHER-ONLY-PLAN", page.Html);
+        // The notes-only picture is never one the device saves under the lesson-picture address.
+        Assert.Equal([20], page.PictureIds);
+    }
+
+    [Theory]
+    [MemberData(nameof(NotStaff))]
+    public async Task LessonPage_ForStudentsAndParents_HasNoTeachersNotes_NorAnyTraceOfTheirPictures(Role role)
+    {
+        var page = await AsAsync(role, s => s.GetLessonPageAsync("R5-01"));
+
+        Assert.NotNull(page);
+        Assert.False(page.ShowsTeachersMaterial);
+        Assert.Null(page.TeachersNotesHtml);
+        Assert.Null(page.TeachersInformationHtml);
+        Assert.DoesNotContain("TEACHER-ONLY-PLAN", page.Html);
+        Assert.DoesNotContain("seating", page.Html);
+        Assert.DoesNotContain("teachers-notes", page.Html);
+        Assert.Equal([20], page.PictureIds);
+    }
+
+    [Theory]
+    [MemberData(nameof(Staff))]
+    public async Task LessonPage_ForStaff_WithNoNotesAndNoTeachersInformation_StillShowsTheSections(Role role)
+    {
+        using (var context = CreateContext(new FakeCurrentUserContext(1, Role.Admin)))
+        {
+            var rank = context.Ranks.Single(r => r.Id == 1);
+            context.Entry(rank).Property(r => r.TeachersInformation).CurrentValue = null;
+            var lesson = context.Lessons.Single(l => l.Id == 10);
+            context.Entry(lesson).Property(l => l.TeachersNotes).CurrentValue = null;
+            context.SaveChanges();
+        }
+
+        var page = await AsAsync(role, s => s.GetLessonPageAsync("R5-01"));
+
+        Assert.NotNull(page);
+        Assert.True(page.ShowsTeachersMaterial);
+        Assert.Null(page.TeachersNotesHtml);
+        Assert.Null(page.TeachersInformationHtml);
+        Assert.Equal("HERALD", page.RankCode);
+    }
+
+    [Theory]
+    [MemberData(nameof(Staff))]
+    public async Task TeachersNotesPicture_IsServedToStaff(Role role)
+    {
+        var picture = await AsAsync(role, s => s.OpenTeachersNotesPictureAsync(22));
+
+        Assert.NotNull(picture);
+        Assert.Equal([5], picture.Content);
+    }
+
+    [Theory]
+    [MemberData(nameof(NotStaff))]
+    [InlineData(Role.SafeguardingOfficer)]
+    public async Task TeachersNotesPicture_IsRefusedToEveryoneElse(Role role) =>
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => AsAsync(role, s => s.OpenTeachersNotesPictureAsync(22)));
+
+    [Theory]
+    [InlineData(Role.Student)]
+    [InlineData(Role.Parent)]
+    [InlineData(Role.Teacher)]
+    public async Task NotesOnlyPicture_IsNeverServedByTheLessonPictureAddress(Role role) =>
+        Assert.Null(await AsAsync(role, s => s.OpenPictureAsync(22)));
 
     [Fact]
     public async Task LessonPage_HasTheTitleRankAndSafeText_WithPicturesAtTheirAppUrls()

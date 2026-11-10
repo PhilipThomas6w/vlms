@@ -76,6 +76,15 @@ public sealed class LessonSuggestionService
     public static string HistoryUrl(string lessonCode) => $"/lessons/{Uri.EscapeDataString(lessonCode)}/history";
     public static string ReviewUrl(int suggestionId) => $"/curriculum/review/{suggestionId}";
 
+    /// <summary>The name a rank's Teacher's Information suggestion goes by in the review list and on its pages (adr/0015).</summary>
+    public const string TeachersInformationTitle = "Teacher's Information";
+
+    public static string TeachersInformationEditorUrl(string rankCode) => $"/curriculum/teachers-information/{Uri.EscapeDataString(rankCode)}/suggest";
+    public static string TeachersInformationHistoryUrl(string rankCode) => $"/curriculum/teachers-information/{Uri.EscapeDataString(rankCode)}/history";
+
+    /// <summary>Where a Teacher's Information version's picture is served (Approvers and Admins only, the history).</summary>
+    public static string TeachersInformationVersionPictureUrl(int pictureId) => $"/curriculum/teachers-information/versions/pictures/{pictureId}";
+
     public bool CanSuggest => SuggesterRoles.Any(_currentUser.HasRole);
     public bool CanReadHistory => HistoryRoles.Any(_currentUser.HasRole);
 
@@ -148,8 +157,67 @@ public sealed class LessonSuggestionService
 
         var fresh = new SuggestionDraftView(null, null, LessonChangeKind.Edit, lesson.Title, lesson.Order,
             lesson.Tags.Select(t => t.Tag).Order().ToList(), lesson.Body!, null,
-            lesson.Pictures.ToDictionary(p => p.FileName, p => LessonLibraryService.PictureUrl(p.Id), StringComparer.Ordinal), null);
+            lesson.Pictures.ToDictionary(p => p.FileName,
+                p => p.TeachersNotesOnly ? LessonLibraryService.TeachersNotesPictureUrl(p.Id) : LessonLibraryService.PictureUrl(p.Id), StringComparer.Ordinal),
+            null)
+        { TeachersNotes = lesson.TeachersNotes ?? "" };
         return new SuggestionEditor(lesson.Id, lesson.Code, lesson.Title, lesson.RankId, lesson.Rank!.Name, version, null, fresh, canPublish, null);
+    }
+
+    /// <summary>
+    /// The editor for a rank's Teacher's Information (docs/adr/0015 decision 4): the caller's own open suggestion for it, or
+    /// a new one starting from the Teacher's Information as it is (empty when the rank has none), or from their latest one
+    /// that was sent back, still based on the current version. When someone else's is open,
+    /// <see cref="SuggestionEditor.BlockedBy"/> says so. Null for an unknown rank.
+    /// </summary>
+    public async Task<SuggestionEditor?> GetTeachersInformationEditorAsync(string rankCode, CancellationToken ct = default)
+    {
+        RequireSuggester();
+        var userId = RequireUserId();
+
+        var rank = await _db.Ranks.AsNoTracking().Include(r => r.TeachersInformationPictures).SingleOrDefaultAsync(r => r.Code == rankCode, ct);
+        if (rank is null)
+        {
+            return null;
+        }
+
+        var version = await CurrentTeachersInformationVersionNumberAsync(rank.Id, ct);
+        var canPublish = await CanPublishNowAsync(ct);
+        SuggestionEditor Editor(OpenSuggestion? blockedBy, SuggestionDraftView? draft, SentBackInfo? sentBackInfo) =>
+            new(null, null, TeachersInformationTitle, rank.Id, rank.Name, version, blockedBy, draft, canPublish, sentBackInfo)
+            {
+                RankCode = rank.Code,
+                ForTeachersInformation = true
+            };
+
+        var open = await OpenTeachersInformationSuggestionAsync(rank.Id, ct);
+        if (open is not null && !open.IsMine)
+        {
+            return Editor(open, null, null);
+        }
+        if (open is not null)
+        {
+            var mine = await LoadSuggestionAsync(open.Id, ct);
+            return Editor(null, ToDraftView(mine), await SentBackInfoAsync(mine.RevisesSuggestionId, ct));
+        }
+
+        var sentBack = await _db.LessonSuggestions.AsNoTracking().Include(s => s.Tags).Include(s => s.Pictures)
+            .Where(s => s.RankId == rank.Id && s.Kind == LessonChangeKind.TeachersInformation && s.AuthorUserId == userId
+                && s.Status == LessonSuggestionStatus.SentBack && s.BaseVersionNumber == version)
+            .OrderByDescending(s => s.DecidedAt).ThenByDescending(s => s.Id)
+            .FirstOrDefaultAsync(ct);
+        if (sentBack is not null
+            && !await _db.LessonSuggestions.AnyAsync(s => s.RevisesSuggestionId == sentBack.Id, ct))
+        {
+            var view = ToDraftView(sentBack) with { Id = null, Status = null, RevisesSuggestionId = sentBack.Id };
+            return Editor(null, view, await SentBackInfoAsync(sentBack.Id, ct));
+        }
+
+        var fresh = new SuggestionDraftView(null, null, LessonChangeKind.TeachersInformation, TeachersInformationTitle, 0, [],
+            rank.TeachersInformation ?? "", null,
+            rank.TeachersInformationPictures.ToDictionary(p => p.FileName, p => LessonLibraryService.TeachersInformationPictureUrl(p.Id), StringComparer.Ordinal),
+            null);
+        return Editor(null, fresh, null);
     }
 
     /// <summary>
@@ -349,6 +417,20 @@ public sealed class LessonSuggestionService
         return bytes is null ? null : new LessonFileContent(picture.FileName, bytes);
     }
 
+    /// <summary>A Teacher's Information version's picture, for Approvers and Admins (the history); null if unknown or missing.</summary>
+    public async Task<LessonFileContent?> OpenTeachersInformationVersionPictureAsync(int pictureId, CancellationToken ct = default)
+    {
+        RequireHistoryRole();
+        var picture = await _db.TeachersInformationVersionPictures.AsNoTracking().SingleOrDefaultAsync(p => p.Id == pictureId, ct);
+        if (picture is null)
+        {
+            return null;
+        }
+
+        var bytes = await _blobs.ReadAsync(picture.BlobKey, ct);
+        return bytes is null ? null : new LessonFileContent(picture.FileName, bytes);
+    }
+
     // --- Review ----------------------------------------------------------------------------------------------------
 
     /// <summary>Approvers: every submitted suggestion, oldest first ("Changes to review"), referred ones included.</summary>
@@ -405,7 +487,29 @@ public sealed class LessonSuggestionService
         }
         var committee = await CommitteeAsync(suggestion.Id, ct);
 
-        var rankName = await _db.Ranks.Where(r => r.Id == suggestion.RankId).Select(r => r.Name).SingleAsync(ct);
+        var rank = await _db.Ranks.AsNoTracking().Where(r => r.Id == suggestion.RankId).Select(r => new { r.Name, r.Code }).SingleAsync(ct);
+        var rankName = rank.Name;
+        if (suggestion.Kind == LessonChangeKind.TeachersInformation)
+        {
+            var currentInformation = await LatestTeachersInformationVersionAsync(suggestion.RankId, ct);
+            var informationBefore = currentInformation is null ? LessonDiff.Side.Empty : TeachersInformationVersionSide(currentInformation);
+            var informationAfter = SuggestionSide(suggestion);
+            return new SuggestionReview(
+                suggestion.Id, suggestion.Kind, suggestion.Status, null, TeachersInformationTitle, rankName,
+                suggestion.AuthorUser?.DisplayName ?? FormerStaff.Name, suggestion.SubmittedAt ?? suggestion.UpdatedAt, suggestion.Reason,
+                suggestion.BaseVersionNumber, currentInformation?.Number,
+                IsStale: suggestion.BaseVersionNumber != currentInformation?.Number,
+                TrackedHtml: LessonDiff.Tracked(informationBefore, informationAfter),
+                FinalHtml: LessonDiff.Render(informationAfter),
+                BeforeHtml: LessonDiff.Render(informationBefore),
+                SettingChanges: [],
+                FormerStaff.Or(suggestion.DecidedByUser?.DisplayName, suggestion.DecidedAt is not null), suggestion.DecidedAt, suggestion.SentBackComment,
+                committee.Referral, committee.Approvals, committee.ApproverIds.Contains(userId))
+            {
+                RankCode = rank.Code
+            };
+        }
+
         var current = suggestion.LessonId is int lessonId ? await LatestVersionAsync(lessonId, ct) : null;
         var lesson = suggestion.LessonId is int id ? await _db.Lessons.AsNoTracking().SingleAsync(l => l.Id == id, ct) : null;
 
@@ -413,6 +517,9 @@ public sealed class LessonSuggestionService
         var after = SuggestionSide(suggestion);
         var isRetire = suggestion.Kind == LessonChangeKind.Retire;
         var currentNumber = current?.Number;
+        var notesBefore = current is null ? LessonDiff.Side.Empty : VersionNotesSide(current);
+        var notesAfter = SuggestionNotesSide(suggestion);
+        var hasNotes = !isRetire && (notesBefore.Body is not null || notesAfter.Body is not null);
 
         return new SuggestionReview(
             suggestion.Id, suggestion.Kind, suggestion.Status, lesson?.Code, lesson?.Title ?? suggestion.Title, rankName,
@@ -424,7 +531,13 @@ public sealed class LessonSuggestionService
             BeforeHtml: LessonDiff.Render(before),
             SettingChanges: SettingChanges(current, suggestion.Title, suggestion.Order, suggestion.Tags.Select(t => t.Tag), rankName),
             FormerStaff.Or(suggestion.DecidedByUser?.DisplayName, suggestion.DecidedAt is not null), suggestion.DecidedAt, suggestion.SentBackComment,
-            committee.Referral, committee.Approvals, committee.ApproverIds.Contains(userId));
+            committee.Referral, committee.Approvals, committee.ApproverIds.Contains(userId))
+        {
+            RankCode = rank.Code,
+            NotesTrackedHtml = hasNotes ? LessonDiff.Tracked(notesBefore, notesAfter) : null,
+            NotesFinalHtml = hasNotes ? LessonDiff.Render(notesAfter) : null,
+            NotesBeforeHtml = hasNotes ? LessonDiff.Render(notesBefore) : null
+        };
     }
 
     /// <summary>
@@ -479,7 +592,9 @@ public sealed class LessonSuggestionService
         {
             throw new InvalidOperationException("This suggestion has already been referred to committee.");
         }
-        if (suggestion.LessonId is int lessonId && suggestion.BaseVersionNumber != await CurrentVersionNumberAsync(lessonId, ct))
+        if ((suggestion.LessonId is int lessonId && suggestion.BaseVersionNumber != await CurrentVersionNumberAsync(lessonId, ct))
+            || (suggestion.Kind == LessonChangeKind.TeachersInformation
+                && suggestion.BaseVersionNumber != await CurrentTeachersInformationVersionNumberAsync(suggestion.RankId, ct)))
         {
             throw new InvalidOperationException(
                 "The lesson has changed since this suggestion was started, so it cannot be approved. Send it back instead.");
@@ -596,10 +711,15 @@ public sealed class LessonSuggestionService
         {
             var version = versions[i];
             var previous = i > 0 ? versions[i - 1] : null;
-            string? changes = null, beforeHtml = null, afterHtml = null;
+            string? changes = null, beforeHtml = null, afterHtml = null, notesChanges = null;
             IReadOnlyList<SettingChange> settings = [];
             if (previous is not null)
             {
+                // The teacher's notes, shown as tracked changes whenever they changed (adr/0015 decision 2).
+                if ((previous.TeachersNotes ?? "") != (version.TeachersNotes ?? ""))
+                {
+                    notesChanges = LessonDiff.Tracked(VersionNotesSide(previous), VersionNotesSide(version));
+                }
                 settings = SettingChanges(previous, version.Title, version.Order, version.Tags.Select(t => t.Tag), lesson.Rank!.Name,
                     version.IsActive);
                 if (version.Kind == LessonVersionKind.ReplacedInFull)
@@ -621,12 +741,66 @@ public sealed class LessonSuggestionService
                 FormerStaff.Or(Name(version.SuggestedByUserId), suggested), version.SuggestedAt,
                 FormerStaff.Or(Name(version.ApprovedByUserId), suggested && !version.PublishedDirectly),
                 FormerStaff.Or(Name(version.PublishedByUserId), suggested && version.PublishedDirectly),
-                version.Reason, version.PublishedAt, changes, beforeHtml, afterHtml, settings, committee.Referral, committee.Approvals));
+                version.Reason, version.PublishedAt, changes, beforeHtml, afterHtml, settings, committee.Referral, committee.Approvals)
+            {
+                NotesChangesHtml = notesChanges
+            });
         }
         entries.Reverse();
 
-        var sentBackRows = await _db.LessonSuggestions.AsNoTracking()
-            .Where(s => s.LessonId == lesson.Id && s.Status == LessonSuggestionStatus.SentBack)
+        return new LessonHistory(lesson.Id, lesson.Code, lesson.Title, entries,
+            await SentBackAsync(_db.LessonSuggestions.Where(s => s.LessonId == lesson.Id), ct));
+    }
+
+    /// <summary>
+    /// Approvers and Admins: every version of a rank's Teacher's Information, newest first, with its changes from the
+    /// version before, and its suggestions that were sent back (docs/adr/0015 decision 4). Null for an unknown rank.
+    /// </summary>
+    public async Task<LessonHistory?> GetTeachersInformationHistoryAsync(string rankCode, CancellationToken ct = default)
+    {
+        RequireHistoryRole();
+        var rank = await _db.Ranks.AsNoTracking().SingleOrDefaultAsync(r => r.Code == rankCode, ct);
+        if (rank is null)
+        {
+            return null;
+        }
+
+        var versions = await _db.TeachersInformationVersions.AsNoTracking().Include(v => v.Pictures)
+            .Where(v => v.RankId == rank.Id).OrderBy(v => v.Number).ToListAsync(ct);
+        var names = await _db.AppUsers.AsNoTracking().ToDictionaryAsync(u => u.Id, u => u.DisplayName, ct);
+        string? Name(int? id) => id is int value ? names.GetValueOrDefault(value) : null;
+
+        var entries = new List<HistoryVersion>();
+        for (var i = 0; i < versions.Count; i++)
+        {
+            var version = versions[i];
+            var previous = i > 0 ? versions[i - 1] : null;
+            var changes = previous is null
+                ? null
+                : LessonDiff.Tracked(TeachersInformationVersionSide(previous), TeachersInformationVersionSide(version));
+            var committee = version.SuggestionId is int sid ? await CommitteeAsync(sid, ct) : Committee.None;
+            var suggested = version.Kind != LessonVersionKind.Converted;
+            entries.Add(new HistoryVersion(version.Number, i == versions.Count - 1, version.Kind, true,
+                FormerStaff.Or(Name(version.SuggestedByUserId), suggested), version.SuggestedAt,
+                FormerStaff.Or(Name(version.ApprovedByUserId), suggested && !version.PublishedDirectly),
+                FormerStaff.Or(Name(version.PublishedByUserId), suggested && version.PublishedDirectly),
+                version.Reason, version.PublishedAt, changes, null, null, [], committee.Referral, committee.Approvals));
+        }
+        entries.Reverse();
+
+        var sentBack = await SentBackAsync(
+            _db.LessonSuggestions.Where(s => s.RankId == rank.Id && s.Kind == LessonChangeKind.TeachersInformation), ct);
+        return new LessonHistory(0, rank.Code, $"{TeachersInformationTitle}: {rank.Name}", entries, sentBack)
+        {
+            BackUrl = "/lessons"
+        };
+    }
+
+    // The suggestions among these that were sent back, newest first, with their committee facts.
+    private async Task<IReadOnlyList<SentBackSuggestion>> SentBackAsync(IQueryable<LessonSuggestion> suggestions, CancellationToken ct)
+    {
+        var sentBackRows = await suggestions.AsNoTracking()
+            .Where(s => s.Status == LessonSuggestionStatus.SentBack)
             .OrderByDescending(s => s.DecidedAt)
             .Select(s => new
             {
@@ -641,8 +815,7 @@ public sealed class LessonSuggestionService
             sentBack.Add(new SentBackSuggestion(row.Author, row.At, row.Reason, row.DecidedBy, row.DecidedAt, row.Comment,
                 committee.Referral, committee.Approvals));
         }
-
-        return new LessonHistory(lesson.Id, lesson.Code, lesson.Title, entries, sentBack);
+        return sentBack;
     }
 
     // --- The national setting --------------------------------------------------------------------------------------
@@ -737,6 +910,26 @@ public sealed class LessonSuggestionService
             : new OpenSuggestion(open.Id, open.Status, open.Author, open.SubmittedAt ?? open.CreatedAt, open.AuthorUserId == userId);
     }
 
+    private async Task<int?> CurrentTeachersInformationVersionNumberAsync(int rankId, CancellationToken ct) =>
+        await _db.TeachersInformationVersions.Where(v => v.RankId == rankId).Select(v => (int?)v.Number).MaxAsync(ct);
+
+    private async Task<TeachersInformationVersion?> LatestTeachersInformationVersionAsync(int rankId, CancellationToken ct) =>
+        await _db.TeachersInformationVersions.AsNoTracking().Include(v => v.Pictures)
+            .Where(v => v.RankId == rankId).OrderByDescending(v => v.Number).FirstOrDefaultAsync(ct);
+
+    private async Task<OpenSuggestion?> OpenTeachersInformationSuggestionAsync(int rankId, CancellationToken ct)
+    {
+        var userId = _currentUser.UserId;
+        var open = await _db.LessonSuggestions.AsNoTracking()
+            .Where(s => s.RankId == rankId && s.Kind == LessonChangeKind.TeachersInformation
+                && (s.Status == LessonSuggestionStatus.Draft || s.Status == LessonSuggestionStatus.Submitted))
+            .Select(s => new { s.Id, s.Status, s.AuthorUserId, Author = s.AuthorUser != null ? s.AuthorUser.DisplayName : FormerStaff.Name, s.CreatedAt, s.SubmittedAt })
+            .FirstOrDefaultAsync(ct);
+        return open is null
+            ? null
+            : new OpenSuggestion(open.Id, open.Status, open.Author, open.SubmittedAt ?? open.CreatedAt, open.AuthorUserId == userId);
+    }
+
     private async Task<LessonSuggestion> LoadSuggestionAsync(int id, CancellationToken ct) =>
         await _db.LessonSuggestions.AsNoTracking().Include(s => s.Tags).Include(s => s.Pictures).SingleAsync(s => s.Id == id, ct);
 
@@ -750,7 +943,11 @@ public sealed class LessonSuggestionService
     private static SuggestionDraftView ToDraftView(LessonSuggestion s) =>
         new(s.Id, s.Status, s.Kind, s.Title, s.Order, s.Tags.Select(t => t.Tag).Order().ToList(), s.Body, s.Reason,
             s.Pictures.ToDictionary(p => p.FileName, p => SuggestionPictureUrl(s.Id, p.FileName), StringComparer.Ordinal),
-            s.RevisesSuggestionId);
+            s.RevisesSuggestionId)
+        { TeachersNotes = s.TeachersNotes ?? "" };
+
+    // Teacher's notes are stored as null when there are none (adr/0015).
+    private static string? NotesOrNull(string? notes) => string.IsNullOrWhiteSpace(notes) ? null : notes;
 
     // Creates the caller's draft or updates it; not yet saved.
     private async Task<LessonSuggestion> SaveAsync(SuggestionInput input, CancellationToken ct)
@@ -785,14 +982,20 @@ public sealed class LessonSuggestionService
             {
                 throw new InvalidOperationException("A suggestion cannot change between a new lesson and an existing one.");
             }
+            if (input.Kind == LessonChangeKind.TeachersInformation != (suggestion.Kind == LessonChangeKind.TeachersInformation))
+            {
+                throw new InvalidOperationException("A suggestion cannot change between a lesson and Teacher's Information.");
+            }
 
+            var information = suggestion.Kind == LessonChangeKind.TeachersInformation;
             Set(suggestion, s => s.Kind, input.Kind);
-            Set(suggestion, s => s.Title, title);
-            Set(suggestion, s => s.Order, input.Order);
+            Set(suggestion, s => s.Title, information ? TeachersInformationTitle : title);
+            Set(suggestion, s => s.Order, information ? 0 : input.Order);
             Set(suggestion, s => s.Body, input.Body ?? "");
+            Set(suggestion, s => s.TeachersNotes, information ? null : NotesOrNull(input.TeachersNotes));
             Set(suggestion, s => s.Reason, reason);
             Set(suggestion, s => s.UpdatedAt, now);
-            var wanted = input.Tags.Distinct().ToList();
+            var wanted = information ? new List<LessonTag>() : input.Tags.Distinct().ToList();
             _db.LessonSuggestionTags.RemoveRange(suggestion.Tags.Where(t => !wanted.Contains(t.Tag)).ToList());
             foreach (var tag in wanted.Where(t => suggestion.Tags.All(e => e.Tag != t)))
             {
@@ -804,7 +1007,30 @@ public sealed class LessonSuggestionService
         int rankId;
         int? baseVersion = null;
         var pictures = new List<(string FileName, string BlobKey)>();
-        if (input.Kind == LessonChangeKind.NewLesson)
+        if (input.Kind == LessonChangeKind.TeachersInformation)
+        {
+            if (input.LessonId is not null)
+            {
+                throw new InvalidOperationException("Teacher's Information belongs to a rank, not a lesson.");
+            }
+            var rank = await _db.Ranks.AsNoTracking().Include(r => r.TeachersInformationPictures).SingleOrDefaultAsync(r => r.Id == input.RankId, ct)
+                ?? throw new InvalidOperationException("Unknown rank.");
+            if (await _db.LessonSuggestions.AnyAsync(s => s.RankId == rank.Id && s.Kind == LessonChangeKind.TeachersInformation
+                    && (s.Status == LessonSuggestionStatus.Draft || s.Status == LessonSuggestionStatus.Submitted), ct))
+            {
+                throw new InvalidOperationException("A change to this Teacher's Information is already in progress.");
+            }
+
+            rankId = rank.Id;
+            baseVersion = await EnsureTeachersInformationBaselineAsync(rank, ct);
+            if (input.BaseVersionNumber is int opened && opened != baseVersion)
+            {
+                throw new InvalidOperationException("The Teacher's Information has changed since you opened it. Open it again to start from the latest version.");
+            }
+            pictures.AddRange(rank.TeachersInformationPictures.Select(p => (p.FileName, p.BlobKey)));
+            await AddRevisedPicturesAsync(input, userId, s => s.RankId == rank.Id && s.Kind == LessonChangeKind.TeachersInformation, pictures, ct);
+        }
+        else if (input.Kind == LessonChangeKind.NewLesson)
         {
             if (input.LessonId is not null)
             {
@@ -832,41 +1058,30 @@ public sealed class LessonSuggestionService
                 throw new InvalidOperationException("The lesson has changed since you opened it. Open Suggest changes again to start from the latest version.");
             }
             pictures.AddRange(lesson.Pictures.Select(p => (p.FileName, p.BlobKey)));
-
-            if (input.RevisesSuggestionId is int revises)
-            {
-                var original = await _db.LessonSuggestions.AsNoTracking().Include(s => s.Pictures).SingleOrDefaultAsync(s => s.Id == revises, ct);
-                if (original is null || original.AuthorUserId != userId || original.LessonId != lessonId
-                    || original.Status != LessonSuggestionStatus.SentBack)
-                {
-                    throw new InvalidOperationException("Only your own suggestion that was sent back can be carried on.");
-                }
-                foreach (var picture in original.Pictures.Where(p => pictures.All(x => x.FileName != p.FileName)))
-                {
-                    pictures.Add((picture.FileName, picture.BlobKey));
-                }
-            }
+            await AddRevisedPicturesAsync(input, userId, s => s.LessonId == lessonId && s.Kind != LessonChangeKind.TeachersInformation, pictures, ct);
         }
 
+        var forInformation = input.Kind == LessonChangeKind.TeachersInformation;
         suggestion = new LessonSuggestion
         {
             Id = await _db.NextIdAsync<LessonSuggestion>(ct),
-            LessonId = input.Kind == LessonChangeKind.NewLesson ? null : input.LessonId,
+            LessonId = input.Kind is LessonChangeKind.NewLesson or LessonChangeKind.TeachersInformation ? null : input.LessonId,
             RankId = rankId,
             Kind = input.Kind,
             Status = LessonSuggestionStatus.Draft,
             BaseVersionNumber = baseVersion,
             AuthorUserId = userId,
-            Title = title,
-            Order = input.Order,
+            Title = forInformation ? TeachersInformationTitle : title,
+            Order = forInformation ? 0 : input.Order,
             Body = input.Body ?? "",
+            TeachersNotes = forInformation ? null : NotesOrNull(input.TeachersNotes),
             Reason = reason,
             CreatedAt = now,
             UpdatedAt = now,
             RevisesSuggestionId = input.Kind == LessonChangeKind.NewLesson ? null : input.RevisesSuggestionId
         };
         _db.LessonSuggestions.Add(suggestion);
-        foreach (var tag in input.Tags.Distinct())
+        foreach (var tag in forInformation ? Enumerable.Empty<LessonTag>() : input.Tags.Distinct())
         {
             _db.LessonSuggestionTags.Add(new LessonSuggestionTag { LessonSuggestionId = suggestion.Id, Tag = tag });
         }
@@ -881,6 +1096,60 @@ public sealed class LessonSuggestionService
             }
         }
         return suggestion;
+    }
+
+    // Carrying on the caller's own suggestion that was sent back (of the same lesson, or the same rank's Teacher's
+    // Information) brings its pictures along.
+    private async Task AddRevisedPicturesAsync(SuggestionInput input, int userId, System.Linq.Expressions.Expression<Func<LessonSuggestion, bool>> sameSubject,
+        List<(string FileName, string BlobKey)> pictures, CancellationToken ct)
+    {
+        if (input.RevisesSuggestionId is not int revises)
+        {
+            return;
+        }
+
+        var original = await _db.LessonSuggestions.AsNoTracking().Include(s => s.Pictures).Where(sameSubject)
+            .SingleOrDefaultAsync(s => s.Id == revises, ct);
+        if (original is null || original.AuthorUserId != userId || original.Status != LessonSuggestionStatus.SentBack)
+        {
+            throw new InvalidOperationException("Only your own suggestion that was sent back can be carried on.");
+        }
+        foreach (var picture in original.Pictures.Where(p => pictures.All(x => x.FileName != p.FileName)))
+        {
+            pictures.Add((picture.FileName, picture.BlobKey));
+        }
+    }
+
+    // A rank's Teacher's Information written before versions were kept gets its version 1 now, as it is; a rank with
+    // none has no version until the first is published.
+    private async Task<int?> EnsureTeachersInformationBaselineAsync(Rank rank, CancellationToken ct)
+    {
+        var current = await CurrentTeachersInformationVersionNumberAsync(rank.Id, ct);
+        if (current is not null || string.IsNullOrWhiteSpace(rank.TeachersInformation))
+        {
+            return current;
+        }
+
+        var versionId = await _db.NextIdAsync<TeachersInformationVersion>(ct);
+        _db.TeachersInformationVersions.Add(new TeachersInformationVersion
+        {
+            Id = versionId,
+            RankId = rank.Id,
+            Number = 1,
+            Kind = LessonVersionKind.Converted,
+            Body = rank.TeachersInformation,
+            PublishedAt = DateTime.UtcNow
+        });
+        var pictureId = await _db.NextIdAsync<TeachersInformationVersionPicture>(ct);
+        foreach (var picture in rank.TeachersInformationPictures.OrderBy(p => p.Order))
+        {
+            _db.TeachersInformationVersionPictures.Add(new TeachersInformationVersionPicture
+            {
+                Id = pictureId++, TeachersInformationVersionId = versionId, Order = picture.Order, FileName = picture.FileName, BlobKey = picture.BlobKey
+            });
+        }
+        await _db.SaveChangesAsync(ct);
+        return 1;
     }
 
     // A lesson written before versions were kept (or seeded without the seeder) gets its version 1 now, as it is.
@@ -903,6 +1172,7 @@ public sealed class LessonSuggestionService
             Order = lesson.Order,
             IsActive = lesson.IsActive,
             Body = lesson.Body,
+            TeachersNotes = lesson.TeachersNotes,
             ContentVersion = lesson.ContentVersion,
             PublishedAt = DateTime.UtcNow
         });
@@ -925,6 +1195,21 @@ public sealed class LessonSuggestionService
 
     private async Task ValidateForPublishingAsync(LessonSuggestion suggestion, CancellationToken ct)
     {
+        if (suggestion.Kind == LessonChangeKind.TeachersInformation)
+        {
+            if (string.IsNullOrWhiteSpace(suggestion.Body))
+            {
+                throw new InvalidOperationException("The Teacher's Information is empty.");
+            }
+            ValidatePictures(suggestion, suggestion.Body);
+            if (suggestion.BaseVersionNumber != await CurrentTeachersInformationVersionNumberAsync(suggestion.RankId, ct))
+            {
+                throw new InvalidOperationException(
+                    "The Teacher's Information has changed since this suggestion was started, so it cannot be approved. Discard it and suggest changes again.");
+            }
+            return;
+        }
+
         if (suggestion.Title.Trim().Length == 0)
         {
             throw new InvalidOperationException("Give the lesson a title.");
@@ -947,17 +1232,10 @@ public sealed class LessonSuggestionService
                 throw new InvalidOperationException("The lesson text is empty.");
             }
 
-            var available = suggestion.Pictures.Select(p => p.FileName).ToHashSet(StringComparer.Ordinal);
-            foreach (var (url, alt) in LessonMarkdown.Pictures(suggestion.Body))
+            ValidatePictures(suggestion, suggestion.Body);
+            if (suggestion.TeachersNotes is { } notes)
             {
-                if (!LessonMarkdown.IsBareFileName(url) || !available.Contains(url))
-                {
-                    throw new InvalidOperationException($"The picture '{url}' is not one of this lesson's pictures. Insert it with \"Insert picture\".");
-                }
-                if (alt.Length == 0)
-                {
-                    throw new InvalidOperationException($"The picture '{url}' needs a description.");
-                }
+                ValidatePictures(suggestion, notes);
             }
         }
 
@@ -976,9 +1254,110 @@ public sealed class LessonSuggestionService
         }
     }
 
+    // Every picture the Markdown uses must be one of the suggestion's, by bare file name, with a description.
+    private static void ValidatePictures(LessonSuggestion suggestion, string markdown)
+    {
+        var available = suggestion.Pictures.Select(p => p.FileName).ToHashSet(StringComparer.Ordinal);
+        foreach (var (url, alt) in LessonMarkdown.Pictures(markdown))
+        {
+            if (!LessonMarkdown.IsBareFileName(url) || !available.Contains(url))
+            {
+                throw new InvalidOperationException($"The picture '{url}' is not one of this lesson's pictures. Insert it with \"Insert picture\".");
+            }
+            if (alt.Length == 0)
+            {
+                throw new InvalidOperationException($"The picture '{url}' needs a description.");
+            }
+        }
+    }
+
+    // Marks the suggestion approved (or published directly) by the decider. Not yet saved.
+    private void MarkApproved(LessonSuggestion suggestion, int deciderId, DateTime now)
+    {
+        Set(suggestion, s => s.Status, LessonSuggestionStatus.Approved);
+        Set(suggestion, s => s.DecidedByUserId, (int?)deciderId);
+        Set(suggestion, s => s.DecidedAt, (DateTime?)now);
+        if (suggestion.SubmittedAt is null)
+        {
+            Set(suggestion, s => s.SubmittedAt, (DateTime?)now);
+        }
+    }
+
+    // Adds the rank's next Teacher's Information version, makes it the rank's Teacher's Information (pictures matched on
+    // file name, so ids stay stable) and marks the suggestion approved (adr/0015 decision 4). Not yet saved.
+    private async Task<PublishedVersion> PublishTeachersInformationAsync(LessonSuggestion suggestion, int deciderId, bool direct, CancellationToken ct)
+    {
+        var now = DateTime.UtcNow;
+        var rank = await _db.Ranks.SingleAsync(r => r.Id == suggestion.RankId, ct);
+        var number = (await CurrentTeachersInformationVersionNumberAsync(rank.Id, ct) ?? 0) + 1;
+        var byName = suggestion.Pictures.DistinctBy(p => p.FileName, StringComparer.Ordinal).ToDictionary(p => p.FileName, p => p.BlobKey, StringComparer.Ordinal);
+        var pictures = LessonMarkdown.PictureReferences(suggestion.Body).Distinct(StringComparer.Ordinal)
+            .Where(byName.ContainsKey).Select(name => (FileName: name, BlobKey: byName[name])).ToList();
+
+        Set(rank, r => r.TeachersInformation, suggestion.Body);
+        var live = await _db.TeachersInformationPictures.Where(p => p.RankId == rank.Id).ToListAsync(ct);
+        _db.TeachersInformationPictures.RemoveRange(live.Where(p => pictures.All(x => x.FileName != p.FileName)));
+        var nextLiveId = await _db.NextIdAsync<TeachersInformationPicture>(ct);
+        for (var i = 0; i < pictures.Count; i++)
+        {
+            var match = live.FirstOrDefault(p => p.FileName == pictures[i].FileName);
+            if (match is null)
+            {
+                _db.TeachersInformationPictures.Add(new TeachersInformationPicture
+                {
+                    Id = nextLiveId++, RankId = rank.Id, Order = i + 1, FileName = pictures[i].FileName, BlobKey = pictures[i].BlobKey
+                });
+            }
+            else
+            {
+                Set(match, p => p.Order, i + 1);
+                Set(match, p => p.BlobKey, pictures[i].BlobKey);
+            }
+        }
+
+        var kind = direct ? LessonVersionKind.PublishedDirectly : LessonVersionKind.ApprovedSuggestion;
+        var versionId = await _db.NextIdAsync<TeachersInformationVersion>(ct);
+        _db.TeachersInformationVersions.Add(new TeachersInformationVersion
+        {
+            Id = versionId,
+            RankId = rank.Id,
+            Number = number,
+            Kind = kind,
+            Body = suggestion.Body,
+            SuggestedByUserId = suggestion.AuthorUserId,
+            SuggestedAt = suggestion.SubmittedAt is DateTime submitted ? DateTime.SpecifyKind(submitted, DateTimeKind.Utc) : now,
+            ApprovedByUserId = direct ? null : deciderId,
+            PublishedByUserId = direct ? deciderId : null,
+            PublishedDirectly = direct,
+            Reason = suggestion.Reason,
+            PublishedAt = now,
+            SuggestionId = suggestion.Id
+        });
+        var nextVersionPictureId = await _db.NextIdAsync<TeachersInformationVersionPicture>(ct);
+        for (var i = 0; i < pictures.Count; i++)
+        {
+            _db.TeachersInformationVersionPictures.Add(new TeachersInformationVersionPicture
+            {
+                Id = nextVersionPictureId++, TeachersInformationVersionId = versionId, Order = i + 1, FileName = pictures[i].FileName, BlobKey = pictures[i].BlobKey
+            });
+        }
+
+        MarkApproved(suggestion, deciderId, now);
+        return new PublishedVersion(0, "", number, kind)
+        {
+            HistoryUrl = TeachersInformationHistoryUrl(rank.Code),
+            ForTeachersInformation = true
+        };
+    }
+
     // Adds the next version, makes it the live lesson and marks the suggestion approved. Not yet saved.
     private async Task<PublishedVersion> PublishAsync(LessonSuggestion suggestion, int deciderId, bool direct, CancellationToken ct)
     {
+        if (suggestion.Kind == LessonChangeKind.TeachersInformation)
+        {
+            return await PublishTeachersInformationAsync(suggestion, deciderId, direct, ct);
+        }
+
         var now = DateTime.UtcNow;
         var tags = _db.ChangeTracker.Entries<LessonSuggestionTag>()
             .Where(e => e.Entity.LessonSuggestionId == suggestion.Id && e.State != EntityState.Deleted && e.State != EntityState.Detached)
@@ -1010,28 +1389,37 @@ public sealed class LessonSuggestionService
 
         var retire = suggestion.Kind == LessonChangeKind.Retire;
         var body = retire ? lesson.Body : suggestion.Body;
+        var notes = retire ? lesson.TeachersNotes : NotesOrNull(suggestion.TeachersNotes);
         var title = retire ? lesson.Title : suggestion.Title.Trim();
         var order = retire ? lesson.Order : suggestion.Order;
 
-        // The pictures the text uses, in order of first appearance.
+        // The pictures the text uses, in order of first appearance, then those only the teacher's notes use (adr/0015).
         List<(string FileName, string BlobKey)> pictures;
+        HashSet<string> notesOnly;
         if (retire)
         {
-            pictures = await _db.LessonPictures.AsNoTracking().Where(p => p.LessonId == lesson.Id).OrderBy(p => p.Order)
-                .Select(p => new ValueTuple<string, string>(p.FileName, p.BlobKey)).ToListAsync(ct);
+            var kept = await _db.LessonPictures.AsNoTracking().Where(p => p.LessonId == lesson.Id).OrderBy(p => p.Order)
+                .Select(p => new { p.FileName, p.BlobKey, p.TeachersNotesOnly }).ToListAsync(ct);
+            pictures = kept.Select(p => (p.FileName, p.BlobKey)).ToList();
+            notesOnly = kept.Where(p => p.TeachersNotesOnly).Select(p => p.FileName).ToHashSet(StringComparer.Ordinal);
         }
         else
         {
             var byName = suggestion.Pictures.DistinctBy(p => p.FileName, StringComparer.Ordinal).ToDictionary(p => p.FileName, p => p.BlobKey, StringComparer.Ordinal);
-            pictures = LessonMarkdown.PictureReferences(body!).Distinct(StringComparer.Ordinal)
-                .Where(byName.ContainsKey).Select(name => (name, byName[name])).ToList();
+            var inText = LessonMarkdown.PictureReferences(body!).Distinct(StringComparer.Ordinal).Where(byName.ContainsKey).ToList();
+            var inNotes = notes is null
+                ? new List<string>()
+                :LessonMarkdown.PictureReferences(notes).Distinct(StringComparer.Ordinal).Where(byName.ContainsKey).Except(inText, StringComparer.Ordinal).ToList();
+            pictures = inText.Concat(inNotes).Select(name => (name, byName[name])).ToList();
+            notesOnly = inNotes.ToHashSet(StringComparer.Ordinal);
         }
 
-        var contentVersion = ContentVersionOf(lesson.Id, number, body, pictures);
+        var contentVersion = ContentVersionOf(lesson.Id, number, body, pictures, notes);
 
         Set(lesson, l => l.Title, title);
         Set(lesson, l => l.Order, order);
         Set(lesson, l => l.Body, body);
+        Set(lesson, l => l.TeachersNotes, notes);
         Set(lesson, l => l.ContentVersion, contentVersion);
         if (retire)
         {
@@ -1055,14 +1443,19 @@ public sealed class LessonSuggestionService
             {
                 var (fileName, blobKey) = pictures[i];
                 var match = live.FirstOrDefault(p => p.FileName == fileName);
+                var onlyNotes = notesOnly.Contains(fileName);
                 if (match is null)
                 {
-                    _db.LessonPictures.Add(new LessonPicture { Id = nextLivePictureId++, LessonId = lesson.Id, Order = i + 1, FileName = fileName, BlobKey = blobKey });
+                    _db.LessonPictures.Add(new LessonPicture
+                    {
+                        Id = nextLivePictureId++, LessonId = lesson.Id, Order = i + 1, FileName = fileName, BlobKey = blobKey, TeachersNotesOnly = onlyNotes
+                    });
                 }
                 else
                 {
                     Set(match, p => p.Order, i + 1);
                     Set(match, p => p.BlobKey, blobKey);
+                    Set(match, p => p.TeachersNotesOnly, onlyNotes);
                 }
             }
         }
@@ -1081,6 +1474,7 @@ public sealed class LessonSuggestionService
             Order = order,
             IsActive = !retire,
             Body = body,
+            TeachersNotes = notes,
             ContentVersion = contentVersion,
             SuggestedByUserId = suggestion.AuthorUserId,
             SuggestedAt = suggestion.SubmittedAt is DateTime submitted ? DateTime.SpecifyKind(submitted, DateTimeKind.Utc) : now,
@@ -1104,28 +1498,27 @@ public sealed class LessonSuggestionService
             });
         }
 
-        Set(suggestion, s => s.Status, LessonSuggestionStatus.Approved);
-        Set(suggestion, s => s.DecidedByUserId, (int?)deciderId);
-        Set(suggestion, s => s.DecidedAt, (DateTime?)now);
-        if (suggestion.SubmittedAt is null)
-        {
-            Set(suggestion, s => s.SubmittedAt, (DateTime?)now);
-        }
-
-        return new PublishedVersion(lesson.Id, lesson.Code, number, kind);
+        MarkApproved(suggestion, deciderId, now);
+        return new PublishedVersion(lesson.Id, lesson.Code, number, kind) { HistoryUrl = HistoryUrl(lesson.Code) };
     }
 
     /// <summary>
     /// A lesson's content version after publishing version <paramref name="number"/>: a hash of the lesson, the version
-    /// number, its text and its pictures, so it always changes when a version is published (FR-023, adr/0012 decision 7).
+    /// number, its text, its pictures and its teacher's notes (adr/0015), so it always changes when a version is published
+    /// (FR-023, adr/0012 decision 7) and a staff member's saved copy refreshes when only the notes changed.
     /// </summary>
-    public static string ContentVersionOf(int lessonId, int number, string? body, IEnumerable<(string FileName, string BlobKey)> pictures)
+    public static string ContentVersionOf(int lessonId, int number, string? body, IEnumerable<(string FileName, string BlobKey)> pictures,
+        string? teachersNotes = null)
     {
         using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         hash.AppendData(Encoding.UTF8.GetBytes($"lesson {lessonId} version {number}\0{body}"));
         foreach (var (fileName, blobKey) in pictures)
         {
             hash.AppendData(Encoding.UTF8.GetBytes($"\0{fileName}\0{blobKey}"));
+        }
+        if (teachersNotes is not null)
+        {
+            hash.AppendData(Encoding.UTF8.GetBytes($"\0teacher's notes\0{teachersNotes}"));
         }
         return Convert.ToHexStringLower(hash.GetHashAndReset());
     }
@@ -1180,8 +1573,20 @@ public sealed class LessonSuggestionService
         new(version.Body, version.Pictures.ToDictionary(p => p.FileName, p => (p.BlobKey, VersionPictureUrl(p.Id)), StringComparer.Ordinal));
 
     private static LessonDiff.Side SuggestionSide(LessonSuggestion suggestion) =>
-        new(suggestion.Body, suggestion.Pictures.ToDictionary(p => p.FileName, p => (p.BlobKey, SuggestionPictureUrl(suggestion.Id, p.FileName)),
-            StringComparer.Ordinal));
+        new(suggestion.Body, SuggestionPictures(suggestion));
+
+    private static Dictionary<string, (string BlobKey, string Url)> SuggestionPictures(LessonSuggestion suggestion) =>
+        suggestion.Pictures.ToDictionary(p => p.FileName, p => (p.BlobKey, SuggestionPictureUrl(suggestion.Id, p.FileName)), StringComparer.Ordinal);
+
+    // The teacher's notes of a version or suggestion, with the same pictures as its text (adr/0015).
+    private static LessonDiff.Side VersionNotesSide(LessonVersion version) =>
+        new(NotesOrNull(version.TeachersNotes), version.Pictures.ToDictionary(p => p.FileName, p => (p.BlobKey, VersionPictureUrl(p.Id)), StringComparer.Ordinal));
+
+    private static LessonDiff.Side SuggestionNotesSide(LessonSuggestion suggestion) =>
+        new(NotesOrNull(suggestion.TeachersNotes), SuggestionPictures(suggestion));
+
+    private static LessonDiff.Side TeachersInformationVersionSide(TeachersInformationVersion version) =>
+        new(version.Body, version.Pictures.ToDictionary(p => p.FileName, p => (p.BlobKey, TeachersInformationVersionPictureUrl(p.Id)), StringComparer.Ordinal));
 
     private static string SafePictureName(string fileName)
     {
@@ -1270,7 +1675,8 @@ public sealed record SuggestionInput(
     string Body,
     string? Reason,
     int? RevisesSuggestionId = null,
-    int? BaseVersionNumber = null);
+    int? BaseVersionNumber = null,
+    string? TeachersNotes = null);
 
 public sealed record OpenSuggestion(int Id, LessonSuggestionStatus Status, string AuthorName, DateTime Date, bool IsMine);
 
@@ -1289,7 +1695,11 @@ public sealed record SuggestionDraftView(
     string Body,
     string? Reason,
     IReadOnlyDictionary<string, string> PictureUrls,
-    int? RevisesSuggestionId);
+    int? RevisesSuggestionId)
+{
+    /// <summary>The lesson's teacher's notes in Markdown, edited beside the text (adr/0015 decision 2); empty for none.</summary>
+    public string TeachersNotes { get; init; } = "";
+}
 
 public sealed record SuggestionEditor(
     int? LessonId,
@@ -1301,11 +1711,25 @@ public sealed record SuggestionEditor(
     OpenSuggestion? BlockedBy,
     SuggestionDraftView? Draft,
     bool CanPublishNow,
-    SentBackInfo? SentBack);
+    SentBackInfo? SentBack)
+{
+    /// <summary>True for a rank's Teacher's Information (adr/0015 decision 4) rather than a lesson.</summary>
+    public bool ForTeachersInformation { get; init; }
+
+    /// <summary>The rank's code, for the Teacher's Information editor's links.</summary>
+    public string? RankCode { get; init; }
+}
 
 public sealed record UploadedPicture(string FileName, string Url);
 
-public sealed record PublishedVersion(int LessonId, string LessonCode, int Number, LessonVersionKind Kind);
+public sealed record PublishedVersion(int LessonId, string LessonCode, int Number, LessonVersionKind Kind)
+{
+    /// <summary>The history the new version is in: the lesson's, or the rank's Teacher's Information's.</summary>
+    public string HistoryUrl { get; init; } = "";
+
+    /// <summary>True when a rank's Teacher's Information was published rather than a lesson.</summary>
+    public bool ForTeachersInformation { get; init; }
+}
 
 /// <summary>
 /// A row of "Changes to review". <see cref="CommitteeApprovals"/> counts the approvals of a referred suggestion, and
@@ -1351,7 +1775,15 @@ public sealed record SuggestionReview(
     string? SentBackComment,
     Referral? Referral = null,
     IReadOnlyList<CommitteeApproval>? CommitteeApprovals = null,
-    bool ApprovedByMe = false);
+    bool ApprovedByMe = false)
+{
+    public string RankCode { get; init; } = "";
+
+    /// <summary>The teacher's notes as tracked changes, as they would read, and as they are now (adr/0015); null when neither side has notes.</summary>
+    public string? NotesTrackedHtml { get; init; }
+    public string? NotesFinalHtml { get; init; }
+    public string? NotesBeforeHtml { get; init; }
+}
 
 public sealed record HistoryVersion(
     int Number,
@@ -1369,12 +1801,20 @@ public sealed record HistoryVersion(
     string? AfterHtml,
     IReadOnlyList<SettingChange> SettingChanges,
     Referral? Referral = null,
-    IReadOnlyList<CommitteeApproval>? CommitteeApprovals = null);
+    IReadOnlyList<CommitteeApproval>? CommitteeApprovals = null)
+{
+    /// <summary>The teacher's notes' tracked changes from the version before; null when they did not change (adr/0015).</summary>
+    public string? NotesChangesHtml { get; init; }
+}
 
 public sealed record SentBackSuggestion(string SuggestedBy, DateTime SuggestedAt, string? Reason, string SentBackBy, DateTime SentBackAt, string Comment,
     Referral? Referral = null, IReadOnlyList<CommitteeApproval>? CommitteeApprovals = null);
 
-public sealed record LessonHistory(int LessonId, string Code, string Title, IReadOnlyList<HistoryVersion> Versions, IReadOnlyList<SentBackSuggestion> SentBack);
+public sealed record LessonHistory(int LessonId, string Code, string Title, IReadOnlyList<HistoryVersion> Versions, IReadOnlyList<SentBackSuggestion> SentBack)
+{
+    /// <summary>Where "back" goes: the lesson page, or the library for a rank's Teacher's Information. Null for the lesson page.</summary>
+    public string? BackUrl { get; init; }
+}
 
 public sealed record PublishingSettingChange(bool DirectPublishingAllowed, string ChangedBy, DateTime ChangedAt);
 
