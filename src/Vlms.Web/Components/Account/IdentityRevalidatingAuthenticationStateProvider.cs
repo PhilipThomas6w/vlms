@@ -41,7 +41,7 @@ internal sealed class IdentityRevalidatingAuthenticationStateProvider(
         // FR-017: the template compares the security stamp here itself. This goes through
         // VlmsSignInManager instead, the same check the cookie's SecurityStampValidator makes, so a
         // live circuit is refused by exactly the same rule: a current stamp and an account that may
-        // still sign in (not a staff member who has left, LeftStaffPolicy). That check reads only
+        // still sign in (not a staff member who has left, InactiveStaffPolicy). That check reads only
         // UserManager and the database, never the (absent) HttpContext.
         var signInManager = scope.ServiceProvider.GetRequiredService<SignInManager<VlmsIdentityUser>>();
         return await signInManager.ValidateSecurityStampAsync(authenticationState.User) is not null;

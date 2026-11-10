@@ -30,7 +30,7 @@ public enum DbsCheckDeletionReason
 
     /// <summary>
     /// Anchor date is the teacher's <see cref="AppUser.LeftAt"/> (set by
-    /// <see cref="Retention.LeavingService.StepDownAsync"/>), because it falls earlier than
+    /// <see cref="Retention.LeavingService.MarkInactiveAsync"/>), because it falls earlier than
     /// this check's own <see cref="DbsCheck.ExpiryDate"/> — "the teacher leaving" can only ever bring
     /// the retention anchor forward, never push it back (see this file's class doc comment).
     /// </summary>
@@ -230,11 +230,11 @@ public static class RetentionFlagging
             .Select(u => new { u.Id, u.DisplayName })
             .ToDictionaryAsync(x => x.Id, ct);
 
-        var inactivePeriods = await db.StaffStepDowns
-            .Where(s => teacherIds.Contains(s.UserId) && s.ReinstatedAt == null)
-            .Select(s => new { s.UserId, s.ChapterId, s.SteppedDownAt })
+        var inactivePeriods = await db.StaffInactivities
+            .Where(s => teacherIds.Contains(s.UserId) && s.ReactivatedAt == null)
+            .Select(s => new { s.UserId, s.ChapterId, s.InactiveAt })
             .ToListAsync(ct);
-        var inactiveAtByTeacherChapter = inactivePeriods.ToDictionary(p => (p.UserId, p.ChapterId), p => p.SteppedDownAt);
+        var inactiveAtByTeacherChapter = inactivePeriods.ToDictionary(p => (p.UserId, p.ChapterId), p => p.InactiveAt);
 
         var flags = new List<DbsCheckDueForDeletion>();
         foreach (var check in allChecks.OrderBy(d => d.ExpiryDate))

@@ -69,7 +69,7 @@ public sealed class FirstAdminBootstrapService
 
         // FR-017: an Admin row for someone Inactive in Shrewsbury would give them nothing yet make
         // bootstrap inert, leaving no working Admin.
-        if (await _db.StaffStepDowns.AnyAsync(s => s.UserId == user.Id && s.ChapterId == Chapter.ShrewsburyId && s.ReinstatedAt == null, ct))
+        if (await _db.StaffInactivities.AnyAsync(s => s.UserId == user.Id && s.ChapterId == Chapter.ShrewsburyId && s.ReactivatedAt == null, ct))
         {
             throw new InvalidOperationException($"{user.DisplayName} is Inactive in Shrewsbury and cannot be made its Admin.");
         }

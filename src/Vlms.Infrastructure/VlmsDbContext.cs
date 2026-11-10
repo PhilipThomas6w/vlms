@@ -71,7 +71,7 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
     public DbSet<StudentApplicationSensitiveDetails> StudentApplicationSensitiveDetails => Set<StudentApplicationSensitiveDetails>();
     public DbSet<SensitiveDataAccessLog> SensitiveDataAccessLogs => Set<SensitiveDataAccessLog>();
     public DbSet<DeletionLogEntry> DeletionLog => Set<DeletionLogEntry>();
-    public DbSet<StaffStepDown> StaffStepDowns => Set<StaffStepDown>();
+    public DbSet<StaffInactivity> StaffInactivities => Set<StaffInactivity>();
     public DbSet<ChapterJoinRequest> ChapterJoinRequests => Set<ChapterJoinRequest>();
     public DbSet<Chapter> Chapters => Set<Chapter>();
     public DbSet<ActiveChapterChoice> ActiveChapterChoices => Set<ActiveChapterChoice>();
@@ -449,7 +449,7 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
         //      also gates Teacher; and
         //   3. a Parent whose own AppUser is the ParentGuardian.AppUserId on a StudentGuardianLink to
         //      the row's student, and who is not Inactive in the record's chapter (FR-017, an open
-        //      StaffStepDown there) — their own linked children only.
+        //      StaffInactivity there) — their own linked children only.
         // The UserId != null conjunct guards a Parent-role caller with no resolved UserId: EF Core's
         // C# null semantics would otherwise turn AppUserId == UserId into "AppUserId IS NULL" and
         // match every guardian not yet linked to an account. The AppUserId != null conjunct excludes
@@ -486,8 +486,8 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
                         link.StudentId == x.ConsentRecord!.StudentId
                         && link.ParentGuardian!.AppUserId == _currentUser.UserId
                         && link.ParentGuardian.AppUserId != null
-                        && !StaffStepDowns.Any(s => s.UserId == link.ParentGuardian.AppUserId
-                            && s.ChapterId == x.ConsentRecord!.ChapterId && s.ReinstatedAt == null))));
+                        && !StaffInactivities.Any(s => s.UserId == link.ParentGuardian.AppUserId
+                            && s.ChapterId == x.ConsentRecord!.ChapterId && s.ReactivatedAt == null))));
         });
 
         modelBuilder.Entity<DbsCheck>(e =>
@@ -590,23 +590,23 @@ public sealed class VlmsDbContext : IdentityUserContext<VlmsIdentityUser, int>
             e.HasIndex(x => new { x.ChapterId, x.DeletedAt });
         });
 
-        // Staff stepping down and reinstatement (functional.md FR-017 as amended 27/10/2026):
+        // Staff marking Inactive and reactivation (functional.md FR-017 as amended 27/10/2026):
         // national like UserRole, no query filter; LeavingService reads the active chapter's rows.
         // A person's rows go with their account; the Admins named are cleared (SetNull) when their
         // account is deleted, as for every other "who did this" reference (docs/adr/0014).
-        modelBuilder.Entity<StaffStepDown>(e =>
+        modelBuilder.Entity<StaffInactivity>(e =>
         {
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedOnAdd();
             e.HasOne<AppUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
-            e.HasOne<AppUser>().WithMany().HasForeignKey(x => x.SteppedDownByUserId).OnDelete(DeleteBehavior.SetNull);
-            e.HasOne<AppUser>().WithMany().HasForeignKey(x => x.ReinstatedByUserId).OnDelete(DeleteBehavior.SetNull);
+            e.HasOne<AppUser>().WithMany().HasForeignKey(x => x.MarkedInactiveByUserId).OnDelete(DeleteBehavior.SetNull);
+            e.HasOne<AppUser>().WithMany().HasForeignKey(x => x.ReactivatedByUserId).OnDelete(DeleteBehavior.SetNull);
             e.HasOne<Chapter>().WithMany().HasForeignKey(x => x.ChapterId).OnDelete(DeleteBehavior.Restrict);
-            e.HasIndex(x => new { x.UserId, x.SteppedDownAt });
+            e.HasIndex(x => new { x.UserId, x.InactiveAt });
         });
 
         // New registrations (functional.md FR-021 as amended 09/11/2026): national like
-        // StaffStepDown, no query filter; NewRegistrationService reads the active chapter's rows for
+        // StaffInactivity, no query filter; NewRegistrationService reads the active chapter's rows for
         // Admins. A person's rows go with their account; the staff named are cleared (SetNull).
         modelBuilder.Entity<ChapterJoinRequest>(e =>
         {

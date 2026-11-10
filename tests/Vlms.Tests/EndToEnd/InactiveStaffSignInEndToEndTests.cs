@@ -14,7 +14,7 @@ namespace Vlms.Tests.EndToEnd;
 /// that chapter, Parent included, stops counting at once, open sessions included; the home page
 /// says which chapter they are Inactive in. Reactivation restores the roles without a new invitation.
 /// A student who has left keeps access. Inactivity runs through the real
-/// <c>LeavingService.StepDownAsync</c> (<see cref="VlmsWebFactory.StepDownAsync"/>).
+/// <c>LeavingService.MarkInactiveAsync</c> (<see cref="VlmsWebFactory.MarkInactiveAsync"/>).
 /// </summary>
 public sealed class InactiveStaffSignInEndToEndTests : IDisposable
 {
@@ -40,7 +40,7 @@ public sealed class InactiveStaffSignInEndToEndTests : IDisposable
     {
         var boss = await _factory.SeedUserAsync("boss@test.example", withTotp: true, Role.Admin);
         var inactive = await _factory.SeedUserAsync("inactive@test.example", withTotp, role);
-        await _factory.StepDownAsync(boss.Id, inactive.Id);
+        await _factory.MarkInactiveAsync(boss.Id, inactive.Id);
 
         var response = await Browser.PostLoginAsync(_factory.CreateBrowser(), inactive.Email, VlmsWebFactory.Password);
 
@@ -53,7 +53,7 @@ public sealed class InactiveStaffSignInEndToEndTests : IDisposable
     {
         var boss = await _factory.SeedUserAsync("boss@test.example", withTotp: true, Role.Admin);
         var inactive = await _factory.SeedUserAsync("inactive@test.example", withTotp: true, Role.Teacher);
-        await _factory.StepDownAsync(boss.Id, inactive.Id);
+        await _factory.MarkInactiveAsync(boss.Id, inactive.Id);
 
         var wrong = await Browser.PostLoginAsync(_factory.CreateBrowser(), inactive.Email, "Not-The-Password-1!");
 
@@ -72,7 +72,7 @@ public sealed class InactiveStaffSignInEndToEndTests : IDisposable
         Assert.Equal(HttpStatusCode.OK, (await before.GetAsync("/students")).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await before.GetAsync("/parent/dashboard")).StatusCode);
 
-        await _factory.StepDownAsync(boss.Id, inactive.Id);
+        await _factory.MarkInactiveAsync(boss.Id, inactive.Id);
         var client = await Browser.SignInAsync(_factory, inactive);
 
         var home = await client.GetAsync("/");
@@ -91,7 +91,7 @@ public sealed class InactiveStaffSignInEndToEndTests : IDisposable
     {
         var boss = await _factory.SeedUserAsync("boss@test.example", withTotp: true, Role.Admin);
         var inactive = await _factory.SeedUserAsync("inactive@test.example", withTotp: true, Role.Teacher);
-        await _factory.StepDownAsync(boss.Id, inactive.Id);
+        await _factory.MarkInactiveAsync(boss.Id, inactive.Id);
 
         var page = await PostForgotPasswordAsync(inactive.Email);
 
@@ -109,7 +109,7 @@ public sealed class InactiveStaffSignInEndToEndTests : IDisposable
         var twoFactorUrl = Browser.RelativeLocation(login);
         Assert.StartsWith("/Account/LoginWith2fa", twoFactorUrl, StringComparison.OrdinalIgnoreCase);
 
-        await _factory.StepDownAsync(boss.Id, inactive.Id);
+        await _factory.MarkInactiveAsync(boss.Id, inactive.Id);
         var second = await Browser.PostTwoFactorAsync(client, twoFactorUrl, Browser.Totp(inactive.AuthenticatorKey!));
 
         Assert.Equal(HttpStatusCode.Redirect, second.StatusCode);
@@ -131,7 +131,7 @@ public sealed class InactiveStaffSignInEndToEndTests : IDisposable
             recoveryCode = (await users.GenerateNewTwoFactorRecoveryCodesAsync(user!, 1))!.Single();
         }
 
-        await _factory.StepDownAsync(boss.Id, inactive.Id);
+        await _factory.MarkInactiveAsync(boss.Id, inactive.Id);
         var client = _factory.CreateBrowser();
         var login = await Browser.PostLoginAsync(client, inactive.Email, VlmsWebFactory.Password);
         Assert.StartsWith("/Account/LoginWith2fa", Browser.RelativeLocation(login), StringComparison.OrdinalIgnoreCase);
@@ -160,7 +160,7 @@ public sealed class InactiveStaffSignInEndToEndTests : IDisposable
         var client = await Browser.SignInAsync(_factory, inactive);
         Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/students")).StatusCode);
 
-        await _factory.StepDownAsync(boss.Id, inactive.Id);
+        await _factory.MarkInactiveAsync(boss.Id, inactive.Id);
 
         var after = await client.GetAsync("/students");
         Assert.Equal(HttpStatusCode.Redirect, after.StatusCode);
@@ -177,7 +177,7 @@ public sealed class InactiveStaffSignInEndToEndTests : IDisposable
         var client = await Browser.SignInAsync(factory, inactive);
         Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/Account/Manage/TwoFactorAuthentication")).StatusCode);
 
-        await factory.StepDownAsync(boss.Id, inactive.Id);
+        await factory.MarkInactiveAsync(boss.Id, inactive.Id);
 
         var after = await client.GetAsync("/Account/Manage/TwoFactorAuthentication");
         Assert.Equal(HttpStatusCode.Redirect, after.StatusCode);
@@ -189,11 +189,11 @@ public sealed class InactiveStaffSignInEndToEndTests : IDisposable
     {
         var boss = await _factory.SeedUserAsync("boss@test.example", withTotp: true, Role.Admin);
         var returner = await _factory.SeedUserAsync("returner@test.example", withTotp: true, Role.Teacher);
-        await _factory.StepDownAsync(boss.Id, returner.Id);
+        await _factory.MarkInactiveAsync(boss.Id, returner.Id);
         var whileInactive = await Browser.SignInAsync(_factory, returner);
         Assert.Equal(HttpStatusCode.Redirect, (await whileInactive.GetAsync("/students")).StatusCode);
 
-        await _factory.ReinstateAsync(boss.Id, returner.Id);
+        await _factory.ReactivateAsync(boss.Id, returner.Id);
         var client = await Browser.SignInAsync(_factory, returner);
 
         Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/students")).StatusCode);

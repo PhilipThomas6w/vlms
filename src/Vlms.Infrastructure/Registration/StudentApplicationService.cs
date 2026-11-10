@@ -85,7 +85,7 @@ public sealed record ApplicationForApproval(
 /// adr/0008 answers 1, 4, 5, 6).
 ///
 /// <b>The application.</b> A Parent of the chosen chapter (adr/0017: only a Parent can register a
-/// child; an Admin grants Parent from the registration queue, staff who stepped down included)
+/// child; an Admin grants Parent from the registration queue, staff who are Inactive included)
 /// applies to register one or more children, giving their phone
 /// number and postal address, their relationship to each child, and a full consent form for each.
 /// Each child becomes one <see cref="StudentApplication"/> with its sensitive fields in a
@@ -256,17 +256,17 @@ public sealed class StudentApplicationService
 
         return await _db.UserRoles
             .Where(r => r.UserId == userId && r.Role == Role.Parent && r.ChapterId != null
-                && !_db.StaffStepDowns.Any(s => s.UserId == userId && s.ChapterId == r.ChapterId && s.ReinstatedAt == null))
+                && !_db.StaffInactivities.Any(s => s.UserId == userId && s.ChapterId == r.ChapterId && s.ReactivatedAt == null))
             .Join(_db.Chapters.Where(c => c.IsActive), r => r.ChapterId, c => (int?)c.Id, (r, c) => c.Id)
             .Distinct()
             .ToListAsync(ct);
     }
 
     // A Parent role counts as HasRole counts it: held in the chapter, and not suspended by an open
-    // Inactive period there (FR-017, LeftStaffPolicy).
+    // Inactive period there (FR-017, InactiveStaffPolicy).
     private async Task<bool> IsParentInAsync(int userId, int chapterId, CancellationToken ct) =>
         await _db.UserRoles.AnyAsync(r => r.UserId == userId && r.Role == Role.Parent && r.ChapterId == chapterId, ct)
-        && !await _db.StaffStepDowns.AnyAsync(s => s.UserId == userId && s.ChapterId == chapterId && s.ReinstatedAt == null, ct);
+        && !await _db.StaffInactivities.AnyAsync(s => s.UserId == userId && s.ChapterId == chapterId && s.ReactivatedAt == null, ct);
 
     /// <summary>The caller's own applications, newest first, with their restricted details (audited).</summary>
     public async Task<IReadOnlyList<ApplicationView>> GetMyApplicationsAsync(CancellationToken ct = default)
@@ -527,8 +527,8 @@ public sealed class StudentApplicationService
         var application = await LoadAtStatusAsync(applicationId, StudentApplicationStatus.AwaitingAdminApproval, ct);
         var details = await RequireDetailsAsync(applicationId, ct);
 
-        // FR-017 (amended 27/10/2026): an applicant who has stepped down as staff can still be
-        // approved as a parent; their staff roles stay off (LeftStaffPolicy).
+        // FR-017 (amended 27/10/2026): an applicant who is Inactive as staff can still be
+        // approved as a parent; their staff roles stay off (InactiveStaffPolicy).
         var applicant = await _db.AppUsers.SingleAsync(u => u.Id == application.ApplicantUserId, ct);
 
         if (await _db.Students.AnyAsync(s => s.AppUserId == applicant.Id, ct))
@@ -1052,8 +1052,8 @@ public sealed class StudentApplicationService
         }
 
         // Someone Inactive as staff may apply (FR-017, amended 27/10/2026); nobody is locked out
-        // (LeftStaffPolicy.IsLockedOut).
-        if (!await _db.AppUsers.AnyAsync(u => u.Id == userId, ct) || await LeftStaffPolicy.IsLockedOutAsync(_db, userId, ct))
+        // (InactiveStaffPolicy.IsLockedOut).
+        if (!await _db.AppUsers.AnyAsync(u => u.Id == userId, ct) || await InactiveStaffPolicy.IsLockedOutAsync(_db, userId, ct))
         {
             throw new UnauthorizedAccessException("Caller's account is not an active user.");
         }

@@ -123,7 +123,7 @@ public sealed class IdentityCurrentUserContext : ICurrentUserContext
     /// <summary>
     /// Whether the caller holds <paramref name="role"/> right now. Re-read on every call. Once an
     /// account has left, its Teacher, Admin and Safeguarding Officer rows no longer count
-    /// (<see cref="LeftStaffPolicy"/>, FR-017), so a still-open session loses every staff page,
+    /// (<see cref="InactiveStaffPolicy"/>, FR-017), so a still-open session loses every staff page,
     /// staff service and staff route of the sensitive-data query filters the moment the account is
     /// marked as left; a Parent role it also holds still counts. A chapter role counts only when held
     /// in <see cref="ActiveChapterId"/> (docs/adr/0010-chapters.md); a national role has no chapter.
@@ -213,7 +213,7 @@ public sealed class IdentityCurrentUserContext : ICurrentUserContext
             }
 
             using var db = NewLookupContext();
-            return LeftStaffPolicy.HoldsCountingStaffRoleInAnyChapter(db, userId);
+            return InactiveStaffPolicy.HoldsCountingStaffRoleInAnyChapter(db, userId);
         }
     }
 

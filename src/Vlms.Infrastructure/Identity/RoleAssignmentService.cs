@@ -29,10 +29,10 @@ namespace Vlms.Infrastructure.Identity;
 /// <item>Revoking <see cref="Role.Admin"/> from the chapter's last remaining Admin who hasn't left
 /// is refused — otherwise the chapter can be left with no Admin, recoverable only by a National
 /// Administrator. A staff leaver keeps their role rows, which no longer count (FR-017,
-/// <see cref="LeftStaffPolicy"/>), so they don't count here either.</item>
-/// <item>Granting any role but Parent to an <see cref="AppUser"/> who has stepped down
-/// (<see cref="AppUser.HasLeft"/>) is refused: staff access comes back only by reinstatement
-/// (<c>Retention.LeavingService.ReinstateAsync</c>), and Parent may be granted at any time (FR-017
+/// <see cref="InactiveStaffPolicy"/>), so they don't count here either.</item>
+/// <item>Granting any role but Parent to an <see cref="AppUser"/> who is Inactive
+/// (<see cref="AppUser.HasLeft"/>) is refused: staff access comes back only by reactivation
+/// (<c>Retention.LeavingService.ReactivateAsync</c>), and Parent may be granted at any time (FR-017
 /// as amended 27/10/2026).
 /// Revoking a non-staff role (Parent) from a leaver stays allowed (removing access is always safe).
 /// Revoking a Teacher, Admin or Safeguarding Officer role from a leaver is refused: the row is the
@@ -97,7 +97,7 @@ public sealed class RoleAssignmentService
         return users
             .Select(u => new UserWithRoles(
                 u.Id, u.DisplayName, u.Email,
-                _db.StaffStepDowns.Any(s => s.UserId == u.Id && s.ChapterId == chapterId && s.ReinstatedAt == null),
+                _db.StaffInactivities.Any(s => s.UserId == u.Id && s.ChapterId == chapterId && s.ReactivatedAt == null),
                 rolesByUser[u.Id].OrderBy(r => r).ToList()))
             .ToList();
     }
@@ -126,7 +126,7 @@ public sealed class RoleAssignmentService
             .Where(r => r.UserId == user.Id && r.ChapterId == chapterId)
             .Select(r => r.Role)
             .ToListAsync(ct);
-        var inactive = await _db.StaffStepDowns.AnyAsync(s => s.UserId == user.Id && s.ChapterId == chapterId && s.ReinstatedAt == null, ct);
+        var inactive = await _db.StaffInactivities.AnyAsync(s => s.UserId == user.Id && s.ChapterId == chapterId && s.ReactivatedAt == null, ct);
         return new UserWithRoles(user.Id, user.DisplayName, user.Email, inactive, roles.Order().ToList());
     }
 
@@ -143,7 +143,7 @@ public sealed class RoleAssignmentService
 
     /// <summary>
     /// STATE.md "Waiting-for-approval list on the role-assignment page", per chapter since FR-021:
-    /// every account (stepped-down staff included, FR-017) that accepted one of this chapter's guardian
+    /// every account (Inactive staff included, FR-017) that accepted one of this chapter's guardian
     /// invites, and does not yet hold <see cref="Role.Parent"/> in this chapter, ordered by display
     /// name. Admin-only. Per Philip's decision (functional.md FR-004, 11/10/2026), accepting a
     /// guardian invite grants no role; this is how the Admin sees who is waiting for that approval.
@@ -320,11 +320,11 @@ public sealed class RoleAssignmentService
         var userRole = await _db.UserRoles.SingleOrDefaultAsync(r => r.UserId == userId && r.Role == role && r.ChapterId == chapterId, ct)
             ?? throw new InvalidOperationException($"AppUser {userId} does not hold the {role} role.");
 
-        var inactive = await _db.StaffStepDowns.AnyAsync(s => s.UserId == userId && s.ChapterId == chapterId && s.ReinstatedAt == null, ct);
+        var inactive = await _db.StaffInactivities.AnyAsync(s => s.UserId == userId && s.ChapterId == chapterId && s.ReactivatedAt == null, ct);
 
-        // FR-017 (LeftStaffPolicy): a leaver's staff rows are kept as the record, count as not held,
+        // FR-017 (InactiveStaffPolicy): a leaver's staff rows are kept as the record, count as not held,
         // and are what keep a staff leaver who is also a parent treated as a parent who hasn't left.
-        if (inactive && LeftStaffPolicy.IsStaffRole(role))
+        if (inactive && InactiveStaffPolicy.IsStaffRole(role))
         {
             throw new InvalidOperationException(
                 $"AppUser {userId} is inactive in this chapter: their {role} role is retained until reactivation.");
@@ -335,7 +335,7 @@ public sealed class RoleAssignmentService
         {
             var otherWorkingAdmin = await _db.AppUsers.AnyAsync(
                 u => u.Id != userId && u.Roles.Any(r => r.Role == Role.Admin && r.ChapterId == chapterId)
-                    && !_db.StaffStepDowns.Any(s => s.UserId == u.Id && s.ChapterId == chapterId && s.ReinstatedAt == null), ct);
+                    && !_db.StaffInactivities.Any(s => s.UserId == u.Id && s.ChapterId == chapterId && s.ReactivatedAt == null), ct);
             if (!otherWorkingAdmin)
             {
                 throw new InvalidOperationException(

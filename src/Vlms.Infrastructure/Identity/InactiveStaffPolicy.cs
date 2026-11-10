@@ -7,7 +7,7 @@ namespace Vlms.Infrastructure.Identity;
 /// The rules for staff marked Inactive (functional.md FR-017 as amended 27/10/2026 and 03/11/2026):
 /// <list type="number">
 /// <item>A chapter Admin marks a Teacher, Admin or Safeguarding Officer Inactive in that chapter
-/// (<c>Retention.LeavingService.MarkInactiveAsync</c>), which opens a <see cref="StaffStepDown"/>
+/// (<c>Retention.LeavingService.MarkInactiveAsync</c>), which opens a <see cref="StaffInactivity"/>
 /// period. Every role they hold in that chapter, Parent included, stops counting at once, open
 /// sessions included: <c>Security.IdentityCurrentUserContext.HasRole</c> and
 /// <c>Chapters.ChapterMembership</c> read the open period, and every policy, chapter service and
@@ -28,7 +28,7 @@ namespace Vlms.Infrastructure.Identity;
 /// <see cref="AppUser.HasLeft"/>/<see cref="AppUser.LeftAt"/> are retired (03/11/2026): nothing sets
 /// or reads them.
 /// </summary>
-public static class LeftStaffPolicy
+public static class InactiveStaffPolicy
 {
     /// <summary>The roles an Admin can mark someone Inactive for.</summary>
     public static readonly IReadOnlyList<Role> StaffRoles = [Role.Teacher, Role.Admin, Role.SafeguardingOfficer];

@@ -451,8 +451,8 @@ public sealed class RetentionDeletionServiceTests : IDisposable
         "LessonVersion.ApprovedByUserId",
         "LessonVersion.PublishedByUserId",
         "LessonVersion.SuggestedByUserId",
-        "StaffStepDown.ReinstatedByUserId",
-        "StaffStepDown.SteppedDownByUserId",
+        "StaffInactivity.ReactivatedByUserId",
+        "StaffInactivity.MarkedInactiveByUserId",
         "Student.AssignedTeacherUserId",
         "StudentApplication.AdminDecidedByUserId",
         "StudentApplication.SafeguardingReviewedByUserId",
@@ -466,7 +466,7 @@ public sealed class RetentionDeletionServiceTests : IDisposable
     private static readonly string[] AboutThePersonReferences =
     [
         "ActiveChapterChoice.UserId", "CalendarFeedToken.UserId", "CalendarViewChoice.UserId", "ChapterJoinRequest.UserId", "ClassTeacher.TeacherUserId",
-        "DbsCheck.TeacherUserId", "ParentGuardian.AppUserId", "StaffStepDown.UserId", "Student.AppUserId",
+        "DbsCheck.TeacherUserId", "ParentGuardian.AppUserId", "StaffInactivity.UserId", "Student.AppUserId",
         "StudentApplication.ApplicantUserId", "UserRole.UserId"
     ];
 
@@ -500,9 +500,9 @@ public sealed class RetentionDeletionServiceTests : IDisposable
         AddDbsCheck(1, TeacherId, _now.AddYears(-4));
         AddRecordNaming(reference, TeacherId);
         var (entity, property) = (reference.Split('.')[0], reference.Split('.')[1]);
-        // The leaver's own Inactive period (StaffStepDown.UserId) goes with their account; only rows
+        // The leaver's own Inactive period (StaffInactivity.UserId) goes with their account; only rows
         // naming them as the Admin who acted are kept records here.
-        bool OwnPeriod(Dictionary<string, object?> row) => entity == nameof(StaffStepDown) && Equals(row[nameof(StaffStepDown.UserId)], TeacherId);
+        bool OwnPeriod(Dictionary<string, object?> row) => entity == nameof(StaffInactivity) && Equals(row[nameof(StaffInactivity.UserId)], TeacherId);
         var rowsBefore = Rows(entity).Where(row => !OwnPeriod(row)).ToList();
         Assert.Contains(rowsBefore, row => Equals(row[property], TeacherId));
 
@@ -752,7 +752,7 @@ public sealed class RetentionDeletionServiceTests : IDisposable
         seed.Context.SaveChanges();
     }
 
-    /// <summary>Marks a staff member Inactive in Shrewsbury since <paramref name="leftAt"/> (FR-017: an open StaffStepDown).</summary>
+    /// <summary>Marks a staff member Inactive in Shrewsbury since <paramref name="leftAt"/> (FR-017: an open StaffInactivity).</summary>
     private void MarkLeft(int userId, DateTime leftAt)
     {
         using var seed = CreateContext(TestSeedUserContext.Instance);
@@ -863,11 +863,11 @@ public sealed class RetentionDeletionServiceTests : IDisposable
             case "ChapterJoinRequest.PlacedByUserId":
                 db.ChapterJoinRequests.Add(new ChapterJoinRequest { UserId = AdminId, ChapterId = Shrewsbury, RequestedAt = at, PlacedByUserId = userId });
                 break;
-            case "StaffStepDown.SteppedDownByUserId":
-                db.StaffStepDowns.Add(new StaffStepDown { UserId = AdminId, ChapterId = Shrewsbury, SteppedDownAt = at, SteppedDownByUserId = userId, ReinstatedAt = at.AddDays(1), ReinstatedByUserId = AdminId });
+            case "StaffInactivity.MarkedInactiveByUserId":
+                db.StaffInactivities.Add(new StaffInactivity { UserId = AdminId, ChapterId = Shrewsbury, InactiveAt = at, MarkedInactiveByUserId = userId, ReactivatedAt = at.AddDays(1), ReactivatedByUserId = AdminId });
                 break;
-            case "StaffStepDown.ReinstatedByUserId":
-                db.StaffStepDowns.Add(new StaffStepDown { UserId = AdminId, ChapterId = Shrewsbury, SteppedDownAt = at.AddDays(2), ReinstatedAt = at.AddDays(3), ReinstatedByUserId = userId });
+            case "StaffInactivity.ReactivatedByUserId":
+                db.StaffInactivities.Add(new StaffInactivity { UserId = AdminId, ChapterId = Shrewsbury, InactiveAt = at.AddDays(2), ReactivatedAt = at.AddDays(3), ReactivatedByUserId = userId });
                 break;
             case "Student.AssignedTeacherUserId":
                 var student = db.Students.Single(s => s.Id == ActiveStudentId);

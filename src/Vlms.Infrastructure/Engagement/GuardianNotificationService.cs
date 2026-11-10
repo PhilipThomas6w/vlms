@@ -215,7 +215,7 @@ public sealed class GuardianNotificationService
             .Where(l => l.StudentId == studentId && l.ParentGuardian!.AppUserId != null)
             .Select(l => l.ParentGuardian!.AppUser!)
             .Where(u => u.Roles.Any(r => r.Role == Role.Parent)
-                && !_db.StaffStepDowns.Any(s => s.UserId == u.Id && s.ChapterId == studentChapterId && s.ReinstatedAt == null))
+                && !_db.StaffInactivities.Any(s => s.UserId == u.Id && s.ChapterId == studentChapterId && s.ReactivatedAt == null))
             .Select(u => new { u.Email, u.DisplayName })
             .Distinct()
             .ToListAsync(ct);

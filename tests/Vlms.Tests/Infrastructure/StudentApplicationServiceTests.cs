@@ -963,9 +963,9 @@ public sealed class StudentApplicationServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task Approval_IsAllowed_WhenTheApplicantHasSinceSteppedDownAsStaff()
+    public async Task Approval_IsAllowed_WhenTheApplicantHasSinceBeenMarkedInactiveAsStaff()
     {
-        // FR-017 (amended 27/10/2026): someone who stepped down can be approved as a parent; their
+        // FR-017 (amended 27/10/2026): someone who is Inactive can be approved as a parent; their
         // staff role stays (off) and Parent is added.
         var id = await SubmitAndPassStageOneAsync();
         using (var admin = Caller(AdminId, Role.Admin))

@@ -128,7 +128,7 @@ public sealed class ConsentNotificationService
             .Where(p => p.Id == row.SubmittedByParentId && p.AppUserId != null)
             .Select(p => p.AppUser!)
             .Where(u => u.Roles.Any(r => r.Role == Role.Parent && r.ChapterId == row.ChapterId)
-                && !_db.StaffStepDowns.Any(s => s.UserId == u.Id && s.ChapterId == row.ChapterId && s.ReinstatedAt == null))
+                && !_db.StaffInactivities.Any(s => s.UserId == u.Id && s.ChapterId == row.ChapterId && s.ReactivatedAt == null))
             .Select(u => new Recipient(u.Email, u.DisplayName))
             .FirstOrDefaultAsync(ct);
 

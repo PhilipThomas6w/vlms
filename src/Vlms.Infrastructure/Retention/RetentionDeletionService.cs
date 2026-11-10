@@ -61,7 +61,7 @@ public sealed record RetentionDeletionResult(
 /// (the DBS retention period) and their DBS records are deleted; their staff roles, kept as history,
 /// do not count as current. The caller's own account is never deleted. A kept record that names the
 /// person only as the one who acted (a register taken by, a lesson version suggested or approved
-/// by, a step-down recorded by, and similar) does not keep the account: it keeps its content, the
+/// by, an Inactive record recorded by, and similar) does not keep the account: it keeps its content, the
 /// link to the person is cleared by the database (ON DELETE SET NULL), and it shows
 /// <see cref="FormerStaff.Name"/> (docs/adr/0014, settled after build 27/10/2026).</item>
 /// <item>Each deleted record, guardian row and account writes a <see cref="DeletionLogEntry"/> in the
@@ -314,13 +314,13 @@ public sealed class RetentionDeletionService
             return false;
         }
 
-        if (roles.Any(r => LeftStaffPolicy.IsStaffRole(r.Role)))
+        if (roles.Any(r => InactiveStaffPolicy.IsStaffRole(r.Role)))
         {
             // An account with only staff roles in this chapter can be removed after six years
             // continuously Inactive there. Reactivation closes the period and resets this clock.
-            var inactiveAt = await _db.StaffStepDowns
-                .Where(s => s.UserId == userId && s.ChapterId == chapterId && s.ReinstatedAt == null)
-                .Select(s => (DateTime?)s.SteppedDownAt)
+            var inactiveAt = await _db.StaffInactivities
+                .Where(s => s.UserId == userId && s.ChapterId == chapterId && s.ReactivatedAt == null)
+                .Select(s => (DateTime?)s.InactiveAt)
                 .SingleOrDefaultAsync(ct);
             if (inactiveAt is not { } leftAt || leftAt > now.AddYears(-RetentionFlagging.DbsCheckRetentionYears))
             {
@@ -353,10 +353,10 @@ public sealed class RetentionDeletionService
             Log(DeletionLogEntry.RecordTypes.ParentGuardian, guardian.Id, now, adminId, chapterId);
         }
 
-        // Roles, the active-chapter choice, calendar preferences, subscribe links and step-down
+        // Roles, the active-chapter choice, calendar preferences, subscribe links and Inactive record
         // history cascade from the account; the sign-in's claims, logins and tokens cascade from the
         // sign-in. Records that name the person only as the one who acted (a register they took, a
-        // lesson version they suggested or approved, a step-down they recorded, and the like) keep
+        // lesson version they suggested or approved, an Inactive record they recorded, and the like) keep
         // their content: the database's ON DELETE SET NULL clears the link, and they show "a former
         // member of staff" (docs/adr/0014, settled after build). The only other references to an
         // account are the keep-rules above (DBS check, student record, guardian row, application).

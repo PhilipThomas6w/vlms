@@ -646,6 +646,6 @@ public sealed class SensitiveDataAccessControlTests : IDisposable
         Assert.False(sut.HasRole(Role.Admin));
         Assert.False(sut.HasRole(Role.SafeguardingOfficer));
         using var db = new VlmsDbContext(options, NullCurrentUserContext.Instance);
-        Assert.False(LeftStaffPolicy.IsLockedOut(db, 1));
+        Assert.False(InactiveStaffPolicy.IsLockedOut(db, 1));
     }
 }
