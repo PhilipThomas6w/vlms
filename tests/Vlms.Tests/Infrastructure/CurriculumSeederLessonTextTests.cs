@@ -315,9 +315,8 @@ public sealed class CurriculumSeederLessonTextTests : IDisposable
 
         var result = await new CurriculumSeeder(db, _blobStorage).SeedAsync(Path.Combine(repo, "seed", "curriculum.json"), Path.Combine(_tempRoot, "content"));
 
-        // The "no longer read" errors (adr/0015 amendment) are for stale .notes.md and -TI.md files; the seed files are being
-        // renamed to .teachers-information.md separately, so they are not looked at here.
-        Assert.DoesNotContain(result.Errors, e => !e.Contains("is no longer read") && (e.Contains("picture") || e.Contains("Teacher's Information")));
+        // A stale .notes.md or -TI.md left in the real seed ("is no longer read", adr/0015 amendment) fails here too.
+        Assert.DoesNotContain(result.Errors, e => e.Contains("is no longer read") || e.Contains("picture") || e.Contains("Teacher's Information"));
     }
 
     private static string FindRepoRoot()
